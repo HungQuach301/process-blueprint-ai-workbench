@@ -30,6 +30,11 @@ type EditableColumn = {
   minWidth: string;
 };
 
+type SelectOption = {
+  value: string;
+  label: string;
+};
+
 const visibleColumns: EditableColumn[] = [
   { key: "stepId", label: "Mã bước", minWidth: "110px" },
   { key: "rowType", label: "Loại dòng", minWidth: "120px" },
@@ -59,6 +64,68 @@ const nullableColumns: Array<keyof ProcessTask> = [
   "yesNextStep",
   "noNextStep"
 ];
+
+const selectOptions: Partial<Record<keyof ProcessTask, SelectOption[]>> = {
+  rowType: [
+    { value: "task", label: "Task" },
+    { value: "gateway", label: "Gateway" },
+    { value: "event", label: "Event" },
+    { value: "data", label: "Data interaction" },
+    { value: "phase", label: "Phase" },
+    { value: "group", label: "Group" },
+    { value: "annotation", label: "Annotation" }
+  ],
+  bpmnType: [
+    { value: "startEvent", label: "Start Event" },
+    { value: "endEvent", label: "End Event" },
+    { value: "userTask", label: "User Task" },
+    { value: "manualTask", label: "Manual Task" },
+    { value: "serviceTask", label: "Service Task" },
+    { value: "sendTask", label: "Send Task" },
+    { value: "businessRuleTask", label: "Business Rule Task" },
+    { value: "scriptTask", label: "Script Task" },
+    { value: "exclusiveGateway", label: "Exclusive Gateway" },
+    { value: "parallelGateway", label: "Parallel Gateway" },
+    { value: "inclusiveGateway", label: "Inclusive Gateway" },
+    { value: "dataObject", label: "Data Object" },
+    { value: "dataStore", label: "Data Store" },
+    { value: "task", label: "Generic Task" },
+    { value: "none", label: "None" }
+  ],
+  taskNature: [
+    { value: "manual", label: "Manual" },
+    { value: "automatic", label: "Automatic" },
+    { value: "semiAutomatic", label: "Semi-automatic" },
+    { value: "system", label: "System" },
+    { value: "decision", label: "Decision" },
+    { value: "approval", label: "Approval" },
+    { value: "integration", label: "Integration" },
+    { value: "notification", label: "Notification" },
+    { value: "control", label: "Control" },
+    { value: "data", label: "Data" }
+  ],
+  dataAction: [
+    { value: "none", label: "None" },
+    { value: "pull", label: "Pull" },
+    { value: "push", label: "Push" },
+    { value: "store", label: "Store" },
+    { value: "create", label: "Create" },
+    { value: "read", label: "Read" },
+    { value: "update", label: "Update" },
+    { value: "delete", label: "Delete" },
+    { value: "validate", label: "Validate" },
+    { value: "approve", label: "Approve" },
+    { value: "reject", label: "Reject" },
+    { value: "send", label: "Send" },
+    { value: "receive", label: "Receive" }
+  ],
+  reviewStatus: [
+    { value: "draft", label: "Draft" },
+    { value: "needsReview", label: "Needs review" },
+    { value: "approved", label: "Approved" },
+    { value: "rejected", label: "Rejected" }
+  ]
+};
 
 function cloneSampleTasks() {
   return sampleProcessTasks.map((task) => ({ ...task }));
@@ -101,6 +168,29 @@ function createEmptyTask(index: number): ProcessTask {
 
 function getCellValue(task: ProcessTask, key: keyof ProcessTask) {
   return task[key] ?? "";
+}
+
+function getSelectOptions(key: keyof ProcessTask, value: string) {
+  const options = selectOptions[key];
+
+  if (!options) {
+    return [];
+  }
+
+  if (!value || options.some((option) => option.value === value)) {
+    return options;
+  }
+
+  return [
+    { value, label: `${value} (không hợp lệ)` },
+    ...options
+  ];
+}
+
+function isInvalidSelectValue(key: keyof ProcessTask, value: string) {
+  const options = selectOptions[key];
+
+  return Boolean(value && options && !options.some((option) => option.value === value));
 }
 
 function normalizeCellValue(key: keyof ProcessTask, value: string) {
@@ -314,6 +404,11 @@ export function ProcessTaskRegister() {
                 Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau
                 khi refresh trình duyệt.
               </p>
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                <li>Một dòng = một task/gateway/event/data interaction.</li>
+                <li>Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.</li>
+                <li>System/data phải giữ liên kết với hành trình người dùng.</li>
+              </ul>
               <p className="mt-2 text-sm text-slate-500">
                 Tổng dòng: {tasks.length} | Gateway: {gatewayCount}
               </p>
@@ -384,23 +479,55 @@ export function ProcessTaskRegister() {
                   <td className="sticky left-0 z-10 border-b border-r border-slate-200 bg-inherit px-3 py-2 font-medium text-slate-600">
                     {index + 1}
                   </td>
-                  {visibleColumns.map((column) => (
-                    <td
-                      className="border-b border-r border-slate-200 p-1"
-                      key={column.key}
-                      style={{ minWidth: column.minWidth }}
-                    >
-                      <input
-                        aria-label={`${column.label} dòng ${index + 1}`}
-                        className="w-full rounded border border-transparent bg-transparent px-2 py-2 text-sm text-slate-800 outline-none hover:border-slate-300 focus:border-slate-500 focus:bg-white"
-                        onChange={(event) =>
-                          updateCell(index, column.key, event.target.value)
-                        }
-                        type="text"
-                        value={String(getCellValue(task, column.key))}
-                      />
-                    </td>
-                  ))}
+                  {visibleColumns.map((column) => {
+                    const cellValue = String(getCellValue(task, column.key));
+                    const options = getSelectOptions(column.key, cellValue);
+                    const hasInvalidValue = isInvalidSelectValue(column.key, cellValue);
+
+                    return (
+                      <td
+                        className="border-b border-r border-slate-200 p-1"
+                        key={column.key}
+                        style={{ minWidth: column.minWidth }}
+                      >
+                        {options.length > 0 ? (
+                          <select
+                            aria-label={`${column.label} dòng ${index + 1}`}
+                            className={`w-full rounded border bg-white px-2 py-2 text-sm text-slate-800 outline-none hover:border-slate-300 focus:border-slate-500 ${
+                              hasInvalidValue
+                                ? "border-amber-400 text-amber-800"
+                                : "border-transparent"
+                            }`}
+                            onChange={(event) =>
+                              updateCell(index, column.key, event.target.value)
+                            }
+                            value={cellValue}
+                          >
+                            {options.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            aria-label={`${column.label} dòng ${index + 1}`}
+                            className="w-full rounded border border-transparent bg-transparent px-2 py-2 text-sm text-slate-800 outline-none hover:border-slate-300 focus:border-slate-500 focus:bg-white"
+                            onChange={(event) =>
+                              updateCell(index, column.key, event.target.value)
+                            }
+                            type="text"
+                            value={cellValue}
+                          />
+                        )}
+                        {hasInvalidValue ? (
+                          <p className="mt-1 px-2 text-xs text-amber-700">
+                            Giá trị cũ không nằm trong danh sách chuẩn.
+                          </p>
+                        ) : null}
+                      </td>
+                    );
+                  })}
                   <td className="sticky right-0 z-10 border-b border-l border-slate-200 bg-inherit p-2">
                     <div className="flex gap-2">
                       <button

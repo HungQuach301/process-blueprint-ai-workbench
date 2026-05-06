@@ -5,12 +5,13 @@ import type { QaIssue, QaSeverity } from "@/lib/qa/task-register-rules";
 type QAPanelProps = {
   issues: QaIssue[];
   onIssueClick: (stepId: string) => void;
+  onDownloadReport: () => void;
 };
 
 const severityLabels: Record<QaSeverity, string> = {
-  error: "Lỗi",
-  warning: "Cảnh báo",
-  suggestion: "Gợi ý"
+  error: "Loi",
+  warning: "Canh bao",
+  suggestion: "Goi y"
 };
 
 const severityStyles: Record<QaSeverity, string> = {
@@ -21,7 +22,11 @@ const severityStyles: Record<QaSeverity, string> = {
 
 const severityOrder: QaSeverity[] = ["error", "warning", "suggestion"];
 
-export function QAPanel({ issues, onIssueClick }: QAPanelProps) {
+export function QAPanel({
+  issues,
+  onIssueClick,
+  onDownloadReport
+}: QAPanelProps) {
   const groupedIssues = severityOrder.map((severity) => ({
     severity,
     issues: issues.filter((issue) => issue.severity === severity)
@@ -30,19 +35,31 @@ export function QAPanel({ issues, onIssueClick }: QAPanelProps) {
   return (
     <section className="rounded border border-slate-200 bg-white">
       <div className="border-b border-slate-200 p-4">
-        <p className="text-sm font-medium uppercase text-slate-500">
-          QA Engine
-        </p>
-        <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-          Kiểm tra chất lượng Process Task Register
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue
-          để nhảy tới dòng liên quan nếu còn tồn tại.
-        </p>
-        <p className="mt-3 text-sm font-semibold text-slate-950">
-          Tổng số issue: {issues.length}
-        </p>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase text-slate-500">
+              QA Engine
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
+              Kiem tra chat luong Process Task Register
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              QA chay lai tu dong khi du lieu trong bang thay doi. Click vao
+              issue de nhay toi dong lien quan neu con ton tai.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-slate-950">
+              Tong so issue: {issues.length}
+            </p>
+          </div>
+
+          <button
+            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={onDownloadReport}
+            type="button"
+          >
+            Download QA Report
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 p-4">
@@ -83,14 +100,14 @@ export function QAPanel({ issues, onIssueClick }: QAPanelProps) {
                     </p>
                     <p className="mt-1 text-sm text-slate-700">{issue.message}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      Cách sửa: {issue.suggestedFix}
+                      Cach sua: {issue.suggestedFix}
                     </p>
                   </button>
                 ))}
               </div>
             ) : (
               <p className="px-4 py-3 text-sm text-slate-500">
-                Không có issue trong nhóm này.
+                Khong co issue trong nhom nay.
               </p>
             )}
           </section>

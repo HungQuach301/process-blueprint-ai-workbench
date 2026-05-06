@@ -2,11 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QAPanel } from "@/components/qa-panel/QAPanel";
+import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
+import type { TemplateProfile } from "@/lib/models/template-profile";
 import { validateProcessTasks } from "@/lib/qa/task-register-rules";
-import { sampleProcessTasks } from "@/lib/sample-data/sme-online-loan";
+import {
+  sampleBpmnTemplateProfile,
+  sampleProcessTasks,
+  sampleServiceBlueprintTemplateProfile,
+  sampleWorkspace
+} from "@/lib/sample-data/sme-online-loan";
 
 const STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
+const TEMPLATES_STORAGE_KEY =
+  "process-blueprint-ai-workbench:template-profiles";
+const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
+const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 
 type EditableColumn = {
   key: keyof ProcessTask;
@@ -93,6 +104,30 @@ function normalizeCellValue(key: keyof ProcessTask, value: string) {
   }
 
   return value;
+}
+
+function createTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function readTemplateProfiles() {
+  const savedTemplates = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
+
+  if (!savedTemplates) {
+    return [sampleBpmnTemplateProfile, sampleServiceBlueprintTemplateProfile];
+  }
+
+  try {
+    const parsedTemplates = JSON.parse(savedTemplates);
+
+    if (Array.isArray(parsedTemplates)) {
+      return parsedTemplates as TemplateProfile[];
+    }
+  } catch {
+    return [sampleBpmnTemplateProfile, sampleServiceBlueprintTemplateProfile];
+  }
+
+  return [sampleBpmnTemplateProfile, sampleServiceBlueprintTemplateProfile];
 }
 
 export function ProcessTaskRegister() {
@@ -194,9 +229,47 @@ export function ProcessTaskRegister() {
     setSaveMessage("Đã reset về dữ liệu mẫu.");
   }
 
+  function downloadQaReport() {
+    const templateProfiles = readTemplateProfiles();
+    const selectedD01TemplateId =
+      window.localStorage.getItem(D01_STORAGE_KEY) ??
+      sampleWorkspace.selectedBpmnTemplateId;
+    const selectedD02TemplateId =
+      window.localStorage.getItem(D02_STORAGE_KEY) ??
+      sampleWorkspace.selectedServiceBlueprintTemplateId;
+    const selectedTemplates = templateProfiles.filter(
+      (template) =>
+        template.id === selectedD01TemplateId || template.id === selectedD02TemplateId
+    );
+    const markdown = generateQaReportMarkdown({
+      workspace: sampleWorkspace,
+      processTasks: tasks,
+      templateProfiles:
+        selectedTemplates.length > 0 ? selectedTemplates : templateProfiles,
+      qaIssues,
+      artifactReadiness: {
+        qaReport: true
+      }
+    });
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `QA_Report_${createTimestamp()}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <>
-      <QAPanel issues={qaIssues} onIssueClick={focusIssueRow} />
+      <QAPanel
+        issues={qaIssues}
+        onDownloadReport={downloadQaReport}
+        onIssueClick={focusIssueRow}
+      />
 
       <section className="rounded border border-slate-200 bg-white">
       <div className="border-b border-slate-200 p-4">

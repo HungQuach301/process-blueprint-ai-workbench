@@ -15,6 +15,7 @@ export type BpmnType =
   | "userTask"
   | "manualTask"
   | "serviceTask"
+  | "sendTask"
   | "scriptTask"
   | "businessRuleTask"
   | "exclusiveGateway"
@@ -25,6 +26,8 @@ export type BpmnType =
 
 export type TaskNature =
   | "manual"
+  | "automatic"
+  | "semiAutomatic"
   | "system"
   | "decision"
   | "approval"
@@ -35,6 +38,9 @@ export type TaskNature =
 
 export type DataAction =
   | "none"
+  | "pull"
+  | "push"
+  | "store"
   | "create"
   | "read"
   | "update"

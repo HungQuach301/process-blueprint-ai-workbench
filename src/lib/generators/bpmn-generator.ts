@@ -71,6 +71,26 @@ function unique(values: string[]) {
   return [...new Set(values.map(normalize).filter(Boolean))];
 }
 
+function hasHumanActor(task: ProcessTask) {
+  const actor = normalize(task.actor).toLowerCase();
+  const actorLane = normalize(task.actorLane).toLowerCase();
+
+  return Boolean(actor || actorLane) && actor !== "system" && actorLane !== "system";
+}
+
+function isAutomaticOrSystemTask(task: ProcessTask) {
+  const taskNature = normalize(task.taskNature).toLowerCase();
+  const actor = normalize(task.actor).toLowerCase();
+  const actorLane = normalize(task.actorLane).toLowerCase();
+
+  return (
+    taskNature === "automatic" ||
+    taskNature === "system" ||
+    actor === "system" ||
+    actorLane === "system"
+  );
+}
+
 function getBpmnTag(task: ProcessTask) {
   switch (task.bpmnType) {
     case "startEvent":
@@ -85,8 +105,18 @@ function getBpmnTag(task: ProcessTask) {
       return "bpmn:sendTask";
     case "exclusiveGateway":
       return "bpmn:exclusiveGateway";
-    default:
+    case "task":
       return "bpmn:task";
+    default:
+      if (isAutomaticOrSystemTask(task)) {
+        return "bpmn:serviceTask";
+      }
+
+      if (hasHumanActor(task)) {
+        return "bpmn:userTask";
+      }
+
+      return "bpmn:userTask";
   }
 }
 

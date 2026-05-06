@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { QAPanel } from "@/components/qa-panel/QAPanel";
 import type { ProcessTask } from "@/lib/models/process-task";
+import { validateProcessTasks } from "@/lib/qa/task-register-rules";
 import { sampleProcessTasks } from "@/lib/sample-data/sme-online-loan";
 
 const STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
@@ -96,6 +98,7 @@ function normalizeCellValue(key: keyof ProcessTask, value: string) {
 export function ProcessTaskRegister() {
   const [tasks, setTasks] = useState<ProcessTask[]>(() => cloneSampleTasks());
   const [saveMessage, setSaveMessage] = useState("");
+  const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
 
   useEffect(() => {
     const savedTasks = window.localStorage.getItem(STORAGE_KEY);
@@ -119,6 +122,15 @@ export function ProcessTaskRegister() {
     () => tasks.filter((task) => task.rowType === "gateway").length,
     [tasks]
   );
+
+  const qaIssues = useMemo(() => validateProcessTasks(tasks), [tasks]);
+
+  function focusIssueRow(stepId: string) {
+    setHighlightedStepId(stepId);
+    document
+      .getElementById(`process-task-row-${stepId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   function updateCell(index: number, key: keyof ProcessTask, value: string) {
     setTasks((currentTasks) =>
@@ -183,7 +195,10 @@ export function ProcessTaskRegister() {
   }
 
   return (
-    <section className="rounded border border-slate-200 bg-white">
+    <>
+      <QAPanel issues={qaIssues} onIssueClick={focusIssueRow} />
+
+      <section className="rounded border border-slate-200 bg-white">
       <div className="border-b border-slate-200 p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -255,7 +270,15 @@ export function ProcessTaskRegister() {
           </thead>
           <tbody>
             {tasks.map((task, index) => (
-              <tr className="align-top odd:bg-white even:bg-slate-50" key={task.id}>
+              <tr
+                className={`align-top ${
+                  highlightedStepId === task.stepId
+                    ? "bg-yellow-100"
+                    : "odd:bg-white even:bg-slate-50"
+                }`}
+                id={`process-task-row-${task.stepId}`}
+                key={task.id}
+              >
                 <td className="sticky left-0 z-10 border-b border-r border-slate-200 bg-inherit px-3 py-2 font-medium text-slate-600">
                   {index + 1}
                 </td>
@@ -299,6 +322,7 @@ export function ProcessTaskRegister() {
           </tbody>
         </table>
       </div>
-    </section>
+      </section>
+    </>
   );
 }

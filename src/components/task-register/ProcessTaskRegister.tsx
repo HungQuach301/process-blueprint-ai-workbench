@@ -18,6 +18,11 @@ const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
+const D01_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d01-bpmn-status";
+const D02_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
+const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 
 type EditableColumn = {
   key: keyof ProcessTask;
@@ -130,6 +135,17 @@ function readTemplateProfiles() {
   return [sampleBpmnTemplateProfile, sampleServiceBlueprintTemplateProfile];
 }
 
+function markGeneratedArtifactsStale() {
+  window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
+  window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "stale");
+  window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
+}
+
+function persistTasks(nextTasks: ProcessTask[]) {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTasks));
+  return nextTasks;
+}
+
 export function ProcessTaskRegister() {
   const [tasks, setTasks] = useState<ProcessTask[]>(() => cloneSampleTasks());
   const [saveMessage, setSaveMessage] = useState("");
@@ -169,20 +185,29 @@ export function ProcessTaskRegister() {
 
   function updateCell(index: number, key: keyof ProcessTask, value: string) {
     setTasks((currentTasks) =>
-      currentTasks.map((task, taskIndex) =>
-        taskIndex === index
-          ? ({
-              ...task,
-              [key]: normalizeCellValue(key, value)
-            } as ProcessTask)
-          : task
+      persistTasks(
+        currentTasks.map((task, taskIndex) =>
+          taskIndex === index
+            ? ({
+                ...task,
+                [key]: normalizeCellValue(key, value)
+              } as ProcessTask)
+            : task
+        )
       )
     );
+    markGeneratedArtifactsStale();
     setSaveMessage("Có thay đổi chưa lưu.");
   }
 
   function addRow() {
-    setTasks((currentTasks) => [...currentTasks, createEmptyTask(currentTasks.length)]);
+    setTasks((currentTasks) =>
+      persistTasks([
+        ...currentTasks,
+        createEmptyTask(currentTasks.length)
+      ])
+    );
+    markGeneratedArtifactsStale();
     setSaveMessage("Đã thêm dòng mới. Bấm Lưu để giữ sau khi refresh.");
   }
 
@@ -200,24 +225,27 @@ export function ProcessTaskRegister() {
         stepId: `${sourceTask.stepId}-copy`
       };
 
-      return [
+      return persistTasks([
         ...currentTasks.slice(0, index + 1),
         duplicatedTask,
         ...currentTasks.slice(index + 1)
-      ];
+      ]);
     });
+    markGeneratedArtifactsStale();
     setSaveMessage("Đã nhân bản dòng. Bấm Lưu để giữ sau khi refresh.");
   }
 
   function deleteRow(index: number) {
     setTasks((currentTasks) =>
-      currentTasks.filter((_, taskIndex) => taskIndex !== index)
+      persistTasks(currentTasks.filter((_, taskIndex) => taskIndex !== index))
     );
+    markGeneratedArtifactsStale();
     setSaveMessage("Đã xóa dòng. Bấm Lưu để giữ sau khi refresh.");
   }
 
   function saveTasks() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    markGeneratedArtifactsStale();
     setSaveMessage("Đã lưu vào localStorage.");
   }
 
@@ -226,6 +254,7 @@ export function ProcessTaskRegister() {
 
     setTasks(sampleTasks);
     window.localStorage.removeItem(STORAGE_KEY);
+    markGeneratedArtifactsStale();
     setSaveMessage("Đã reset về dữ liệu mẫu.");
   }
 
@@ -272,129 +301,129 @@ export function ProcessTaskRegister() {
       />
 
       <section className="rounded border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
-              Process Task Register
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-              Bảng công việc SME Online Loan
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau
-              khi refresh trình duyệt.
-            </p>
-            <p className="mt-2 text-sm text-slate-500">
-              Tổng dòng: {tasks.length} | Gateway: {gatewayCount}
-            </p>
+        <div className="border-b border-slate-200 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase text-slate-500">
+                Process Task Register
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold text-slate-950">
+                Bảng công việc SME Online Loan
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau
+                khi refresh trình duyệt.
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Tổng dòng: {tasks.length} | Gateway: {gatewayCount}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={addRow}
+                type="button"
+              >
+                Thêm dòng
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                onClick={saveTasks}
+                type="button"
+              >
+                Lưu
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={resetTasks}
+                type="button"
+              >
+                Reset mẫu
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={addRow}
-              type="button"
-            >
-              Thêm dòng
-            </button>
-            <button
-              className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              onClick={saveTasks}
-              type="button"
-            >
-              Lưu
-            </button>
-            <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={resetTasks}
-              type="button"
-            >
-              Reset mẫu
-            </button>
-          </div>
+          {saveMessage ? (
+            <p className="mt-3 text-sm text-slate-600">{saveMessage}</p>
+          ) : null}
         </div>
 
-        {saveMessage ? (
-          <p className="mt-3 text-sm text-slate-600">{saveMessage}</p>
-        ) : null}
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-left text-sm">
-          <thead className="bg-slate-100 text-slate-700">
-            <tr>
-              <th className="sticky left-0 z-10 w-14 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
-                #
-              </th>
-              {visibleColumns.map((column) => (
-                <th
-                  className="border-b border-r border-slate-200 px-3 py-3 font-semibold"
-                  key={column.key}
-                  style={{ minWidth: column.minWidth }}
-                >
-                  {column.label}
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-left text-sm">
+            <thead className="bg-slate-100 text-slate-700">
+              <tr>
+                <th className="sticky left-0 z-10 w-14 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                  #
                 </th>
-              ))}
-              <th className="sticky right-0 z-10 w-44 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
-                Thao tác
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.map((task, index) => (
-              <tr
-                className={`align-top ${
-                  highlightedStepId === task.stepId
-                    ? "bg-yellow-100"
-                    : "odd:bg-white even:bg-slate-50"
-                }`}
-                id={`process-task-row-${task.stepId}`}
-                key={task.id}
-              >
-                <td className="sticky left-0 z-10 border-b border-r border-slate-200 bg-inherit px-3 py-2 font-medium text-slate-600">
-                  {index + 1}
-                </td>
                 {visibleColumns.map((column) => (
-                  <td
-                    className="border-b border-r border-slate-200 p-1"
+                  <th
+                    className="border-b border-r border-slate-200 px-3 py-3 font-semibold"
                     key={column.key}
                     style={{ minWidth: column.minWidth }}
                   >
-                    <input
-                      aria-label={`${column.label} dòng ${index + 1}`}
-                      className="w-full rounded border border-transparent bg-transparent px-2 py-2 text-sm text-slate-800 outline-none hover:border-slate-300 focus:border-slate-500 focus:bg-white"
-                      onChange={(event) =>
-                        updateCell(index, column.key, event.target.value)
-                      }
-                      type="text"
-                      value={String(getCellValue(task, column.key))}
-                    />
-                  </td>
+                    {column.label}
+                  </th>
                 ))}
-                <td className="sticky right-0 z-10 border-b border-l border-slate-200 bg-inherit p-2">
-                  <div className="flex gap-2">
-                    <button
-                      className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      onClick={() => duplicateRow(index)}
-                      type="button"
-                    >
-                      Nhân bản
-                    </button>
-                    <button
-                      className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-                      onClick={() => deleteRow(index)}
-                      type="button"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </td>
+                <th className="sticky right-0 z-10 w-44 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                  Thao tác
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {tasks.map((task, index) => (
+                <tr
+                  className={`align-top ${
+                    highlightedStepId === task.stepId
+                      ? "bg-yellow-100"
+                      : "odd:bg-white even:bg-slate-50"
+                  }`}
+                  id={`process-task-row-${task.stepId}`}
+                  key={task.id}
+                >
+                  <td className="sticky left-0 z-10 border-b border-r border-slate-200 bg-inherit px-3 py-2 font-medium text-slate-600">
+                    {index + 1}
+                  </td>
+                  {visibleColumns.map((column) => (
+                    <td
+                      className="border-b border-r border-slate-200 p-1"
+                      key={column.key}
+                      style={{ minWidth: column.minWidth }}
+                    >
+                      <input
+                        aria-label={`${column.label} dòng ${index + 1}`}
+                        className="w-full rounded border border-transparent bg-transparent px-2 py-2 text-sm text-slate-800 outline-none hover:border-slate-300 focus:border-slate-500 focus:bg-white"
+                        onChange={(event) =>
+                          updateCell(index, column.key, event.target.value)
+                        }
+                        type="text"
+                        value={String(getCellValue(task, column.key))}
+                      />
+                    </td>
+                  ))}
+                  <td className="sticky right-0 z-10 border-b border-l border-slate-200 bg-inherit p-2">
+                    <div className="flex gap-2">
+                      <button
+                        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        onClick={() => duplicateRow(index)}
+                        type="button"
+                      >
+                        Nhân bản
+                      </button>
+                      <button
+                        className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                        onClick={() => deleteRow(index)}
+                        type="button"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </>
   );

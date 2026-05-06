@@ -15,6 +15,11 @@ const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
+const D01_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d01-bpmn-status";
+const D02_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
+const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 
 type RuleField =
   | "laneRules"
@@ -118,6 +123,12 @@ function findTemplateName(drafts: TemplateDraft[], templateId: string) {
   return drafts.find((draft) => draft.id === templateId)?.name ?? "Chưa chọn";
 }
 
+function markGeneratedArtifactsStale() {
+  window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
+  window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "stale");
+  window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
+}
+
 export function TemplateLibraryEditor() {
   const [drafts, setDrafts] = useState<TemplateDraft[]>(() => sampleDrafts());
   const [activeTemplateId, setActiveTemplateId] = useState(
@@ -182,6 +193,7 @@ export function TemplateLibraryEditor() {
           : draft
       )
     );
+    markGeneratedArtifactsStale();
     setMessage("Có thay đổi chưa lưu.");
   }
 
@@ -203,6 +215,7 @@ export function TemplateLibraryEditor() {
       );
       window.localStorage.setItem(D01_STORAGE_KEY, selectedD01TemplateId);
       window.localStorage.setItem(D02_STORAGE_KEY, selectedD02TemplateId);
+      markGeneratedArtifactsStale();
       setMessage("Đã lưu template profile và lựa chọn D01/D02.");
     } catch (error) {
       setMessage(
@@ -223,18 +236,21 @@ export function TemplateLibraryEditor() {
     window.localStorage.removeItem(TEMPLATES_STORAGE_KEY);
     window.localStorage.removeItem(D01_STORAGE_KEY);
     window.localStorage.removeItem(D02_STORAGE_KEY);
+    markGeneratedArtifactsStale();
     setMessage("Đã reset về sample templates.");
   }
 
   function useForD01(templateId: string) {
     setSelectedD01TemplateId(templateId);
     window.localStorage.setItem(D01_STORAGE_KEY, templateId);
+    markGeneratedArtifactsStale();
     setMessage("Đã chọn template cho D01 BPMN.");
   }
 
   function useForD02(templateId: string) {
     setSelectedD02TemplateId(templateId);
     window.localStorage.setItem(D02_STORAGE_KEY, templateId);
+    markGeneratedArtifactsStale();
     setMessage("Đã chọn template cho D02 Service Blueprint.");
   }
 

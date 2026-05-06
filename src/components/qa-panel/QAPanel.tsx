@@ -9,9 +9,9 @@ type QAPanelProps = {
 };
 
 const severityLabels: Record<QaSeverity, string> = {
-  error: "Loi",
-  warning: "Canh bao",
-  suggestion: "Goi y"
+  error: "Lỗi",
+  warning: "Cảnh báo",
+  suggestion: "Gợi ý"
 };
 
 const severityStyles: Record<QaSeverity, string> = {
@@ -41,14 +41,14 @@ export function QAPanel({
               QA Engine
             </p>
             <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-              Kiem tra chat luong Process Task Register
+              Kiểm tra chất lượng Process Task Register
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              QA chay lai tu dong khi du lieu trong bang thay doi. Click vao
-              issue de nhay toi dong lien quan neu con ton tai.
+              QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào
+              issue để nhảy tới dòng liên quan nếu còn tồn tại.
             </p>
             <p className="mt-3 text-sm font-semibold text-slate-950">
-              Tong so issue: {issues.length}
+              Tổng số issue: {issues.length}
             </p>
           </div>
 
@@ -100,14 +100,14 @@ export function QAPanel({
                     </p>
                     <p className="mt-1 text-sm text-slate-700">{issue.message}</p>
                     <p className="mt-1 text-sm text-slate-500">
-                      Cach sua: {issue.suggestedFix}
+                      Cách sửa: {issue.suggestedFix}
                     </p>
                   </button>
                 ))}
               </div>
             ) : (
               <p className="px-4 py-3 text-sm text-slate-500">
-                Khong co issue trong nhom nay.
+                Không có issue trong nhóm này.
               </p>
             )}
           </section>

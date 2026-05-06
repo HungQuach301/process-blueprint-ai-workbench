@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import JSZip from "jszip";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
@@ -24,6 +24,13 @@ const D01_GENERATED_XML_KEY =
   "process-blueprint-ai-workbench:generated-d01-bpmn-xml";
 const D02_GENERATED_XML_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-xml";
+const D01_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d01-bpmn-status";
+const D02_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
+const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+
+type ArtifactStatus = "fresh" | "stale" | "not_generated";
 
 type OutputArtifacts = {
   timestamp: string;
@@ -90,16 +97,40 @@ export function ExportCenter() {
   const [artifacts, setArtifacts] = useState<OutputArtifacts | null>(null);
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
+  const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
+
+  function readArtifactStatus(key: string): ArtifactStatus {
+    const status = window.localStorage.getItem(key);
+
+    return status === "fresh" || status === "stale" ? status : "not_generated";
+  }
+
+  function refreshArtifactStatuses() {
+    setD01Status(readArtifactStatus(D01_GENERATED_STATUS_KEY));
+    setD02Status(readArtifactStatus(D02_GENERATED_STATUS_KEY));
+  }
+
+  useEffect(() => {
+    refreshArtifactStatuses();
+    window.addEventListener(ARTIFACT_STATUS_EVENT, refreshArtifactStatuses);
+
+    return () => {
+      window.removeEventListener(ARTIFACT_STATUS_EVENT, refreshArtifactStatuses);
+    };
+  }, []);
 
   const readiness = useMemo(
     () => ({
-      d01Bpmn: Boolean(artifacts?.d01BpmnXml),
-      d02ServiceBlueprint: Boolean(artifacts?.d02ServiceBlueprintXml),
-      qaReport: Boolean(artifacts?.qaReportMarkdown),
-      processTaskRegister: Boolean(artifacts?.processTaskRegisterJson),
-      templateProfile: Boolean(artifacts?.templateProfileJson)
+      d01Bpmn: d01Status,
+      d02ServiceBlueprint: d02Status,
+      qaReport: artifacts?.qaReportMarkdown ? "fresh" : "not_generated",
+      processTaskRegister: artifacts?.processTaskRegisterJson
+        ? "fresh"
+        : "not_generated",
+      templateProfile: artifacts?.templateProfileJson ? "fresh" : "not_generated"
     }),
-    [artifacts]
+    [artifacts, d01Status, d02Status]
   );
 
   function buildArtifacts() {
@@ -122,13 +153,11 @@ export function ExportCenter() {
       selectedD02TemplateId,
       sampleServiceBlueprintTemplateProfile
     );
-    const cachedD01Xml = window.localStorage.getItem(D01_GENERATED_XML_KEY);
-    const cachedD02Xml = window.localStorage.getItem(D02_GENERATED_XML_KEY);
-    const d01BpmnXml =
-      cachedD01Xml?.trim() || generateBpmnXml(processTasks, selectedD01Template);
-    const d02ServiceBlueprintXml =
-      cachedD02Xml?.trim() ||
-      generateServiceBlueprintDrawioXml(processTasks, selectedD02Template);
+    const d01BpmnXml = generateBpmnXml(processTasks, selectedD01Template);
+    const d02ServiceBlueprintXml = generateServiceBlueprintDrawioXml(
+      processTasks,
+      selectedD02Template
+    );
     const selectedTemplates = [selectedD01Template, selectedD02Template];
     const qaIssues = validateProcessTasks(processTasks);
     const processTaskRegisterJson = JSON.stringify(processTasks, null, 2);
@@ -155,6 +184,9 @@ export function ExportCenter() {
 
     window.localStorage.setItem(D01_GENERATED_XML_KEY, d01BpmnXml);
     window.localStorage.setItem(D02_GENERATED_XML_KEY, d02ServiceBlueprintXml);
+    window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "fresh");
+    window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "fresh");
+    window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
 
     return {
       timestamp,
@@ -171,7 +203,8 @@ export function ExportCenter() {
       const nextArtifacts = buildArtifacts();
 
       setArtifacts(nextArtifacts);
-      setMessage("Đã generate đủ 5 artifacts cho output package.");
+      refreshArtifactStatuses();
+      setMessage("Đã generate fresh đủ 5 artifacts cho output package.");
     } catch (error) {
       setArtifacts(null);
       setMessage(
@@ -212,6 +245,7 @@ export function ExportCenter() {
         "application/zip"
       );
       setArtifacts(currentArtifacts);
+      refreshArtifactStatuses();
       setMessage("Đã tạo ZIP output package.");
     } catch (error) {
       setMessage(
@@ -270,15 +304,23 @@ export function ExportCenter() {
           ["QA Report", readiness.qaReport],
           ["Process Task Register", readiness.processTaskRegister],
           ["Template Profile", readiness.templateProfile]
-        ].map(([label, ready]) => (
+        ].map(([label, status]) => (
           <div className="rounded border border-slate-200 p-3" key={String(label)}>
             <p className="text-sm font-semibold text-slate-950">{label}</p>
             <p
               className={`mt-1 text-sm ${
-                ready ? "text-emerald-700" : "text-slate-500"
+                status === "fresh"
+                  ? "text-emerald-700"
+                  : status === "stale"
+                    ? "text-amber-700"
+                    : "text-slate-500"
               }`}
             >
-              {ready ? "Ready" : "Not generated"}
+              {status === "fresh"
+                ? "Fresh"
+                : status === "stale"
+                  ? "Stale"
+                  : "Not generated"}
             </p>
           </div>
         ))}

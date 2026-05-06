@@ -16,6 +16,9 @@ const TEMPLATES_STORAGE_KEY =
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D01_GENERATED_XML_KEY =
   "process-blueprint-ai-workbench:generated-d01-bpmn-xml";
+const D01_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d01-bpmn-status";
+const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 
 function readProcessTasks() {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
@@ -76,6 +79,8 @@ export function D01BpmnOutput() {
 
       setXml(generatedXml);
       window.localStorage.setItem(D01_GENERATED_XML_KEY, generatedXml);
+      window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "fresh");
+      window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
       setMessage("Đã generate D01 BPMN XML.");
     } catch (error) {
       setXml("");
@@ -119,7 +124,7 @@ export function D01BpmnOutput() {
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Tạo BPMN XML từ Process Task Register đã lưu và template D01 đang
-              chọn. Chưa có preview trực quan ở bước này.
+              chọn. Chưa có chỉnh sửa trực quan ở bước này.
             </p>
           </div>
 

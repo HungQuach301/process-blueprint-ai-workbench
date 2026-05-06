@@ -8,18 +8,19 @@
     "start": "next start"
   },
   "dependencies": {
+    "bpmn-js": "^18.16.1",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "latest",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "postcss": "latest",
-    "@tailwindcss/postcss": "latest",
     "tailwindcss": "latest",
     "typescript": "latest"
   }

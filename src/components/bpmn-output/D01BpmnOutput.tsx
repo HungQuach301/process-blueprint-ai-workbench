@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BpmnPreview } from "@/components/preview/BpmnPreview";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -141,6 +142,10 @@ export function D01BpmnOutput() {
       </div>
 
       <div className="p-4">
+        <div className="mb-4">
+          <BpmnPreview xml={xml} />
+        </div>
+
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           XML đã generate
           <textarea

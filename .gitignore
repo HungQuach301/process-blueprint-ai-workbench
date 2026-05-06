@@ -37,3 +37,6 @@ Thumbs.db
 .npm/
 .yarn/
 .pnpm-store/
+
+# Vercel
+.vercel/

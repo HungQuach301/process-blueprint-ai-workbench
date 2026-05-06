@@ -1,16 +1,44 @@
 # Process Blueprint AI Workbench
 
-Minimal project workspace for the Process Blueprint AI Workbench MVP.
+Next.js workspace for the Process Blueprint AI Workbench MVP.
 
-This repository is intentionally not scaffolded yet. The Next.js app and project dependencies will be added in a later step.
+This project is being built step by step with a simple, readable codebase.
 
 ## Current Setup
 
+- Next.js App Router skeleton
+- React and TypeScript
+- Tailwind CSS setup
+- Placeholder navigation for the main MVP sections
 - Project planning document in `docs/PROJECT_PLAN.md`
-- Node.js / Next.js-oriented `.gitignore`
-- No installed dependencies
-- No generated application files
 
-## Next Step
+## Main Sections
 
-Create the Next.js application scaffold once the MVP direction is confirmed.
+- Workspace
+- Input Brief
+- Template Library
+- Process Task Register
+- QA Panel
+- D01 BPMN Preview
+- D02 Service Blueprint Preview
+- Export Center
+
+## Local Development
+
+Install dependencies:
+
+```powershell
+npm install
+```
+
+Run locally:
+
+```powershell
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```

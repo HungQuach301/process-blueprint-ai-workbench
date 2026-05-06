@@ -14,11 +14,22 @@ Build a focused workbench that helps users turn process notes into a clear proce
 
 ## Initial Milestones
 
-1. Scaffold the Next.js app.
+1. Scaffold the Next.js app skeleton.
 2. Define the core blueprint data model.
 3. Build the note input and blueprint preview workflow.
 4. Add basic validation and empty states.
 5. Prepare for AI integration after the local workflow is usable.
+
+## App Sections
+
+- Workspace
+- Input Brief
+- Template Library
+- Process Task Register
+- QA Panel
+- D01 BPMN Preview
+- D02 Service Blueprint Preview
+- Export Center
 
 ## Non-Goals For MVP
 

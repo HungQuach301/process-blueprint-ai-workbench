@@ -1,4 +1,5 @@
 import { Navigation } from "@/components/Navigation";
+import { D01BpmnOutput } from "@/components/bpmn-output/D01BpmnOutput";
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
 import { SectionPanel } from "@/components/SectionPanel";
@@ -28,6 +29,8 @@ export function AppShell() {
             <TemplateLibraryEditor />
 
             <ProcessTaskRegister />
+
+            <D01BpmnOutput />
 
             {navigationSections.map((section) => (
               <SectionPanel key={section.id} section={section} />

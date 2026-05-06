@@ -22,19 +22,19 @@ type SequenceFlow = {
   conditionQuestion?: string;
 };
 
-type Association = {
-  id: string;
-  sourceRef: string;
-  targetRef: string;
-};
-
 type DataReference = {
   id: string;
   objectId: string;
   name: string;
   sourceNodeId: string;
+  associationType: "input" | "output" | "none";
   x: number;
   y: number;
+};
+
+type DataObjectDefinition = {
+  id: string;
+  name: string;
 };
 
 type Lane = {
@@ -68,6 +68,10 @@ function sanitizeId(value: string) {
 
 function normalize(value: string | null | undefined) {
   return value?.trim() ?? "";
+}
+
+function normalizeKey(value: string) {
+  return normalize(value).toLowerCase();
 }
 
 function unique(values: string[]) {
@@ -244,36 +248,52 @@ function buildSequenceFlows(tasks: ProcessTask[], nodeByStepId: Map<string, Bpmn
 }
 
 function buildDataReferences(nodes: BpmnNode[]) {
+  const objectByName = new Map<string, DataObjectDefinition>();
+  const objects: DataObjectDefinition[] = [];
   const references: DataReference[] = [];
-  const associations: Association[] = [];
 
   nodes.forEach((node) => {
     const dataObjectName = normalize(node.task.dataObject);
+    const dataAction = normalize(node.task.dataAction).toLowerCase();
 
-    if (!dataObjectName || node.task.dataAction === "none") {
+    if (!dataObjectName || dataAction === "none") {
       return;
     }
 
+    const objectKey = normalizeKey(dataObjectName);
+    let dataObject = objectByName.get(objectKey);
+
+    if (!dataObject) {
+      dataObject = {
+        id: `DataObject_${sanitizeId(dataObjectName)}`,
+        name: dataObjectName
+      };
+      objectByName.set(objectKey, dataObject);
+      objects.push(dataObject);
+    }
+
+    const canAttachToTask = node.tagName.toLowerCase().endsWith("task");
+    const associationType =
+      canAttachToTask && (dataAction === "pull" || dataAction === "read")
+        ? "input"
+        : canAttachToTask &&
+            (dataAction === "push" || dataAction === "store" || dataAction === "update")
+          ? "output"
+          : "none";
     const referenceId = `DataRef_${sanitizeId(node.task.stepId)}_${sanitizeId(dataObjectName)}`;
-    const objectId = `DataObject_${sanitizeId(node.task.stepId)}_${sanitizeId(dataObjectName)}`;
 
     references.push({
       id: referenceId,
-      objectId,
+      objectId: dataObject.id,
       name: dataObjectName,
       sourceNodeId: node.id,
+      associationType,
       x: node.x,
       y: node.y + node.height + 35
     });
-
-    associations.push({
-      id: `Association_${sanitizeId(node.task.stepId)}_${sanitizeId(dataObjectName)}`,
-      sourceRef: node.id,
-      targetRef: referenceId
-    });
   });
 
-  return { references, associations };
+  return { objects, references };
 }
 
 function getIncomingFlows(nodeId: string, flows: SequenceFlow[]) {
@@ -295,14 +315,97 @@ function getDefaultFlowId(node: BpmnNode, flows: SequenceFlow[]) {
   return noFlow?.id ?? outgoingFlows[0]?.id ?? "";
 }
 
-function renderNode(node: BpmnNode, flows: SequenceFlow[]) {
+function getDataReferencesForNode(node: BpmnNode, dataReferences: DataReference[]) {
+  return dataReferences.filter(
+    (reference) => reference.sourceNodeId === node.id && reference.associationType !== "none"
+  );
+}
+
+function renderIoSpecification(dataReferences: DataReference[]) {
+  if (dataReferences.length === 0) {
+    return "";
+  }
+
+  const dataInputs = dataReferences
+    .filter((reference) => reference.associationType === "input")
+    .map(
+      (reference) =>
+        `      <bpmn:dataInput id="DataInput_${reference.id}" name="${escapeXml(reference.name)}" />`
+    );
+  const dataOutputs = dataReferences
+    .filter((reference) => reference.associationType === "output")
+    .map(
+      (reference) =>
+        `      <bpmn:dataOutput id="DataOutput_${reference.id}" name="${escapeXml(reference.name)}" />`
+    );
+  const inputRefs = dataInputs.length
+    ? dataReferences
+        .filter((reference) => reference.associationType === "input")
+        .map((reference) => `        <bpmn:dataInputRefs>DataInput_${reference.id}</bpmn:dataInputRefs>`)
+    : [];
+  const outputRefs = dataOutputs.length
+    ? dataReferences
+        .filter((reference) => reference.associationType === "output")
+        .map((reference) => `        <bpmn:dataOutputRefs>DataOutput_${reference.id}</bpmn:dataOutputRefs>`)
+    : [];
+
+  return [
+    "      <bpmn:ioSpecification>",
+    ...dataInputs,
+    ...dataOutputs,
+    `        <bpmn:inputSet id="InputSet_${dataReferences[0].sourceNodeId}">`,
+    ...inputRefs,
+    "        </bpmn:inputSet>",
+    `        <bpmn:outputSet id="OutputSet_${dataReferences[0].sourceNodeId}">`,
+    ...outputRefs,
+    "        </bpmn:outputSet>",
+    "      </bpmn:ioSpecification>"
+  ].join("\n");
+}
+
+function renderDataAssociations(dataReferences: DataReference[]) {
+  return dataReferences
+    .map((reference) => {
+      if (reference.associationType === "input") {
+        return [
+          `      <bpmn:dataInputAssociation id="DataInputAssociation_${reference.id}">`,
+          `        <bpmn:sourceRef>${reference.id}</bpmn:sourceRef>`,
+          `        <bpmn:targetRef>DataInput_${reference.id}</bpmn:targetRef>`,
+          "      </bpmn:dataInputAssociation>"
+        ].join("\n");
+      }
+
+      if (reference.associationType === "output") {
+        return [
+          `      <bpmn:dataOutputAssociation id="DataOutputAssociation_${reference.id}">`,
+          `        <bpmn:sourceRef>DataOutput_${reference.id}</bpmn:sourceRef>`,
+          `        <bpmn:targetRef>${reference.id}</bpmn:targetRef>`,
+          "      </bpmn:dataOutputAssociation>"
+        ].join("\n");
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function renderNode(node: BpmnNode, flows: SequenceFlow[], dataReferences: DataReference[]) {
   const incoming = getIncomingFlows(node.id, flows)
     .map((flowId) => `      <bpmn:incoming>${flowId}</bpmn:incoming>`)
     .join("\n");
   const outgoing = getOutgoingFlows(node.id, flows)
     .map((flowId) => `      <bpmn:outgoing>${flowId}</bpmn:outgoing>`)
     .join("\n");
-  const children = [incoming, outgoing].filter(Boolean).join("\n");
+  const nodeDataReferences = getDataReferencesForNode(node, dataReferences);
+  const children = [
+    incoming,
+    outgoing,
+    renderIoSpecification(nodeDataReferences),
+    renderDataAssociations(nodeDataReferences)
+  ]
+    .filter(Boolean)
+    .join("\n");
   const name = escapeXml(node.task.taskName || node.task.stepId);
   const defaultFlowId = getDefaultFlowId(node, flows);
   const defaultAttribute = defaultFlowId
@@ -342,24 +445,27 @@ function renderSequenceFlow(flow: SequenceFlow) {
   ].join("\n");
 }
 
-function renderLane(lane: Lane, nodes: BpmnNode[]) {
-  const refs = nodes
+function renderLane(lane: Lane, nodes: BpmnNode[], dataReferences: DataReference[]) {
+  const nodeRefs = nodes
     .filter((node) => node.laneId === lane.id)
-    .map((node) => `        <bpmn:flowNodeRef>${node.id}</bpmn:flowNodeRef>`)
-    .join("\n");
+    .map((node) => `        <bpmn:flowNodeRef>${node.id}</bpmn:flowNodeRef>`);
+  const dataRefs =
+    lane.type === "data"
+      ? dataReferences.map((reference) => `        <bpmn:flowNodeRef>${reference.id}</bpmn:flowNodeRef>`)
+      : [];
+  const refs = [...nodeRefs, ...dataRefs].join("\n");
 
   return `      <bpmn:lane id="${lane.id}" name="${escapeXml(lane.name)}">\n${refs}\n      </bpmn:lane>`;
 }
 
-function renderDataObject(reference: DataReference) {
-  return [
-    `    <bpmn:dataObject id="${reference.objectId}" name="${escapeXml(reference.name)}" />`,
-    `    <bpmn:dataObjectReference id="${reference.id}" name="${escapeXml(reference.name)}" dataObjectRef="${reference.objectId}" />`
-  ].join("\n");
+function renderDataObject(object: DataObjectDefinition) {
+  return `    <bpmn:dataObject id="${object.id}" name="${escapeXml(object.name)}" />`;
 }
 
-function renderAssociation(association: Association) {
-  return `    <bpmn:association id="${association.id}" sourceRef="${association.sourceRef}" targetRef="${association.targetRef}" />`;
+function renderDataObjectReference(reference: DataReference) {
+  return [
+    `    <bpmn:dataObjectReference id="${reference.id}" name="${escapeXml(reference.name)}" dataObjectRef="${reference.objectId}" />`
+  ].join("\n");
 }
 
 function renderShape(id: string, bpmnElement: string, x: number, y: number, width: number, height: number) {
@@ -393,13 +499,6 @@ function getSequenceWaypoints(source: BpmnNode, target: BpmnNode) {
   ];
 }
 
-function getAssociationWaypoints(source: BpmnNode, target: DataReference) {
-  return [
-    { x: source.x + source.width / 2, y: source.y + source.height },
-    { x: target.x + 18, y: target.y }
-  ];
-}
-
 export function generateBpmnXml(
   processTasks: ProcessTask[],
   templateProfile: TemplateProfile
@@ -414,7 +513,7 @@ export function generateBpmnXml(
   const nodeByStepId = new Map(nodes.map((node) => [node.task.stepId, node]));
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const sequenceFlows = buildSequenceFlows(processTasks, nodeByStepId);
-  const { references: dataReferences, associations } = buildDataReferences(nodes);
+  const { objects: dataObjects, references: dataReferences } = buildDataReferences(nodes);
   const diagramWidth =
     START_X + Math.max(processTasks.length - 1, 0) * HORIZONTAL_GAP + LANE_WIDTH_PADDING;
   const diagramHeight = Math.max(lanes.length, 1) * LANE_HEIGHT;
@@ -427,12 +526,12 @@ export function generateBpmnXml(
     "  </bpmn:collaboration>",
     `  <bpmn:process id="${processId}" name="${escapeXml(templateProfile.name)}" isExecutable="false">`,
     '    <bpmn:laneSet id="LaneSet_D01_BPMN">',
-    lanes.map((lane) => renderLane(lane, nodes)).join("\n"),
+    lanes.map((lane) => renderLane(lane, nodes, dataReferences)).join("\n"),
     "    </bpmn:laneSet>",
-    nodes.map((node) => renderNode(node, sequenceFlows)).join("\n"),
+    nodes.map((node) => renderNode(node, sequenceFlows, dataReferences)).join("\n"),
     sequenceFlows.map(renderSequenceFlow).join("\n"),
-    dataReferences.map(renderDataObject).join("\n"),
-    associations.map(renderAssociation).join("\n"),
+    dataObjects.map(renderDataObject).join("\n"),
+    dataReferences.map(renderDataObjectReference).join("\n"),
     "  </bpmn:process>",
     `  <bpmndi:BPMNDiagram id="${diagramId}">`,
     `    <bpmndi:BPMNPlane id="${planeId}" bpmnElement="${collaborationId}">`,
@@ -472,25 +571,6 @@ export function generateBpmnXml(
           `${flow.id}_di`,
           flow.id,
           getSequenceWaypoints(source, target)
-        );
-      })
-      .filter(Boolean)
-      .join("\n"),
-    associations
-      .map((association) => {
-        const source = nodeById.get(association.sourceRef);
-        const target = dataReferences.find(
-          (reference) => reference.id === association.targetRef
-        );
-
-        if (!source || !target) {
-          return "";
-        }
-
-        return renderEdge(
-          `${association.id}_di`,
-          association.id,
-          getAssociationWaypoints(source, target)
         );
       })
       .filter(Boolean)

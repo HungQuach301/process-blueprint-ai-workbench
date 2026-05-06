@@ -16,7 +16,7 @@ export const sampleWorkspace: Workspace = {
 
 export const sampleBpmnTemplateProfile: TemplateProfile = {
   id: "template-bpmn-sme-online-loan",
-  name: "SME Online Loan BPMN Template",
+  name: "BPMN Hybrid Actor-System-Data Lanes",
   type: "bpmn",
   version: "1.0.0",
   status: "active",
@@ -51,7 +51,7 @@ export const sampleBpmnTemplateProfile: TemplateProfile = {
 
 export const sampleServiceBlueprintTemplateProfile: TemplateProfile = {
   id: "template-service-blueprint-sme-online-loan",
-  name: "SME Online Loan Service Blueprint Template",
+  name: "Service Blueprint Container Task Card",
   type: "serviceBlueprint",
   version: "1.0.0",
   status: "active",

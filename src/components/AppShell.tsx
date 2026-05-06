@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
+import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
 import { SectionPanel } from "@/components/SectionPanel";
 import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
@@ -24,6 +25,8 @@ export function AppShell() {
           </header>
 
           <div className="grid gap-4">
+            <TemplateLibraryEditor />
+
             <ProcessTaskRegister />
 
             {navigationSections.map((section) => (

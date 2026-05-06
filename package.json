@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "bpmn-js": "^18.16.1",
+    "jszip": "^3.10.1",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"

@@ -14,6 +14,8 @@ const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
+const D01_GENERATED_XML_KEY =
+  "process-blueprint-ai-workbench:generated-d01-bpmn-xml";
 
 function readProcessTasks() {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
@@ -73,6 +75,7 @@ export function D01BpmnOutput() {
       }
 
       setXml(generatedXml);
+      window.localStorage.setItem(D01_GENERATED_XML_KEY, generatedXml);
       setMessage("Đã generate D01 BPMN XML.");
     } catch (error) {
       setXml("");

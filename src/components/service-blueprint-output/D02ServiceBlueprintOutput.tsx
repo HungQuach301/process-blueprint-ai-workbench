@@ -13,6 +13,8 @@ const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
+const D02_GENERATED_XML_KEY =
+  "process-blueprint-ai-workbench:generated-d02-service-blueprint-xml";
 
 function readProcessTasks() {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
@@ -76,6 +78,7 @@ export function D02ServiceBlueprintOutput() {
       }
 
       setXml(generatedXml);
+      window.localStorage.setItem(D02_GENERATED_XML_KEY, generatedXml);
       setMessage("Đã generate D02 Service Blueprint draw.io XML.");
     } catch (error) {
       setXml("");

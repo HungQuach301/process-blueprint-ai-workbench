@@ -17,6 +17,9 @@ type SequenceFlow = {
   sourceRef: string;
   targetRef: string;
   label?: string;
+  sourceStepId: string;
+  branch?: "Yes" | "No";
+  conditionQuestion?: string;
 };
 
 type Association = {
@@ -206,8 +209,8 @@ function buildSequenceFlows(tasks: ProcessTask[], nodeByStepId: Map<string, Bpmn
 
     const nextSteps = [
       { value: task.defaultNextStep, label: undefined },
-      { value: task.yesNextStep, label: "Yes" },
-      { value: task.noNextStep, label: "No" }
+      { value: task.yesNextStep, label: "Yes" as const },
+      { value: task.noNextStep, label: "No" as const }
     ];
 
     nextSteps.forEach((nextStep) => {
@@ -229,7 +232,10 @@ function buildSequenceFlows(tasks: ProcessTask[], nodeByStepId: Map<string, Bpmn
         }`,
         sourceRef: sourceNode.id,
         targetRef: targetNode.id,
-        label: nextStep.label
+        label: nextStep.label,
+        sourceStepId: task.stepId,
+        branch: nextStep.label,
+        conditionQuestion: task.conditionQuestion
       });
     });
   });
@@ -278,6 +284,17 @@ function getOutgoingFlows(nodeId: string, flows: SequenceFlow[]) {
   return flows.filter((flow) => flow.sourceRef === nodeId).map((flow) => flow.id);
 }
 
+function getDefaultFlowId(node: BpmnNode, flows: SequenceFlow[]) {
+  if (node.tagName !== "bpmn:exclusiveGateway") {
+    return "";
+  }
+
+  const outgoingFlows = flows.filter((flow) => flow.sourceRef === node.id);
+  const noFlow = outgoingFlows.find((flow) => flow.branch === "No");
+
+  return noFlow?.id ?? outgoingFlows[0]?.id ?? "";
+}
+
 function renderNode(node: BpmnNode, flows: SequenceFlow[]) {
   const incoming = getIncomingFlows(node.id, flows)
     .map((flowId) => `      <bpmn:incoming>${flowId}</bpmn:incoming>`)
@@ -287,18 +304,42 @@ function renderNode(node: BpmnNode, flows: SequenceFlow[]) {
     .join("\n");
   const children = [incoming, outgoing].filter(Boolean).join("\n");
   const name = escapeXml(node.task.taskName || node.task.stepId);
+  const defaultFlowId = getDefaultFlowId(node, flows);
+  const defaultAttribute = defaultFlowId
+    ? ` default="${escapeXml(defaultFlowId)}"`
+    : "";
 
   if (!children) {
-    return `    <${node.tagName} id="${node.id}" name="${name}" />`;
+    return `    <${node.tagName} id="${node.id}" name="${name}"${defaultAttribute} />`;
   }
 
-  return `    <${node.tagName} id="${node.id}" name="${name}">\n${children}\n    </${node.tagName}>`;
+  return `    <${node.tagName} id="${node.id}" name="${name}"${defaultAttribute}>\n${children}\n    </${node.tagName}>`;
+}
+
+function getConditionExpression(flow: SequenceFlow) {
+  if (!flow.branch) {
+    return "";
+  }
+
+  const question = normalize(flow.conditionQuestion) || "gateway condition";
+
+  return `${question} = ${flow.branch}`;
 }
 
 function renderSequenceFlow(flow: SequenceFlow) {
   const name = flow.label ? ` name="${escapeXml(flow.label)}"` : "";
 
-  return `    <bpmn:sequenceFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}" />`;
+  if (!flow.branch) {
+    return `    <bpmn:sequenceFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}" />`;
+  }
+
+  return [
+    `    <bpmn:sequenceFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}">`,
+    `      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${escapeXml(
+      getConditionExpression(flow)
+    )}</bpmn:conditionExpression>`,
+    "    </bpmn:sequenceFlow>"
+  ].join("\n");
 }
 
 function renderLane(lane: Lane, nodes: BpmnNode[]) {
@@ -380,7 +421,7 @@ export function generateBpmnXml(
 
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_D01_BPMN" targetNamespace="https://process-blueprint-ai-workbench.local/bpmn">',
+    '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_D01_BPMN" targetNamespace="https://process-blueprint-ai-workbench.local/bpmn">',
     `  <bpmn:collaboration id="${collaborationId}">`,
     `    <bpmn:participant id="${participantId}" name="${escapeXml(templateProfile.name)}" processRef="${processId}" />`,
     "  </bpmn:collaboration>",

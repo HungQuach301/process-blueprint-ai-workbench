@@ -2,6 +2,70 @@ import type { ProcessTask } from "@/lib/models/process-task";
 
 export type QaSeverity = "error" | "warning" | "suggestion";
 
+export type QARecommendationType =
+  | "UpdateField"
+  | "SplitTask"
+  | "CreateTask"
+  | "CreateLane"
+  | "AssignSystem"
+  | "AssignActor"
+  | "ChangeBpmnType"
+  | "ChangeRowType"
+  | "SetInteractionType"
+  | "MarkReviewStatus"
+  | "AddGatewayBranch";
+
+export type QARecommendationImpact = "low" | "medium" | "high";
+
+export type QARecommendationConfidence = "low" | "medium" | "high";
+
+export type QARecommendationPatch = Partial<
+  Pick<
+    ProcessTask,
+    | "rowType"
+    | "bpmnType"
+    | "taskNature"
+    | "phase"
+    | "group"
+    | "actor"
+    | "actorLane"
+    | "system"
+    | "systemLane"
+    | "dataObject"
+    | "dataAction"
+    | "taskName"
+    | "input"
+    | "output"
+    | "defaultNextStep"
+    | "conditionQuestion"
+    | "yesNextStep"
+    | "noNextStep"
+    | "exception"
+    | "exceptionHandling"
+    | "sla"
+    | "riskControl"
+    | "sourceRef"
+    | "reviewStatus"
+    | "comment"
+    | "customerInteractionType"
+    | "channel"
+  >
+>;
+
+export type QARecommendation = {
+  type: QARecommendationType;
+  title: string;
+  description: string;
+  confidence: QARecommendationConfidence;
+  impact: QARecommendationImpact;
+  targetStepIds: string[];
+  previewText: string;
+  patch?: QARecommendationPatch;
+  newTasks?: ProcessTask[];
+  warnings?: string[];
+  requiresConfirmation: boolean;
+};
+
 export type QaIssue = {
   id: string;
   stepId: string;
@@ -9,6 +73,7 @@ export type QaIssue = {
   severity: QaSeverity;
   message: string;
   suggestedFix: string;
+  recommendations?: QARecommendation[];
 };
 
 const multiActionKeywords = ["and", "và", "sau đó", "đồng thời"];

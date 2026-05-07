@@ -3,6 +3,8 @@ export type RowType =
   | "group"
   | "task"
   | "gateway"
+  | "start"
+  | "end"
   | "event"
   | "data"
   | "annotation";

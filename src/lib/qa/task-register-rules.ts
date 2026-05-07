@@ -25,6 +25,43 @@ function isProcessTask(task: ProcessTask) {
   return task.rowType === "task" || task.bpmnType.toLowerCase().includes("task");
 }
 
+function getAllowedBpmnTypesForRowType(rowType: string) {
+  switch (rowType) {
+    case "task":
+      return [
+        "task",
+        "usertask",
+        "manualtask",
+        "servicetask",
+        "sendtask",
+        "scripttask",
+        "businessruletask"
+      ];
+    case "gateway":
+      return ["exclusivegateway", "parallelgateway", "inclusivegateway"];
+    case "start":
+      return ["startevent"];
+    case "end":
+      return ["endevent"];
+    case "event":
+      return ["startevent", "endevent", "none"];
+    case "data":
+      return ["dataobject", "datastore", "none"];
+    case "phase":
+    case "group":
+    case "annotation":
+      return ["none"];
+    default:
+      return [];
+  }
+}
+
+function isRowTypeBpmnTypeMismatch(task: ProcessTask) {
+  const allowedTypes = getAllowedBpmnTypesForRowType(normalize(task.rowType));
+
+  return allowedTypes.length > 0 && !allowedTypes.includes(normalize(task.bpmnType));
+}
+
 function addIssue(
   issues: QaIssue[],
   task: ProcessTask,
@@ -64,6 +101,17 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
     const bpmnType = normalize(task.bpmnType);
     const dataAction = normalize(task.dataAction);
     const taskName = normalize(task.taskName);
+
+    if (isRowTypeBpmnTypeMismatch(task)) {
+      addIssue(
+        issues,
+        task,
+        "row-type-bpmn-type-mismatch",
+        "warning",
+        "Loại dòng và BPMN type chưa khớp nhau.",
+        "Chọn lại bpmnType phù hợp với rowType, ví dụ Task dùng User Task/Service Task, Gateway dùng Exclusive Gateway, Data Interaction dùng Data Object/Data Store/None."
+      );
+    }
 
     if (isBlank(task.actor)) {
       addIssue(

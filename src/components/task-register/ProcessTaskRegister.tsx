@@ -69,6 +69,8 @@ const selectOptions: Partial<Record<keyof ProcessTask, SelectOption[]>> = {
   rowType: [
     { value: "task", label: "Task" },
     { value: "gateway", label: "Gateway" },
+    { value: "start", label: "Start" },
+    { value: "end", label: "End" },
     { value: "event", label: "Event" },
     { value: "data", label: "Data interaction" },
     { value: "phase", label: "Phase" },
@@ -127,6 +129,48 @@ const selectOptions: Partial<Record<keyof ProcessTask, SelectOption[]>> = {
   ]
 };
 
+const bpmnTypeOptionsByRowType: Record<string, SelectOption[]> = {
+  task: [
+    { value: "userTask", label: "User Task" },
+    { value: "manualTask", label: "Manual Task" },
+    { value: "serviceTask", label: "Service Task" },
+    { value: "sendTask", label: "Send Task" },
+    { value: "businessRuleTask", label: "Business Rule Task" },
+    { value: "scriptTask", label: "Script Task" },
+    { value: "task", label: "Generic Task" }
+  ],
+  gateway: [
+    { value: "exclusiveGateway", label: "Exclusive Gateway" },
+    { value: "parallelGateway", label: "Parallel Gateway" },
+    { value: "inclusiveGateway", label: "Inclusive Gateway" }
+  ],
+  start: [
+    { value: "startEvent", label: "Start Event" }
+  ],
+  end: [
+    { value: "endEvent", label: "End Event" }
+  ],
+  event: [
+    { value: "startEvent", label: "Start Event" },
+    { value: "endEvent", label: "End Event" },
+    { value: "none", label: "None" }
+  ],
+  data: [
+    { value: "dataObject", label: "Data Object" },
+    { value: "dataStore", label: "Data Store" },
+    { value: "none", label: "None" }
+  ],
+  phase: [
+    { value: "none", label: "None" }
+  ],
+  group: [
+    { value: "none", label: "None" }
+  ],
+  annotation: [
+    { value: "none", label: "None" }
+  ]
+};
+
 function cloneSampleTasks() {
   return sampleProcessTasks.map((task) => ({ ...task }));
 }
@@ -170,8 +214,15 @@ function getCellValue(task: ProcessTask, key: keyof ProcessTask) {
   return task[key] ?? "";
 }
 
-function getSelectOptions(key: keyof ProcessTask, value: string) {
-  const options = selectOptions[key];
+function getBpmnTypeOptionsForRowType(rowType: string) {
+  return bpmnTypeOptionsByRowType[rowType] ?? selectOptions.bpmnType ?? [];
+}
+
+function getSelectOptions(key: keyof ProcessTask, value: string, task: ProcessTask) {
+  const options =
+    key === "bpmnType"
+      ? getBpmnTypeOptionsForRowType(String(getCellValue(task, "rowType")))
+      : selectOptions[key];
 
   if (!options) {
     return [];
@@ -187,10 +238,21 @@ function getSelectOptions(key: keyof ProcessTask, value: string) {
   ];
 }
 
-function isInvalidSelectValue(key: keyof ProcessTask, value: string) {
-  const options = selectOptions[key];
+function isInvalidSelectValue(key: keyof ProcessTask, value: string, task: ProcessTask) {
+  const options =
+    key === "bpmnType"
+      ? getBpmnTypeOptionsForRowType(String(getCellValue(task, "rowType")))
+      : selectOptions[key];
 
   return Boolean(value && options && !options.some((option) => option.value === value));
+}
+
+function getDefaultBpmnTypeForRowType(rowType: string) {
+  return getBpmnTypeOptionsForRowType(rowType)[0]?.value ?? "none";
+}
+
+function isBpmnTypeValidForRowType(rowType: string, bpmnType: string) {
+  return getBpmnTypeOptionsForRowType(rowType).some((option) => option.value === bpmnType);
 }
 
 function normalizeCellValue(key: keyof ProcessTask, value: string) {
@@ -276,14 +338,25 @@ export function ProcessTaskRegister() {
   function updateCell(index: number, key: keyof ProcessTask, value: string) {
     setTasks((currentTasks) =>
       persistTasks(
-        currentTasks.map((task, taskIndex) =>
-          taskIndex === index
-            ? ({
-                ...task,
-                [key]: normalizeCellValue(key, value)
-              } as ProcessTask)
-            : task
-        )
+        currentTasks.map((task, taskIndex) => {
+          if (taskIndex !== index) {
+            return task;
+          }
+
+          const updatedTask = {
+            ...task,
+            [key]: normalizeCellValue(key, value)
+          } as ProcessTask;
+
+          if (
+            key === "rowType" &&
+            !isBpmnTypeValidForRowType(value, String(updatedTask.bpmnType))
+          ) {
+            updatedTask.bpmnType = getDefaultBpmnTypeForRowType(value) as ProcessTask["bpmnType"];
+          }
+
+          return updatedTask;
+        })
       )
     );
     markGeneratedArtifactsStale();
@@ -481,8 +554,12 @@ export function ProcessTaskRegister() {
                   </td>
                   {visibleColumns.map((column) => {
                     const cellValue = String(getCellValue(task, column.key));
-                    const options = getSelectOptions(column.key, cellValue);
-                    const hasInvalidValue = isInvalidSelectValue(column.key, cellValue);
+                    const options = getSelectOptions(column.key, cellValue, task);
+                    const hasInvalidValue = isInvalidSelectValue(column.key, cellValue, task);
+                    const invalidMessage =
+                      column.key === "bpmnType"
+                        ? "BPMN type không phù hợp với loại dòng hiện tại."
+                        : "Giá trị cũ không nằm trong danh sách chuẩn.";
 
                     return (
                       <td
@@ -522,7 +599,7 @@ export function ProcessTaskRegister() {
                         )}
                         {hasInvalidValue ? (
                           <p className="mt-1 px-2 text-xs text-amber-700">
-                            Giá trị cũ không nằm trong danh sách chuẩn.
+                            {invalidMessage}
                           </p>
                         ) : null}
                       </td>

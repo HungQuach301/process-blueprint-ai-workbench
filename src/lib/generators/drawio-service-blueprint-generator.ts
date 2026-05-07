@@ -469,6 +469,28 @@ function buildDataAssociation(source: CardPosition, target: CardPosition) {
   } satisfies BlueprintCell;
 }
 
+function isCriticalExceptionLink(task: ProcessTask, target: CardPosition) {
+  const text = lower(
+    `${task.taskName} ${task.exception} ${task.exceptionHandling} ${task.comment} ${target.task.taskName} ${target.task.group}`
+  );
+
+  return hasAny(text, [
+    "reject",
+    "rejected",
+    "rejection",
+    "decline",
+    "timeout",
+    "sla",
+    "supplement",
+    "exception",
+    "closed",
+    "close",
+    "từ chối",
+    "bo sung",
+    "bổ sung"
+  ]);
+}
+
 function buildSeparatorCells(
   id: string,
   label: string,
@@ -712,6 +734,18 @@ export function generateServiceBlueprintDrawioXml(
     cardPositions.map((position) => [position.task.stepId, position])
   );
   const connectors: BlueprintCell[] = [];
+  const connectorPairs = new Set<string>();
+
+  function pushConnectorOnce(source: CardPosition, target: CardPosition, connector: BlueprintCell) {
+    const pairKey = `${source.containerId}->${target.containerId}`;
+
+    if (connectorPairs.has(pairKey)) {
+      return;
+    }
+
+    connectorPairs.add(pairKey);
+    connectors.push(connector);
+  }
 
   processTasks.forEach((task) => {
     const source = cardByStepId.get(task.stepId);
@@ -720,11 +754,17 @@ export function generateServiceBlueprintDrawioXml(
       return;
     }
 
-    [task.defaultNextStep, task.yesNextStep, task.noNextStep].forEach((stepId) => {
+    const defaultTarget = cardByStepId.get(normalize(task.defaultNextStep));
+
+    if (defaultTarget) {
+      pushConnectorOnce(source, defaultTarget, buildSequenceConnector(source, defaultTarget));
+    }
+
+    [task.yesNextStep, task.noNextStep].forEach((stepId) => {
       const target = cardByStepId.get(normalize(stepId));
 
-      if (target) {
-        connectors.push(buildSequenceConnector(source, target));
+      if (target && isCriticalExceptionLink(task, target)) {
+        pushConnectorOnce(source, target, buildSequenceConnector(source, target));
       }
     });
 
@@ -735,7 +775,7 @@ export function generateServiceBlueprintDrawioXml(
       const target = nextTask ? cardByStepId.get(nextTask.stepId) : undefined;
 
       if (target && target.containerId !== source.containerId) {
-        connectors.push(buildDataAssociation(source, target));
+        pushConnectorOnce(source, target, buildDataAssociation(source, target));
       }
     }
   });

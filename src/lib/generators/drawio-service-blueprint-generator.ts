@@ -111,6 +111,62 @@ function hasAny(value: string, keywords: string[]) {
   return keywords.some((keyword) => value.includes(keyword));
 }
 
+function isCustomerActor(actor: string) {
+  return hasAny(actor, ["customer", "khách hàng", "khach hang", "sme customer"]);
+}
+
+function isBankHumanActor(actor: string) {
+  return hasAny(actor, [
+    "rm",
+    "ops",
+    "ops support",
+    "credit approver",
+    "approver",
+    "bank user",
+    "credit"
+  ]);
+}
+
+function isSystemActor(actor: string) {
+  return actor === "system" || hasAny(actor, ["system", "hệ thống", "he thong"]);
+}
+
+function isCustomerFacingNotification(task: ProcessTask) {
+  const text = lower(`${task.taskName} ${task.output} ${task.actor} ${task.system} ${task.comment}`);
+
+  return (
+    lower(task.bpmnType) === "sendtask" &&
+    hasAny(text, [
+      "customer",
+      "khách hàng",
+      "khach hang",
+      "notification",
+      "notify",
+      "thông báo",
+      "thong bao"
+    ])
+  );
+}
+
+function isDataOrControlArtifact(task: ProcessTask) {
+  const actor = lower(task.actor);
+  const bpmnType = lower(task.bpmnType);
+  const rowType = lower(task.rowType);
+  const taskName = lower(task.taskName);
+  const taskNature = lower(task.taskNature);
+
+  return (
+    (rowType === "data" ||
+      bpmnType === "dataobject" ||
+      bpmnType === "datastore" ||
+      taskNature === "data" ||
+      taskNature === "control" ||
+      hasAny(taskName, ["stores", "store", "updates", "update", "persists", "audit"])) &&
+    !isCustomerActor(actor) &&
+    !isBankHumanActor(actor)
+  );
+}
+
 function getTemplateRows(templateProfile: TemplateProfile): BlueprintRow[] {
   const configuredRows = templateProfile.rowRules.rows;
 
@@ -137,25 +193,38 @@ function mapTaskToRow(task: ProcessTask): BlueprintRow {
   const taskName = lower(task.taskName);
   const riskControl = lower(task.riskControl);
   const sla = lower(task.sla);
-  const dataAction = lower(task.dataAction);
 
-  if (hasAny(actor, ["customer", "khách hàng", "khach hang"])) {
+  if (task.rowType === "gateway" || hasAny(bpmnType, ["gateway"])) {
+    if (isCustomerActor(actor)) {
+      return "CUSTOMER ACTIONS";
+    }
+
+    if (isSystemActor(actor)) {
+      return "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS";
+    }
+
+    if (isBankHumanActor(actor)) {
+      return "BACK-STAGE INTERACTIONS — PEOPLE";
+    }
+  }
+
+  if (isCustomerActor(actor)) {
     return "CUSTOMER ACTIONS";
   }
 
-  if (bpmnType === "sendtask") {
-    return "FRONT-STAGE INTERACTIONS";
-  }
-
-  if (bpmnType === "servicetask" && taskNature === "automatic") {
-    return "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS";
-  }
-
-  if (hasAny(actor, ["rm", "ops", "approver", "credit"])) {
+  if (isBankHumanActor(actor)) {
     return "BACK-STAGE INTERACTIONS — PEOPLE";
   }
 
-  if (hasAny(dataAction, ["pull", "push", "store", "read", "update"])) {
+  if (isSystemActor(actor) && bpmnType === "servicetask") {
+    return "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS";
+  }
+
+  if (isCustomerFacingNotification(task)) {
+    return "FRONT-STAGE INTERACTIONS";
+  }
+
+  if (isDataOrControlArtifact(task)) {
     return "DATA / CONTROL";
   }
 
@@ -349,12 +418,38 @@ export function generateServiceBlueprintDrawioXml(
   const rows = getTemplateRows(templateProfile);
   const phases = getPhases(processTasks);
   const phaseIndexByName = new Map(phases.map((phase, index) => [phase, index]));
-  const rowY = (rowIndex: number) => PHASE_HEADER_HEIGHT + rowIndex * ROW_HEIGHT;
+  const columnCount = Math.max(1, Math.floor((PHASE_WIDTH - CARD_GAP_X) / (CARD_WIDTH + CARD_GAP_X)));
+  const rowPhaseTotals = new Map<string, number>();
+
+  processTasks.forEach((task) => {
+    const phase = normalize(task.phase) || phases[0];
+    const phaseIndex = phaseIndexByName.get(phase) ?? 0;
+    const rowIndex = getRowIndex(rows, mapTaskToRow(task));
+    const countKey = `${phaseIndex}:${rowIndex}`;
+
+    rowPhaseTotals.set(countKey, (rowPhaseTotals.get(countKey) ?? 0) + 1);
+  });
+
+  const rowHeights = rows.map((_, rowIndex) => {
+    const maxCardsInPhase = Math.max(
+      0,
+      ...phases.map((_, phaseIndex) => rowPhaseTotals.get(`${phaseIndex}:${rowIndex}`) ?? 0)
+    );
+    const neededRows = Math.max(1, Math.ceil(maxCardsInPhase / columnCount));
+
+    return Math.max(
+      ROW_HEIGHT,
+      CARD_GAP_Y * 2 + neededRows * CARD_HEIGHT + (neededRows - 1) * CARD_GAP_Y
+    );
+  });
+  const rowY = (rowIndex: number) =>
+    PHASE_HEADER_HEIGHT + rowHeights.slice(0, rowIndex).reduce((total, height) => total + height, 0);
   const cells: BlueprintCell[] = [];
   const cardPositions: CardPosition[] = [];
   const rowPhaseCounts = new Map<string, number>();
   const diagramWidth = ROW_LABEL_WIDTH + phases.length * PHASE_WIDTH + 80;
-  const diagramHeight = PHASE_HEADER_HEIGHT + rows.length * ROW_HEIGHT + 60;
+  const diagramHeight =
+    PHASE_HEADER_HEIGHT + rowHeights.reduce((total, height) => total + height, 0) + 60;
 
   cells.push({
     id: "title",
@@ -389,7 +484,7 @@ export function generateServiceBlueprintDrawioXml(
       x: 0,
       y: rowY(index),
       width: ROW_LABEL_WIDTH,
-      height: ROW_HEIGHT
+      height: rowHeights[index]
     });
 
     phases.forEach((phase, phaseIndex) => {
@@ -403,7 +498,7 @@ export function generateServiceBlueprintDrawioXml(
         x: ROW_LABEL_WIDTH + phaseIndex * PHASE_WIDTH,
         y: rowY(index),
         width: PHASE_WIDTH,
-        height: ROW_HEIGHT
+        height: rowHeights[index]
       });
     });
   });
@@ -415,7 +510,6 @@ export function generateServiceBlueprintDrawioXml(
     const rowIndex = getRowIndex(rows, row);
     const countKey = `${phaseIndex}:${rowIndex}`;
     const count = rowPhaseCounts.get(countKey) ?? 0;
-    const columnCount = Math.max(1, Math.floor((PHASE_WIDTH - CARD_GAP_X) / (CARD_WIDTH + CARD_GAP_X)));
     const localColumn = count % columnCount;
     const localRow = Math.floor(count / columnCount);
     const x =

@@ -1,141 +1,205 @@
 # Current State
 
-## 1. Product goal
+## 1. Current completed modules
 
-Process Blueprint AI Workbench helps business and delivery teams turn structured process information into reviewable delivery artifacts.
+Process Blueprint AI Workbench currently has an MVP flow where the Process Task Register is the single source of truth for generated artifacts.
 
-The current MVP focuses on a Process Task Register as the single source of truth, then generates:
-
-- D01 BPMN XML / `.bpmn`
-- D02 Service Blueprint draw.io XML / `.drawio`
-- QA Report Markdown
-- Output Package ZIP
-
-The target domain is enterprise/banking process design, where traceability, data safety, reviewability, and template governance are required.
-
-## 2. Current completed modules
+Completed modules:
 
 - Core data models:
   - `ProcessTask`
   - `TemplateProfile`
   - `Workspace`
-- SME Online Loan sample data with 30 process rows.
+- SME Online Loan sample data.
 - Editable Process Task Register:
-  - Inline edit
+  - Inline editing
+  - Controlled dropdowns for core BPMN fields
   - Add row
   - Duplicate row
   - Delete row
-  - Save/load/reset
+  - Save/load/reset with `localStorage`
 - Template Library and Template Profile Editor:
   - D01 BPMN template selection
   - D02 Service Blueprint template selection
-  - Editable rule fields
+  - Editable template rule fields
+  - Save/load/reset with `localStorage`
 - Rule-based QA Engine and QA Panel:
   - Errors, warnings, suggestions
   - Row highlight from issue click
   - QA Report download
-- D01 BPMN generator:
-  - BPMN 2.0 XML
-  - BPMN DI shapes and edges
+- D01 BPMN generator and output UI:
+  - BPMN 2.0 XML generation
   - `.bpmn` download
-  - Visual preview via `bpmn-js`
-- D02 Service Blueprint draw.io generator:
-  - `.drawio` XML
-  - Task cards with header/middle/footer cells
+  - Read-only visual preview using `bpmn-js`
+- D02 Service Blueprint generator and output UI:
+  - draw.io compatible XML generation
   - `.drawio` download
+  - Task cards using 3 joined boxes
 - Export Center:
   - Generate all artifacts
-  - Download ZIP package with 5 files
-  - Artifact cache freshness status
+  - Artifact readiness/freshness status
+  - ZIP package download with D01, D02, Process Task Register JSON, Template Profile JSON, and QA Report Markdown
 
-## 3. Known D01 BPMN issues
+## 2. D01 current status
 
-- D01 output should still be validated in Camunda Modeler with real edited data, not only sample data.
-- BPMN layout is simple horizontal layout and may become too wide for large processes.
-- Data interactions are represented using BPMN data objects and associations, but detailed business semantics are still basic.
-- Cache invalidation now marks generated artifacts stale after task/template changes, but broader artifact versioning is not implemented yet.
-- The generator does not yet support advanced BPMN patterns such as sub-processes, event-based gateways, boundary events, pools beyond the current participant, or message flows between participants.
+D01 BPMN currently generates BPMN XML from `ProcessTask[]` and the selected D01 `TemplateProfile`.
 
-## 4. Known D02 Service Blueprint issues
+Current status:
 
-- Dynamic row height is not yet implemented.
-- Crowded phase/row combinations can cause overlapping cards.
-- Row mapping is rule-based and basic; it should later use richer `TemplateProfile` configuration.
-- Service Blueprint layout is simple and not optimized for large enterprise journeys.
-- Template visual rules are only partially reflected in the draw.io output.
-- No visual in-browser draw.io preview exists yet.
+- Uses BPMN typed elements instead of generic task by default:
+  - Start Event
+  - End Event
+  - User Task
+  - Service Task
+  - Send Task
+  - Exclusive Gateway
+- Exclusive gateways include default flow handling.
+- Default gateway flows do not include `conditionExpression`.
+- Non-default gateway flows include readable condition expressions.
+- Data objects are deduplicated by normalized `dataObject` name.
+- Task data flow uses `dataInputAssociation` and `dataOutputAssociation`.
+- Data associations are not attached directly to gateways/end events.
+- BPMN IDs use clearer prefixes for events, gateways, and task types.
+- Collaboration pools have been introduced:
+  - SME Customer
+  - Bank / Financial Institution
+  - External Data Providers
+- Bank pool includes internal lanes for channel, RM, Ops Support, Credit Approver, LOS/Workflow, Notification Service, and Document/OCR.
+- Cross-pool interaction uses message flows where applicable.
+- Output includes BPMN DI shapes/edges and can be previewed with `bpmn-js`.
 
-## 5. Current 1-day priority
+Known D01 risks:
 
-Highest priority for the next working day:
+- Needs repeated validation in Camunda Modeler after real user edits.
+- Layout is still intentionally simple and may become wide for large processes.
+- Advanced BPMN constructs are not yet covered, such as boundary events, event-based gateways, sub-processes, and complex exception choreography.
 
-1. Fix D02 dynamic row height to prevent overlapping cards.
-2. Validate generated `.bpmn` in Camunda Modeler.
-3. Validate generated `.drawio` in diagrams.net.
-4. Run one clean end-to-end test:
-   - Edit task
-   - Select templates
-   - Run QA
-   - Generate D01
-   - Generate D02
-   - Download QA Report
-   - Download ZIP
-5. Document any import/opening errors as test cases before adding new feature areas.
+## 3. D02 current status
+
+D02 Service Blueprint currently generates draw.io compatible XML from `ProcessTask[]` and the selected D02 `TemplateProfile`.
+
+Current status:
+
+- Uses Process Task Register as source data.
+- Keeps one `ProcessTask` as one card.
+- Does not merge tasks.
+- Uses phase columns.
+- Uses default Service Blueprint rows when template row rules are missing.
+- Generates task cards as 3 joined boxes:
+  - Header = actor
+  - Middle = task name + BPMN type + task nature
+  - Footer = system/app
+- Supports `.drawio` download.
+- Output is designed to open in diagrams.net/draw.io.
+
+Known D02 risks:
+
+- No in-browser D02 preview yet.
+- Template visual rules are still only partially applied.
+- Large blueprints may still need manual layout review in diagrams.net.
+- D02 remains deterministic and rule-based; it does not yet use AI-assisted design recommendations.
+
+## 4. Latest completed D02 fixes
+
+Recently completed D02 improvements:
+
+- Row assignment:
+  - Actor-based mapping now takes priority over BPMN type.
+  - Customer actions stay in Customer Actions.
+  - RM/Ops/Approver actions stay in Back-stage Interactions - People.
+  - System service tasks map to Back-stage Interactions - System / Tools.
+  - Gateways map by decision owner instead of being pushed to Data / Control.
+  - `dataAction` alone no longer forces user/system tasks into Data / Control.
+- Dynamic layout:
+  - Row height is calculated from card count.
+  - Phase width is calculated from the number of cards in that phase.
+  - Page width/page height adjust dynamically.
+- Separator lines:
+  - Line of Interaction
+  - Line of Visibility
+  - Line of Internal Interaction
+  - Lines span all phase columns and move with dynamic row heights.
+- Top context rows:
+  - STEPS populated from phase/group/stage data.
+  - PHASE populated from `ProcessTask.phase`.
+  - TIME populated from `sla`, or `TBD`.
+  - EVIDENCE populated from input/output/dataObject/system, or `TBD`.
+- Duplicate connectors:
+  - Source-target connector pairs are deduplicated.
+  - The blueprint no longer emits both solid and dashed connectors for the same pair by default.
+  - Connector output is limited to main journey flow, useful cross-layer associations, and critical exception links.
+- Notation styling:
+  - Header color differs by actor group.
+  - Gateway cards look different from normal tasks.
+  - Data/control cards look different from normal tasks.
+  - Start/end event cards look different from normal tasks.
+  - Send Task / notification cards have a message-style notation.
+- Horizontal row stretching:
+  - Tasks inside the same row/phase are arranged left-to-right first.
+  - Phase columns expand horizontally when needed.
+  - Rows grow vertically only when cards wrap.
+
+## 5. Next priority
+
+Recommended next priorities:
+
+1. D02 single source of truth from Process Task Register
+   - Tighten the contract between Process Task Register fields and D02 row/card/connector generation.
+   - Make it explicit which fields control D02 row, card notation, evidence, timing, and associations.
+2. Front-stage Interactions - People
+   - Add a clearer row/layer distinction for human front-stage interactions.
+   - Separate customer-facing human interactions from back-stage people work.
+3. D02 preview
+   - Add in-browser draw.io/XML preview or a lightweight visual render.
+   - Keep download behavior unchanged.
+4. Process Task Register changes
+   - Improve fields needed for D02, such as blueprint row override, customer-visible flag, evidence, channel, and journey step.
+   - Preserve backward compatibility with saved data.
+5. Excel export/import
+   - Export Process Task Register and Template Profiles to Excel.
+   - Import reviewed Excel back into the app with validation.
+6. QA recommendation apply
+   - Let users apply safe QA fixes directly to the Process Task Register.
+   - Keep changes explicit and reviewable.
+7. AI design
+   - Add AI-assisted suggestions for decomposition, row assignment, ambiguity detection, missing fields, and template fit.
+   - Avoid sending sensitive banking data externally without explicit approval.
 
 ## 6. Key files and what they do
 
 - `src/lib/models/process-task.ts`
   - Defines `ProcessTask` and process-related union types.
 - `src/lib/models/template-profile.ts`
-  - Defines `TemplateProfile`, `TemplateType`, and `TemplateStatus`.
+  - Defines `TemplateProfile`, template type, status, and rule structures.
 - `src/lib/models/workspace.ts`
   - Defines workspace metadata.
 - `src/lib/sample-data/sme-online-loan.ts`
-  - Provides sample workspace, templates, and SME Online Loan process tasks.
+  - Provides SME Online Loan sample workspace, templates, and process tasks.
 - `src/components/task-register/ProcessTaskRegister.tsx`
-  - Editable table UI for the Process Task Register.
+  - Editable Process Task Register UI.
 - `src/components/template-library/TemplateLibraryEditor.tsx`
-  - Template library and selected D01/D02 template UI.
+  - Template library, template profile editor, and selected D01/D02 template UI.
 - `src/lib/qa/task-register-rules.ts`
-  - Rule-based QA engine for Process Task Register quality checks.
+  - Rule-based QA checks for Process Task Register quality.
 - `src/components/qa-panel/QAPanel.tsx`
-  - QA issue display and QA Report download entry point.
+  - QA issue panel, row highlighting trigger, and QA Report download entry point.
 - `src/lib/generators/bpmn-generator.ts`
   - D01 BPMN XML generator.
 - `src/components/bpmn-output/D01BpmnOutput.tsx`
-  - D01 generation UI, XML display, and `.bpmn` download.
+  - D01 generation UI, XML display, status, and `.bpmn` download.
 - `src/components/preview/BpmnPreview.tsx`
   - Read-only BPMN visual preview using `bpmn-js`.
 - `src/lib/generators/drawio-service-blueprint-generator.ts`
-  - D02 Service Blueprint draw.io XML generator.
+  - D02 Service Blueprint draw.io XML generator, layout, row assignment, cards, separators, and connectors.
 - `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
-  - D02 generation UI, XML display, and `.drawio` download.
+  - D02 generation UI, XML display, status, and `.drawio` download.
 - `src/lib/generators/qa-report-generator.ts`
   - Markdown QA Report generator.
 - `src/components/export-center/ExportCenter.tsx`
-  - Generates all artifacts and exports ZIP package.
+  - Generates all artifacts, shows readiness/freshness, and exports ZIP package.
+- `src/lib/utils/artifact-state.ts`
+  - Shared artifact freshness/status helpers.
+- `src/app/page.tsx`
+  - Main page composition for the MVP workbench.
 - `src/app/globals.css`
   - Global styles and `bpmn-js` CSS imports.
-
-## 7. Long-term product direction
-
-The workbench should evolve from process artifact generation into a broader enterprise delivery assistant.
-
-Planned long-term directions:
-
-- Business Capability Landscape
-  - Extract capabilities from process scope, actors, systems, and data objects.
-- BRD/URD generation
-  - Generate structured business and user requirement documents from approved process tasks.
-- Jira story/task generation
-  - Convert process steps and requirements into epics, stories, tasks, and acceptance criteria.
-- IT Capability Landscape
-  - Map systems, data actions, integrations, controls, and technology responsibilities.
-- Solution Architecture
-  - Generate solution views including system interactions, data movement, and control points.
-- UI generation
-  - Derive UI flows, screens, forms, and interaction requirements from customer/system tasks.
-- AI-assisted QA
-  - Add deeper consistency, compliance, completeness, and ambiguity checks.
-- Template review
-  - Let reviewers inspect, approve, version, and compare output templates before generation.

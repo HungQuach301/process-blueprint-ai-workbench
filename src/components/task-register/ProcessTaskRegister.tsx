@@ -64,6 +64,39 @@ const visibleColumns: EditableColumn[] = [
   { key: "comment", label: "Ghi chú", minWidth: "220px" }
 ];
 
+const excelColumns: Array<Pick<EditableColumn, "key" | "label">> = [
+  { key: "id", label: "ID" },
+  { key: "stepId", label: "Mã bước" },
+  { key: "parentStepId", label: "Mã bước cha" },
+  { key: "rowType", label: "Loại dòng" },
+  { key: "bpmnType", label: "Loại BPMN" },
+  { key: "taskNature", label: "Tính chất công việc" },
+  { key: "phase", label: "Giai đoạn" },
+  { key: "group", label: "Nhóm" },
+  { key: "actor", label: "Người thực hiện" },
+  { key: "actorLane", label: "Lane người dùng" },
+  { key: "system", label: "Hệ thống" },
+  { key: "systemLane", label: "Lane hệ thống" },
+  { key: "dataObject", label: "Đối tượng dữ liệu" },
+  { key: "dataAction", label: "Thao tác dữ liệu" },
+  { key: "taskName", label: "Tên công việc" },
+  { key: "input", label: "Đầu vào" },
+  { key: "output", label: "Đầu ra" },
+  { key: "defaultNextStep", label: "Bước tiếp theo mặc định" },
+  { key: "conditionQuestion", label: "Câu hỏi điều kiện" },
+  { key: "yesNextStep", label: "Bước tiếp theo nếu Có" },
+  { key: "noNextStep", label: "Bước tiếp theo nếu Không" },
+  { key: "exception", label: "Ngoại lệ" },
+  { key: "exceptionHandling", label: "Xử lý ngoại lệ" },
+  { key: "sla", label: "SLA" },
+  { key: "riskControl", label: "Rủi ro/Kiểm soát" },
+  { key: "sourceRef", label: "Nguồn tham chiếu" },
+  { key: "reviewStatus", label: "Trạng thái review" },
+  { key: "comment", label: "Ghi chú" },
+  { key: "customerInteractionType", label: "Loại tương tác khách hàng" },
+  { key: "channel", label: "Kênh" }
+];
+
 const nullableColumns: Array<keyof ProcessTask> = [
   "parentStepId",
   "defaultNextStep",
@@ -308,6 +341,15 @@ function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function readTemplateProfiles() {
   const savedTemplates = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
 
@@ -536,6 +578,57 @@ export function ProcessTaskRegister() {
     URL.revokeObjectURL(url);
   }
 
+  function downloadExcelRegister() {
+    const headerCells = excelColumns
+      .map(
+        (column) =>
+          `<th style="background:#e2e8f0;border:1px solid #94a3b8;font-weight:700;padding:6px;text-align:left;">${escapeHtml(column.label)}</th>`
+      )
+      .join("");
+    const bodyRows = tasks
+      .map((task) => {
+        const cells = excelColumns
+          .map((column) => {
+            const value = getCellValue(task, column.key);
+
+            return `<td style="border:1px solid #cbd5e1;padding:6px;mso-number-format:'\\@';">${escapeHtml(String(value))}</td>`;
+          })
+          .join("");
+
+        return `<tr>${cells}</tr>`;
+      })
+      .join("");
+    const workbookHtml = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; }
+    th, td { vertical-align: top; white-space: normal; }
+  </style>
+</head>
+<body>
+  <table>
+    <thead><tr>${headerCells}</tr></thead>
+    <tbody>${bodyRows}</tbody>
+  </table>
+</body>
+</html>`;
+    const blob = new Blob([workbookHtml], {
+      type: "application/vnd.ms-excel;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `Process_Task_Register_${createTimestamp()}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setSaveMessage("Đã export Process Task Register hiện tại ra Excel.");
+  }
+
   return (
     <>
       <QAPanel
@@ -589,6 +682,13 @@ export function ProcessTaskRegister() {
                 type="button"
               >
                 Lưu
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={downloadExcelRegister}
+                type="button"
+              >
+                Export Excel
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QAPanel } from "@/components/qa-panel/QAPanel";
+import { createProcessTaskRegisterTemplateWorkbook } from "@/lib/excel/process-task-register-template";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -629,6 +630,24 @@ export function ProcessTaskRegister() {
     setSaveMessage("Đã export Process Task Register hiện tại ra Excel.");
   }
 
+  async function downloadExcelTemplate() {
+    try {
+      const blob = await createProcessTaskRegisterTemplateWorkbook();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `Process_Task_Register_Template_${createTimestamp()}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setSaveMessage("Đã download Excel template cho Process Task Register.");
+    } catch {
+      setSaveMessage("Không thể tạo Excel template. Vui lòng thử lại.");
+    }
+  }
+
   return (
     <>
       <QAPanel
@@ -689,6 +708,13 @@ export function ProcessTaskRegister() {
                 type="button"
               >
                 Export Excel
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={downloadExcelTemplate}
+                type="button"
+              >
+                Download Excel Template
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"

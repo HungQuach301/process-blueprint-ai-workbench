@@ -139,6 +139,25 @@ function getNodeSize(tagName: string) {
   return { width: 130, height: 80 };
 }
 
+function getNodeIdPrefix(tagName: string) {
+  switch (tagName) {
+    case "bpmn:startEvent":
+      return "StartEvent";
+    case "bpmn:endEvent":
+      return "EndEvent";
+    case "bpmn:exclusiveGateway":
+      return "Gateway";
+    case "bpmn:userTask":
+      return "UserTask";
+    case "bpmn:serviceTask":
+      return "ServiceTask";
+    case "bpmn:sendTask":
+      return "SendTask";
+    default:
+      return "Activity";
+  }
+}
+
 function buildLanes(tasks: ProcessTask[]) {
   const actorLaneNames = unique(tasks.map((task) => task.actorLane));
   const systemLaneNames = unique(tasks.map((task) => task.systemLane));
@@ -190,7 +209,7 @@ function buildNodes(tasks: ProcessTask[], lanes: Lane[]) {
 
     return {
       task,
-      id: `Activity_${sanitizeId(task.stepId || task.id)}`,
+      id: `${getNodeIdPrefix(tagName)}_${sanitizeId(task.stepId || task.id)}`,
       tagName,
       laneId: lane?.id ?? "Lane_Unassigned",
       x: START_X + index * HORIZONTAL_GAP,

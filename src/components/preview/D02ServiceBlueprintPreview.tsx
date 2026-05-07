@@ -267,26 +267,118 @@ function getContextCellValue(row: BlueprintRow, phase: string, tasks: ProcessTas
   return "";
 }
 
+function getBpmnBadge(task: ProcessTask) {
+  const bpmnType = lower(task.bpmnType);
+  const rowType = lower(task.rowType);
+
+  if (rowType === "gateway" || bpmnType.includes("gateway")) {
+    return "◇";
+  }
+
+  if (isDataOrControlArtifact(task) || bpmnType === "dataobject" || bpmnType === "datastore") {
+    return "▣";
+  }
+
+  if (bpmnType === "startevent" || bpmnType === "endevent") {
+    return "◎";
+  }
+
+  if (bpmnType === "sendtask") {
+    return "✉";
+  }
+
+  if (bpmnType === "servicetask") {
+    return "⚙";
+  }
+
+  return "👤";
+}
+
+function getNatureBadge(task: ProcessTask) {
+  switch (lower(task.taskNature)) {
+    case "automatic":
+      return "A";
+    case "semiautomatic":
+    case "semi-automatic":
+      return "S";
+    case "manual":
+      return "M";
+    default:
+      return "";
+  }
+}
+
+function getDataActionBadge(task: ProcessTask) {
+  switch (lower(task.dataAction)) {
+    case "pull":
+    case "read":
+      return "↓";
+    case "push":
+    case "store":
+    case "update":
+      return "↑";
+    default:
+      return "";
+  }
+}
+
+function taskBadges(task: ProcessTask) {
+  return [getBpmnBadge(task), getNatureBadge(task), getDataActionBadge(task)].filter(Boolean);
+}
+
 function TaskCard({ task }: { task: ProcessTask }) {
   const footer = [normalize(task.system) || "No system/app", normalize(task.channel)]
     .filter(Boolean)
     .join("\n");
+  const badges = taskBadges(task);
 
   return (
     <div className="w-72 shrink-0 overflow-hidden rounded border border-slate-400 bg-white text-xs shadow-sm">
-      <div className="border-b border-slate-300 bg-slate-200 px-3 py-2 font-semibold text-slate-950">
-        {normalize(task.actor) || "No actor"}
+      <div className="flex items-center justify-between gap-2 border-b border-slate-300 bg-slate-200 px-3 py-2 font-semibold text-slate-950">
+        <span>{normalize(task.actor) || "No actor"}</span>
+        <span className="flex shrink-0 gap-1">
+          {badges.map((badge) => (
+            <span
+              className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-semibold text-slate-700"
+              key={badge}
+            >
+              {badge}
+            </span>
+          ))}
+        </span>
       </div>
       <div className="min-h-24 border-b border-slate-300 bg-white px-3 py-2 text-slate-800">
         <p className="font-medium text-slate-950">
           {normalize(task.taskName) || "(Chưa có tên task)"}
         </p>
-        <p className="mt-1 text-slate-600">BPMN: {normalize(task.bpmnType) || "n/a"}</p>
-        <p className="text-slate-600">Nature: {normalize(task.taskNature) || "n/a"}</p>
       </div>
       <div className="whitespace-pre-line bg-slate-50 px-3 py-2 text-slate-700">
         {footer}
       </div>
+    </div>
+  );
+}
+
+function MetadataLegend() {
+  return (
+    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+      {[
+        "👤 User Task",
+        "⚙ Service Task",
+        "✉ Send Task",
+        "◇ Gateway",
+        "◎ Start/End",
+        "▣ Data/Control",
+        "M Manual",
+        "A Automatic",
+        "S Semi-auto",
+        "↓ Pull/Read",
+        "↑ Push/Store/Update"
+      ].map((item) => (
+        <span className="rounded border border-slate-200 bg-white px-2 py-1" key={item}>
+          {item}
+        </span>
+      ))}
     </div>
   );
 }
@@ -342,6 +434,7 @@ export function D02ServiceBlueprintPreview() {
         <p className="mt-2 text-sm text-slate-600">
           Template: {template.name} | Tasks: {tasks.length}
         </p>
+        <MetadataLegend />
       </div>
 
       <div className="overflow-x-auto p-4">

@@ -572,10 +572,70 @@ function textStyle(fillColor: string, extras = "") {
     .join(";");
 }
 
+function getBpmnBadge(task: ProcessTask) {
+  const bpmnType = lower(task.bpmnType);
+  const rowType = lower(task.rowType);
+
+  if (rowType === "gateway" || bpmnType.includes("gateway")) {
+    return "◇";
+  }
+
+  if (isDataOrControlArtifact(task) || bpmnType === "dataobject" || bpmnType === "datastore") {
+    return "▣";
+  }
+
+  if (bpmnType === "startevent" || bpmnType === "endevent") {
+    return "◎";
+  }
+
+  if (bpmnType === "sendtask") {
+    return "✉";
+  }
+
+  if (bpmnType === "servicetask") {
+    return "⚙";
+  }
+
+  return "👤";
+}
+
+function getNatureBadge(task: ProcessTask) {
+  switch (lower(task.taskNature)) {
+    case "automatic":
+      return "A";
+    case "semiautomatic":
+    case "semi-automatic":
+      return "S";
+    case "manual":
+      return "M";
+    default:
+      return "";
+  }
+}
+
+function getDataActionBadge(task: ProcessTask) {
+  switch (lower(task.dataAction)) {
+    case "pull":
+    case "read":
+      return "↓";
+    case "push":
+    case "store":
+    case "update":
+      return "↑";
+    default:
+      return "";
+  }
+}
+
+function cardBadges(task: ProcessTask) {
+  return [getBpmnBadge(task), getNatureBadge(task), getDataActionBadge(task)]
+    .filter(Boolean)
+    .join(" ");
+}
+
 function cardText(task: ProcessTask) {
   const elementType = getCardElementType(task);
   const title = normalize(task.taskName) || "(Chưa có tên task)";
-  const dataAction = normalize(task.dataAction);
   const elementLabels: Record<CardElementType, string> = {
     task: title,
     gateway: `Decision: ${title}`,
@@ -585,12 +645,7 @@ function cardText(task: ProcessTask) {
     send: `Message / Notification: ${title}`
   };
 
-  return [
-    elementLabels[elementType],
-    `BPMN: ${normalize(task.bpmnType) || "n/a"}`,
-    `Nature: ${normalize(task.taskNature) || "n/a"}`,
-    dataAction && dataAction !== "none" ? `Data: ${dataAction}` : ""
-  ].filter(Boolean).join("\n");
+  return elementLabels[elementType];
 }
 
 function cardFooterText(task: ProcessTask) {
@@ -633,7 +688,7 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
     },
     {
       id: headerId,
-      value: normalize(task.actor) || "No actor",
+      value: `${normalize(task.actor) || "No actor"} ${cardBadges(task)}`,
       style: textStyle(notation.headerFill, "fontStyle=1"),
       parent: containerId,
       vertex: true,

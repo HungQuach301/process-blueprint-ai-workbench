@@ -25,6 +25,10 @@ function isProcessTask(task: ProcessTask) {
   return task.rowType === "task" || task.bpmnType.toLowerCase().includes("task");
 }
 
+function affectsServiceBlueprint(task: ProcessTask) {
+  return !["phase", "group", "annotation"].includes(normalize(task.rowType));
+}
+
 function getAllowedBpmnTypesForRowType(rowType: string) {
   switch (rowType) {
     case "task":
@@ -101,6 +105,7 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
     const bpmnType = normalize(task.bpmnType);
     const dataAction = normalize(task.dataAction);
     const taskName = normalize(task.taskName);
+    const customerInteractionType = normalize(task.customerInteractionType);
 
     if (isRowTypeBpmnTypeMismatch(task)) {
       addIssue(
@@ -110,6 +115,20 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
         "warning",
         "Loại dòng và BPMN type chưa khớp nhau.",
         "Chọn lại bpmnType phù hợp với rowType, ví dụ Task dùng User Task/Service Task, Gateway dùng Exclusive Gateway, Data Interaction dùng Data Object/Data Store/None."
+      );
+    }
+
+    if (
+      affectsServiceBlueprint(task) &&
+      (!customerInteractionType || customerInteractionType === "none")
+    ) {
+      addIssue(
+        issues,
+        task,
+        "missing-customer-interaction-type",
+        "warning",
+        "D02 Service Blueprint chưa có loại tương tác khách hàng cho dòng này.",
+        "Bấm Auto-suggest interaction fields hoặc chọn customerInteractionType thủ công để D02 xếp đúng layer."
       );
     }
 

@@ -7,6 +7,10 @@ import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import { validateProcessTasks } from "@/lib/qa/task-register-rules";
 import {
+  inferChannel,
+  inferCustomerInteractionType
+} from "@/lib/utils/process-task-inference";
+import {
   sampleBpmnTemplateProfile,
   sampleProcessTasks,
   sampleServiceBlueprintTemplateProfile,
@@ -335,6 +339,14 @@ function persistTasks(nextTasks: ProcessTask[]) {
   return nextTasks;
 }
 
+function isEmptyInteractionType(task: ProcessTask) {
+  return !task.customerInteractionType || task.customerInteractionType === "None";
+}
+
+function isEmptyChannel(task: ProcessTask) {
+  return !task.channel || task.channel === "Other";
+}
+
 export function ProcessTaskRegister() {
   const [tasks, setTasks] = useState<ProcessTask[]>(() => cloneSampleTasks());
   const [saveMessage, setSaveMessage] = useState("");
@@ -458,6 +470,38 @@ export function ProcessTaskRegister() {
     setSaveMessage("Đã reset về dữ liệu mẫu.");
   }
 
+  function autoSuggestInteractionFields() {
+    let updatedCount = 0;
+
+    setTasks((currentTasks) =>
+      persistTasks(
+        currentTasks.map((task) => {
+          const nextTask = { ...task };
+          const suggestedInteractionType = inferCustomerInteractionType(task);
+          const suggestedChannel = inferChannel(task);
+
+          if (isEmptyInteractionType(nextTask) && suggestedInteractionType !== "None") {
+            nextTask.customerInteractionType = suggestedInteractionType;
+            updatedCount += 1;
+          }
+
+          if (isEmptyChannel(nextTask) && suggestedChannel) {
+            nextTask.channel = suggestedChannel;
+            updatedCount += 1;
+          }
+
+          return nextTask;
+        })
+      )
+    );
+    markGeneratedArtifactsStale();
+    setSaveMessage(
+      updatedCount > 0
+        ? `Đã auto-suggest ${updatedCount} interaction/channel field. Giá trị user đã chọn không bị ghi đè.`
+        : "Không có field trống nào cần auto-suggest."
+    );
+  }
+
   function downloadQaReport() {
     const templateProfiles = readTemplateProfiles();
     const selectedD01TemplateId =
@@ -531,6 +575,13 @@ export function ProcessTaskRegister() {
                 type="button"
               >
                 Thêm dòng
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={autoSuggestInteractionFields}
+                type="button"
+              >
+                Auto-suggest interaction fields
               </button>
               <button
                 className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"

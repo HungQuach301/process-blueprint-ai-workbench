@@ -429,10 +429,28 @@ function getConditionExpression(flow: SequenceFlow) {
   return `${question} = ${flow.branch}`;
 }
 
-function renderSequenceFlow(flow: SequenceFlow) {
+function isDefaultSequenceFlow(
+  flow: SequenceFlow,
+  flows: SequenceFlow[],
+  nodeById: Map<string, BpmnNode>
+) {
+  const sourceNode = nodeById.get(flow.sourceRef);
+
+  if (!sourceNode || sourceNode.tagName !== "bpmn:exclusiveGateway") {
+    return false;
+  }
+
+  return getDefaultFlowId(sourceNode, flows) === flow.id;
+}
+
+function renderSequenceFlow(
+  flow: SequenceFlow,
+  flows: SequenceFlow[],
+  nodeById: Map<string, BpmnNode>
+) {
   const name = flow.label ? ` name="${escapeXml(flow.label)}"` : "";
 
-  if (!flow.branch) {
+  if (!flow.branch || isDefaultSequenceFlow(flow, flows, nodeById)) {
     return `    <bpmn:sequenceFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}" />`;
   }
 
@@ -529,7 +547,9 @@ export function generateBpmnXml(
     lanes.map((lane) => renderLane(lane, nodes, dataReferences)).join("\n"),
     "    </bpmn:laneSet>",
     nodes.map((node) => renderNode(node, sequenceFlows, dataReferences)).join("\n"),
-    sequenceFlows.map(renderSequenceFlow).join("\n"),
+    sequenceFlows
+      .map((flow) => renderSequenceFlow(flow, sequenceFlows, nodeById))
+      .join("\n"),
     dataObjects.map(renderDataObject).join("\n"),
     dataReferences.map(renderDataObjectReference).join("\n"),
     "  </bpmn:process>",

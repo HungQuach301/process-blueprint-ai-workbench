@@ -53,7 +53,6 @@ const DEFAULT_ROWS: BlueprintRow[] = [
 ];
 
 const ROW_LABEL_WIDTH = 250;
-const PHASE_WIDTH = 430;
 const PHASE_HEADER_HEIGHT = 54;
 const ROW_HEIGHT = 190;
 const CARD_WIDTH = 300;
@@ -62,6 +61,16 @@ const CARD_GAP_X = 24;
 const CARD_GAP_Y = 18;
 const HEADER_HEIGHT = 32;
 const FOOTER_HEIGHT = 30;
+const layout = {
+  cardWidth: CARD_WIDTH,
+  cardHeight: CARD_HEIGHT,
+  cardGapX: CARD_GAP_X,
+  cardGapY: CARD_GAP_Y,
+  minPhaseWidth: 430,
+  maxCardsPerLine: 4,
+  rowPadding: 18,
+  phasePadding: 24
+};
 
 const rowColors: Record<BlueprintRow, string> = {
   STEPS: "#f8fafc",
@@ -336,8 +345,8 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
       vertex: true,
       x,
       y,
-      width: CARD_WIDTH,
-      height: CARD_HEIGHT
+      width: layout.cardWidth,
+      height: layout.cardHeight
     },
     {
       id: headerId,
@@ -347,7 +356,7 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
       vertex: true,
       x: 0,
       y: 0,
-      width: CARD_WIDTH,
+      width: layout.cardWidth,
       height: HEADER_HEIGHT
     },
     {
@@ -358,8 +367,8 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
       vertex: true,
       x: 0,
       y: HEADER_HEIGHT,
-      width: CARD_WIDTH,
-      height: CARD_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT
+      width: layout.cardWidth,
+      height: layout.cardHeight - HEADER_HEIGHT - FOOTER_HEIGHT
     },
     {
       id: footerId,
@@ -368,13 +377,13 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
       parent: containerId,
       vertex: true,
       x: 0,
-      y: CARD_HEIGHT - FOOTER_HEIGHT,
-      width: CARD_WIDTH,
+      y: layout.cardHeight - FOOTER_HEIGHT,
+      width: layout.cardWidth,
       height: FOOTER_HEIGHT
     }
   ];
 
-  return { cells, position: { task, containerId, middleId, x, y, width: CARD_WIDTH, height: CARD_HEIGHT } };
+  return { cells, position: { task, containerId, middleId, x, y, width: layout.cardWidth, height: layout.cardHeight } };
 }
 
 function buildSequenceConnector(source: CardPosition, target: CardPosition) {
@@ -418,7 +427,6 @@ export function generateServiceBlueprintDrawioXml(
   const rows = getTemplateRows(templateProfile);
   const phases = getPhases(processTasks);
   const phaseIndexByName = new Map(phases.map((phase, index) => [phase, index]));
-  const columnCount = Math.max(1, Math.floor((PHASE_WIDTH - CARD_GAP_X) / (CARD_WIDTH + CARD_GAP_X)));
   const rowPhaseTotals = new Map<string, number>();
 
   processTasks.forEach((task) => {
@@ -430,16 +438,40 @@ export function generateServiceBlueprintDrawioXml(
     rowPhaseTotals.set(countKey, (rowPhaseTotals.get(countKey) ?? 0) + 1);
   });
 
-  const rowHeights = rows.map((_, rowIndex) => {
-    const maxCardsInPhase = Math.max(
-      0,
-      ...phases.map((_, phaseIndex) => rowPhaseTotals.get(`${phaseIndex}:${rowIndex}`) ?? 0)
+  const cardsPerLineByPhase = phases.map((_, phaseIndex) => {
+    const maxCardsInPhaseRow = Math.max(
+      1,
+      ...rows.map((_, rowIndex) => rowPhaseTotals.get(`${phaseIndex}:${rowIndex}`) ?? 0)
     );
-    const neededRows = Math.max(1, Math.ceil(maxCardsInPhase / columnCount));
+
+    return Math.min(layout.maxCardsPerLine, maxCardsInPhaseRow);
+  });
+  const phaseWidths = cardsPerLineByPhase.map((cardsPerLine) =>
+    Math.max(
+      layout.minPhaseWidth,
+      layout.phasePadding * 2 +
+        cardsPerLine * layout.cardWidth +
+        (cardsPerLine - 1) * layout.cardGapX
+    )
+  );
+  const phaseX = (phaseIndex: number) =>
+    ROW_LABEL_WIDTH + phaseWidths.slice(0, phaseIndex).reduce((total, width) => total + width, 0);
+  const rowHeights = rows.map((_, rowIndex) => {
+    const maxLinesNeeded = Math.max(
+      1,
+      ...phases.map((_, phaseIndex) => {
+        const count = rowPhaseTotals.get(`${phaseIndex}:${rowIndex}`) ?? 0;
+        const cardsPerLine = cardsPerLineByPhase[phaseIndex] ?? 1;
+
+        return Math.max(1, Math.ceil(count / cardsPerLine));
+      })
+    );
 
     return Math.max(
       ROW_HEIGHT,
-      CARD_GAP_Y * 2 + neededRows * CARD_HEIGHT + (neededRows - 1) * CARD_GAP_Y
+      layout.rowPadding * 2 +
+        maxLinesNeeded * layout.cardHeight +
+        (maxLinesNeeded - 1) * layout.cardGapY
     );
   });
   const rowY = (rowIndex: number) =>
@@ -447,7 +479,7 @@ export function generateServiceBlueprintDrawioXml(
   const cells: BlueprintCell[] = [];
   const cardPositions: CardPosition[] = [];
   const rowPhaseCounts = new Map<string, number>();
-  const diagramWidth = ROW_LABEL_WIDTH + phases.length * PHASE_WIDTH + 80;
+  const diagramWidth = ROW_LABEL_WIDTH + phaseWidths.reduce((total, width) => total + width, 0) + 80;
   const diagramHeight =
     PHASE_HEADER_HEIGHT + rowHeights.reduce((total, height) => total + height, 0) + 60;
 
@@ -468,9 +500,9 @@ export function generateServiceBlueprintDrawioXml(
       value: phase,
       style: textStyle("#e0f2fe", "fontStyle=1"),
       vertex: true,
-      x: ROW_LABEL_WIDTH + index * PHASE_WIDTH,
+      x: phaseX(index),
       y: 0,
-      width: PHASE_WIDTH,
+      width: phaseWidths[index],
       height: PHASE_HEADER_HEIGHT
     });
   });
@@ -495,9 +527,9 @@ export function generateServiceBlueprintDrawioXml(
           rowColors[row] ?? "#ffffff"
         };strokeColor=#e2e8f0`,
         vertex: true,
-        x: ROW_LABEL_WIDTH + phaseIndex * PHASE_WIDTH,
+        x: phaseX(phaseIndex),
         y: rowY(index),
-        width: PHASE_WIDTH,
+        width: phaseWidths[phaseIndex],
         height: rowHeights[index]
       });
     });
@@ -510,14 +542,14 @@ export function generateServiceBlueprintDrawioXml(
     const rowIndex = getRowIndex(rows, row);
     const countKey = `${phaseIndex}:${rowIndex}`;
     const count = rowPhaseCounts.get(countKey) ?? 0;
-    const localColumn = count % columnCount;
-    const localRow = Math.floor(count / columnCount);
+    const cardsPerLine = cardsPerLineByPhase[phaseIndex] ?? 1;
+    const localColumn = count % cardsPerLine;
+    const localRow = Math.floor(count / cardsPerLine);
     const x =
-      ROW_LABEL_WIDTH +
-      phaseIndex * PHASE_WIDTH +
-      CARD_GAP_X +
-      localColumn * (CARD_WIDTH + CARD_GAP_X);
-    const y = rowY(rowIndex) + CARD_GAP_Y + localRow * (CARD_HEIGHT + CARD_GAP_Y);
+      phaseX(phaseIndex) +
+      layout.phasePadding +
+      localColumn * (layout.cardWidth + layout.cardGapX);
+    const y = rowY(rowIndex) + layout.rowPadding + localRow * (layout.cardHeight + layout.cardGapY);
     const { cells: cardCells, position } = buildCardCells(task, x, y);
 
     cells.push(...cardCells);

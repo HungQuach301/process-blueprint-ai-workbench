@@ -254,6 +254,55 @@ function getRowIndex(rows: BlueprintRow[], row: BlueprintRow) {
   return index >= 0 ? index : rows.indexOf("SUPPORT PROCESSES");
 }
 
+function uniqueConcise(values: string[], limit = 3) {
+  const uniqueValues = [...new Set(values.map(normalize).filter(Boolean))];
+
+  return uniqueValues.slice(0, limit);
+}
+
+function truncateText(value: string, maxLength = 120) {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
+}
+
+function joinOrTbd(values: string[], maxLength = 120) {
+  const text = values.length > 0 ? values.join(" | ") : "TBD";
+
+  return truncateText(text, maxLength);
+}
+
+function getContextCellValue(row: BlueprintRow, phase: string, tasks: ProcessTask[]) {
+  if (!["STEPS", "PHASE", "TIME", "EVIDENCE"].includes(row)) {
+    return "";
+  }
+
+  const phaseTasks = tasks.filter((task) => (normalize(task.phase) || phase) === phase);
+
+  if (row === "STEPS") {
+    return joinOrTbd(uniqueConcise(phaseTasks.map((task) => task.group || task.phase || task.taskName)));
+  }
+
+  if (row === "PHASE") {
+    return normalize(phase) || "TBD";
+  }
+
+  if (row === "TIME") {
+    return joinOrTbd(uniqueConcise(phaseTasks.map((task) => task.sla)));
+  }
+
+  return joinOrTbd(
+    uniqueConcise(
+      phaseTasks.flatMap((task) => [
+        task.input,
+        task.output,
+        task.dataObject,
+        task.system
+      ]),
+      4
+    ),
+    140
+  );
+}
+
 function makeCell(cell: BlueprintCell) {
   const attrs = [
     `id="${escapeXml(cell.id)}"`,
@@ -566,7 +615,7 @@ export function generateServiceBlueprintDrawioXml(
     phases.forEach((phase, phaseIndex) => {
       cells.push({
         id: `row_${sanitizeId(row)}_${sanitizeId(phase)}`,
-        value: "",
+        value: getContextCellValue(row, phase, processTasks),
         style: `rounded=0;whiteSpace=wrap;html=1;fillColor=${
           rowColors[row] ?? "#ffffff"
         };strokeColor=#e2e8f0`,

@@ -1,4 +1,5 @@
 import type { ProcessTask } from "@/lib/models/process-task";
+import { inferCustomerInteractionType } from "@/lib/utils/process-task-inference";
 
 export type QaSeverity = "error" | "warning" | "suggestion";
 
@@ -137,7 +138,8 @@ function addIssue(
   code: string,
   severity: QaSeverity,
   message: string,
-  suggestedFix: string
+  suggestedFix: string,
+  recommendations?: QARecommendation[]
 ) {
   issues.push({
     id: `${task.stepId}-${code}`,
@@ -145,8 +147,215 @@ function addIssue(
     taskName: task.taskName || "(Chưa có tên công việc)",
     severity,
     message,
-    suggestedFix
+    suggestedFix,
+    recommendations
   });
+}
+
+function recommendationBase(task: ProcessTask) {
+  return {
+    targetStepIds: [task.stepId],
+    requiresConfirmation: true
+  };
+}
+
+function inferSystemFromTaskName(task: ProcessTask) {
+  const text = normalize(`${task.taskName} ${task.system} ${task.systemLane}`);
+
+  if (text.includes("portal")) {
+    return "Digital Lending Portal";
+  }
+
+  if (text.includes("los") || text.includes("loan origination")) {
+    return "LOS";
+  }
+
+  if (["notification", "sms", "email"].some((keyword) => text.includes(keyword))) {
+    return "Notification Service";
+  }
+
+  if (text.includes("ocr")) {
+    return "OCR Service";
+  }
+
+  if (text.includes("cic") || text.includes("blacklist")) {
+    return text.includes("cic") ? "External Data Provider" : "Internal System";
+  }
+
+  return "TBD";
+}
+
+function validBpmnTypeForRowType(rowType: string) {
+  const allowedTypes = getAllowedBpmnTypesForRowType(normalize(rowType));
+
+  return allowedTypes[0] ?? "none";
+}
+
+function splitTaskName(taskName: string) {
+  return taskName
+    .split(/\s+(?:and|và|sau đó|đồng thời)\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function missingActorRecommendations(task: ProcessTask): QARecommendation[] {
+  const bpmnType = normalize(task.bpmnType);
+
+  if (bpmnType === "servicetask") {
+    return [
+      {
+        type: "AssignActor",
+        title: "Gán actor là System",
+        description: "Service Task thường do hệ thống xử lý, nên actor có thể là System.",
+        confidence: "high",
+        impact: "medium",
+        previewText: `${task.stepId}: actor = System`,
+        patch: { actor: "System" },
+        ...recommendationBase(task)
+      }
+    ];
+  }
+
+  if (bpmnType === "usertask") {
+    return [
+      {
+        type: "AssignActor",
+        title: "Gán tạm actor là Bank User và cần review",
+        description: "User Task cần người thực hiện. Nếu chưa rõ vai trò, dùng Bank User và chuyển reviewStatus sang needsReview.",
+        confidence: "medium",
+        impact: "medium",
+        previewText: `${task.stepId}: actor = Bank User, reviewStatus = needsReview`,
+        patch: { actor: "Bank User", reviewStatus: "needsReview" },
+        warnings: ["Cần business xác nhận lại vai trò thực hiện thật sự."],
+        ...recommendationBase(task)
+      }
+    ];
+  }
+
+  return [];
+}
+
+function missingSystemRecommendations(task: ProcessTask): QARecommendation[] {
+  const system = inferSystemFromTaskName(task);
+  const patch: QARecommendationPatch = { system };
+
+  if (system === "TBD") {
+    patch.reviewStatus = "needsReview";
+  }
+
+  return [
+    {
+      type: "AssignSystem",
+      title: system === "TBD" ? "Gán hệ thống tạm là TBD" : `Gán hệ thống là ${system}`,
+      description:
+        system === "TBD"
+          ? "Không suy luận được hệ thống từ taskName, nên cần người dùng review."
+          : "Hệ thống được suy luận từ taskName/system keywords hiện có.",
+      confidence: system === "TBD" ? "low" : "medium",
+      impact: "medium",
+      previewText: `${task.stepId}: system = ${system}${system === "TBD" ? ", reviewStatus = needsReview" : ""}`,
+      patch,
+      warnings: system === "TBD" ? ["Cần xác nhận hệ thống xử lý thật sự."] : undefined,
+      ...recommendationBase(task)
+    }
+  ];
+}
+
+function rowTypeBpmnTypeRecommendations(task: ProcessTask): QARecommendation[] {
+  const nextBpmnType = validBpmnTypeForRowType(task.rowType);
+
+  return [
+    {
+      type: "ChangeBpmnType",
+      title: `Đổi BPMN type sang ${nextBpmnType}`,
+      description: "Đề xuất BPMN type đầu tiên hợp lệ theo rowType hiện tại.",
+      confidence: "medium",
+      impact: "medium",
+      previewText: `${task.stepId}: bpmnType ${task.bpmnType} -> ${nextBpmnType}`,
+      patch: { bpmnType: nextBpmnType as ProcessTask["bpmnType"] },
+      ...recommendationBase(task)
+    }
+  ];
+}
+
+function splitTaskRecommendations(task: ProcessTask): QARecommendation[] {
+  const taskNames = splitTaskName(task.taskName);
+
+  if (taskNames.length < 2) {
+    return [];
+  }
+
+  return [
+    {
+      type: "SplitTask",
+      title: `Tách thành ${taskNames.length} task riêng`,
+      description: "Task name có nhiều hành động. Đề xuất tách thành các dòng riêng, giữ actor/system/phase/group hiện tại.",
+      confidence: "medium",
+      impact: "high",
+      previewText: taskNames.map((name, index) => `${index + 1}. ${name}`).join("\n"),
+      newTasks: taskNames.map((name, index) => ({
+        ...task,
+        id: `${task.id}-split-${index + 1}`,
+        stepId: `${task.stepId}.${index + 1}`,
+        taskName: name,
+        defaultNextStep: null,
+        yesNextStep: null,
+        noNextStep: null
+      })),
+      warnings: ["Cần xác nhận lại thứ tự stepId và nextStep sau khi tách."],
+      ...recommendationBase(task)
+    }
+  ];
+}
+
+function interactionTypeRecommendations(task: ProcessTask): QARecommendation[] {
+  const interactionType = inferCustomerInteractionType(task);
+
+  if (interactionType === "None") {
+    return [];
+  }
+
+  return [
+    {
+      type: "SetInteractionType",
+      title: `Gán customerInteractionType = ${interactionType}`,
+      description: "Loại tương tác được suy luận bằng rule hiện có để D02 xếp đúng layer.",
+      confidence: "medium",
+      impact: "medium",
+      previewText: `${task.stepId}: customerInteractionType = ${interactionType}`,
+      patch: { customerInteractionType: interactionType },
+      ...recommendationBase(task)
+    }
+  ];
+}
+
+function gatewayBranchRecommendations(task: ProcessTask): QARecommendation[] {
+  return [
+    {
+      type: "MarkReviewStatus",
+      title: "Đánh dấu gateway cần review",
+      description: "Gateway thiếu nhánh nên cần business xác nhận trước khi generate.",
+      confidence: "high",
+      impact: "medium",
+      previewText: `${task.stepId}: reviewStatus = needsReview`,
+      patch: { reviewStatus: "needsReview" },
+      ...recommendationBase(task)
+    },
+    {
+      type: "AddGatewayBranch",
+      title: "Thêm placeholder cho nhánh thiếu",
+      description: "Tạo gợi ý bổ sung yesNextStep/noNextStep placeholder để người dùng điền sau.",
+      confidence: "low",
+      impact: "medium",
+      previewText: `${task.stepId}: bổ sung nhánh Yes/No còn thiếu`,
+      patch: {
+        yesNextStep: task.yesNextStep || "TBD_YES",
+        noNextStep: task.noNextStep || "TBD_NO"
+      },
+      warnings: ["Placeholder chưa phải stepId hợp lệ, cần tạo hoặc chọn step thật."],
+      ...recommendationBase(task)
+    }
+  ];
 }
 
 function hasCustomerNotificationAfter(tasks: ProcessTask[], startIndex: number) {
@@ -179,7 +388,8 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
         "row-type-bpmn-type-mismatch",
         "warning",
         "Loại dòng và BPMN type chưa khớp nhau.",
-        "Chọn lại bpmnType phù hợp với rowType, ví dụ Task dùng User Task/Service Task, Gateway dùng Exclusive Gateway, Data Interaction dùng Data Object/Data Store/None."
+        "Chọn lại bpmnType phù hợp với rowType, ví dụ Task dùng User Task/Service Task, Gateway dùng Exclusive Gateway, Data Interaction dùng Data Object/Data Store/None.",
+        rowTypeBpmnTypeRecommendations(task)
       );
     }
 
@@ -193,7 +403,8 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
         "missing-customer-interaction-type",
         "warning",
         "D02 Service Blueprint chưa có loại tương tác khách hàng cho dòng này.",
-        "Bấm Auto-suggest interaction fields hoặc chọn customerInteractionType thủ công để D02 xếp đúng layer."
+        "Bấm Auto-suggest interaction fields hoặc chọn customerInteractionType thủ công để D02 xếp đúng layer.",
+        interactionTypeRecommendations(task)
       );
     }
 
@@ -204,7 +415,8 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
         "missing-actor",
         "error",
         "Thiếu người hoặc vai trò thực hiện.",
-        "Điền actor, ví dụ Customer, RM, Ops Support, Credit Approver hoặc System."
+        "Điền actor, ví dụ Customer, RM, Ops Support, Credit Approver hoặc System.",
+        missingActorRecommendations(task)
       );
     }
 
@@ -215,7 +427,8 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
         "missing-service-system",
         "error",
         "Service Task chưa có hệ thống xử lý.",
-        "Điền system để biết Service Task do hệ thống nào thực hiện."
+        "Điền system để biết Service Task do hệ thống nào thực hiện.",
+        missingSystemRecommendations(task)
       );
     }
 
@@ -259,7 +472,8 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
         "gateway-missing-yes-no",
         "error",
         "Gateway chưa có đủ nhánh Có và Không.",
-        "Điền yesNextStep và noNextStep bằng stepId hợp lệ."
+        "Điền yesNextStep và noNextStep bằng stepId hợp lệ.",
+        gatewayBranchRecommendations(task)
       );
     }
 
@@ -311,7 +525,8 @@ export function validateProcessTasks(tasks: ProcessTask[]): QaIssue[] {
         "possible-multi-action",
         "suggestion",
         "Tên công việc có thể đang chứa nhiều hành động.",
-        "Cân nhắc tách thành nhiều dòng nếu đây là các bước riêng biệt."
+        "Cân nhắc tách thành nhiều dòng nếu đây là các bước riêng biệt.",
+        splitTaskRecommendations(task)
       );
     }
 

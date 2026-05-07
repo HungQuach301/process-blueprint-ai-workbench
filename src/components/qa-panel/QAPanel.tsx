@@ -102,6 +102,30 @@ export function QAPanel({
                     <p className="mt-1 text-sm text-slate-500">
                       Cách sửa: {issue.suggestedFix}
                     </p>
+                    {issue.recommendations?.length ? (
+                      <div className="mt-3 rounded border border-slate-200 bg-white p-3">
+                        <p className="text-xs font-semibold uppercase text-slate-500">
+                          Recommendation
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          {issue.recommendations.map((recommendation, index) => (
+                            <div key={`${recommendation.type}-${index}`}>
+                              <p className="text-sm font-semibold text-slate-800">
+                                {recommendation.title}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-600">
+                                {recommendation.description}
+                              </p>
+                              {recommendation.previewText ? (
+                                <p className="mt-1 whitespace-pre-line text-xs text-slate-500">
+                                  Preview: {recommendation.previewText}
+                                </p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </button>
                 ))}
               </div>

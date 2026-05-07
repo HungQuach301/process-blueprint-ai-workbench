@@ -41,6 +41,8 @@ const visibleColumns: EditableColumn[] = [
   { key: "bpmnType", label: "Loại BPMN", minWidth: "150px" },
   { key: "taskNature", label: "Tính chất", minWidth: "150px" },
   { key: "phase", label: "Giai đoạn", minWidth: "170px" },
+  { key: "customerInteractionType", label: "Loại tương tác KH", minWidth: "210px" },
+  { key: "channel", label: "Kênh", minWidth: "160px" },
   { key: "actor", label: "Người thực hiện", minWidth: "160px" },
   { key: "actorLane", label: "Lane người dùng", minWidth: "160px" },
   { key: "system", label: "Hệ thống", minWidth: "190px" },
@@ -126,6 +128,31 @@ const selectOptions: Partial<Record<keyof ProcessTask, SelectOption[]>> = {
     { value: "needsReview", label: "Needs review" },
     { value: "approved", label: "Approved" },
     { value: "rejected", label: "Rejected" }
+  ],
+  customerInteractionType: [
+    { value: "None", label: "None" },
+    { value: "Customer Action", label: "Customer Action" },
+    { value: "Front-stage People", label: "Front-stage People" },
+    { value: "Front-stage System", label: "Front-stage System" },
+    { value: "Back-stage People", label: "Back-stage People" },
+    { value: "Back-stage System", label: "Back-stage System" },
+    { value: "Support Process", label: "Support Process" },
+    { value: "Data / Control", label: "Data / Control" }
+  ],
+  channel: [
+    { value: "Portal", label: "Portal" },
+    { value: "Mobile App", label: "Mobile App" },
+    { value: "Email", label: "Email" },
+    { value: "SMS", label: "SMS" },
+    { value: "Phone Call", label: "Phone Call" },
+    { value: "RM Meeting", label: "RM Meeting" },
+    { value: "Branch", label: "Branch" },
+    { value: "LOS", label: "LOS" },
+    { value: "OCR", label: "OCR" },
+    { value: "CIC", label: "CIC" },
+    { value: "Internal System", label: "Internal System" },
+    { value: "Document Store", label: "Document Store" },
+    { value: "Other", label: "Other" }
   ]
 };
 
@@ -187,6 +214,8 @@ function createEmptyTask(index: number): ProcessTask {
     taskNature: "manual",
     phase: "",
     group: "",
+    customerInteractionType: "None",
+    channel: "Other",
     actor: "",
     actorLane: "",
     system: "",
@@ -211,6 +240,14 @@ function createEmptyTask(index: number): ProcessTask {
 }
 
 function getCellValue(task: ProcessTask, key: keyof ProcessTask) {
+  if (key === "customerInteractionType") {
+    return task.customerInteractionType ?? "None";
+  }
+
+  if (key === "channel") {
+    return task.channel ?? "Other";
+  }
+
   return task[key] ?? "";
 }
 

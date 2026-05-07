@@ -7,7 +7,8 @@ type BlueprintRow =
   | "TIME"
   | "EVIDENCE"
   | "CUSTOMER ACTIONS"
-  | "FRONT-STAGE INTERACTIONS"
+  | "FRONT-STAGE INTERACTIONS — PEOPLE"
+  | "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL"
   | "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS"
   | "BACK-STAGE INTERACTIONS — PEOPLE"
   | "SUPPORT PROCESSES"
@@ -45,7 +46,8 @@ const DEFAULT_ROWS: BlueprintRow[] = [
   "TIME",
   "EVIDENCE",
   "CUSTOMER ACTIONS",
-  "FRONT-STAGE INTERACTIONS",
+  "FRONT-STAGE INTERACTIONS — PEOPLE",
+  "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL",
   "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS",
   "BACK-STAGE INTERACTIONS — PEOPLE",
   "SUPPORT PROCESSES",
@@ -78,7 +80,8 @@ const rowColors: Record<BlueprintRow, string> = {
   TIME: "#f8fafc",
   EVIDENCE: "#f8fafc",
   "CUSTOMER ACTIONS": "#ecfeff",
-  "FRONT-STAGE INTERACTIONS": "#eff6ff",
+  "FRONT-STAGE INTERACTIONS — PEOPLE": "#f0f9ff",
+  "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL": "#eff6ff",
   "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS": "#f5f3ff",
   "BACK-STAGE INTERACTIONS — PEOPLE": "#faf5ff",
   "SUPPORT PROCESSES": "#f8fafc",
@@ -200,6 +203,27 @@ function isDataOrControlArtifact(task: ProcessTask) {
     !isCustomerActor(actor) &&
     !isBankHumanActor(actor)
   );
+}
+
+function mapCustomerInteractionTypeToRow(task: ProcessTask): BlueprintRow | null {
+  switch (normalize(task.customerInteractionType)) {
+    case "Customer Action":
+      return "CUSTOMER ACTIONS";
+    case "Front-stage People":
+      return "FRONT-STAGE INTERACTIONS — PEOPLE";
+    case "Front-stage System":
+      return "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL";
+    case "Back-stage People":
+      return "BACK-STAGE INTERACTIONS — PEOPLE";
+    case "Back-stage System":
+      return "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS";
+    case "Support Process":
+      return "SUPPORT PROCESSES";
+    case "Data / Control":
+      return "DATA / CONTROL";
+    default:
+      return null;
+  }
 }
 
 function getActorGroup(task: ProcessTask): ActorGroup {
@@ -347,7 +371,14 @@ function getTemplateRows(templateProfile: TemplateProfile): BlueprintRow[] {
     Array.isArray(configuredRows) &&
     configuredRows.every((row) => typeof row === "string")
   ) {
-    return configuredRows as BlueprintRow[];
+    return configuredRows.flatMap((row) =>
+      row === "FRONT-STAGE INTERACTIONS"
+        ? [
+            "FRONT-STAGE INTERACTIONS — PEOPLE",
+            "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL"
+          ]
+        : [row]
+    ) as BlueprintRow[];
   }
 
   return DEFAULT_ROWS;
@@ -360,6 +391,12 @@ function getPhases(tasks: ProcessTask[]) {
 }
 
 function mapTaskToRow(task: ProcessTask): BlueprintRow {
+  const explicitRow = mapCustomerInteractionTypeToRow(task);
+
+  if (explicitRow) {
+    return explicitRow;
+  }
+
   const actor = lower(task.actor);
   const bpmnType = lower(task.bpmnType);
   const taskNature = lower(task.taskNature);
@@ -394,7 +431,7 @@ function mapTaskToRow(task: ProcessTask): BlueprintRow {
   }
 
   if (isCustomerFacingNotification(task)) {
-    return "FRONT-STAGE INTERACTIONS";
+    return "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL";
   }
 
   if (isDataOrControlArtifact(task)) {
@@ -459,7 +496,8 @@ function getContextCellValue(row: BlueprintRow, phase: string, tasks: ProcessTas
         task.input,
         task.output,
         task.dataObject,
-        task.system
+        task.system,
+        task.channel ?? ""
       ]),
       4
     ),
@@ -537,6 +575,7 @@ function textStyle(fillColor: string, extras = "") {
 function cardText(task: ProcessTask) {
   const elementType = getCardElementType(task);
   const title = normalize(task.taskName) || "(Chưa có tên task)";
+  const dataAction = normalize(task.dataAction);
   const elementLabels: Record<CardElementType, string> = {
     task: title,
     gateway: `Decision: ${title}`,
@@ -549,8 +588,16 @@ function cardText(task: ProcessTask) {
   return [
     elementLabels[elementType],
     `BPMN: ${normalize(task.bpmnType) || "n/a"}`,
-    `Nature: ${normalize(task.taskNature) || "n/a"}`
-  ].join("\n");
+    `Nature: ${normalize(task.taskNature) || "n/a"}`,
+    dataAction && dataAction !== "none" ? `Data: ${dataAction}` : ""
+  ].filter(Boolean).join("\n");
+}
+
+function cardFooterText(task: ProcessTask) {
+  const system = normalize(task.system) || "No system/app";
+  const channel = normalize(task.channel);
+
+  return channel && channel !== "Other" ? `${system}\nChannel: ${channel}` : system;
 }
 
 function buildCardCells(task: ProcessTask, x: number, y: number) {
@@ -608,7 +655,7 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
     },
     {
       id: footerId,
-      value: normalize(task.system) || "No system/app",
+      value: cardFooterText(task),
       style: textStyle(notation.footerFill, notation.footerExtras),
       parent: containerId,
       vertex: true,
@@ -851,7 +898,7 @@ export function generateServiceBlueprintDrawioXml(
     {
       id: "separator_line_of_visibility",
       label: "Line of Visibility",
-      row: "FRONT-STAGE INTERACTIONS" as BlueprintRow,
+      row: "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL" as BlueprintRow,
       strokeColor: "#dc2626",
       strokeWidth: 3,
       dashed: false
@@ -859,7 +906,7 @@ export function generateServiceBlueprintDrawioXml(
     {
       id: "separator_line_of_internal_interaction",
       label: "Line of Internal Interaction",
-      row: "BACK-STAGE INTERACTIONS â€” PEOPLE" as BlueprintRow,
+      row: "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS" as BlueprintRow,
       strokeColor: "#475569",
       strokeWidth: 2,
       dashed: true

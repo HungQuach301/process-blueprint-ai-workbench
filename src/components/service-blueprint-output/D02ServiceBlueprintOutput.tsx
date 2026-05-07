@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { D02ServiceBlueprintPreview } from "@/components/preview/D02ServiceBlueprintPreview";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -204,6 +205,10 @@ export function D02ServiceBlueprintOutput() {
       </div>
 
       <div className="p-4">
+        <div className="mb-4">
+          <D02ServiceBlueprintPreview />
+        </div>
+
         <label className="grid gap-2 text-sm font-medium text-slate-700">
           draw.io XML đã generate
           <textarea

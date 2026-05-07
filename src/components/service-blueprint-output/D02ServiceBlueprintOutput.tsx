@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
+  sampleBpmnTemplateProfile,
   sampleProcessTasks,
   sampleServiceBlueprintTemplateProfile
 } from "@/lib/sample-data/sme-online-loan";
@@ -40,9 +41,16 @@ function readSelectedD02Template() {
   const selectedTemplateId =
     window.localStorage.getItem(D02_STORAGE_KEY) ??
     sampleServiceBlueprintTemplateProfile.id;
+  const sampleTemplates = [
+    sampleServiceBlueprintTemplateProfile,
+    sampleBpmnTemplateProfile
+  ];
 
   if (!savedTemplates) {
-    return sampleServiceBlueprintTemplateProfile;
+    return (
+      sampleTemplates.find((template) => template.id === selectedTemplateId) ??
+      sampleServiceBlueprintTemplateProfile
+    );
   }
 
   const parsedTemplates = JSON.parse(savedTemplates);
@@ -63,9 +71,31 @@ function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+type ArtifactStatus = "fresh" | "stale" | "not_generated";
+
+function readArtifactStatus(): ArtifactStatus {
+  const status = window.localStorage.getItem(D02_GENERATED_STATUS_KEY);
+
+  return status === "fresh" || status === "stale" ? status : "not_generated";
+}
+
 export function D02ServiceBlueprintOutput() {
   const [xml, setXml] = useState("");
   const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<ArtifactStatus>("not_generated");
+
+  function refreshStatus() {
+    setStatus(readArtifactStatus());
+  }
+
+  useEffect(() => {
+    refreshStatus();
+    window.addEventListener(ARTIFACT_STATUS_EVENT, refreshStatus);
+
+    return () => {
+      window.removeEventListener(ARTIFACT_STATUS_EVENT, refreshStatus);
+    };
+  }, []);
 
   function generateXml() {
     try {
@@ -84,7 +114,10 @@ export function D02ServiceBlueprintOutput() {
       window.localStorage.setItem(D02_GENERATED_XML_KEY, generatedXml);
       window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "fresh");
       window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
-      setMessage("Đã generate D02 Service Blueprint draw.io XML.");
+      setStatus("fresh");
+      setMessage(
+        `Đã generate D02 từ Process Task Register hiện tại và template: ${selectedTemplate.name}.`
+      );
     } catch (error) {
       setXml("");
       setMessage(
@@ -130,6 +163,22 @@ export function D02ServiceBlueprintOutput() {
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Tạo draw.io XML từ Process Task Register đã lưu và template D02
               đang chọn. File có thể mở bằng draw.io / diagrams.net.
+            </p>
+            <p
+              className={`mt-2 text-sm ${
+                status === "fresh"
+                  ? "text-emerald-700"
+                  : status === "stale"
+                    ? "text-amber-700"
+                    : "text-slate-500"
+              }`}
+            >
+              Trạng thái D02:{" "}
+              {status === "fresh"
+                ? "Fresh"
+                : status === "stale"
+                  ? "Stale - cần generate lại sau khi dữ liệu/template thay đổi"
+                  : "Not generated"}
             </p>
           </div>
 

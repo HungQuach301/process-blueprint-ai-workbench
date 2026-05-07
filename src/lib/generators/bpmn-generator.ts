@@ -252,11 +252,58 @@ function buildDataReferences(nodes: BpmnNode[]) {
   const objects: DataObjectDefinition[] = [];
   const references: DataReference[] = [];
 
-  nodes.forEach((node) => {
+  function findNearestPreviousTask(index: number) {
+    for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
+      const previousNode = nodes[previousIndex];
+
+      if (previousNode?.tagName.toLowerCase().endsWith("task")) {
+        return previousNode;
+      }
+    }
+
+    return null;
+  }
+
+  function resolveDataOwnerNode(node: BpmnNode, index: number) {
+    if (node.tagName.toLowerCase().endsWith("task")) {
+      return node;
+    }
+
+    if (node.tagName === "bpmn:exclusiveGateway") {
+      return findNearestPreviousTask(index);
+    }
+
+    return null;
+  }
+
+  nodes.forEach((node, index) => {
     const dataObjectName = normalize(node.task.dataObject);
     const dataAction = normalize(node.task.dataAction).toLowerCase();
 
     if (!dataObjectName || dataAction === "none") {
+      return;
+    }
+
+    const ownerNode = resolveDataOwnerNode(node, index);
+
+    // Gateways and end events should not own data refs. If there is no safe
+    // previous task to attach to, skip the data object to avoid orphan refs.
+    if (!ownerNode) {
+      return;
+    }
+
+    const canAttachToTask = ownerNode.tagName.toLowerCase().endsWith("task");
+    const associationType =
+      node.tagName === "bpmn:exclusiveGateway"
+        ? "output"
+        : canAttachToTask && (dataAction === "pull" || dataAction === "read")
+          ? "input"
+        : canAttachToTask &&
+            (dataAction === "push" || dataAction === "store" || dataAction === "update")
+          ? "output"
+          : "none";
+
+    if (associationType === "none") {
       return;
     }
 
@@ -272,24 +319,18 @@ function buildDataReferences(nodes: BpmnNode[]) {
       objects.push(dataObject);
     }
 
-    const canAttachToTask = node.tagName.toLowerCase().endsWith("task");
-    const associationType =
-      canAttachToTask && (dataAction === "pull" || dataAction === "read")
-        ? "input"
-        : canAttachToTask &&
-            (dataAction === "push" || dataAction === "store" || dataAction === "update")
-          ? "output"
-          : "none";
-    const referenceId = `DataRef_${sanitizeId(node.task.stepId)}_${sanitizeId(dataObjectName)}`;
+    const referenceId = `DataRef_${sanitizeId(ownerNode.task.stepId)}_${sanitizeId(
+      dataObjectName
+    )}_${sanitizeId(node.task.stepId)}`;
 
     references.push({
       id: referenceId,
       objectId: dataObject.id,
       name: dataObjectName,
-      sourceNodeId: node.id,
+      sourceNodeId: ownerNode.id,
       associationType,
-      x: node.x,
-      y: node.y + node.height + 35
+      x: ownerNode.x,
+      y: ownerNode.y + ownerNode.height + 35
     });
   });
 

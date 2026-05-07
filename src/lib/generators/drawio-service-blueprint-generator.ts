@@ -92,6 +92,32 @@ const cardColors = {
   border: "#64748b"
 };
 
+type ActorGroup = "customer" | "rm" | "ops" | "approver" | "system" | "dataControl";
+
+type CardElementType = "task" | "gateway" | "dataControl" | "startEvent" | "endEvent" | "send";
+
+type CardNotation = {
+  containerFill: string;
+  borderColor: string;
+  strokeWidth: number;
+  dashed?: boolean;
+  rounded?: number;
+  headerFill: string;
+  middleFill: string;
+  footerFill: string;
+  middleExtras?: string;
+  footerExtras?: string;
+};
+
+const actorHeaderColors: Record<ActorGroup, string> = {
+  customer: "#ccfbf1",
+  rm: "#dbeafe",
+  ops: "#ede9fe",
+  approver: "#fef3c7",
+  system: "#e0f2fe",
+  dataControl: "#f1f5f9"
+};
+
 function escapeXml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -174,6 +200,144 @@ function isDataOrControlArtifact(task: ProcessTask) {
     !isCustomerActor(actor) &&
     !isBankHumanActor(actor)
   );
+}
+
+function getActorGroup(task: ProcessTask): ActorGroup {
+  const actor = lower(`${task.actor} ${task.actorLane}`);
+  const bpmnType = lower(task.bpmnType).replace(/[^a-z0-9]/g, "");
+  const rowType = lower(task.rowType);
+
+  if (isDataOrControlArtifact(task) || rowType.includes("data") || ["dataobject", "datastore"].includes(bpmnType)) {
+    return "dataControl";
+  }
+
+  if (isCustomerActor(actor)) {
+    return "customer";
+  }
+
+  if (hasAny(actor, ["ops", "ops support"])) {
+    return "ops";
+  }
+
+  if (hasAny(actor, ["credit approver", "approver", "credit"])) {
+    return "approver";
+  }
+
+  if (hasAny(actor, ["rm", "bank user"])) {
+    return "rm";
+  }
+
+  if (isSystemActor(actor)) {
+    return "system";
+  }
+
+  return "rm";
+}
+
+function getCardElementType(task: ProcessTask): CardElementType {
+  const bpmnType = lower(task.bpmnType);
+  const compactBpmnType = bpmnType.replace(/[^a-z0-9]/g, "");
+  const rowType = lower(task.rowType);
+
+  if (rowType === "gateway" || bpmnType.includes("gateway")) {
+    return "gateway";
+  }
+
+  if (isDataOrControlArtifact(task) || rowType.includes("data") || ["dataobject", "datastore"].includes(compactBpmnType)) {
+    return "dataControl";
+  }
+
+  if (compactBpmnType === "startevent") {
+    return "startEvent";
+  }
+
+  if (compactBpmnType === "endevent") {
+    return "endEvent";
+  }
+
+  if (compactBpmnType === "sendtask" || isCustomerFacingNotification(task)) {
+    return "send";
+  }
+
+  return "task";
+}
+
+function getCardNotation(task: ProcessTask): CardNotation {
+  const actorGroup = getActorGroup(task);
+  const elementType = getCardElementType(task);
+  const base: CardNotation = {
+    containerFill: "#ffffff",
+    borderColor: cardColors.border,
+    strokeWidth: 1,
+    rounded: 1,
+    headerFill: actorHeaderColors[actorGroup],
+    middleFill: cardColors.middle,
+    footerFill: cardColors.footer
+  };
+
+  if (elementType === "gateway") {
+    return {
+      ...base,
+      containerFill: "#fffbeb",
+      borderColor: "#d97706",
+      strokeWidth: 2,
+      middleFill: "#fef3c7",
+      footerFill: "#fff7ed",
+      middleExtras: "fontStyle=1"
+    };
+  }
+
+  if (elementType === "dataControl") {
+    return {
+      ...base,
+      containerFill: "#f8fafc",
+      borderColor: "#64748b",
+      strokeWidth: 2,
+      dashed: true,
+      middleFill: "#f1f5f9",
+      footerFill: "#e2e8f0"
+    };
+  }
+
+  if (elementType === "startEvent") {
+    return {
+      ...base,
+      containerFill: "#f0fdf4",
+      borderColor: "#16a34a",
+      strokeWidth: 2,
+      rounded: 1,
+      middleFill: "#dcfce7",
+      footerFill: "#f0fdf4",
+      middleExtras: "fontStyle=1"
+    };
+  }
+
+  if (elementType === "endEvent") {
+    return {
+      ...base,
+      containerFill: "#fef2f2",
+      borderColor: "#b91c1c",
+      strokeWidth: 3,
+      rounded: 1,
+      middleFill: "#fee2e2",
+      footerFill: "#fef2f2",
+      middleExtras: "fontStyle=1"
+    };
+  }
+
+  if (elementType === "send") {
+    return {
+      ...base,
+      containerFill: "#eff6ff",
+      borderColor: "#2563eb",
+      strokeWidth: 2,
+      middleFill: "#dbeafe",
+      footerFill: "#eff6ff",
+      footerExtras: "fontStyle=2"
+    };
+  }
+
+  return base;
 }
 
 function getTemplateRows(templateProfile: TemplateProfile): BlueprintRow[] {
@@ -371,8 +535,19 @@ function textStyle(fillColor: string, extras = "") {
 }
 
 function cardText(task: ProcessTask) {
+  const elementType = getCardElementType(task);
+  const title = normalize(task.taskName) || "(Chưa có tên task)";
+  const elementLabels: Record<CardElementType, string> = {
+    task: title,
+    gateway: `Decision: ${title}`,
+    dataControl: `Data / Control: ${title}`,
+    startEvent: `Start Event: ${title}`,
+    endEvent: `End Event: ${title}`,
+    send: `Message / Notification: ${title}`
+  };
+
   return [
-    normalize(task.taskName) || "(Chưa có tên task)",
+    elementLabels[elementType],
     `BPMN: ${normalize(task.bpmnType) || "n/a"}`,
     `Nature: ${normalize(task.taskNature) || "n/a"}`
   ].join("\n");
@@ -384,13 +559,25 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
   const headerId = `${containerId}_header`;
   const middleId = `${containerId}_middle`;
   const footerId = `${containerId}_footer`;
+  const notation = getCardNotation(task);
+  const containerStyle = [
+    `rounded=${notation.rounded ?? 1}`,
+    "whiteSpace=wrap",
+    "html=1",
+    `fillColor=${notation.containerFill}`,
+    `strokeColor=${notation.borderColor}`,
+    `strokeWidth=${notation.strokeWidth}`,
+    notation.dashed ? "dashed=1" : "",
+    "shadow=0"
+  ]
+    .filter(Boolean)
+    .join(";");
 
   const cells: BlueprintCell[] = [
     {
       id: containerId,
       value: "",
-      style:
-        "rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#334155;shadow=0",
+      style: containerStyle,
       vertex: true,
       x,
       y,
@@ -400,7 +587,7 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
     {
       id: headerId,
       value: normalize(task.actor) || "No actor",
-      style: textStyle(cardColors.header, "fontStyle=1"),
+      style: textStyle(notation.headerFill, "fontStyle=1"),
       parent: containerId,
       vertex: true,
       x: 0,
@@ -411,7 +598,7 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
     {
       id: middleId,
       value: cardText(task),
-      style: textStyle(cardColors.middle),
+      style: textStyle(notation.middleFill, notation.middleExtras),
       parent: containerId,
       vertex: true,
       x: 0,
@@ -422,7 +609,7 @@ function buildCardCells(task: ProcessTask, x: number, y: number) {
     {
       id: footerId,
       value: normalize(task.system) || "No system/app",
-      style: textStyle(cardColors.footer),
+      style: textStyle(notation.footerFill, notation.footerExtras),
       parent: containerId,
       vertex: true,
       x: 0,

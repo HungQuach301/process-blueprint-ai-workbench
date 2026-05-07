@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QAPanel } from "@/components/qa-panel/QAPanel";
+import {
+  parseProcessTaskRegisterWorkbook,
+  type ProcessTaskImportPreview
+} from "@/lib/excel/process-task-register-import";
 import { createProcessTaskRegisterTemplateWorkbook } from "@/lib/excel/process-task-register-template";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
@@ -394,6 +398,8 @@ export function ProcessTaskRegister() {
   const [tasks, setTasks] = useState<ProcessTask[]>(() => cloneSampleTasks());
   const [saveMessage, setSaveMessage] = useState("");
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<ProcessTaskImportPreview | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const savedTasks = window.localStorage.getItem(STORAGE_KEY);
@@ -648,6 +654,58 @@ export function ProcessTaskRegister() {
     }
   }
 
+  async function importExcelFile(file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    try {
+      const preview = await parseProcessTaskRegisterWorkbook(file);
+
+      setImportPreview(preview);
+      setSaveMessage(
+        preview.errors.length > 0
+          ? "Excel import có lỗi. Vui lòng kiểm tra preview trước khi apply."
+          : "Đã đọc file Excel. Kiểm tra preview rồi bấm Apply Import để cập nhật bảng."
+      );
+    } catch (error) {
+      setImportPreview({
+        tasks: [],
+        errors: [
+          {
+            message:
+              error instanceof Error
+                ? error.message
+                : "Không thể đọc file Excel. Vui lòng kiểm tra đúng định dạng .xlsx."
+          }
+        ],
+        warnings: []
+      });
+      setSaveMessage("Không thể đọc file Excel.");
+    } finally {
+      if (importInputRef.current) {
+        importInputRef.current.value = "";
+      }
+    }
+  }
+
+  function applyImport() {
+    if (!importPreview || importPreview.errors.length > 0) {
+      setSaveMessage("Không thể apply import khi còn lỗi.");
+      return;
+    }
+
+    setTasks(persistTasks(importPreview.tasks));
+    markGeneratedArtifactsStale();
+    setImportPreview(null);
+    setSaveMessage("Đã apply Excel import, lưu vào localStorage và đánh dấu D01/D02 stale.");
+  }
+
+  function cancelImport() {
+    setImportPreview(null);
+    setSaveMessage("Đã hủy Excel import. Dữ liệu hiện tại không thay đổi.");
+  }
+
   return (
     <>
       <QAPanel
@@ -716,6 +774,20 @@ export function ProcessTaskRegister() {
               >
                 Download Excel Template
               </button>
+              <input
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                onChange={(event) => importExcelFile(event.target.files?.[0])}
+                ref={importInputRef}
+                type="file"
+              />
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => importInputRef.current?.click()}
+                type="button"
+              >
+                Import Excel
+              </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={resetTasks}
@@ -730,6 +802,126 @@ export function ProcessTaskRegister() {
             <p className="mt-3 text-sm text-slate-600">{saveMessage}</p>
           ) : null}
         </div>
+
+        {importPreview ? (
+          <div className="border-b border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-950">
+                  Preview Excel import
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Số dòng đọc được: {importPreview.tasks.length} | Lỗi:{" "}
+                  {importPreview.errors.length} | Cảnh báo:{" "}
+                  {importPreview.warnings.length}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  disabled={importPreview.errors.length > 0}
+                  onClick={applyImport}
+                  type="button"
+                >
+                  Apply Import
+                </button>
+                <button
+                  className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={cancelImport}
+                  type="button"
+                >
+                  Cancel Import
+                </button>
+              </div>
+            </div>
+
+            {importPreview.errors.length > 0 ? (
+              <div className="mt-4 rounded border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-semibold text-red-800">Lỗi import</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
+                  {importPreview.errors.map((issue, index) => (
+                    <li key={`${issue.message}-${index}`}>{issue.message}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {importPreview.warnings.length > 0 ? (
+              <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">
+                  Cảnh báo import
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
+                  {importPreview.warnings.map((issue, index) => (
+                    <li key={`${issue.message}-${index}`}>{issue.message}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="mt-4 overflow-x-auto rounded border border-slate-200 bg-white">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-slate-100 text-slate-700">
+                  <tr>
+                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                      #
+                    </th>
+                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                      stepId
+                    </th>
+                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                      rowType
+                    </th>
+                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                      bpmnType
+                    </th>
+                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                      actor
+                    </th>
+                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                      taskName
+                    </th>
+                    <th className="border-b border-slate-200 px-3 py-2">
+                      defaultNextStep
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.tasks.slice(0, 8).map((task, index) => (
+                    <tr className="odd:bg-white even:bg-slate-50" key={`${task.id}-${index}`}>
+                      <td className="border-b border-r border-slate-200 px-3 py-2">
+                        {index + 1}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-3 py-2">
+                        {task.stepId}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-3 py-2">
+                        {task.rowType}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-3 py-2">
+                        {task.bpmnType}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-3 py-2">
+                        {task.actor}
+                      </td>
+                      <td className="border-b border-r border-slate-200 px-3 py-2">
+                        {task.taskName}
+                      </td>
+                      <td className="border-b border-slate-200 px-3 py-2">
+                        {task.defaultNextStep}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {importPreview.tasks.length > 8 ? (
+                <p className="border-t border-slate-200 p-3 text-sm text-slate-500">
+                  Chỉ hiển thị 8 dòng đầu trong preview.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-left text-sm">

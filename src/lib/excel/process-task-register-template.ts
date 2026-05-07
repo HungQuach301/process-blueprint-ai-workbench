@@ -2,7 +2,7 @@ import JSZip from "jszip";
 import type { ProcessTask } from "@/lib/models/process-task";
 import { sampleProcessTasks } from "@/lib/sample-data/sme-online-loan";
 
-type ProcessTaskField = {
+export type ProcessTaskField = {
   key: keyof ProcessTask;
   label: string;
   required: "Có" | "Không";
@@ -28,7 +28,7 @@ type DataValidation = {
   optionEndRow: number;
 };
 
-const processTaskFields: ProcessTaskField[] = [
+export const processTaskFields: ProcessTaskField[] = [
   { key: "id", label: "ID", required: "Có", description: "Mã kỹ thuật duy nhất của dòng.", example: "task-001", width: 22 },
   { key: "stepId", label: "Mã bước", required: "Có", description: "Mã bước nghiệp vụ, dùng để nối luồng.", example: "S001", width: 14 },
   { key: "parentStepId", label: "Mã bước cha", required: "Không", description: "Bước cha nếu dòng thuộc nhánh hoặc nhóm con.", example: "S010", width: 16 },
@@ -61,7 +61,7 @@ const processTaskFields: ProcessTaskField[] = [
   { key: "channel", label: "Kênh", required: "Không", description: "Kênh tương tác hoặc hệ thống chính.", example: "Portal", width: 22 }
 ];
 
-const optionLists: Record<string, string[]> = {
+export const optionLists: Record<string, string[]> = {
   rowType: ["phase", "group", "task", "gateway", "start", "end", "event", "data", "annotation"],
   bpmnType: [
     "none",

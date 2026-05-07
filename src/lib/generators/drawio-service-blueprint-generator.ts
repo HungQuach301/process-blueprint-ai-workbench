@@ -420,6 +420,50 @@ function buildDataAssociation(source: CardPosition, target: CardPosition) {
   } satisfies BlueprintCell;
 }
 
+function buildSeparatorCells(
+  id: string,
+  label: string,
+  y: number,
+  x: number,
+  width: number,
+  strokeColor: string,
+  strokeWidth: number,
+  dashed = false
+) {
+  return [
+    {
+      id: `${id}_label`,
+      value: label,
+      style:
+        "text;html=1;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=middle;spacingLeft=12;fontStyle=1;fontSize=11;fontColor=#334155",
+      vertex: true,
+      x: 0,
+      y: y - 16,
+      width: ROW_LABEL_WIDTH,
+      height: 32
+    },
+    {
+      id,
+      value: "",
+      style: [
+        "shape=line",
+        "html=1",
+        `strokeColor=${strokeColor}`,
+        `strokeWidth=${strokeWidth}`,
+        dashed ? "dashed=1" : "",
+        "endArrow=none"
+      ]
+        .filter(Boolean)
+        .join(";"),
+      vertex: true,
+      x,
+      y,
+      width,
+      height: 1
+    }
+  ] satisfies BlueprintCell[];
+}
+
 export function generateServiceBlueprintDrawioXml(
   processTasks: ProcessTask[],
   templateProfile: TemplateProfile
@@ -533,6 +577,64 @@ export function generateServiceBlueprintDrawioXml(
         height: rowHeights[index]
       });
     });
+  });
+
+  const firstPhaseX = phaseX(0);
+  const allPhaseWidth = phaseWidths.reduce((total, width) => total + width, 0);
+  const separatorDefinitions = [
+    {
+      id: "separator_line_of_interaction",
+      label: "Line of Interaction",
+      row: "CUSTOMER ACTIONS" as BlueprintRow,
+      strokeColor: "#0f172a",
+      strokeWidth: 2,
+      dashed: false
+    },
+    {
+      id: "separator_line_of_visibility",
+      label: "Line of Visibility",
+      row: "FRONT-STAGE INTERACTIONS" as BlueprintRow,
+      strokeColor: "#dc2626",
+      strokeWidth: 3,
+      dashed: false
+    },
+    {
+      id: "separator_line_of_internal_interaction",
+      label: "Line of Internal Interaction",
+      row: "BACK-STAGE INTERACTIONS â€” PEOPLE" as BlueprintRow,
+      strokeColor: "#475569",
+      strokeWidth: 2,
+      dashed: true
+    }
+  ];
+
+  separatorDefinitions.forEach((separator) => {
+    const rowIndex =
+      rows.indexOf(separator.row) >= 0
+        ? rows.indexOf(separator.row)
+        : rows.findIndex(
+            (row) =>
+              separator.id === "separator_line_of_internal_interaction" &&
+              row.includes("BACK-STAGE INTERACTIONS") &&
+              row.includes("PEOPLE")
+          );
+
+    if (rowIndex < 0) {
+      return;
+    }
+
+    cells.push(
+      ...buildSeparatorCells(
+        separator.id,
+        separator.label,
+        rowY(rowIndex) + rowHeights[rowIndex],
+        firstPhaseX,
+        allPhaseWidth,
+        separator.strokeColor,
+        separator.strokeWidth,
+        separator.dashed
+      )
+    );
   });
 
   processTasks.forEach((task) => {

@@ -75,7 +75,8 @@ export const sampleServiceBlueprintTemplateProfile: TemplateProfile = {
       "BACK-STAGE INTERACTIONS — PEOPLE",
       "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS",
       "SUPPORT PROCESSES",
-      "DATA / CONTROL"
+      "DATA / CONTROL",
+      "OUTCOME / END STATE"
     ]
   },
   taskCardRules: {

@@ -20,7 +20,8 @@ type BlueprintRow =
   | "BACK-STAGE INTERACTIONS — PEOPLE"
   | "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS"
   | "SUPPORT PROCESSES"
-  | "DATA / CONTROL";
+  | "DATA / CONTROL"
+  | "OUTCOME / END STATE";
 
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const TEMPLATES_STORAGE_KEY =
@@ -39,7 +40,8 @@ const defaultRows: BlueprintRow[] = [
   "BACK-STAGE INTERACTIONS — PEOPLE",
   "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS",
   "SUPPORT PROCESSES",
-  "DATA / CONTROL"
+  "DATA / CONTROL",
+  "OUTCOME / END STATE"
 ];
 
 const topContextRows: BlueprintRow[] = ["STEPS", "PHASE", "TIME", "EVIDENCE"];
@@ -55,7 +57,8 @@ const rowColors: Record<BlueprintRow, string> = {
   "BACK-STAGE INTERACTIONS — PEOPLE": "bg-fuchsia-50",
   "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS": "bg-violet-50",
   "SUPPORT PROCESSES": "bg-slate-50",
-  "DATA / CONTROL": "bg-slate-100"
+  "DATA / CONTROL": "bg-slate-100",
+  "OUTCOME / END STATE": "bg-red-50"
 };
 
 function normalize(value: string | null | undefined) {
@@ -167,6 +170,13 @@ function isDataOrControlArtifact(task: ProcessTask) {
 }
 
 function mapTaskToRow(task: ProcessTask): BlueprintRow {
+  const bpmnType = lower(task.bpmnType);
+  const compactBpmnType = bpmnType.replace(/[^a-z0-9]/g, "");
+
+  if (compactBpmnType === "endevent") {
+    return "OUTCOME / END STATE";
+  }
+
   switch (normalize(task.customerInteractionType)) {
     case "Customer Action":
       return "CUSTOMER ACTIONS";
@@ -185,7 +195,6 @@ function mapTaskToRow(task: ProcessTask): BlueprintRow {
   }
 
   const actor = lower(task.actor);
-  const bpmnType = lower(task.bpmnType);
 
   if (lower(task.rowType) === "gateway" || bpmnType.includes("gateway")) {
     if (isCustomerActor(actor)) {

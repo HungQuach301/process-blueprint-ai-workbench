@@ -12,7 +12,8 @@ type BlueprintRow =
   | "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS"
   | "BACK-STAGE INTERACTIONS — PEOPLE"
   | "SUPPORT PROCESSES"
-  | "DATA / CONTROL";
+  | "DATA / CONTROL"
+  | "OUTCOME / END STATE";
 
 type BlueprintCell = {
   id: string;
@@ -51,7 +52,8 @@ const DEFAULT_ROWS: BlueprintRow[] = [
   "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS",
   "BACK-STAGE INTERACTIONS — PEOPLE",
   "SUPPORT PROCESSES",
-  "DATA / CONTROL"
+  "DATA / CONTROL",
+  "OUTCOME / END STATE"
 ];
 
 const ROW_LABEL_WIDTH = 250;
@@ -85,7 +87,8 @@ const rowColors: Record<BlueprintRow, string> = {
   "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS": "#f5f3ff",
   "BACK-STAGE INTERACTIONS — PEOPLE": "#faf5ff",
   "SUPPORT PROCESSES": "#f8fafc",
-  "DATA / CONTROL": "#f1f5f9"
+  "DATA / CONTROL": "#f1f5f9",
+  "OUTCOME / END STATE": "#fef2f2"
 };
 
 const cardColors = {
@@ -371,7 +374,7 @@ function getTemplateRows(templateProfile: TemplateProfile): BlueprintRow[] {
     Array.isArray(configuredRows) &&
     configuredRows.every((row) => typeof row === "string")
   ) {
-    return configuredRows.flatMap((row) =>
+    const rows = configuredRows.flatMap((row) =>
       row === "FRONT-STAGE INTERACTIONS"
         ? [
             "FRONT-STAGE INTERACTIONS — PEOPLE",
@@ -379,6 +382,8 @@ function getTemplateRows(templateProfile: TemplateProfile): BlueprintRow[] {
           ]
         : [row]
     ) as BlueprintRow[];
+
+    return [...new Set([...rows, ...DEFAULT_ROWS])];
   }
 
   return DEFAULT_ROWS;
@@ -391,18 +396,23 @@ function getPhases(tasks: ProcessTask[]) {
 }
 
 function mapTaskToRow(task: ProcessTask): BlueprintRow {
+  const actor = lower(task.actor);
+  const bpmnType = lower(task.bpmnType);
+  const compactBpmnType = bpmnType.replace(/[^a-z0-9]/g, "");
+  const taskNature = lower(task.taskNature);
+  const taskName = lower(task.taskName);
+  const riskControl = lower(task.riskControl);
+  const sla = lower(task.sla);
+
+  if (compactBpmnType === "endevent") {
+    return "OUTCOME / END STATE";
+  }
+
   const explicitRow = mapCustomerInteractionTypeToRow(task);
 
   if (explicitRow) {
     return explicitRow;
   }
-
-  const actor = lower(task.actor);
-  const bpmnType = lower(task.bpmnType);
-  const taskNature = lower(task.taskNature);
-  const taskName = lower(task.taskName);
-  const riskControl = lower(task.riskControl);
-  const sla = lower(task.sla);
 
   if (task.rowType === "gateway" || hasAny(bpmnType, ["gateway"])) {
     if (isCustomerActor(actor)) {

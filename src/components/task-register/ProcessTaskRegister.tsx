@@ -11,6 +11,7 @@ import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import { applyQARecommendation } from "@/lib/qa/apply-recommendation";
+import { applyRecommendationBatch } from "@/lib/recommendation-engine/apply-operations";
 import {
   type QARecommendation,
   validateProcessTasks
@@ -720,12 +721,23 @@ export function ProcessTaskRegister() {
     );
   }
 
+  function applyRecommendations(recommendations: QARecommendation[]) {
+    setTasks((currentTasks) =>
+      persistTasks(applyRecommendationBatch(currentTasks, recommendations))
+    );
+    markGeneratedArtifactsStale();
+    setSaveMessage(
+      `Đã apply ${recommendations.length} recommendation(s) và đánh dấu D01/D02 stale.`
+    );
+  }
+
   return (
     <>
       <QAPanel
         issues={qaIssues}
         processTasks={tasks}
         onApplyRecommendation={applyRecommendation}
+        onApplyRecommendations={applyRecommendations}
         onDownloadReport={downloadQaReport}
         onIssueClick={focusIssueRow}
       />

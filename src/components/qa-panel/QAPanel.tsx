@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ProcessTask } from "@/lib/models/process-task";
 import {
   getRecommendationChangePreview
 } from "@/lib/qa/apply-recommendation";
+import {
+  isGraphChangingRecommendation,
+  isSafeRecommendation,
+  previewRecommendationBatch
+} from "@/lib/recommendation-engine/apply-operations";
 import type {
   QARecommendation,
   QaIssue,
@@ -17,6 +22,7 @@ type QAPanelProps = {
   onIssueClick: (stepId: string) => void;
   onDownloadReport: () => void;
   onApplyRecommendation: (recommendation: QARecommendation) => void;
+  onApplyRecommendations: (recommendations: QARecommendation[]) => void;
 };
 
 const severityLabels: Record<QaSeverity, string> = {
@@ -50,12 +56,57 @@ export function QAPanel({
   processTasks,
   onIssueClick,
   onDownloadReport,
-  onApplyRecommendation
+  onApplyRecommendation,
+  onApplyRecommendations
 }: QAPanelProps) {
   const [pendingRecommendation, setPendingRecommendation] = useState<{
     issue: QaIssue;
     recommendation: QARecommendation;
   } | null>(null);
+  const [pendingBatchRecommendations, setPendingBatchRecommendations] = useState<QARecommendation[] | null>(null);
+  const [selectedRecommendationKeys, setSelectedRecommendationKeys] = useState<Set<string>>(() => new Set());
+  const [showOnlySafe, setShowOnlySafe] = useState(false);
+  const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
+  const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
+  const recommendationEntries = useMemo(
+    () =>
+      issues.flatMap((issue) =>
+        (issue.recommendations ?? []).map((recommendation, index) => ({
+          issue,
+          recommendation,
+          key: `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`
+        }))
+      ),
+    [issues]
+  );
+  const visibleRecommendationKeys = useMemo(() => {
+    const keys = new Set<string>();
+
+    recommendationEntries.forEach((entry) => {
+      const isSafe = isSafeRecommendation(entry.recommendation);
+      const isMediumLowRisk =
+        includeMediumConfidence &&
+        entry.recommendation.confidence === "medium" &&
+        entry.recommendation.riskLevel === "low" &&
+        !isGraphChangingRecommendation(entry.recommendation);
+      const isGraphChanging = isGraphChangingRecommendation(entry.recommendation);
+
+      if (!includeGraphChanging && isGraphChanging) {
+        return;
+      }
+
+      if (showOnlySafe && !isSafe && !isMediumLowRisk) {
+        return;
+      }
+
+      keys.add(entry.key);
+    });
+
+    return keys;
+  }, [includeGraphChanging, includeMediumConfidence, recommendationEntries, showOnlySafe]);
+  const selectedRecommendations = recommendationEntries
+    .filter((entry) => selectedRecommendationKeys.has(entry.key))
+    .map((entry) => entry.recommendation);
   const groupedIssues = severityOrder.map((severity) => ({
     severity,
     issues: issues.filter((issue) => issue.severity === severity)
@@ -63,6 +114,57 @@ export function QAPanel({
   const pendingChanges = pendingRecommendation
     ? getRecommendationChangePreview(processTasks, pendingRecommendation.recommendation)
     : [];
+  const pendingBatchPreview = pendingBatchRecommendations
+    ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
+    : null;
+
+  function toggleRecommendation(key: string) {
+    setSelectedRecommendationKeys((currentKeys) => {
+      const nextKeys = new Set(currentKeys);
+
+      if (nextKeys.has(key)) {
+        nextKeys.delete(key);
+      } else {
+        nextKeys.add(key);
+      }
+
+      return nextKeys;
+    });
+  }
+
+  function selectSafeRecommendations() {
+    setSelectedRecommendationKeys(
+      new Set(
+        recommendationEntries
+          .filter((entry) => isSafeRecommendation(entry.recommendation))
+          .map((entry) => entry.key)
+      )
+    );
+  }
+
+  function clearSelection() {
+    setSelectedRecommendationKeys(new Set());
+  }
+
+  function applySelectedRecommendations() {
+    if (selectedRecommendations.length === 0) {
+      return;
+    }
+
+    setPendingBatchRecommendations(selectedRecommendations);
+  }
+
+  function applyAllSafeRecommendations() {
+    const safeRecommendations = recommendationEntries
+      .filter((entry) => isSafeRecommendation(entry.recommendation))
+      .map((entry) => entry.recommendation);
+
+    if (safeRecommendations.length === 0) {
+      return;
+    }
+
+    setPendingBatchRecommendations(safeRecommendations);
+  }
 
   return (
     <section className="rounded border border-slate-200 bg-white">
@@ -91,6 +193,65 @@ export function QAPanel({
           >
             Download QA Report
           </button>
+        </div>
+        <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              onClick={selectSafeRecommendations}
+              type="button"
+            >
+              Select safe high-confidence recommendations
+            </button>
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              onClick={clearSelection}
+              type="button"
+            >
+              Clear selection
+            </button>
+            <button
+              className="rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              disabled={selectedRecommendations.length === 0}
+              onClick={applySelectedRecommendations}
+              type="button"
+            >
+              Apply selected ({selectedRecommendations.length})
+            </button>
+            <button
+              className="rounded bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+              onClick={applyAllSafeRecommendations}
+              type="button"
+            >
+              Apply all safe recommendations
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
+            <label className="flex items-center gap-2">
+              <input
+                checked={showOnlySafe}
+                onChange={(event) => setShowOnlySafe(event.target.checked)}
+                type="checkbox"
+              />
+              Show only safe recommendations
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                checked={includeMediumConfidence}
+                onChange={(event) => setIncludeMediumConfidence(event.target.checked)}
+                type="checkbox"
+              />
+              Include medium confidence
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                checked={includeGraphChanging}
+                onChange={(event) => setIncludeGraphChanging(event.target.checked)}
+                type="checkbox"
+              />
+              Include graph-changing recommendations
+            </label>
+          </div>
         </div>
       </div>
 
@@ -147,12 +308,27 @@ export function QAPanel({
                       {issue.recommendations?.length ? (
                         <div className="mt-2 space-y-3">
                           {issue.recommendations.map((recommendation, index) => (
+                            (() => {
+                              const recommendationKey = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
+
+                              if (!visibleRecommendationKeys.has(recommendationKey)) {
+                                return null;
+                              }
+
+                              return (
                             <div
                               className={`rounded border p-3 ${recommendationCardStyles[issue.severity]}`}
-                              key={`${recommendation.type}-${index}`}
+                              key={recommendationKey}
                             >
                               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                                <div>
+                                <label className="flex gap-2">
+                                  <input
+                                    checked={selectedRecommendationKeys.has(recommendationKey)}
+                                    className="mt-1"
+                                    onChange={() => toggleRecommendation(recommendationKey)}
+                                    type="checkbox"
+                                  />
+                                  <span>
                                   <p className="text-sm font-semibold text-slate-800">
                                     {recommendation.title}
                                   </p>
@@ -161,9 +337,10 @@ export function QAPanel({
                                   </p>
                                   <p className="mt-1 text-xs text-slate-500">
                                     Confidence: {recommendation.confidence} | Impact:{" "}
-                                    {recommendation.impact}
+                                    {recommendation.impact} | Risk: {recommendation.riskLevel ?? "medium"}
                                   </p>
-                                </div>
+                                  </span>
+                                </label>
                                 <button
                                   className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
                                   onClick={() =>
@@ -183,6 +360,8 @@ export function QAPanel({
                                 </p>
                               ) : null}
                             </div>
+                              );
+                            })()
                           ))}
                         </div>
                       ) : (
@@ -304,6 +483,74 @@ export function QAPanel({
                 type="button"
               >
                 Confirm Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingBatchRecommendations && pendingBatchPreview ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded border border-slate-200 bg-white p-5 shadow-xl">
+            <p className="text-sm font-medium uppercase text-slate-500">
+              Confirm Batch Recommendations
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-slate-950">
+              Apply selected recommendations
+            </h3>
+            <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+              <p>Selected: {pendingBatchPreview.selectedCount}</p>
+              <p>Will apply: {pendingBatchPreview.applicableCount}</p>
+              <p>Skipped due to conflicts: {pendingBatchPreview.skippedCount}</p>
+              <p>Affected tasks: {pendingBatchPreview.affectedTaskCount}</p>
+              <p>New tasks: {pendingBatchPreview.newTaskCount}</p>
+              <p>Connection changes: {pendingBatchPreview.connectionChangeCount}</p>
+            </div>
+
+            {pendingBatchPreview.conflicts.length > 0 ? (
+              <div className="mt-4 rounded border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-semibold text-red-800">Conflicts</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
+                  {pendingBatchPreview.conflicts.map((conflict, index) => (
+                    <li key={`${conflict.message}-${index}`}>{conflict.message}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-sm text-red-700">
+                  Conflicting recommendations will be skipped.
+                </p>
+              </div>
+            ) : null}
+
+            {pendingBatchPreview.warnings.length > 0 ? (
+              <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">Warnings</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
+                  {pendingBatchPreview.warnings.map((warning, index) => (
+                    <li key={`${warning}-${index}`}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => setPendingBatchRecommendations(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={pendingBatchPreview.applicableCount === 0}
+                onClick={() => {
+                  onApplyRecommendations(pendingBatchRecommendations);
+                  setPendingBatchRecommendations(null);
+                  clearSelection();
+                }}
+                type="button"
+              >
+                Confirm Apply Batch
               </button>
             </div>
           </div>

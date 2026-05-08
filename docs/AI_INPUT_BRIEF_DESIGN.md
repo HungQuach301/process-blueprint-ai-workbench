@@ -1,227 +1,267 @@
 # AI Input Brief Design
 
-## 1. Structured input form
+## 1. Mục tiêu
 
-AI Input Brief là điểm nhập dữ liệu ban đầu để tạo draft Process Task Register. Mục tiêu là giúp người dùng mô tả quy trình nghiệp vụ bằng form có cấu trúc trước khi hệ thống trích xuất thành `ProcessTask[]`.
+AI Input Brief là điểm nhập đầu vào để người dùng mô tả một quy trình nghiệp vụ trước khi hệ thống tạo Draft Process Task Register.
 
-Form nên hỗ trợ các nhóm thông tin sau:
+Mục tiêu hiện tại:
 
-- Thông tin workspace: tên quy trình, mô tả, phạm vi, phòng ban, domain nghiệp vụ.
-- Mục tiêu quy trình: outcome mong muốn, trigger bắt đầu, trạng thái kết thúc.
-- Actor và vai trò: customer, RM, ops, approver, system, external provider.
-- Hệ thống liên quan: LOS, portal, OCR, notification service, document store, external data provider.
-- Dữ liệu và chứng từ: input, output, data object, source reference.
-- SLA và control: thời gian xử lý, rủi ro, kiểm soát, quy định cần tuân thủ.
-- Exception: reject, pause, supplement, manual review, missing document.
-- Template preference: D01 BPMN template, D02 Service Blueprint template, output type.
+- Giúp người dùng nhập brief nhanh, rõ, ít trường.
+- Chuyển brief thành draft `ProcessTask[]`.
+- Luôn đi qua Draft -> Preview -> QA -> User Apply.
+- Không tạo nguồn quy trình thứ hai ngoài Process Task Register.
+- Chuẩn bị boundary cho skill AI tương lai `input-brief-to-ptr`.
 
-Form có cấu trúc giúp AI giảm suy đoán, tạo draft rõ nguồn và dễ QA hơn so với prompt tự do.
+Trong phase hiện tại, AI Input Brief vẫn là local/mock workflow. Không gọi external AI API.
 
-## 2. Supported uploads
+## 2. Simplified Visible Form
 
-Upload là nguồn bổ sung cho structured input form. File upload không nên ghi trực tiếp vào Process Task Register. Mọi nội dung trích xuất phải đi qua draft, QA và human review.
+MVP form chỉ hiển thị 7 section chính.
 
-### PDF
+| Internal key | UI label VI | UI label EN | Bắt buộc |
+| --- | --- | --- | --- |
+| `processInfo` | Thông tin quy trình | Process information | Có |
+| `businessObjective` | Mục tiêu nghiệp vụ | Business objective | Có |
+| `scope` | Phạm vi | Scope | Có |
+| `startEnd` | Điểm bắt đầu / kết thúc | Start-End point | Có |
+| `actors` | Người tham gia / Actor | Actors | Có |
+| `relatedSystems` | Hệ thống liên quan | Related systems | Không bắt buộc |
+| `dataDocuments` | Dữ liệu / hồ sơ / chứng từ | Data and documents | Không bắt buộc |
 
-PDF phù hợp cho SOP, policy, process manual, BRD hoặc scan tài liệu. Với PDF scan, cần OCR trước khi extraction.
+Các field nâng cao chưa hiển thị trong simple mode, nhưng có thể giữ optional trong model để tránh migration risk.
 
-Thông tin có thể trích xuất:
+## 3. Bilingual UX
 
-- Step nghiệp vụ.
-- Actor/system.
-- Input/output.
-- Rule và exception.
-- SLA, risk/control.
+Thiết kế UI cần sẵn sàng cho tiếng Việt và tiếng Anh.
 
-### DOCX
+Nguyên tắc:
 
-DOCX phù hợp cho BRD, URD, process note, workshop minutes hoặc tài liệu mô tả nghiệp vụ.
+- UI labels, helper texts, placeholders và buttons dùng i18n dictionaries.
+- Internal keys giữ tiếng Anh và canonical, ví dụ `processInfo`, `businessObjective`, `relatedSystems`.
+- BPMN enum values giữ canonical, ví dụ `startEvent`, `userTask`, `serviceTask`, `sendTask`, `endEvent`.
+- Stored Process Task Register data không được dịch enum theo UI language.
+- Output language có thể hỗ trợ `vi`, `en`, hoặc `bilingual` trong phase sau.
 
-Thông tin có thể trích xuất:
+Người dùng có thể nhập brief bằng tiếng Việt hoặc tiếng Anh. Generator/mock hiện tại có thể dùng current UI locale làm language preference, nhưng schema và enum vẫn phải ổn định.
 
-- Heading thành phase/group.
-- Bullet list thành task.
-- Table thành field mapping.
-- Decision section thành gateway candidate.
-
-### XLSX
-
-XLSX phù hợp cho process inventory, RACI, task register cũ hoặc control matrix.
-
-Thông tin có thể trích xuất:
-
-- Mỗi row thành draft ProcessTask.
-- Column mapping vào actor, system, input, output, SLA, risk/control.
-- Sheet mapping theo phase hoặc subprocess.
-
-### Image
-
-Image phù hợp cho whiteboard, screenshot, process sketch hoặc diagram. Image cần OCR/vision extraction nếu dùng AI provider hỗ trợ.
-
-Thông tin có thể trích xuất:
-
-- Box thành task/event/gateway candidate.
-- Arrow thành next step candidate.
-- Swimlane label thành actor/system lane.
-- Text note thành comment hoặc assumption.
-
-## 3. Extraction workflow
+## 4. Draft-First Workflow
 
 Luồng chuẩn:
 
 ```text
-input/upload -> extraction -> draft PTR -> QA -> recommendations -> human review -> apply
+brief -> draft PTR -> preview -> QA -> user apply
 ```
 
 Chi tiết:
 
-1. Người dùng nhập form hoặc upload file.
-2. Extraction engine đọc input và tạo draft `ProcessTask[]`.
-3. Draft Process Task Register được hiển thị trong chế độ review, chưa thay thế dữ liệu chính.
-4. Rule-based QA chạy trên draft để phát hiện lỗi rõ ràng.
-5. Recommendation Engine tạo gợi ý sửa draft.
-6. Người dùng review từng thay đổi hoặc batch recommendation an toàn.
-7. Khi approve, draft mới được apply vào Process Task Register chính.
-8. D01/D02/export artifact được đánh dấu stale để generate lại từ nguồn mới.
+1. Người dùng nhập 7 section trong Input Brief.
+2. Hệ thống tạo Draft Process Task Register.
+3. Draft được preview trước, chưa ghi vào PTR chính.
+4. QA chạy trên dữ liệu draft hoặc sau khi apply tùy phase runtime.
+5. Người dùng review assumptions, open questions, field values và next-step sequence.
+6. Người dùng chọn Replace current PTR hoặc Append to current PTR.
+7. Sau khi apply, Process Task Register là source of truth mới.
+8. D01/D02/export artifacts được đánh dấu stale/not generated để generate lại.
 
-Nguyên tắc: AI chỉ tạo draft và recommendation. Người dùng quyết định apply.
+AI hoặc mock generator không được auto-apply.
 
-## 4. Draft Process Task Register schema
+## 5. Draft Process Task Register Output
 
-Draft PTR nên dùng cùng schema với `ProcessTask` để giữ một nguồn sự thật duy nhất.
+Draft output nên gồm:
 
-Các field chính:
+- `draftProcessTasks`: mảng `ProcessTask[]`.
+- `assumptions`: các giả định khi thông tin chưa đủ.
+- `openQuestions`: câu hỏi cần người dùng xác nhận.
+- `sourceSummary`: tóm tắt brief đầu vào.
+- `confidence`: `low`, `medium`, hoặc `high`.
 
-- `id`: định danh nội bộ của row.
-- `stepId`: mã bước nghiệp vụ, phải unique.
-- `parentStepId`: liên kết subprocess nếu có.
-- `rowType`: phase, group, task, gateway, start, end, event, data, annotation.
-- `bpmnType`: startEvent, endEvent, userTask, serviceTask, sendTask, exclusiveGateway, dataObject, dataStore, none.
-- `taskNature`: manual, automatic, semiAutomatic, system, decision, approval, integration, notification, control, data.
-- `phase`: giai đoạn quy trình.
-- `group`: nhóm hoặc journey step.
-- `actor`: người/vai trò thực hiện.
-- `actorLane`: lane nghiệp vụ.
-- `system`: hệ thống/app hỗ trợ.
-- `systemLane`: lane hệ thống.
-- `dataObject`: dữ liệu/chứng từ.
-- `dataAction`: create, read, update, delete, pull, push, store, validate, approve, reject, send, receive.
-- `taskName`: tên bước.
-- `input`: đầu vào.
-- `output`: đầu ra.
-- `defaultNextStep`: bước tiếp theo mặc định.
-- `conditionQuestion`: câu hỏi điều kiện cho gateway.
-- `yesNextStep`: nhánh Yes.
-- `noNextStep`: nhánh No.
-- `exception`: tình huống ngoại lệ.
-- `exceptionHandling`: cách xử lý ngoại lệ.
-- `sla`: cam kết thời gian.
-- `riskControl`: rủi ro/kiểm soát.
-- `sourceRef`: nguồn trích xuất.
-- `reviewStatus`: draft, needsReview, approved, rejected.
-- `comment`: ghi chú và assumption.
-- `customerInteractionType`: layer cho D02 Service Blueprint.
-- `channel`: kênh tương tác.
+Các row draft nên có:
 
-Draft nên lưu thêm metadata ngoài schema nếu cần, ví dụ confidence hoặc extraction source, nhưng không được tạo nguồn process thứ hai thay thế ProcessTask.
+- `stepId`
+- `rowType`
+- `bpmnType`
+- `taskNature`
+- `phase`
+- `actor`
+- `actorLane`
+- `system`
+- `systemLane`
+- `taskName`
+- `input`
+- `output`
+- `defaultNextStep`
+- `reviewStatus = needsReview`
+- `customerInteractionType` nếu suy luận được
+- `channel` nếu suy luận được
 
-## 5. Review-before-apply
+Draft phải tạo connected flow cơ bản, tối thiểu gồm start event, một hoặc nhiều task, và end event.
 
-Review-before-apply là bắt buộc cho AI Input Brief.
+## 6. Future AI Skill
 
-UI nên hiển thị:
+Skill tương lai:
 
-- Draft row mới, row thay đổi và row bị xung đột.
-- Field-level diff giữa current PTR và draft PTR.
-- Issue count từ QA.
-- Recommendation preview.
-- Affected stepIds.
-- Warning về dữ liệu thiếu hoặc assumption.
-- Nút approve/apply theo từng row hoặc batch.
-- Nút reject/skip có reason.
+```text
+id: input-brief-to-ptr
+version: 0.1.0
+category: transformation
+```
 
-Các trường hợp cần human review bắt buộc:
+Skill boundary:
 
-- AI tạo gateway hoặc thay đổi next step.
-- AI tạo task mới từ upload không rõ nguồn.
-- AI suy luận actor/system từ ngữ cảnh.
-- AI thay đổi SLA, risk/control hoặc decision logic.
-- AI xử lý dữ liệu khách hàng hoặc thông tin nhạy cảm.
+- Input: `StructuredProcessBrief`.
+- Output: Draft Process Task Register.
+- Không apply trực tiếp vào PTR chính.
+- Không gọi tool ngoài nếu data mode không cho phép.
+- Luôn trả metadata review: assumptions, openQuestions, sourceSummary, confidence.
+- Human approval required.
 
-## 6. Local/BYOK modes
+Skill có thể chạy theo nhiều mode:
 
-### Local-only mode
+- Local/mock rule-based.
+- Product AI.
+- BYOK.
+- Enterprise provider.
+- Local model.
+- No-AI fallback.
 
-Local-only mode không gửi input, file upload hoặc draft Process Task Register ra ngoài máy. Chế độ này có thể dùng:
+## 7. Quality Gates
 
-- Parser local cho XLSX.
-- Text extraction local nếu có thư viện phù hợp.
-- Rule-based QA.
-- Mock AI service scaffold.
-- Manual review và deterministic generators.
+AI Input Brief workflow cần nhiều lớp kiểm soát trước khi người dùng apply.
 
-Nếu không có model local, AI extraction có thể bị tắt nhưng form và upload preview vẫn hoạt động.
+### Pre-validation
 
-### BYOK mode
+Kiểm tra trước khi generate draft:
 
-BYOK cho phép tổ chức dùng API key riêng để gọi provider được phê duyệt. Ứng dụng chỉ điều phối:
+- Brief có tối thiểu process information.
+- Có mục tiêu nghiệp vụ hoặc scope.
+- Có start/end hoặc đủ mô tả để suy luận.
+- Actors không rỗng nếu người dùng biết.
+- Cảnh báo nếu optional systems/data bị thiếu.
 
-- Prompt pack.
-- Schema validation.
-- Preview.
-- Human approval.
-- Audit log.
+### Schema validation
 
-BYOK cần có cảnh báo rõ rằng dữ liệu sẽ được gửi tới provider do người dùng/tổ chức cấu hình. Không lưu API key trong client nếu chưa có thiết kế bảo mật phù hợp.
+Kiểm tra output có đúng shape:
 
-### No-AI mode
+- `ProcessTask[]` hợp lệ.
+- `stepId` unique.
+- `rowType`, `bpmnType`, `taskNature`, `dataAction`, `reviewStatus` dùng enum canonical.
+- `defaultNextStep`, `yesNextStep`, `noNextStep` là string hoặc null.
 
-No-AI mode vẫn cho phép người dùng nhập structured form, upload file để tham chiếu, và tự tạo Process Task Register thủ công. Rule-based QA, D01/D02 generation và export vẫn hoạt động.
+### Semantic validation
 
-## 7. Banking policy considerations
+Kiểm tra ý nghĩa nghiệp vụ:
 
-Với dữ liệu ngân hàng, mặc định thiết kế phải thận trọng:
+- Có start event và end event.
+- Task có actor hoặc system hợp lý.
+- Service task nên có system.
+- Data interaction nên có data object.
+- Send task/notification nên có channel hoặc system gửi.
 
-- Không gửi hồ sơ vay, thông tin khách hàng, dữ liệu định danh, số tài khoản, số điện thoại, email hoặc tài liệu nội bộ ra provider nếu chưa được phê duyệt.
-- Mọi cloud-processing phải có consent rõ ràng.
+### Consistency check
+
+Kiểm tra tính nhất quán của flow:
+
+- Không có duplicate `stepId`.
+- `defaultNextStep` trỏ đến step tồn tại.
+- Không có orphan task.
+- Gateway nếu có phải có nhánh rõ.
+- Row `needsReview` khi có suy luận hoặc assumption.
+
+Nếu quality gate fail, hệ thống không nên apply silent. Người dùng cần thấy lỗi hoặc warning rõ.
+
+## 8. Local/BYOK/Enterprise Considerations
+
+### Local-only
+
+Local-only là mặc định an toàn cho MVP.
+
+- Không gửi brief, file, hoặc draft PTR ra ngoài máy.
+- Có thể dùng mock/rule-based generator.
+- File upload nếu có chỉ lưu local metadata hoặc preview.
+- Phù hợp khi dữ liệu có thể chứa thông tin ngân hàng/doanh nghiệp nhạy cảm.
+
+### BYOK
+
+BYOK cho phép tổ chức dùng provider/API key riêng.
+
+Yêu cầu:
+
+- Cần backend bảo mật trước khi lưu hoặc gọi API key thật.
+- UI phải cảnh báo dữ liệu có thể được gửi tới provider do tổ chức cấu hình.
+- Data mode nên mặc định là no-training.
+- Prompt, schema validation, preview và approval vẫn do product điều phối.
+
+### Enterprise Provider
+
+Enterprise provider phù hợp cho ngân hàng hoặc tổ chức lớn.
+
+Yêu cầu:
+
+- Tenant isolation.
+- Audit log đầy đủ.
+- Data residency và retention policy.
+- Redaction/masking cho PII nếu cần.
+- Chính sách không dùng dữ liệu khách hàng để train nếu chưa có opt-in.
+
+### No-AI Mode
+
+No-AI mode vẫn phải dùng được:
+
+- Người dùng nhập brief thủ công.
+- Hệ thống có thể dùng rule-based/mock draft hoặc cho user tự nhập PTR.
+- QA, D01/D02 generation và export vẫn hoạt động từ Process Task Register.
+
+## 9. Future Advanced Mode
+
+Simple mode chỉ có 7 section. Advanced mode có thể mở thêm khi người dùng cần mô tả sâu hơn.
+
+Các section tương lai:
+
+- Happy path.
+- Exception path.
+- SLA/control.
+- Risk/control.
+- Desired outputs.
+- Upload files.
+
+Supported uploads tương lai:
+
+- PDF: SOP, policy, BRD, scan tài liệu.
+- DOCX: BRD, URD, process note, workshop minutes.
+- XLSX: process inventory, RACI, task register cũ, control matrix.
+- Image: whiteboard, screenshot, sketch, diagram.
+
+File extraction vẫn phải đi qua Draft -> Preview -> QA -> User Apply. Upload không được ghi trực tiếp vào Process Task Register.
+
+## 10. Banking Policy Considerations
+
+Với dữ liệu ngân hàng/doanh nghiệp:
+
+- Không gửi hồ sơ vay, thông tin khách hàng, định danh, số tài khoản, số điện thoại, email hoặc tài liệu nội bộ ra provider nếu chưa được phê duyệt.
+- Cloud-processing phải có consent rõ.
 - Mặc định no-training cho provider AI.
-- Cần masking/redaction cho PII trước khi gửi ra ngoài nếu được phép xử lý cloud.
-- File upload có thể chứa dữ liệu nhạy cảm, nên cần cảnh báo data mode trước khi extraction.
-- Audit log phải ghi provider mode, data mode, timestamp, file metadata và hành động apply/reject.
-- Draft từ AI phải có `reviewStatus = needsReview` nếu có suy luận quan trọng.
-- Không để AI tự quyết định credit policy, approval rule hoặc control requirement.
-- Cho phép tổ chức tắt AI hoàn toàn bằng No-AI mode.
+- Cần masking/redaction trước khi gửi ra ngoài nếu được phép.
+- Audit log nên ghi provider mode, data mode, timestamp, action apply/reject.
+- AI không được tự quyết định credit policy, approval rule hoặc control requirement.
+- Mọi row suy luận quan trọng phải `reviewStatus = needsReview`.
 
-## 8. MVP and future roadmap
+## 11. Roadmap
 
-### MVP
+MVP hiện tại:
 
-MVP nên tập trung vào luồng an toàn và kiểm soát được:
+- 7-section structured brief.
+- i18n-ready labels/helper texts.
+- Local/mock Draft PTR generation.
+- Draft preview with assumptions/open questions.
+- Replace/Append apply with confirmation.
+- Stale marking for D01/D02 after apply.
 
-- Structured input form.
-- Upload placeholder/metadata, chưa cần full extraction cho mọi file.
-- Mock AI input brief extraction service, không gọi API thật.
-- Draft PTR preview.
-- Rule-based QA trên draft.
-- Recommendation apply qua human confirmation.
-- LocalStorage persistence.
-- Export/import JSON.
-- Data mode indicator: Local-only, BYOK, No-AI.
+Next:
 
-### Future roadmap
-
-Các bước tiếp theo:
-
-- PDF text extraction.
-- DOCX extraction.
-- XLSX mapping wizard.
-- Image OCR/diagram extraction.
-- BYOK provider integration qua backend an toàn.
-- Prompt pack versioning.
-- Schema validation report.
-- Draft/current PTR diff viewer.
-- Audit log export.
-- Organization-private-learning cho accepted/rejected recommendation nếu khách hàng opt-in.
-- BRD/URD/Jira/capability/UI generation từ approved Process Task Register.
-
-Roadmap nên giữ nguyên nguyên tắc: extract vào draft trước, QA trước, recommendation trước, human review trước, rồi mới apply vào Process Task Register chính.
+- Strong schema validation report.
+- Draft QA before apply.
+- Diff viewer between current PTR and draft PTR.
+- Prompt pack runtime for `input-brief-to-ptr`.
+- Provider/data mode enforcement.
+- PDF/DOCX/XLSX/Image extraction in advanced mode.
+- BYOK/enterprise integration through a secure backend.

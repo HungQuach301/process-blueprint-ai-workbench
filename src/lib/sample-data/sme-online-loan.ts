@@ -11,7 +11,14 @@ export const sampleWorkspace: Workspace = {
   selectedBpmnTemplateId: "template-bpmn-sme-online-loan",
   selectedServiceBlueprintTemplateId: "template-service-blueprint-sme-online-loan",
   createdAt: "2026-05-06T00:00:00.000Z",
-  updatedAt: "2026-05-06T00:00:00.000Z"
+  updatedAt: "2026-05-06T00:00:00.000Z",
+  ownerType: "organization",
+  organizationType: "bank",
+  dataMode: "local-only",
+  modelProviderMode: "no-ai",
+  createdBy: "sample-data",
+  version: "1.0.0",
+  status: "active"
 };
 
 export const sampleBpmnTemplateProfile: TemplateProfile = {

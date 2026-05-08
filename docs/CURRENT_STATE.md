@@ -1,205 +1,446 @@
 # Current State
 
-## 1. Current completed modules
+## 1. Mục tiêu sản phẩm hiện tại
 
-Process Blueprint AI Workbench currently has an MVP flow where the Process Task Register is the single source of truth for generated artifacts.
+Process Blueprint AI Workbench là MVP cho một workbench phân tích, chuẩn hóa, kiểm tra và sinh artifact quy trình doanh nghiệp.
 
-Completed modules:
+Mục tiêu hiện tại:
 
-- Core data models:
-  - `ProcessTask`
-  - `TemplateProfile`
-  - `Workspace`
-- SME Online Loan sample data.
-- Editable Process Task Register:
-  - Inline editing
-  - Controlled dropdowns for core BPMN fields
-  - Add row
-  - Duplicate row
-  - Delete row
-  - Save/load/reset with `localStorage`
-- Template Library and Template Profile Editor:
-  - D01 BPMN template selection
-  - D02 Service Blueprint template selection
-  - Editable template rule fields
-  - Save/load/reset with `localStorage`
-- Rule-based QA Engine and QA Panel:
-  - Errors, warnings, suggestions
-  - Row highlight from issue click
-  - QA Report download
-- D01 BPMN generator and output UI:
-  - BPMN 2.0 XML generation
-  - `.bpmn` download
-  - Read-only visual preview using `bpmn-js`
-- D02 Service Blueprint generator and output UI:
-  - draw.io compatible XML generation
-  - `.drawio` download
-  - Task cards using 3 joined boxes
-- Export Center:
-  - Generate all artifacts
-  - Artifact readiness/freshness status
-  - ZIP package download with D01, D02, Process Task Register JSON, Template Profile JSON, and QA Report Markdown
+- Dùng Process Task Register làm nguồn sự thật duy nhất.
+- Sinh D01 BPMN, D02 Service Blueprint, QA Report, JSON export và ZIP package từ `ProcessTask[]` và `TemplateProfile`.
+- Giữ generation deterministic, reviewable và phù hợp dữ liệu enterprise/banking.
+- Chuẩn bị nền tảng cho AI-assisted workflow nhưng chưa gửi dữ liệu ra external AI provider.
+- Cho phép người dùng review, apply recommendation và lưu feedback local để phục vụ training/learning trong tương lai.
 
-## 2. D01 current status
+Nguyên tắc quan trọng:
 
-D01 BPMN currently generates BPMN XML from `ProcessTask[]` and the selected D01 `TemplateProfile`.
+- Không tạo nguồn định nghĩa quy trình thứ hai ngoài Process Task Register.
+- Không tự động apply thay đổi rủi ro cao.
+- Dữ liệu ngân hàng/doanh nghiệp mặc định nên local-only hoặc no-training.
+- AI future integration phải đi qua schema validation và human approval.
 
-Current status:
+## 2. Các module đã hoàn thành
 
-- Uses BPMN typed elements instead of generic task by default:
+### Core data model
+
+- `ProcessTask`
+- `TemplateProfile`
+- `Workspace`
+- Template classification metadata:
+  - `outputType`
+  - `processType`
+  - `journeyType`
+  - `scopeType`
+  - `businessDomain`
+  - `notationStandard`
+  - `organizationType`
+  - `tags`
+
+### Sample data
+
+- SME Online Loan workspace.
+- Sample D01 BPMN template.
+- Sample D02 Service Blueprint template.
+- Sample Process Task Register.
+
+### Process Task Register
+
+- Inline editing.
+- Controlled dropdowns cho các field chính.
+- Add row.
+- Duplicate row.
+- Delete row.
+- Save/load/reset bằng `localStorage`.
+- Excel import preview/apply flow.
+- Artifact stale marking khi dữ liệu thay đổi.
+
+### Template Library
+
+- D01 BPMN template selection.
+- D02 Service Blueprint template selection.
+- Template Profile editor.
+- Editable JSON rule fields.
+- Classification metadata editor bằng select controls.
+- Tags input dạng comma-separated.
+- Save/load/reset bằng `localStorage`.
+
+### Rule-based QA Engine và QA Panel
+
+- Rule-based validation cho Process Task Register.
+- Errors, warnings, suggestions.
+- Click issue để highlight row.
+- QA Report download.
+- Recommendation UI cho từng issue.
+- Batch recommendation UI:
+  - select safe recommendations
+  - clear selection
+  - apply selected
+  - apply all safe
+  - batch preview
+  - conflict detection
+  - confirmation before apply
+
+### Recommendation feedback logging
+
+- Local feedback logging bằng `localStorage`.
+- Export Recommendation Feedback JSON.
+- Clear Local Feedback.
+- Log accepted/rejected/skipped recommendation.
+- Log batch summary.
+- Conflict skip được ghi reason `conflict`.
+
+### D01 BPMN
+
+- BPMN 2.0 XML generation từ `ProcessTask[]`.
+- `.bpmn` download.
+- Read-only visual preview bằng `bpmn-js`.
+- Typed BPMN elements:
   - Start Event
   - End Event
   - User Task
   - Service Task
   - Send Task
   - Exclusive Gateway
-- Exclusive gateways include default flow handling.
-- Default gateway flows do not include `conditionExpression`.
-- Non-default gateway flows include readable condition expressions.
-- Data objects are deduplicated by normalized `dataObject` name.
-- Task data flow uses `dataInputAssociation` and `dataOutputAssociation`.
-- Data associations are not attached directly to gateways/end events.
-- BPMN IDs use clearer prefixes for events, gateways, and task types.
-- Collaboration pools have been introduced:
-  - SME Customer
-  - Bank / Financial Institution
-  - External Data Providers
-- Bank pool includes internal lanes for channel, RM, Ops Support, Credit Approver, LOS/Workflow, Notification Service, and Document/OCR.
-- Cross-pool interaction uses message flows where applicable.
-- Output includes BPMN DI shapes/edges and can be previewed with `bpmn-js`.
+- Collaboration pools và internal lanes.
+- Message/data associations ở mức cơ bản.
+- BPMN DI shapes/edges.
 
-Known D01 risks:
+### D02 Service Blueprint
 
-- Needs repeated validation in Camunda Modeler after real user edits.
-- Layout is still intentionally simple and may become wide for large processes.
-- Advanced BPMN constructs are not yet covered, such as boundary events, event-based gateways, sub-processes, and complex exception choreography.
-
-## 3. D02 current status
-
-D02 Service Blueprint currently generates draw.io compatible XML from `ProcessTask[]` and the selected D02 `TemplateProfile`.
-
-Current status:
-
-- Uses Process Task Register as source data.
-- Keeps one `ProcessTask` as one card.
-- Does not merge tasks.
-- Uses phase columns.
-- Uses default Service Blueprint rows when template row rules are missing.
-- Generates task cards as 3 joined boxes:
+- draw.io compatible XML generation từ `ProcessTask[]`.
+- `.drawio` download.
+- Một `ProcessTask` là một card.
+- Không merge nhiều task thành một card.
+- Task card gồm 3 joined boxes:
   - Header = actor
   - Middle = task name + BPMN type + task nature
   - Footer = system/app
-- Supports `.drawio` download.
-- Output is designed to open in diagrams.net/draw.io.
+- Phase columns.
+- Dynamic row height và phase width.
+- Separator lines.
+- Actor/system/data/control notation styling.
+- In-browser lightweight D02 preview đã có ở mức hiện tại.
 
-Known D02 risks:
+### Export Center
 
-- No in-browser D02 preview yet.
-- Template visual rules are still only partially applied.
-- Large blueprints may still need manual layout review in diagrams.net.
-- D02 remains deterministic and rule-based; it does not yet use AI-assisted design recommendations.
+- Generate all artifacts.
+- Artifact readiness/freshness status.
+- ZIP package gồm D01, D02, Process Task Register JSON, Template Profile JSON và QA Report Markdown.
 
-## 4. Latest completed D02 fixes
+### AI documentation
 
-Recently completed D02 improvements:
+Đã có các tài liệu thiết kế:
 
-- Row assignment:
-  - Actor-based mapping now takes priority over BPMN type.
-  - Customer actions stay in Customer Actions.
-  - RM/Ops/Approver actions stay in Back-stage Interactions - People.
-  - System service tasks map to Back-stage Interactions - System / Tools.
-  - Gateways map by decision owner instead of being pushed to Data / Control.
-  - `dataAction` alone no longer forces user/system tasks into Data / Control.
-- Dynamic layout:
-  - Row height is calculated from card count.
-  - Phase width is calculated from the number of cards in that phase.
-  - Page width/page height adjust dynamically.
-- Separator lines:
-  - Line of Interaction
-  - Line of Visibility
-  - Line of Internal Interaction
-  - Lines span all phase columns and move with dynamic row heights.
-- Top context rows:
-  - STEPS populated from phase/group/stage data.
-  - PHASE populated from `ProcessTask.phase`.
-  - TIME populated from `sla`, or `TBD`.
-  - EVIDENCE populated from input/output/dataObject/system, or `TBD`.
-- Duplicate connectors:
-  - Source-target connector pairs are deduplicated.
-  - The blueprint no longer emits both solid and dashed connectors for the same pair by default.
-  - Connector output is limited to main journey flow, useful cross-layer associations, and critical exception links.
-- Notation styling:
-  - Header color differs by actor group.
-  - Gateway cards look different from normal tasks.
-  - Data/control cards look different from normal tasks.
-  - Start/end event cards look different from normal tasks.
-  - Send Task / notification cards have a message-style notation.
-- Horizontal row stretching:
-  - Tasks inside the same row/phase are arranged left-to-right first.
-  - Phase columns expand horizontally when needed.
-  - Rows grow vertically only when cards wrap.
+- `docs/AI_ARCHITECTURE_DESIGN.md`
+- `docs/AI_INPUT_BRIEF_DESIGN.md`
+- `docs/AI_QA_ENGINE_DESIGN.md`
+- `docs/AI_RECOMMENDATION_ENGINE_DESIGN.md`
+- `docs/AI_TEMPLATE_REVIEW_DESIGN.md`
 
-## 5. Next priority
+## 3. Kiến trúc hiện tại
 
-Recommended next priorities:
+Kiến trúc hiện tại là client-side Next.js MVP với App Router, React, TypeScript và Tailwind CSS.
 
-1. D02 single source of truth from Process Task Register
-   - Tighten the contract between Process Task Register fields and D02 row/card/connector generation.
-   - Make it explicit which fields control D02 row, card notation, evidence, timing, and associations.
-2. Front-stage Interactions - People
-   - Add a clearer row/layer distinction for human front-stage interactions.
-   - Separate customer-facing human interactions from back-stage people work.
-3. D02 preview
-   - Add in-browser draw.io/XML preview or a lightweight visual render.
-   - Keep download behavior unchanged.
-4. Process Task Register changes
-   - Improve fields needed for D02, such as blueprint row override, customer-visible flag, evidence, channel, and journey step.
-   - Preserve backward compatibility with saved data.
-5. Excel export/import
-   - Export Process Task Register and Template Profiles to Excel.
-   - Import reviewed Excel back into the app with validation.
-6. QA recommendation apply
-   - Let users apply safe QA fixes directly to the Process Task Register.
-   - Keep changes explicit and reviewable.
-7. AI design
-   - Add AI-assisted suggestions for decomposition, row assignment, ambiguity detection, missing fields, and template fit.
-   - Avoid sending sensitive banking data externally without explicit approval.
+Luồng dữ liệu chính:
 
-## 6. Key files and what they do
+```text
+ProcessTask[] + TemplateProfile[]
+  -> Rule-based QA
+  -> Recommendation Engine
+  -> D01 BPMN generator
+  -> D02 Service Blueprint generator
+  -> QA Report generator
+  -> Export Center
+```
 
-- `src/lib/models/process-task.ts`
-  - Defines `ProcessTask` and process-related union types.
-- `src/lib/models/template-profile.ts`
-  - Defines `TemplateProfile`, template type, status, and rule structures.
-- `src/lib/models/workspace.ts`
-  - Defines workspace metadata.
-- `src/lib/sample-data/sme-online-loan.ts`
-  - Provides SME Online Loan sample workspace, templates, and process tasks.
-- `src/components/task-register/ProcessTaskRegister.tsx`
-  - Editable Process Task Register UI.
-- `src/components/template-library/TemplateLibraryEditor.tsx`
-  - Template library, template profile editor, and selected D01/D02 template UI.
-- `src/lib/qa/task-register-rules.ts`
-  - Rule-based QA checks for Process Task Register quality.
-- `src/components/qa-panel/QAPanel.tsx`
-  - QA issue panel, row highlighting trigger, and QA Report download entry point.
-- `src/lib/generators/bpmn-generator.ts`
-  - D01 BPMN XML generator.
-- `src/components/bpmn-output/D01BpmnOutput.tsx`
-  - D01 generation UI, XML display, status, and `.bpmn` download.
-- `src/components/preview/BpmnPreview.tsx`
-  - Read-only BPMN visual preview using `bpmn-js`.
-- `src/lib/generators/drawio-service-blueprint-generator.ts`
-  - D02 Service Blueprint draw.io XML generator, layout, row assignment, cards, separators, and connectors.
-- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
-  - D02 generation UI, XML display, status, and `.drawio` download.
-- `src/lib/generators/qa-report-generator.ts`
-  - Markdown QA Report generator.
-- `src/components/export-center/ExportCenter.tsx`
-  - Generates all artifacts, shows readiness/freshness, and exports ZIP package.
-- `src/lib/utils/artifact-state.ts`
-  - Shared artifact freshness/status helpers.
-- `src/app/page.tsx`
-  - Main page composition for the MVP workbench.
-- `src/app/globals.css`
-  - Global styles and `bpmn-js` CSS imports.
+Nguồn lưu trữ hiện tại:
+
+- `localStorage` cho Process Task Register.
+- `localStorage` cho Template Profiles và selected D01/D02 templates.
+- `localStorage` cho artifact freshness status.
+- `localStorage` cho recommendation feedback.
+
+Các boundary quan trọng:
+
+- `src/lib/models/`: core models.
+- `src/lib/qa/`: rule-based QA entrypoints.
+- `src/lib/recommendation-engine/`: recommendation types, factories, preview/apply operations, feedback store.
+- `src/lib/generators/`: deterministic artifact generators.
+- `src/lib/ai/`: AI scaffold mock-only, chưa gọi API thật.
+- `src/components/*`: UI modules.
+
+## 4. Recommendation Engine status
+
+Recommendation Engine hiện tại là rule-based và local.
+
+Đã có:
+
+- `QARecommendation` type.
+- Recommendation factory từ QA issue.
+- Operation model:
+  - `UpdateTaskField`
+  - `AssignActor`
+  - `AssignSystem`
+  - `SetInteractionType`
+  - `MarkReviewStatus`
+  - `UpdateConnection`
+  - `CreateTaskAfter`
+  - `CreateTaskBefore`
+  - `InsertTaskBetween`
+  - `SplitTask`
+  - `CreateGateway`
+  - `AddGatewayBranch`
+  - `CreateLane`
+- Single recommendation preview/apply.
+- Batch recommendation preview/apply.
+- Conflict detection.
+- Safe recommendation detection:
+  - `confidence = high`
+  - `riskLevel = low`
+  - only simple operations
+- Graph-changing recommendation không được chọn mặc định.
+- Feedback logging local.
+
+Trạng thái:
+
+- Hoạt động local-only.
+- Không gọi AI API.
+- Chưa có AI ranking hoặc AI-generated recommendation thật.
+- Đã sẵn sàng để AI scaffold trả về `QARecommendation[]` trong tương lai.
+
+## 5. Template Recommendation Engine status
+
+Template Recommendation Engine hiện ở mức thiết kế và scaffold type.
+
+Đã có:
+
+- Template classification metadata trong `TemplateProfile`.
+- Template Library editor cho metadata.
+- Tài liệu `AI_TEMPLATE_REVIEW_DESIGN.md`.
+- AI scaffold type `TemplateRecommendation` trong `src/lib/ai/ai-template-review-types.ts`.
+- Mock service `runMockTemplateReview`.
+
+Chưa có:
+
+- Rule-based template reviewer runtime.
+- Template quality score runtime.
+- UI riêng cho Template Recommendation.
+- Apply workflow cho TemplateRecommendation.
+- Feedback logging riêng cho template recommendation.
+
+Định hướng:
+
+- Template Recommendation Engine nên train/evaluate độc lập với Recommendation Engine sửa Process Task Register.
+- Output nên là `TemplateRecommendation[]`, không dùng `QARecommendation[]` cho template patch.
+- Không sửa D01/D02 generators trong giai đoạn template review.
+
+## 6. AI scaffold status
+
+AI scaffold đã được tạo trong `src/lib/ai/`.
+
+Files hiện có:
+
+- `model-provider-types.ts`
+- `ai-orchestration-types.ts`
+- `ai-qa-types.ts`
+- `ai-qa-service.ts`
+- `ai-template-review-types.ts`
+- `ai-template-review-service.ts`
+- `ai-input-brief-types.ts`
+- `ai-input-brief-service.ts`
+- `ai-recommendation-types.ts`
+- `ai-recommendation-service.ts`
+
+Provider/data modes đã định nghĩa:
+
+- Model provider:
+  - `product-ai`
+  - `openai-byok`
+  - `claude-byok`
+  - `azure-openai`
+  - `local-model`
+  - `no-ai`
+- Data usage mode:
+  - `local-only`
+  - `cloud-processing`
+  - `no-training`
+  - `organization-private-learning`
+
+Mock functions:
+
+- `runMockAIQA`
+- `runMockTemplateReview`
+- `runMockInputBriefExtraction`
+- `runMockAIRecommendations`
+
+Trạng thái:
+
+- Compile được.
+- Không có API key.
+- Không có external API/network call.
+- `meta.externalApiCalled = false`.
+- Dùng lại type hiện có như `ProcessTask`, `TemplateProfile`, `QARecommendation`.
+
+## 7. Hạn chế hiện tại
+
+### Product/runtime
+
+- Chưa có backend persistence.
+- `localStorage` là storage chính, chưa phù hợp production enterprise.
+- Chưa có auth, user role, tenant isolation.
+- Chưa có audit log UI đầy đủ.
+- Chưa có version history/rollback.
+
+### D01 BPMN
+
+- Layout còn đơn giản và có thể rất rộng với process lớn.
+- Cần validate thêm bằng Camunda Modeler với dữ liệu thực.
+- Chưa hỗ trợ đầy đủ advanced BPMN:
+  - boundary events
+  - event-based gateways
+  - subprocess
+  - complex exception choreography
+
+### D02 Service Blueprint
+
+- D02 preview còn lightweight, không thay thế kiểm tra trong diagrams.net.
+- Large blueprint vẫn cần manual layout review.
+- Template visual rules mới áp dụng một phần.
+
+### Recommendation
+
+- Recommendation hiện chủ yếu rule-based.
+- AI Recommendation chưa được gọi thật.
+- Safe criteria đang cố ý chặt.
+- Graph-changing recommendation cần review kỹ.
+- Feedback logging local chưa có analytics UI.
+
+### Template Recommendation
+
+- Mới có metadata, docs và scaffold type.
+- Chưa có scoring runtime.
+- Chưa có apply/approval UI riêng.
+
+### AI
+
+- AI scaffold chỉ mock.
+- Chưa có provider adapter.
+- Chưa có prompt pack runtime.
+- Chưa có schema validation runtime riêng cho AI output.
+- Chưa có masking/redaction pipeline.
+- Chưa có data mode enforcement UI.
+
+## 8. Ưu tiên triển khai tiếp theo
+
+1. Hoàn thiện AI Input Brief MVP local-only:
+   - structured input form
+   - draft PTR preview
+   - mock extraction
+   - review-before-apply
+
+2. Thêm schema validation cho AI scaffold output:
+   - `ProcessTask[]`
+   - `QARecommendation[]`
+   - `TemplateRecommendation[]`
+
+3. Thêm UI data mode/provider mode:
+   - Local-only
+   - No-AI
+   - BYOK placeholder
+   - Enterprise provider placeholder
+
+4. Template Recommendation Engine MVP:
+   - rule-based template checks
+   - template quality score
+   - template recommendation preview
+
+5. Recommendation feedback analytics:
+   - accepted/rejected/skipped counts
+   - conflict rate
+   - export summary
+
+6. Audit log foundation:
+   - local audit entries
+   - export audit JSON
+   - provider/data mode metadata
+
+7. Excel export/import improvements:
+   - export reviewed PTR to Excel
+   - import reviewed Excel with validation
+
+8. D02 refinement:
+   - stronger row/card/source-field contract
+   - preview fidelity improvements
+   - large blueprint layout checks
+
+9. Enterprise readiness:
+   - backend persistence design
+   - auth/role model
+   - tenant isolation
+   - no-training/BYOK governance
+
+## 9. Git baseline/tag
+
+Available tag:
+
+- `v0.4.0`
+
+Current HEAD at time of this document update:
+
+- `3d0b050`
+
+Ghi chú:
+
+- Nếu tiếp tục phát triển sau khi có thêm commit mới, hãy chạy lại:
+
+```powershell
+git tag --sort=-creatordate
+git rev-parse --short HEAD
+git status --short
+```
+
+để cập nhật baseline chính xác.
+
+## 10. Cách tiếp tục trong Codex session mới
+
+Khi mở session Codex mới, nên bắt đầu bằng checklist sau:
+
+1. Đọc `AGENTS.md`.
+2. Đọc `docs/CURRENT_STATE.md`.
+3. Đọc tài liệu AI liên quan nếu task thuộc AI:
+   - `docs/AI_ARCHITECTURE_DESIGN.md`
+   - `docs/AI_INPUT_BRIEF_DESIGN.md`
+   - `docs/AI_QA_ENGINE_DESIGN.md`
+   - `docs/AI_RECOMMENDATION_ENGINE_DESIGN.md`
+   - `docs/AI_TEMPLATE_REVIEW_DESIGN.md`
+4. Chạy `git status --short` để biết worktree có thay đổi sẵn không.
+5. Nếu task liên quan UI/generator, đọc đúng file liên quan trước khi sửa.
+6. Trước khi code, giải thích plan bằng tiếng Việt và liệt kê file sẽ sửa.
+7. Giữ thay đổi nhỏ nhất.
+8. Không sửa D01/D02 generators nếu task không yêu cầu rõ.
+9. Không gọi external AI API nếu chưa được yêu cầu và chưa có data/provider mode an toàn.
+10. Sau khi sửa, chạy tối thiểu:
+
+```powershell
+npx.cmd tsc --noEmit
+```
+
+11. Nếu thay đổi application code đáng kể, chạy thêm:
+
+```powershell
+npm run build
+```
+
+12. Nếu thay đổi UI, mở app và test workflow liên quan:
+
+```powershell
+npm run dev
+```
+
+Sau đó mở:
+
+```text
+http://localhost:3000
+```
+
+Luôn nhớ: Process Task Register là nguồn sự thật chính, AI chỉ tạo draft/recommendation, người dùng phải review trước khi apply.

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import type { ProcessTask } from "@/lib/models/process-task";
+import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import {
   getRecommendationChangePreview
 } from "@/lib/qa/apply-recommendation";
@@ -133,6 +134,8 @@ export function QAPanel({
   onApplyRecommendation,
   onApplyRecommendations
 }: QAPanelProps) {
+  const [aiQaIssues, setAiQaIssues] = useState<QaIssue[]>([]);
+  const [aiQaMessage, setAiQaMessage] = useState("");
   const [pendingRecommendation, setPendingRecommendation] = useState<{
     issue: QaIssue;
     recommendation: QARecommendation;
@@ -142,16 +145,26 @@ export function QAPanel({
   const [showOnlySafe, setShowOnlySafe] = useState(false);
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
   const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
+  useEffect(() => {
+    setAiQaIssues([]);
+    setAiQaMessage("");
+  }, [processTasks]);
+
+  const displayIssues = useMemo(
+    () => [...aiQaIssues, ...issues],
+    [aiQaIssues, issues]
+  );
+
   const recommendationEntries = useMemo(
     () =>
-      issues.flatMap((issue) =>
+      displayIssues.flatMap((issue) =>
         (issue.recommendations ?? []).map((recommendation, index) => ({
           issue,
           recommendation,
           id: `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`
         }))
       ),
-    [issues]
+    [displayIssues]
   );
   const visibleRecommendationIds = useMemo(() => {
     const ids = new Set<string>();
@@ -188,7 +201,7 @@ export function QAPanel({
   const hasRecommendations = recommendationEntries.length > 0;
   const groupedIssues = severityOrder.map((severity) => ({
     severity,
-    issues: issues.filter((issue) => issue.severity === severity)
+    issues: displayIssues.filter((issue) => issue.severity === severity)
   }));
   const pendingChanges = pendingRecommendation
     ? getRecommendationChangePreview(processTasks, pendingRecommendation.recommendation)
@@ -256,6 +269,48 @@ export function QAPanel({
 
   function clearLocalFeedback() {
     clearRecommendationFeedback();
+  }
+
+  function runMockAiQa() {
+    const response = runMockAIQA({
+      context: {
+        scope: "qa",
+        executionMode: "mock",
+        providerSettings: {
+          provider: "no-ai",
+          dataUsageMode: "local-only"
+        },
+        processTasks,
+        requestId: `mock-ai-qa-${Date.now()}`
+      },
+      processTasks
+    });
+
+    const recommendations = response.recommendations;
+
+    setAiQaIssues(
+      recommendations.length > 0
+        ? [
+            {
+              id: `mock-ai-qa-${response.meta.requestId}`,
+              issueCode: "SERVICE_BLUEPRINT_CARD_READINESS",
+              stepId: recommendations[0].targetStepIds[0] ?? processTasks[0]?.stepId ?? "AI",
+              taskName: "Mock AI QA recommendation",
+              severity: "suggestion",
+              message:
+                "Mock AI QA found a low-risk review recommendation using the existing Recommendation Engine schema.",
+              suggestedFix:
+                "Review the AI recommendation, preview the operation, then apply only after confirmation.",
+              recommendations
+            }
+          ]
+        : []
+    );
+    setAiQaMessage(
+      recommendations.length > 0
+        ? `Mock AI QA returned ${recommendations.length} recommendation(s). No external API call was made.`
+        : "Mock AI QA did not return recommendations for the current PTR."
+    );
   }
 
   function rejectSingleRecommendation(reason: string) {
@@ -343,6 +398,13 @@ export function QAPanel({
     <SessionFrame
       actions={
         <div className="flex flex-wrap gap-2">
+        <button
+          className="w-fit rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
+          onClick={runMockAiQa}
+          type="button"
+        >
+          Run mock AI QA
+        </button>
         <button
           className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           onClick={downloadFeedbackJson}
@@ -451,8 +513,14 @@ export function QAPanel({
         </div>
       ) : null}
 
+      {aiQaMessage ? (
+        <p className="mb-4 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+          {aiQaMessage}
+        </p>
+      ) : null}
+
       <p className="mb-4 text-sm font-semibold text-slate-950">
-        Tổng số issue: {issues.length}
+        Tổng số issue: {displayIssues.length}
       </p>
 
       <div className="grid min-w-0 gap-4">

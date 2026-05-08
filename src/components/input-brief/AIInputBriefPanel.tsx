@@ -106,6 +106,8 @@ const dataActions = new Set([
 
 const reviewStatuses = new Set(["draft", "needsReview", "approved", "rejected"]);
 
+type UploadZoneId = "pdf" | "word" | "excel" | "image";
+
 const emptyBrief: StructuredInputBrief = {
   processName: "",
   businessObjective: "",
@@ -195,6 +197,33 @@ const briefFields: Array<{
     label: "Desired outputs",
     placeholder: "D01 BPMN, D02 Service Blueprint, QA Report",
     rows: 3
+  }
+];
+
+const uploadZones: Array<{
+  id: UploadZoneId;
+  label: string;
+  accept: string;
+}> = [
+  {
+    id: "pdf",
+    label: "PDF",
+    accept: ".pdf,application/pdf"
+  },
+  {
+    id: "word",
+    label: "Word",
+    accept: ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  },
+  {
+    id: "excel",
+    label: "Excel",
+    accept: ".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  },
+  {
+    id: "image",
+    label: "Image",
+    accept: "image/*"
   }
 ];
 
@@ -290,6 +319,12 @@ export function AIInputBriefPanel() {
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [pastedJson, setPastedJson] = useState("");
   const [jsonErrors, setJsonErrors] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<Record<UploadZoneId, File[]>>({
+    pdf: [],
+    word: [],
+    excel: [],
+    image: []
+  });
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -325,6 +360,14 @@ export function AIInputBriefPanel() {
       [key]: value
     }));
     setMessage("Brief đã được lưu local.");
+  }
+
+  function updateSelectedFiles(zoneId: UploadZoneId, files: FileList | null) {
+    setSelectedFiles((currentFiles) => ({
+      ...currentFiles,
+      [zoneId]: files ? Array.from(files) : []
+    }));
+    setMessage("Đã chọn file local. File extraction sẽ được triển khai ở phase sau.");
   }
 
   function generateDraftPtr() {
@@ -405,6 +448,12 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setPastedJson("");
     setJsonErrors([]);
+    setSelectedFiles({
+      pdf: [],
+      word: [],
+      excel: [],
+      image: []
+    });
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     setMessage("Đã xoá brief local và draft preview.");
   }
@@ -469,6 +518,51 @@ export function AIInputBriefPanel() {
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
         <span>{filledFieldCount}/{briefFields.length} sections filled</span>
         {message ? <span>{message}</span> : null}
+      </div>
+
+      <div className="mt-6 rounded border border-slate-200 bg-white p-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-950">
+            Upload supporting files
+          </h3>
+          <p className="mt-1 text-sm text-slate-600">
+            File extraction will be implemented in later phase. Files stay local in current MVP and are not uploaded to any external server.
+          </p>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {uploadZones.map((zone) => (
+            <label
+              className="block rounded border border-dashed border-slate-300 bg-slate-50 p-4 hover:border-slate-400"
+              key={zone.id}
+            >
+              <span className="text-sm font-semibold text-slate-800">
+                {zone.label}
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">
+                Select one or more files. Placeholder only.
+              </span>
+              <input
+                accept={zone.accept}
+                className="mt-3 block w-full text-xs text-slate-600 file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-medium file:text-slate-700"
+                multiple
+                onChange={(event) => updateSelectedFiles(zone.id, event.target.files)}
+                type="file"
+              />
+              {selectedFiles[zone.id].length > 0 ? (
+                <ul className="mt-3 space-y-1 text-xs text-slate-700">
+                  {selectedFiles[zone.id].map((file) => (
+                    <li className="truncate" key={`${zone.id}-${file.name}-${file.size}`}>
+                      {file.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs text-slate-500">No file selected.</p>
+              )}
+            </label>
+          ))}
+        </div>
       </div>
 
       <div className="mt-6 rounded border border-slate-200 bg-slate-50 p-4">

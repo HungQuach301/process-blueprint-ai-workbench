@@ -5,6 +5,7 @@ import { SessionFrame } from "@/components/layout/SessionFrame";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { runMockInputBriefExtraction } from "@/lib/ai/ai-input-brief-service";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
+import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
 
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
@@ -15,108 +16,46 @@ const D01_GENERATED_STATUS_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const LOCALE_EVENT = "process-blueprint-locale-change";
 
-const requiredProcessTaskFields: Array<keyof ProcessTask> = [
-  "id",
-  "stepId",
-  "rowType",
-  "bpmnType",
-  "taskNature",
-  "phase",
-  "group",
-  "actor",
-  "actorLane",
-  "system",
-  "systemLane",
-  "dataObject",
-  "dataAction",
-  "taskName",
-  "input",
-  "output",
-  "defaultNextStep",
-  "conditionQuestion",
-  "yesNextStep",
-  "noNextStep",
-  "exception",
-  "exceptionHandling",
-  "sla",
-  "riskControl",
-  "sourceRef",
-  "reviewStatus",
-  "comment"
-];
+type InputBriefFormState = {
+  processInfo: string;
+  businessObjective: string;
+  scope: string;
+  startEnd: string;
+  actors: string;
+  relatedSystems: string;
+  dataDocuments: string;
+  happyPath?: string;
+  exceptions?: string;
+  slaControl?: string;
+  desiredOutputs?: string;
+};
 
-const rowTypes = new Set([
-  "phase",
-  "group",
-  "task",
-  "gateway",
-  "start",
-  "end",
-  "event",
-  "data",
-  "annotation"
-]);
+type BriefField = {
+  key: keyof Pick<
+    InputBriefFormState,
+    | "processInfo"
+    | "businessObjective"
+    | "scope"
+    | "startEnd"
+    | "actors"
+    | "relatedSystems"
+    | "dataDocuments"
+  >;
+  labelKey: TranslationKey;
+  helperKey: TranslationKey;
+  placeholderKey: TranslationKey;
+  rows: number;
+};
 
-const bpmnTypes = new Set([
-  "none",
-  "startEvent",
-  "endEvent",
-  "task",
-  "userTask",
-  "manualTask",
-  "serviceTask",
-  "sendTask",
-  "scriptTask",
-  "businessRuleTask",
-  "exclusiveGateway",
-  "parallelGateway",
-  "inclusiveGateway",
-  "dataObject",
-  "dataStore"
-]);
-
-const taskNatures = new Set([
-  "manual",
-  "automatic",
-  "semiAutomatic",
-  "system",
-  "decision",
-  "approval",
-  "integration",
-  "notification",
-  "control",
-  "data"
-]);
-
-const dataActions = new Set([
-  "none",
-  "pull",
-  "push",
-  "store",
-  "create",
-  "read",
-  "update",
-  "delete",
-  "validate",
-  "approve",
-  "reject",
-  "send",
-  "receive"
-]);
-
-const reviewStatuses = new Set(["draft", "needsReview", "approved", "rejected"]);
-
-type UploadZoneId = "pdf" | "word" | "excel" | "image";
-
-const emptyBrief: StructuredInputBrief = {
-  processName: "",
+const emptyBrief: InputBriefFormState = {
+  processInfo: "",
   businessObjective: "",
   scope: "",
-  startEvent: "",
-  endEvent: "",
+  startEnd: "",
   actors: "",
-  systems: "",
+  relatedSystems: "",
   dataDocuments: "",
   happyPath: "",
   exceptions: "",
@@ -124,107 +63,55 @@ const emptyBrief: StructuredInputBrief = {
   desiredOutputs: ""
 };
 
-const briefFields: Array<{
-  key: keyof StructuredInputBrief;
-  label: string;
-  placeholder: string;
-  rows?: number;
-}> = [
+const briefFields: BriefField[] = [
   {
-    key: "processName",
-    label: "Process name",
-    placeholder: "Corporate account opening"
+    key: "processInfo",
+    labelKey: "inputBrief.processInfo",
+    helperKey: "inputBrief.processInfoHelper",
+    placeholderKey: "inputBrief.processInfoPlaceholder",
+    rows: 3
   },
   {
     key: "businessObjective",
-    label: "Business objective",
-    placeholder: "Mục tiêu nghiệp vụ của quy trình",
-    rows: 3
+    labelKey: "inputBrief.businessObjective",
+    helperKey: "inputBrief.businessObjectiveHelper",
+    placeholderKey: "inputBrief.businessObjectivePlaceholder",
+    rows: 4
   },
   {
     key: "scope",
-    label: "Scope",
-    placeholder: "Trong phạm vi / ngoài phạm vi",
-    rows: 3
+    labelKey: "inputBrief.scope",
+    helperKey: "inputBrief.scopeHelper",
+    placeholderKey: "inputBrief.scopePlaceholder",
+    rows: 4
   },
   {
-    key: "startEvent",
-    label: "Start event",
-    placeholder: "Khách hàng gửi yêu cầu"
-  },
-  {
-    key: "endEvent",
-    label: "End event",
-    placeholder: "Tài khoản được mở hoặc yêu cầu bị từ chối"
+    key: "startEnd",
+    labelKey: "inputBrief.startEnd",
+    helperKey: "inputBrief.startEndHelper",
+    placeholderKey: "inputBrief.startEndPlaceholder",
+    rows: 4
   },
   {
     key: "actors",
-    label: "Actors",
-    placeholder: "Customer, RM, Ops, Approver",
-    rows: 3
+    labelKey: "inputBrief.actors",
+    helperKey: "inputBrief.actorsHelper",
+    placeholderKey: "inputBrief.actorsPlaceholder",
+    rows: 4
   },
   {
-    key: "systems",
-    label: "Systems",
-    placeholder: "CRM, Core Banking, Document Store",
+    key: "relatedSystems",
+    labelKey: "inputBrief.relatedSystems",
+    helperKey: "inputBrief.relatedSystemsHelper",
+    placeholderKey: "inputBrief.relatedSystemsPlaceholder",
     rows: 3
   },
   {
     key: "dataDocuments",
-    label: "Data/documents",
-    placeholder: "Application form, KYC documents, approval record",
+    labelKey: "inputBrief.dataDocuments",
+    helperKey: "inputBrief.dataDocumentsHelper",
+    placeholderKey: "inputBrief.dataDocumentsPlaceholder",
     rows: 3
-  },
-  {
-    key: "happyPath",
-    label: "Happy path",
-    placeholder: "Các bước chính khi quy trình đi đúng luồng",
-    rows: 5
-  },
-  {
-    key: "exceptions",
-    label: "Exceptions",
-    placeholder: "Thiếu hồ sơ, fail validation, cần bổ sung",
-    rows: 4
-  },
-  {
-    key: "slaControl",
-    label: "SLA/control",
-    placeholder: "SLA, maker-checker, approval control",
-    rows: 3
-  },
-  {
-    key: "desiredOutputs",
-    label: "Desired outputs",
-    placeholder: "D01 BPMN, D02 Service Blueprint, QA Report",
-    rows: 3
-  }
-];
-
-const uploadZones: Array<{
-  id: UploadZoneId;
-  label: string;
-  accept: string;
-}> = [
-  {
-    id: "pdf",
-    label: "PDF",
-    accept: ".pdf,application/pdf"
-  },
-  {
-    id: "word",
-    label: "Word",
-    accept: ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  },
-  {
-    id: "excel",
-    label: "Excel",
-    accept: ".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  },
-  {
-    id: "image",
-    label: "Image",
-    accept: "image/*"
   }
 ];
 
@@ -234,99 +121,77 @@ function markGeneratedArtifactsStale() {
   window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
 }
 
-function createBriefText(brief: StructuredInputBrief) {
-  return briefFields
-    .map((field) => `${field.label}: ${brief[field.key]}`)
-    .join("\n\n");
-}
-
-function isObjectRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function isNullableString(value: unknown) {
-  return value === null || typeof value === "string";
-}
-
-function validatePastedProcessTasks(value: unknown) {
-  const errors: string[] = [];
-
-  if (!Array.isArray(value)) {
-    return {
-      tasks: [],
-      errors: ["JSON phải là một mảng ProcessTask[]."]
-    };
+function normalizeSavedBrief(value: unknown): InputBriefFormState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return emptyBrief;
   }
 
-  value.forEach((row, index) => {
-    if (!isObjectRecord(row)) {
-      errors.push(`Dòng ${index + 1}: không phải object.`);
-      return;
-    }
-
-    requiredProcessTaskFields.forEach((field) => {
-      if (!(field in row)) {
-        errors.push(`Dòng ${index + 1}: thiếu field bắt buộc "${String(field)}".`);
+  const savedBrief = value as Partial<
+    InputBriefFormState &
+      StructuredInputBrief & {
+        systems?: string;
+        processName?: string;
+        startEvent?: string;
+        endEvent?: string;
       }
-    });
-
-    if (typeof row.id !== "string" || row.id.trim() === "") {
-      errors.push(`Dòng ${index + 1}: id phải là chuỗi không rỗng.`);
-    }
-
-    if (typeof row.stepId !== "string" || row.stepId.trim() === "") {
-      errors.push(`Dòng ${index + 1}: stepId phải là chuỗi không rỗng.`);
-    }
-
-    if (typeof row.taskName !== "string" || row.taskName.trim() === "") {
-      errors.push(`Dòng ${index + 1}: taskName phải là chuỗi không rỗng.`);
-    }
-
-    if (typeof row.rowType !== "string" || !rowTypes.has(row.rowType)) {
-      errors.push(`Dòng ${index + 1}: rowType không hợp lệ.`);
-    }
-
-    if (typeof row.bpmnType !== "string" || !bpmnTypes.has(row.bpmnType)) {
-      errors.push(`Dòng ${index + 1}: bpmnType không hợp lệ.`);
-    }
-
-    if (typeof row.taskNature !== "string" || !taskNatures.has(row.taskNature)) {
-      errors.push(`Dòng ${index + 1}: taskNature không hợp lệ.`);
-    }
-
-    if (typeof row.dataAction !== "string" || !dataActions.has(row.dataAction)) {
-      errors.push(`Dòng ${index + 1}: dataAction không hợp lệ.`);
-    }
-
-    if (typeof row.reviewStatus !== "string" || !reviewStatuses.has(row.reviewStatus)) {
-      errors.push(`Dòng ${index + 1}: reviewStatus không hợp lệ.`);
-    }
-
-    ["parentStepId", "defaultNextStep", "yesNextStep", "noNextStep"].forEach((field) => {
-      if (!isNullableString(row[field])) {
-        errors.push(`Dòng ${index + 1}: ${field} phải là string hoặc null.`);
-      }
-    });
-  });
+  >;
+  const startEnd =
+    savedBrief.startEnd ??
+    [savedBrief.startEvent, savedBrief.endEvent].filter(Boolean).join("\n");
 
   return {
-    tasks: errors.length === 0 ? (value as ProcessTask[]) : [],
-    errors
+    ...emptyBrief,
+    ...savedBrief,
+    processInfo: savedBrief.processInfo ?? savedBrief.processName ?? "",
+    startEnd,
+    relatedSystems: savedBrief.relatedSystems ?? savedBrief.systems ?? "",
+    dataDocuments: savedBrief.dataDocuments ?? ""
   };
 }
 
+function toStructuredBrief(brief: InputBriefFormState): StructuredInputBrief {
+  return {
+    processName: brief.processInfo,
+    businessObjective: brief.businessObjective,
+    scope: brief.scope,
+    startEvent: brief.startEnd,
+    endEvent: brief.startEnd,
+    actors: brief.actors,
+    systems: brief.relatedSystems,
+    dataDocuments: brief.dataDocuments,
+    happyPath: brief.happyPath ?? "",
+    exceptions: brief.exceptions ?? "",
+    slaControl: brief.slaControl ?? "",
+    desiredOutputs: brief.desiredOutputs ?? ""
+  };
+}
+
+function createBriefText(brief: InputBriefFormState, locale: Locale) {
+  return briefFields
+    .map((field) => `${t(field.labelKey, locale)}: ${brief[field.key]}`)
+    .join("\n\n");
+}
+
 export function AIInputBriefPanel() {
-  const [brief, setBrief] = useState<StructuredInputBrief>(emptyBrief);
+  const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
-  const [pastedJson, setPastedJson] = useState("");
-  const [jsonErrors, setJsonErrors] = useState<string[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<Record<UploadZoneId, File[]>>({
-    pdf: [],
-    word: [],
-    excel: [],
-    image: []
-  });
   const [message, setMessage] = useState("");
+  const [locale, setActiveLocale] = useState<Locale>("vi");
+
+  useEffect(() => {
+    setActiveLocale(getLocale());
+
+    function handleLocaleChange(event: Event) {
+      const localeDetail = (event as CustomEvent<{ locale?: Locale }>).detail;
+
+      if (localeDetail?.locale) {
+        setActiveLocale(localeDetail.locale);
+      }
+    }
+
+    window.addEventListener(LOCALE_EVENT, handleLocaleChange);
+    return () => window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
+  }, []);
 
   useEffect(() => {
     const savedBrief = window.localStorage.getItem(BRIEF_STORAGE_KEY);
@@ -336,11 +201,7 @@ export function AIInputBriefPanel() {
     }
 
     try {
-      const parsedBrief = JSON.parse(savedBrief);
-
-      if (parsedBrief && typeof parsedBrief === "object") {
-        setBrief({ ...emptyBrief, ...parsedBrief });
-      }
+      setBrief(normalizeSavedBrief(JSON.parse(savedBrief)));
     } catch {
       setMessage("Brief đã lưu không hợp lệ. Đang dùng form trống.");
     }
@@ -355,7 +216,7 @@ export function AIInputBriefPanel() {
     [brief]
   );
 
-  function updateBriefField(key: keyof StructuredInputBrief, value: string) {
+  function updateBriefField(key: BriefField["key"], value: string) {
     setBrief((currentBrief) => ({
       ...currentBrief,
       [key]: value
@@ -363,15 +224,13 @@ export function AIInputBriefPanel() {
     setMessage("Brief đã được lưu local.");
   }
 
-  function updateSelectedFiles(zoneId: UploadZoneId, files: FileList | null) {
-    setSelectedFiles((currentFiles) => ({
-      ...currentFiles,
-      [zoneId]: files ? Array.from(files) : []
-    }));
-    setMessage("Đã chọn file local. File extraction sẽ được triển khai ở phase sau.");
+  function saveBrief() {
+    window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
+    setMessage("Brief đã được lưu local.");
   }
 
   function generateDraftPtr() {
+    const structuredBrief = toStructuredBrief(brief);
     const response = runMockInputBriefExtraction({
       context: {
         scope: "auto-generate",
@@ -382,46 +241,15 @@ export function AIInputBriefPanel() {
         },
         requestId: `input-brief-${Date.now()}`
       },
-      briefText: createBriefText(brief),
-      structuredBrief: brief,
-      sourceName: brief.processName || "Input Brief"
+      briefText: createBriefText(brief, locale),
+      structuredBrief,
+      sourceName: structuredBrief.processName || "Input Brief"
     });
 
     setDraftTasks(response.draftProcessTasks);
-    setJsonErrors([]);
     setMessage(
       `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
     );
-  }
-
-  function previewPastedJson() {
-    if (!pastedJson.trim()) {
-      setJsonErrors(["Vui lòng paste JSON trước khi preview."]);
-      setDraftTasks([]);
-      return;
-    }
-
-    try {
-      const parsedJson = JSON.parse(pastedJson);
-      const validationResult = validatePastedProcessTasks(parsedJson);
-
-      if (validationResult.errors.length > 0) {
-        setJsonErrors(validationResult.errors);
-        setDraftTasks([]);
-        setMessage("JSON chưa hợp lệ, chưa thể preview/apply.");
-        return;
-      }
-
-      setJsonErrors([]);
-      setDraftTasks(validationResult.tasks);
-      setMessage(`Đã validate JSON thành công: ${validationResult.tasks.length} dòng PTR.`);
-    } catch (error) {
-      setJsonErrors([
-        `JSON không hợp lệ: ${error instanceof Error ? error.message : "không parse được."}`
-      ]);
-      setDraftTasks([]);
-      setMessage("JSON không hợp lệ, chưa thể preview/apply.");
-    }
   }
 
   function applyDraftPtr() {
@@ -452,19 +280,11 @@ export function AIInputBriefPanel() {
     setMessage("Đã apply draft PTR vào Process Task Register. QA sẽ chạy lại theo dữ liệu mới.");
   }
 
-  function clearBrief() {
+  function resetBrief() {
     setBrief(emptyBrief);
     setDraftTasks([]);
-    setPastedJson("");
-    setJsonErrors([]);
-    setSelectedFiles({
-      pdf: [],
-      word: [],
-      excel: [],
-      image: []
-    });
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
-    setMessage("Đã xoá brief local và draft preview.");
+    setMessage("Đã reset brief local và draft preview.");
   }
 
   return (
@@ -473,157 +293,80 @@ export function AIInputBriefPanel() {
         <>
           <button
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={clearBrief}
+            onClick={saveBrief}
             type="button"
           >
-            Clear Brief
+            {t("inputBrief.saveBrief", locale)}
+          </button>
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={resetBrief}
+            type="button"
+          >
+            {t("inputBrief.resetBrief", locale)}
           </button>
           <button
             className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
             onClick={generateDraftPtr}
             type="button"
           >
-            Generate Draft PTR
-          </button>
-          <button
-            className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={draftTasks.length === 0}
-            onClick={applyDraftPtr}
-            type="button"
-          >
-            Apply Draft
+            {t("inputBrief.generateDraftProcessTaskRegister", locale)}
           </button>
         </>
       }
       bodyClassName="p-4"
-      description="Nhập brief có cấu trúc để tạo draft Process Task Register bằng mock local. Chưa gọi AI/API thật và chưa parse file."
-      title="AI Input Brief"
+      description={t("inputBrief.description", locale)}
+      title={t("inputBrief.title", locale)}
     >
       <div className="grid gap-4 lg:grid-cols-2">
         {briefFields.map((field) => (
-          <label className="block" key={field.key}>
-            <span className="text-sm font-medium text-slate-700">{field.label}</span>
-            {field.rows ? (
-              <textarea
-                className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
-                onChange={(event) => updateBriefField(field.key, event.target.value)}
-                placeholder={field.placeholder}
-                rows={field.rows}
-                value={brief[field.key]}
-              />
-            ) : (
-              <input
-                className="mt-2 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
-                onChange={(event) => updateBriefField(field.key, event.target.value)}
-                placeholder={field.placeholder}
-                type="text"
-                value={brief[field.key]}
-              />
-            )}
+          <label
+            className="block rounded border border-slate-200 bg-white p-4"
+            key={field.key}
+          >
+            <span className="text-sm font-semibold text-slate-900">
+              {t(field.labelKey, locale)}
+            </span>
+            <span className="mt-1 block text-sm leading-6 text-slate-600">
+              {t(field.helperKey, locale)}
+            </span>
+            <textarea
+              className="mt-3 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+              onChange={(event) => updateBriefField(field.key, event.target.value)}
+              placeholder={t(field.placeholderKey, locale)}
+              rows={field.rows}
+              value={brief[field.key]}
+            />
           </label>
         ))}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
-        <span>{filledFieldCount}/{briefFields.length} sections filled</span>
+        <span>
+          {filledFieldCount}/{briefFields.length}{" "}
+          {t("inputBrief.sectionsFilled", locale)}
+        </span>
         {message ? <span>{message}</span> : null}
-      </div>
-
-      <div className="mt-6 rounded border border-slate-200 bg-white p-4">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-950">
-            Upload supporting files
-          </h3>
-          <p className="mt-1 text-sm text-slate-600">
-            File extraction will be implemented in later phase. Files stay local in current MVP and are not uploaded to any external server.
-          </p>
-        </div>
-
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {uploadZones.map((zone) => (
-            <label
-              className="block rounded border border-dashed border-slate-300 bg-slate-50 p-4 hover:border-slate-400"
-              key={zone.id}
-            >
-              <span className="text-sm font-semibold text-slate-800">
-                {zone.label}
-              </span>
-              <span className="mt-1 block text-xs leading-5 text-slate-500">
-                Select one or more files. Placeholder only.
-              </span>
-              <input
-                accept={zone.accept}
-                className="mt-3 block w-full text-xs text-slate-600 file:mr-3 file:rounded file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-medium file:text-slate-700"
-                multiple
-                onChange={(event) => updateSelectedFiles(zone.id, event.target.files)}
-                type="file"
-              />
-              {selectedFiles[zone.id].length > 0 ? (
-                <ul className="mt-3 space-y-1 text-xs text-slate-700">
-                  {selectedFiles[zone.id].map((file) => (
-                    <li className="truncate" key={`${zone.id}-${file.name}-${file.size}`}>
-                      {file.name}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-3 text-xs text-slate-500">No file selected.</p>
-              )}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-6 rounded border border-slate-200 bg-slate-50 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-slate-950">
-              Paste AI-generated Process Task Register JSON
-            </h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Dán JSON dạng mảng ProcessTask[]. Dữ liệu chỉ được validate local, không gửi ra ngoài.
-            </p>
-          </div>
-          <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            onClick={previewPastedJson}
-            type="button"
-          >
-            Preview Pasted JSON
-          </button>
-        </div>
-        <textarea
-          className="mt-3 min-h-48 w-full rounded border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-800 outline-none focus:border-slate-500"
-          onChange={(event) => setPastedJson(event.target.value)}
-          placeholder='[{"id":"task-1","stepId":"S001","rowType":"start",...}]'
-          value={pastedJson}
-        />
-        {jsonErrors.length > 0 ? (
-          <div className="mt-3 rounded border border-red-200 bg-red-50 p-3">
-            <p className="text-sm font-semibold text-red-800">JSON chưa hợp lệ</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
-              {jsonErrors.slice(0, 12).map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-            {jsonErrors.length > 12 ? (
-              <p className="mt-2 text-sm text-red-700">
-                Còn {jsonErrors.length - 12} lỗi khác.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
       </div>
 
       {draftTasks.length > 0 ? (
         <div className="mt-5 rounded border border-slate-200">
-          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-            <h3 className="text-sm font-semibold text-slate-950">
-              Draft PTR Preview
-            </h3>
-            <p className="mt-1 text-sm text-slate-600">
-              {draftTasks.length} dòng draft. Hãy review trước khi apply.
-            </p>
+          <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">
+                {t("inputBrief.draftPreview", locale)}
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">
+                {draftTasks.length} dòng draft. {t("inputBrief.reviewBeforeApply", locale)}
+              </p>
+            </div>
+            <button
+              className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+              onClick={applyDraftPtr}
+              type="button"
+            >
+              {t("inputBrief.applyDraft", locale)}
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">

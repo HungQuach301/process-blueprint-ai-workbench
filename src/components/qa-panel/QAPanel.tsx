@@ -31,6 +31,18 @@ const severityStyles: Record<QaSeverity, string> = {
   suggestion: "border-sky-200 bg-sky-50 text-sky-800"
 };
 
+const recommendationBoxStyles: Record<QaSeverity, string> = {
+  error: "border-red-200 bg-red-50",
+  warning: "border-amber-200 bg-amber-50",
+  suggestion: "border-sky-200 bg-sky-50"
+};
+
+const recommendationCardStyles: Record<QaSeverity, string> = {
+  error: "border-red-200 bg-white",
+  warning: "border-amber-200 bg-white",
+  suggestion: "border-sky-200 bg-white"
+};
+
 const severityOrder: QaSeverity[] = ["error", "warning", "suggestion"];
 
 export function QAPanel({
@@ -126,15 +138,17 @@ export function QAPanel({
                         Cách sửa: {issue.suggestedFix}
                       </p>
                     </button>
-                    {issue.recommendations?.length ? (
-                      <div className="mt-3 rounded border border-slate-200 bg-white p-3">
-                        <p className="text-xs font-semibold uppercase text-slate-500">
-                          Recommendations
-                        </p>
+                    <div
+                      className={`mt-3 rounded border p-3 ${recommendationBoxStyles[issue.severity]}`}
+                    >
+                      <p className="text-xs font-semibold uppercase text-slate-600">
+                        Gợi ý tự động
+                      </p>
+                      {issue.recommendations?.length ? (
                         <div className="mt-2 space-y-3">
                           {issue.recommendations.map((recommendation, index) => (
                             <div
-                              className="rounded border border-slate-200 p-3"
+                              className={`rounded border p-3 ${recommendationCardStyles[issue.severity]}`}
                               key={`${recommendation.type}-${index}`}
                             >
                               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -171,8 +185,12 @@ export function QAPanel({
                             </div>
                           ))}
                         </div>
-                      </div>
-                    ) : null}
+                      ) : (
+                        <p className="mt-2 text-sm text-slate-600">
+                          Chưa có gợi ý tự động.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

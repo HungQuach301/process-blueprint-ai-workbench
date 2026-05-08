@@ -65,6 +65,55 @@ function normalize(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? "";
 }
 
+function findTaskIndex(tasks: ProcessTask[], stepId: string) {
+  return tasks.findIndex((task) => task.stepId === stepId);
+}
+
+function findLikelyNextTask(task: ProcessTask, tasks: ProcessTask[]) {
+  const taskIndex = findTaskIndex(tasks, task.stepId);
+
+  if (taskIndex < 0) {
+    return undefined;
+  }
+
+  return tasks.slice(taskIndex + 1).find((candidate) => candidate.stepId && candidate.rowType !== "annotation");
+}
+
+function getInvalidConnectionField(issueId: string): "defaultNextStep" | "yesNextStep" | "noNextStep" {
+  if (issueId.endsWith("-yesNextStep")) {
+    return "yesNextStep";
+  }
+
+  if (issueId.endsWith("-noNextStep")) {
+    return "noNextStep";
+  }
+
+  return "defaultNextStep";
+}
+
+function buildUniqueStepId(baseStepId: string, tasks: ProcessTask[]) {
+  const existingStepIds = new Set(tasks.map((task) => task.stepId));
+  let index = 1;
+  let stepId = `${baseStepId}_N${index}`;
+
+  while (existingStepIds.has(stepId)) {
+    index += 1;
+    stepId = `${baseStepId}_N${index}`;
+  }
+
+  return stepId;
+}
+
+function inferNotificationChannel(task: ProcessTask): ProcessTask["channel"] {
+  const text = normalize(`${task.taskName} ${task.system} ${task.channel}`);
+
+  if (text.includes("email")) {
+    return "Email";
+  }
+
+  return "SMS";
+}
+
 function inferSystemFromTaskName(task: ProcessTask) {
   const text = normalize(`${task.taskName} ${task.system} ${task.systemLane}`);
 
@@ -490,6 +539,13 @@ function createGatewayBranchRecommendations(input: RuleRecommendationInput): QAR
       targetStepIds: [task.stepId],
       previewText: `${task.stepId}: reviewStatus = needsReview`,
       patch: { reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
       requiresConfirmation: true,
       complianceTags: ["human-review", "process-integrity"]
     }),
@@ -517,6 +573,312 @@ function createGatewayBranchRecommendations(input: RuleRecommendationInput): QAR
   ];
 }
 
+function createGatewayBranchOperationRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const yesNextStep = task.yesNextStep || "TBD_YES";
+  const noNextStep = task.noNextStep || "TBD_NO";
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-mark-review`,
+      issueId,
+      issueCode,
+      recommendationType: "MarkReviewStatus",
+      title: "Mark gateway as Need Review",
+      description: "The gateway is missing one or more branches and needs business review.",
+      rationale: "A gateway without Yes/No branches can break BPMN flow.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "medium",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: reviewStatus = needsReview`,
+      patch: { reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      requiresConfirmation: true,
+      complianceTags: ["human-review", "process-integrity"]
+    }),
+    createRuleRecommendation({
+      id: `${issueId}-add-gateway-branch-placeholder`,
+      issueId,
+      issueCode,
+      recommendationType: "AddGatewayBranch",
+      title: "Add placeholder gateway branches",
+      description: "Add placeholder yesNextStep/noNextStep values for user review.",
+      rationale: "A gateway needs explicit branches before generation.",
+      confidence: "low",
+      impact: "medium",
+      riskLevel: "high",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: yesNextStep = ${yesNextStep}, noNextStep = ${noNextStep}`,
+      patch: {
+        yesNextStep,
+        noNextStep,
+        reviewStatus: "needsReview"
+      },
+      operations: [
+        {
+          kind: "UpdateConnection",
+          stepId: task.stepId,
+          field: "yesNextStep",
+          value: yesNextStep
+        },
+        {
+          kind: "UpdateConnection",
+          stepId: task.stepId,
+          field: "noNextStep",
+          value: noNextStep
+        },
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      warnings: ["Placeholder stepIds are not valid yet; create or select real target steps before final export."],
+      requiresConfirmation: true,
+      complianceTags: ["human-review", "process-integrity"]
+    })
+  ];
+}
+
+function createDisconnectedTaskRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task, processTasks } = input;
+  const likelyNextTask = findLikelyNextTask(task, processTasks);
+
+  if (!likelyNextTask) {
+    return [
+      createRuleRecommendation({
+        id: `${issueId}-mark-review`,
+        issueId,
+        issueCode,
+        recommendationType: "MarkReviewStatus",
+        title: "Mark disconnected task as Need Review",
+        description: "No likely next step can be inferred, so this task should be reviewed manually.",
+        rationale: "Disconnected tasks can break BPMN generation or create incomplete process flow.",
+        confidence: "low",
+        impact: "medium",
+        riskLevel: "medium",
+        targetStepIds: [task.stepId],
+        previewText: `${task.stepId}: reviewStatus = needsReview`,
+        patch: { reviewStatus: "needsReview" },
+        operations: [
+          {
+            kind: "MarkReviewStatus",
+            stepId: task.stepId,
+            reviewStatus: "needsReview"
+          }
+        ],
+        requiresConfirmation: true,
+        complianceTags: ["process-integrity", "human-review"]
+      })
+    ];
+  }
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-connect-likely-next`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: `Connect to likely next step ${likelyNextTask.stepId}`,
+      description: "Connect this disconnected task to the next nearby process row.",
+      rationale: "The nearest following task is a deterministic, reviewable fallback for disconnected flow.",
+      confidence: "medium",
+      impact: "high",
+      riskLevel: "medium",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: defaultNextStep = ${likelyNextTask.stepId}`,
+      patch: { defaultNextStep: likelyNextTask.stepId },
+      operations: [
+        {
+          kind: "UpdateConnection",
+          stepId: task.stepId,
+          field: "defaultNextStep",
+          value: likelyNextTask.stepId
+        }
+      ],
+      warnings: ["Confirm this inferred connection before generating BPMN."],
+      requiresConfirmation: true,
+      complianceTags: ["process-integrity"]
+    })
+  ];
+}
+
+function createInvalidNextStepRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task, processTasks } = input;
+  const field = getInvalidConnectionField(issueId);
+  const likelyNextTask = findLikelyNextTask(task, processTasks);
+
+  if (likelyNextTask) {
+    return [
+      createRuleRecommendation({
+        id: `${issueId}-connect-valid-step`,
+        issueId,
+        issueCode,
+        recommendationType: "UpdateField",
+        title: `Replace invalid ${field} with ${likelyNextTask.stepId}`,
+        description: "Replace the invalid next-step reference with a nearby valid step.",
+        rationale: "A valid stepId is required for connected process flow.",
+        confidence: "medium",
+        impact: "high",
+        riskLevel: "medium",
+        targetStepIds: [task.stepId],
+        previewText: `${task.stepId}: ${field} = ${likelyNextTask.stepId}`,
+        patch: { [field]: likelyNextTask.stepId },
+        operations: [
+          {
+            kind: "UpdateConnection",
+            stepId: task.stepId,
+            field,
+            value: likelyNextTask.stepId
+          }
+        ],
+        warnings: ["Confirm this inferred next step before generating BPMN."],
+        requiresConfirmation: true,
+        complianceTags: ["process-integrity"]
+      })
+    ];
+  }
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-clear-invalid-step`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: `Clear invalid ${field} and mark Need Review`,
+      description: "Clear the invalid reference because no safe replacement step can be inferred.",
+      rationale: "Skipping an invalid reference is safer than preserving a broken BPMN connection.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "medium",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: ${field} = blank, reviewStatus = needsReview`,
+      patch: { [field]: null, reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "UpdateConnection",
+          stepId: task.stepId,
+          field,
+          value: null
+        },
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      requiresConfirmation: true,
+      complianceTags: ["process-integrity", "human-review"]
+    })
+  ];
+}
+
+function createGatewayConditionRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const conditionQuestion = `Is ${task.taskName || task.stepId} true?`;
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-set-placeholder-condition`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: "Add placeholder gateway condition",
+      description: "Add a placeholder condition question and mark the gateway for review.",
+      rationale: "Exclusive gateways need a clear decision question before generation.",
+      confidence: "medium",
+      impact: "medium",
+      riskLevel: "medium",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: conditionQuestion = "${conditionQuestion}", reviewStatus = needsReview`,
+      patch: { conditionQuestion, reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "UpdateTaskField",
+          stepId: task.stepId,
+          field: "conditionQuestion",
+          value: conditionQuestion
+        },
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      warnings: ["Placeholder condition must be reviewed by business before final export."],
+      requiresConfirmation: true,
+      complianceTags: ["process-integrity", "human-review"]
+    })
+  ];
+}
+
+function createMissingCustomerNotificationRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task, processTasks } = input;
+  const channel = inferNotificationChannel(task);
+  const stepId = buildUniqueStepId(task.stepId, processTasks);
+  const notificationTask: ProcessTask = {
+    ...task,
+    id: `${task.id}-notification`,
+    stepId,
+    parentStepId: task.stepId,
+    rowType: "task",
+    bpmnType: "sendTask",
+    taskNature: "notification",
+    actor: "System",
+    actorLane: "System",
+    system: "Notification Service",
+    systemLane: "Notification Service",
+    dataAction: "send",
+    taskName: "Notify customer about application status",
+    input: task.output || task.taskName || "Application status",
+    output: "Customer notification sent",
+    defaultNextStep: task.defaultNextStep,
+    conditionQuestion: "",
+    yesNextStep: null,
+    noNextStep: null,
+    customerInteractionType: "Front-stage System",
+    channel,
+    reviewStatus: "needsReview",
+    comment: "Created from QA recommendation; review notification content and channel."
+  };
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-create-customer-notification`,
+      issueId,
+      issueCode,
+      recommendationType: "CreateTask",
+      title: "Create customer notification Send Task",
+      description: "Create a connected Send Task after the reject/pause/supplement step.",
+      rationale: "Customer-impacting reject, pause, or supplement paths should notify the customer.",
+      confidence: "medium",
+      impact: "high",
+      riskLevel: "medium",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId} -> ${stepId}: Notify customer via ${channel}`,
+      newTasks: [notificationTask],
+      operations: [
+        {
+          kind: "CreateTaskAfter",
+          anchorStepId: task.stepId,
+          task: notificationTask,
+          connect: true
+        }
+      ],
+      warnings: ["Review message content, legal wording, and customer channel before final export."],
+      requiresConfirmation: true,
+      complianceTags: ["customer-communication", "process-integrity", "human-review"]
+    })
+  ];
+}
+
 export function createRuleRecommendationsForIssue(input: RuleRecommendationInput): QARecommendation[] {
   const context: RecommendationContext = {
     processTasks: input.processTasks,
@@ -535,6 +897,12 @@ export function createRuleRecommendationsForIssue(input: RuleRecommendationInput
       return createActorLaneRecommendations(input);
     case "SERVICE_TASK_MISSING_SYSTEM_LANE":
       return createSystemLaneRecommendations(input);
+    case "DISCONNECTED_TASK":
+      return createDisconnectedTaskRecommendations(input);
+    case "INVALID_NEXT_STEP":
+      return createInvalidNextStepRecommendations(input);
+    case "GATEWAY_MISSING_CONDITION":
+      return createGatewayConditionRecommendations(input);
     case "ROWTYPE_BPMNTYPE_MISMATCH":
       return createRowTypeBpmnTypeRecommendations(input);
     case "MULTI_ACTION_TASK":
@@ -542,7 +910,9 @@ export function createRuleRecommendationsForIssue(input: RuleRecommendationInput
     case "MISSING_CUSTOMER_INTERACTION_TYPE":
       return createInteractionTypeRecommendations(input);
     case "GATEWAY_MISSING_YES_NO":
-      return createGatewayBranchRecommendations(input);
+      return createGatewayBranchOperationRecommendations(input);
+    case "MISSING_CUSTOMER_NOTIFICATION_AFTER_REJECT_OR_PAUSE":
+      return createMissingCustomerNotificationRecommendations(input);
     default:
       return [];
   }

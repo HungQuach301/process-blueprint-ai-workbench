@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
-import { runMockInputBriefExtraction } from "@/lib/ai/ai-input-brief-service";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
+import {
+  generateDraftProcessTaskRegister,
+  parseStructuredProcessBriefFromForm,
+  type DraftPTRGenerationResult
+} from "@/lib/ai-intake";
 import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
 
@@ -149,32 +153,10 @@ function normalizeSavedBrief(value: unknown): InputBriefFormState {
   };
 }
 
-function toStructuredBrief(brief: InputBriefFormState): StructuredInputBrief {
-  return {
-    processName: brief.processInfo,
-    businessObjective: brief.businessObjective,
-    scope: brief.scope,
-    startEvent: brief.startEnd,
-    endEvent: brief.startEnd,
-    actors: brief.actors,
-    systems: brief.relatedSystems,
-    dataDocuments: brief.dataDocuments,
-    happyPath: brief.happyPath ?? "",
-    exceptions: brief.exceptions ?? "",
-    slaControl: brief.slaControl ?? "",
-    desiredOutputs: brief.desiredOutputs ?? ""
-  };
-}
-
-function createBriefText(brief: InputBriefFormState, locale: Locale) {
-  return briefFields
-    .map((field) => `${t(field.labelKey, locale)}: ${brief[field.key]}`)
-    .join("\n\n");
-}
-
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
+  const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
   const [locale, setActiveLocale] = useState<Locale>("vi");
 
@@ -230,23 +212,24 @@ export function AIInputBriefPanel() {
   }
 
   function generateDraftPtr() {
-    const structuredBrief = toStructuredBrief(brief);
-    const response = runMockInputBriefExtraction({
-      context: {
-        scope: "auto-generate",
-        executionMode: "mock",
-        providerSettings: {
-          provider: "no-ai",
-          dataUsageMode: "local-only"
-        },
-        requestId: `input-brief-${Date.now()}`
-      },
-      briefText: createBriefText(brief, locale),
-      structuredBrief,
-      sourceName: structuredBrief.processName || "Input Brief"
+    const structuredBrief = parseStructuredProcessBriefFromForm({
+      processInfo: brief.processInfo,
+      businessObjective: brief.businessObjective,
+      scope: brief.scope,
+      startEnd: brief.startEnd,
+      actors: brief.actors,
+      relatedSystems: brief.relatedSystems,
+      dataDocuments: brief.dataDocuments,
+      inputLanguage: locale,
+      outputLanguage: locale
+    });
+    const response = generateDraftProcessTaskRegister({
+      brief: structuredBrief,
+      currentLocale: locale
     });
 
     setDraftTasks(response.draftProcessTasks);
+    setDraftMeta(response);
     setMessage(
       `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
     );
@@ -283,6 +266,7 @@ export function AIInputBriefPanel() {
   function resetBrief() {
     setBrief(emptyBrief);
     setDraftTasks([]);
+    setDraftMeta(null);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
   }
@@ -368,6 +352,38 @@ export function AIInputBriefPanel() {
               {t("inputBrief.applyDraft", locale)}
             </button>
           </div>
+          {draftMeta ? (
+            <div className="grid gap-4 border-b border-slate-200 bg-white px-4 py-4 text-sm md:grid-cols-2">
+              <div>
+                <p className="font-semibold text-slate-900">Source summary</p>
+                <p className="mt-1 text-slate-600">{draftMeta.sourceSummary}</p>
+                <p className="mt-3 text-slate-600">
+                  Confidence:{" "}
+                  <span className="font-semibold text-slate-900">
+                    {draftMeta.confidence}
+                  </span>
+                </p>
+              </div>
+              <div className="grid gap-3">
+                <div>
+                  <p className="font-semibold text-slate-900">Assumptions</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
+                    {draftMeta.assumptions.map((assumption) => (
+                      <li key={assumption}>{assumption}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">Open questions</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
+                    {draftMeta.openQuestions.map((question) => (
+                      <li key={question}>{question}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-white text-left text-xs uppercase text-slate-500">
@@ -377,6 +393,7 @@ export function AIInputBriefPanel() {
                   <th className="px-4 py-3">Actor</th>
                   <th className="px-4 py-3">System</th>
                   <th className="px-4 py-3">Task</th>
+                  <th className="px-4 py-3">Review</th>
                   <th className="px-4 py-3">Next</th>
                 </tr>
               </thead>
@@ -397,6 +414,9 @@ export function AIInputBriefPanel() {
                     </td>
                     <td className="min-w-72 px-4 py-3 text-slate-700">
                       {task.taskName}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      {task.reviewStatus}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-600">
                       {task.defaultNextStep ?? task.yesNextStep ?? "-"}

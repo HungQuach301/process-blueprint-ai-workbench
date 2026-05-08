@@ -30,8 +30,11 @@ import {
   sampleServiceBlueprintTemplateProfile,
   sampleWorkspace
 } from "@/lib/sample-data/sme-online-loan";
+import { corporateAccountOpeningProcessTasks } from "@/lib/sample-data/corporate-account-opening";
 
 const STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
+const SAMPLE_PROCESS_STORAGE_KEY =
+  "process-blueprint-ai-workbench:selected-sample-process";
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
@@ -52,6 +55,8 @@ type SelectOption = {
   value: string;
   label: string;
 };
+
+type SampleProcessId = "sme-online-loan" | "corporate-account-opening";
 
 const visibleColumns: EditableColumn[] = [
   { key: "stepId", label: "Mã bước", minWidth: "110px" },
@@ -249,8 +254,32 @@ const bpmnTypeOptionsByRowType: Record<string, SelectOption[]> = {
   ]
 };
 
-function cloneSampleTasks() {
-  return sampleProcessTasks.map((task) => ({ ...task }));
+const sampleProcessOptions: Array<{
+  id: SampleProcessId;
+  label: string;
+  tasks: ProcessTask[];
+}> = [
+  {
+    id: "sme-online-loan",
+    label: "SME Online Loan",
+    tasks: sampleProcessTasks
+  },
+  {
+    id: "corporate-account-opening",
+    label: "Corporate Account Opening",
+    tasks: corporateAccountOpeningProcessTasks
+  }
+];
+
+function getSampleProcess(sampleId: string | null | undefined) {
+  return (
+    sampleProcessOptions.find((sampleProcess) => sampleProcess.id === sampleId) ??
+    sampleProcessOptions[0]
+  );
+}
+
+function cloneSampleTasks(sampleId?: string | null) {
+  return getSampleProcess(sampleId).tasks.map((task) => ({ ...task }));
 }
 
 function createEmptyTask(index: number): ProcessTask {
@@ -405,15 +434,23 @@ function isEmptyChannel(task: ProcessTask) {
 
 export function ProcessTaskRegister() {
   const [tasks, setTasks] = useState<ProcessTask[]>(() => cloneSampleTasks());
+  const [selectedSampleProcessId, setSelectedSampleProcessId] =
+    useState<SampleProcessId>("sme-online-loan");
   const [saveMessage, setSaveMessage] = useState("");
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ProcessTaskImportPreview | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    const savedSampleProcess = getSampleProcess(
+      window.localStorage.getItem(SAMPLE_PROCESS_STORAGE_KEY)
+    );
+    setSelectedSampleProcessId(savedSampleProcess.id);
+
     const savedTasks = window.localStorage.getItem(STORAGE_KEY);
 
     if (!savedTasks) {
+      setTasks(cloneSampleTasks(savedSampleProcess.id));
       return;
     }
 
@@ -434,6 +471,7 @@ export function ProcessTaskRegister() {
   );
 
   const qaIssues = useMemo(() => validateProcessTasks(tasks), [tasks]);
+  const activeSampleProcess = getSampleProcess(selectedSampleProcessId);
 
   function focusIssueRow(stepId: string) {
     setHighlightedStepId(stepId);
@@ -520,12 +558,39 @@ export function ProcessTaskRegister() {
   }
 
   function resetTasks() {
-    const sampleTasks = cloneSampleTasks();
+    const sampleTasks = cloneSampleTasks(selectedSampleProcessId);
 
     setTasks(sampleTasks);
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, selectedSampleProcessId);
     markGeneratedArtifactsStale();
-    setSaveMessage("Đã reset về dữ liệu mẫu.");
+    setSaveMessage(`Đã reset về dữ liệu mẫu ${activeSampleProcess.label}.`);
+  }
+
+  function switchSampleProcess(sampleId: string) {
+    const nextSampleProcess = getSampleProcess(sampleId);
+
+    if (nextSampleProcess.id === selectedSampleProcessId) {
+      return;
+    }
+
+    const shouldReplace = window.confirm(
+      `Thay bảng hiện tại bằng dữ liệu mẫu ${nextSampleProcess.label}?`
+    );
+
+    if (!shouldReplace) {
+      return;
+    }
+
+    const sampleTasks = cloneSampleTasks(nextSampleProcess.id);
+
+    setSelectedSampleProcessId(nextSampleProcess.id);
+    setTasks(persistTasks(sampleTasks));
+    window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, nextSampleProcess.id);
+    setImportPreview(null);
+    setHighlightedStepId(null);
+    markGeneratedArtifactsStale();
+    setSaveMessage(`Đã chuyển sang dữ liệu mẫu ${nextSampleProcess.label}.`);
   }
 
   function autoSuggestInteractionFields() {
@@ -751,6 +816,20 @@ export function ProcessTaskRegister() {
       <SessionFrame
         actions={
           <>
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                Sample
+                <select
+                  className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                  onChange={(event) => switchSampleProcess(event.target.value)}
+                  value={selectedSampleProcessId}
+                >
+                  {sampleProcessOptions.map((sampleProcess) => (
+                    <option key={sampleProcess.id} value={sampleProcess.id}>
+                      {sampleProcess.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={addRow}
@@ -811,7 +890,7 @@ export function ProcessTaskRegister() {
         }
         bodyClassName="p-4"
         description="Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau khi refresh trình duyệt."
-        title="Bảng công việc SME Online Loan"
+        title={`Bảng công việc ${activeSampleProcess.label}`}
       >
           <div className="mb-4">
             <p className="text-sm font-medium uppercase text-slate-500">

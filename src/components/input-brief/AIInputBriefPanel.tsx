@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { runMockInputBriefExtraction } from "@/lib/ai/ai-input-brief-service";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import type { ProcessTask } from "@/lib/models/process-task";
@@ -440,6 +441,14 @@ export function AIInputBriefPanel() {
     window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(draftTasks));
     window.dispatchEvent(new Event(PROCESS_TASKS_EVENT));
     markGeneratedArtifactsStale();
+    saveAuditLogEntry({
+      action: "apply_ai_draft",
+      status: "success",
+      summary: "Applied draft Process Task Register from AI Input Brief workflow.",
+      metadata: {
+        rowCount: draftTasks.length
+      }
+    });
     setMessage("Đã apply draft PTR vào Process Task Register. QA sẽ chạy lại theo dữ liệu mới.");
   }
 

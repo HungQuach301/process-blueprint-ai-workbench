@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { QAPanel } from "@/components/qa-panel/QAPanel";
 import {
   parseProcessTaskRegisterWorkbook,
@@ -795,6 +796,14 @@ export function ProcessTaskRegister() {
 
     setTasks(persistTasks(importPreview.tasks));
     markGeneratedArtifactsStale();
+    saveAuditLogEntry({
+      action: "import_excel",
+      status: "success",
+      summary: "Applied Excel import to Process Task Register.",
+      metadata: {
+        rowCount: importPreview.tasks.length
+      }
+    });
     setImportPreview(null);
     setSaveMessage("Đã apply Excel import, lưu vào localStorage và đánh dấu D01/D02 stale.");
   }
@@ -810,6 +819,16 @@ export function ProcessTaskRegister() {
 
       setTasks(persistTasks(nextTasks));
       markGeneratedArtifactsStale();
+      saveAuditLogEntry({
+        action: "apply_recommendation",
+        status: "success",
+        summary: "Applied one QA recommendation.",
+        metadata: {
+          recommendationId: recommendation.id ?? null,
+          source: recommendation.source ?? "rule",
+          targetStepCount: recommendation.targetStepIds.length
+        }
+      });
       setSaveMessage(
         `Đã apply recommendation "${recommendation.title}" và đánh dấu D01/D02 stale.`
       );
@@ -826,6 +845,16 @@ export function ProcessTaskRegister() {
 
       setTasks(persistTasks(nextTasks));
       markGeneratedArtifactsStale();
+      saveAuditLogEntry({
+        action: "apply_recommendation",
+        status: "success",
+        summary: "Applied QA recommendation batch.",
+        metadata: {
+          recommendationCount: recommendations.length,
+          applicableCount: preview.applicableCount,
+          skippedCount: preview.skippedCount
+        }
+      });
       setSaveMessage(
         `Đã apply ${preview.applicableCount} recommendation(s), skip ${preview.skippedCount} conflict(s), và đánh dấu D01/D02 stale.`
       );

@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import JSZip from "jszip";
+import {
+  exportAuditLogJson,
+  saveAuditLogEntry
+} from "@/lib/audit/audit-log";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
@@ -244,6 +248,15 @@ export function ExportCenter() {
         `Output_Package_${timestamp}.zip`,
         "application/zip"
       );
+      saveAuditLogEntry({
+        action: "export_zip",
+        status: "success",
+        summary: "Exported output package ZIP.",
+        metadata: {
+          timestamp,
+          fileCount: 5
+        }
+      });
       setArtifacts(currentArtifacts);
       refreshArtifactStatuses();
       setMessage("Đã tạo ZIP output package.");
@@ -256,6 +269,15 @@ export function ExportCenter() {
     } finally {
       setIsDownloading(false);
     }
+  }
+
+  function downloadAuditLog() {
+    downloadBlob(
+      exportAuditLogJson(),
+      `Audit_Log_${createTimestamp()}.json`,
+      "application/json;charset=utf-8"
+    );
+    setMessage("Đã export audit log JSON.");
   }
 
   return (
@@ -290,6 +312,13 @@ export function ExportCenter() {
               type="button"
             >
               {isDownloading ? "Đang tạo ZIP..." : "Download ZIP"}
+            </button>
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={downloadAuditLog}
+              type="button"
+            >
+              Export Audit Log JSON
             </button>
           </div>
         </div>

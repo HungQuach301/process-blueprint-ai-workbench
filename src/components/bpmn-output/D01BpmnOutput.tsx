@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import { BpmnPreview } from "@/components/preview/BpmnPreview";
+import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -82,6 +83,15 @@ export function D01BpmnOutput() {
       window.localStorage.setItem(D01_GENERATED_XML_KEY, generatedXml);
       window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "fresh");
       window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
+      saveAuditLogEntry({
+        action: "generate_d01",
+        status: "success",
+        summary: "Generated D01 BPMN XML.",
+        metadata: {
+          rowCount: processTasks.length,
+          templateId: selectedTemplate.id
+        }
+      });
       setMessage("Đã generate D01 BPMN XML.");
     } catch (error) {
       setXml("");

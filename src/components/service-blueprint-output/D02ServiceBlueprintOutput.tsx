@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import { D02ServiceBlueprintPreview } from "@/components/preview/D02ServiceBlueprintPreview";
+import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -117,6 +118,15 @@ export function D02ServiceBlueprintOutput() {
       window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "fresh");
       window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
       setStatus("fresh");
+      saveAuditLogEntry({
+        action: "generate_d02",
+        status: "success",
+        summary: "Generated D02 Service Blueprint draw.io XML.",
+        metadata: {
+          rowCount: processTasks.length,
+          templateId: selectedTemplate.id
+        }
+      });
       setMessage(
         `Đã generate D02 từ Process Task Register hiện tại và template: ${selectedTemplate.name}.`
       );

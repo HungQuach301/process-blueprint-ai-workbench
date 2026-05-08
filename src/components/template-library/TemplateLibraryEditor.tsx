@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type {
+  TemplateBusinessDomain,
+  TemplateJourneyType,
+  TemplateNotationStandard,
+  TemplateOrganizationType,
+  TemplateOutputType,
+  TemplateProcessType,
   TemplateProfile,
+  TemplateScopeType,
   TemplateStatus,
   TemplateType
 } from "@/lib/models/template-profile";
@@ -29,6 +36,15 @@ type RuleField =
   | "colorRules"
   | "layoutRules";
 
+type ClassificationField =
+  | "outputType"
+  | "processType"
+  | "journeyType"
+  | "scopeType"
+  | "businessDomain"
+  | "notationStandard"
+  | "organizationType";
+
 type TemplateDraft = Omit<
   TemplateProfile,
   | "laneRules"
@@ -38,7 +54,23 @@ type TemplateDraft = Omit<
   | "colorRules"
   | "layoutRules"
   | "mandatoryFields"
+  | "outputType"
+  | "processType"
+  | "journeyType"
+  | "scopeType"
+  | "businessDomain"
+  | "notationStandard"
+  | "organizationType"
+  | "tags"
 > & {
+  outputType: string;
+  processType: string;
+  journeyType: string;
+  scopeType: string;
+  businessDomain: string;
+  notationStandard: string;
+  organizationType: string;
+  tags: string;
   laneRules: string;
   rowRules: string;
   taskCardRules: string;
@@ -57,6 +89,68 @@ const ruleFields: Array<{ key: RuleField; label: string }> = [
   { key: "layoutRules", label: "Quy tắc layout" }
 ];
 
+const classificationFields: Array<{
+  key: ClassificationField;
+  label: string;
+  options: string[];
+}> = [
+  {
+    key: "outputType",
+    label: "Output type",
+    options: [
+      "BPMN",
+      "Service Blueprint",
+      "App Flow",
+      "Data Flow",
+      "Capability Landscape",
+      "Solution Architecture"
+    ]
+  },
+  {
+    key: "processType",
+    label: "Process type",
+    options: [
+      "Lending",
+      "Onboarding",
+      "Servicing",
+      "Approval",
+      "Operation",
+      "Support",
+      "Generic"
+    ]
+  },
+  {
+    key: "journeyType",
+    label: "Journey type",
+    options: [
+      "Customer Journey",
+      "Internal Workflow",
+      "System Workflow",
+      "Integration Flow"
+    ]
+  },
+  {
+    key: "scopeType",
+    label: "Scope type",
+    options: ["End-to-end", "Sub-process", "Task-level"]
+  },
+  {
+    key: "businessDomain",
+    label: "Business domain",
+    options: ["Banking", "Finance", "Insurance", "Generic"]
+  },
+  {
+    key: "notationStandard",
+    label: "Notation standard",
+    options: ["BPMN 2.0", "Service Blueprint", "UML", "Custom"]
+  },
+  {
+    key: "organizationType",
+    label: "Organization type",
+    options: ["Individual", "Bank", "Finance Company", "Consulting", "Enterprise"]
+  }
+];
+
 function cloneSampleTemplates() {
   return [
     { ...sampleBpmnTemplateProfile },
@@ -68,6 +162,13 @@ function formatRule(value: Record<string, unknown>) {
   return JSON.stringify(value, null, 2);
 }
 
+function parseTags(value: string) {
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
 function profileToDraft(profile: TemplateProfile): TemplateDraft {
   return {
     id: profile.id,
@@ -75,6 +176,14 @@ function profileToDraft(profile: TemplateProfile): TemplateDraft {
     type: profile.type,
     version: profile.version,
     status: profile.status,
+    outputType: profile.outputType ?? "",
+    processType: profile.processType ?? "",
+    journeyType: profile.journeyType ?? "",
+    scopeType: profile.scopeType ?? "",
+    businessDomain: profile.businessDomain ?? "",
+    notationStandard: profile.notationStandard ?? "",
+    organizationType: profile.organizationType ?? "",
+    tags: profile.tags?.join(", ") ?? "",
     laneRules: formatRule(profile.laneRules),
     rowRules: formatRule(profile.rowRules),
     taskCardRules: formatRule(profile.taskCardRules),
@@ -100,7 +209,7 @@ function parseRuleField(draft: TemplateDraft, key: RuleField) {
 }
 
 function draftToProfile(draft: TemplateDraft): TemplateProfile {
-  return {
+  const profile: TemplateProfile = {
     id: draft.id,
     name: draft.name,
     type: draft.type,
@@ -117,6 +226,42 @@ function draftToProfile(draft: TemplateDraft): TemplateProfile {
       .map((field) => field.trim())
       .filter(Boolean)
   };
+
+  if (draft.outputType) {
+    profile.outputType = draft.outputType as TemplateOutputType;
+  }
+
+  if (draft.processType) {
+    profile.processType = draft.processType as TemplateProcessType;
+  }
+
+  if (draft.journeyType) {
+    profile.journeyType = draft.journeyType as TemplateJourneyType;
+  }
+
+  if (draft.scopeType) {
+    profile.scopeType = draft.scopeType as TemplateScopeType;
+  }
+
+  if (draft.businessDomain) {
+    profile.businessDomain = draft.businessDomain as TemplateBusinessDomain;
+  }
+
+  if (draft.notationStandard) {
+    profile.notationStandard = draft.notationStandard as TemplateNotationStandard;
+  }
+
+  if (draft.organizationType) {
+    profile.organizationType = draft.organizationType as TemplateOrganizationType;
+  }
+
+  const tags = parseTags(draft.tags);
+
+  if (tags.length > 0) {
+    profile.tags = tags;
+  }
+
+  return profile;
 }
 
 function findTemplateName(drafts: TemplateDraft[], templateId: string) {
@@ -332,6 +477,13 @@ export function TemplateLibraryEditor() {
                   <span className="mt-1 block text-xs text-slate-500">
                     {draft.type} | v{draft.version} | {draft.status}
                   </span>
+                  {draft.outputType || draft.processType || draft.businessDomain ? (
+                    <span className="mt-1 block text-xs text-slate-500">
+                      {[draft.outputType, draft.processType, draft.businessDomain]
+                        .filter(Boolean)
+                        .join(" | ")}
+                    </span>
+                  ) : null}
                 </button>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
@@ -401,6 +553,41 @@ export function TemplateLibraryEditor() {
                     <option value="active">Active</option>
                     <option value="archived">Archived</option>
                   </select>
+                </label>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {classificationFields.map((field) => (
+                  <label
+                    className="grid gap-1 text-sm font-medium text-slate-700"
+                    key={field.key}
+                  >
+                    {field.label}
+                    <select
+                      className="rounded border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
+                      onChange={(event) =>
+                        updateDraft(field.key, event.target.value)
+                      }
+                      value={activeDraft[field.key]}
+                    >
+                      <option value="">Not classified</option>
+                      {field.options.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+
+                <label className="grid gap-1 text-sm font-medium text-slate-700">
+                  Tags
+                  <input
+                    className="rounded border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
+                    onChange={(event) => updateDraft("tags", event.target.value)}
+                    placeholder="SME lending, customer journey"
+                    value={activeDraft.tags}
+                  />
                 </label>
               </div>
 

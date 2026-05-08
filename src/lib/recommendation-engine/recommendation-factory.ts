@@ -104,6 +104,27 @@ function buildUniqueStepId(baseStepId: string, tasks: ProcessTask[]) {
   return stepId;
 }
 
+function buildSplitStepId(baseStepId: string, index: number, usedStepIds: Set<string>) {
+  const suffix = String.fromCharCode(65 + index);
+  const preferredStepId = `${baseStepId}${suffix}`;
+
+  if (!usedStepIds.has(preferredStepId)) {
+    usedStepIds.add(preferredStepId);
+    return preferredStepId;
+  }
+
+  let fallbackIndex = 1;
+  let fallbackStepId = `${preferredStepId}_${fallbackIndex}`;
+
+  while (usedStepIds.has(fallbackStepId)) {
+    fallbackIndex += 1;
+    fallbackStepId = `${preferredStepId}_${fallbackIndex}`;
+  }
+
+  usedStepIds.add(fallbackStepId);
+  return fallbackStepId;
+}
+
 function inferNotificationChannel(task: ProcessTask): ProcessTask["channel"] {
   const text = normalize(`${task.taskName} ${task.system} ${task.channel}`);
 
@@ -179,7 +200,7 @@ function validBpmnTypeForRowType(rowType: string) {
 
 function splitTaskName(taskName: string) {
   return taskName
-    .split(/\s+(?:and|và|sau đó|đồng thời)\s+/i)
+    .split(/\s+(?:and|then|after|parallel|và|sau đó|đồng thời)\s+/i)
     .map((part) => part.trim())
     .filter(Boolean);
 }
@@ -374,12 +395,53 @@ function createRowTypeBpmnTypeRecommendations(input: RuleRecommendationInput): Q
 }
 
 function createSplitTaskRecommendations(input: RuleRecommendationInput): QARecommendation[] {
-  const { issueId, issueCode, task } = input;
+  const { issueId, issueCode, task, processTasks } = input;
   const taskNames = splitTaskName(task.taskName);
 
   if (taskNames.length < 2) {
     return [];
   }
+
+  if (task.rowType === "gateway" || task.yesNextStep || task.noNextStep) {
+    return [
+      createRuleRecommendation({
+        id: `${issueId}-review-before-split`,
+        issueId,
+        issueCode,
+        recommendationType: "MarkReviewStatus",
+        title: "Review before splitting branched task",
+        description: "This row is a gateway or has Yes/No branches, so it should not be split automatically.",
+        rationale: "Auto-splitting a branched row can break gateway semantics and process connections.",
+        confidence: "high",
+        impact: "medium",
+        riskLevel: "high",
+        targetStepIds: [task.stepId],
+        previewText: `${task.stepId}: reviewStatus = needsReview`,
+        patch: { reviewStatus: "needsReview" },
+        operations: [
+          {
+            kind: "MarkReviewStatus",
+            stepId: task.stepId,
+            reviewStatus: "needsReview"
+          }
+        ],
+        warnings: ["Split this task manually after confirming branch semantics."],
+        requiresConfirmation: true,
+        complianceTags: ["process-integrity", "human-review"]
+      })
+    ];
+  }
+
+  const usedStepIds = new Set(processTasks.map((processTask) => processTask.stepId));
+  const newTasks = taskNames.map((name, index) => ({
+    ...task,
+    id: `${task.id}-split-${index + 1}`,
+    stepId: buildSplitStepId(task.stepId, index, usedStepIds),
+    taskName: name,
+    defaultNextStep: null,
+    yesNextStep: null,
+    noNextStep: null
+  }));
 
   return [
     createRuleRecommendation({
@@ -394,16 +456,15 @@ function createSplitTaskRecommendations(input: RuleRecommendationInput): QARecom
       impact: "high",
       riskLevel: "high",
       targetStepIds: [task.stepId],
-      previewText: taskNames.map((name, index) => `${index + 1}. ${name}`).join("\n"),
-      newTasks: taskNames.map((name, index) => ({
-        ...task,
-        id: `${task.id}-split-${index + 1}`,
-        stepId: `${task.stepId}.${index + 1}`,
-        taskName: name,
-        defaultNextStep: null,
-        yesNextStep: null,
-        noNextStep: null
-      })),
+      previewText: newTasks.map((newTask) => `${newTask.stepId}: ${newTask.taskName}`).join("\n"),
+      newTasks,
+      operations: [
+        {
+          kind: "SplitTask",
+          targetStepId: task.stepId,
+          newTasks
+        }
+      ],
       warnings: ["Cần xác nhận lại thứ tự stepId và nextStep sau khi tách."],
       requiresConfirmation: true,
       complianceTags: ["process-integrity"]

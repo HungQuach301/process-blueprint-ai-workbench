@@ -107,6 +107,11 @@ export function QAPanel({
   const selectedRecommendations = recommendationEntries
     .filter((entry) => selectedRecommendationKeys.has(entry.key))
     .map((entry) => entry.recommendation);
+  const safeRecommendationEntries = recommendationEntries.filter((entry) =>
+    isSafeRecommendation(entry.recommendation)
+  );
+  const safeRecommendations = safeRecommendationEntries.map((entry) => entry.recommendation);
+  const hasRecommendations = recommendationEntries.length > 0;
   const groupedIssues = severityOrder.map((severity) => ({
     severity,
     issues: issues.filter((issue) => issue.severity === severity)
@@ -155,10 +160,6 @@ export function QAPanel({
   }
 
   function applyAllSafeRecommendations() {
-    const safeRecommendations = recommendationEntries
-      .filter((entry) => isSafeRecommendation(entry.recommendation))
-      .map((entry) => entry.recommendation);
-
     if (safeRecommendations.length === 0) {
       return;
     }
@@ -168,65 +169,59 @@ export function QAPanel({
 
   return (
     <section className="rounded border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
-              QA Engine
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-              Kiểm tra chất lượng Process Task Register
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào
-              issue để nhảy tới dòng liên quan nếu còn tồn tại.
-            </p>
-            <p className="mt-3 text-sm font-semibold text-slate-950">
-              Tổng số issue: {issues.length}
-            </p>
+      {hasRecommendations ? (
+        <div className="border-b border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase text-emerald-800">
+                Batch recommendations
+              </p>
+              <p className="mt-1 text-sm text-emerald-900">
+                {recommendationEntries.length} recommendations | {safeRecommendations.length} safe |{" "}
+                {selectedRecommendations.length} selected
+              </p>
+              <p className="mt-1 text-xs text-emerald-800">
+                Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={safeRecommendations.length === 0}
+                onClick={selectSafeRecommendations}
+                type="button"
+              >
+                Select safe recommendations
+              </button>
+              <button
+                className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={selectedRecommendations.length === 0}
+                onClick={clearSelection}
+                type="button"
+              >
+                Clear selection
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={selectedRecommendations.length === 0}
+                onClick={applySelectedRecommendations}
+                type="button"
+              >
+                Apply selected ({selectedRecommendations.length})
+              </button>
+              <button
+                className="rounded bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                disabled={safeRecommendations.length === 0}
+                onClick={applyAllSafeRecommendations}
+                type="button"
+              >
+                Apply all safe recommendations
+              </button>
+            </div>
           </div>
 
-          <button
-            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={onDownloadReport}
-            type="button"
-          >
-            Download QA Report
-          </button>
-        </div>
-        <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              onClick={selectSafeRecommendations}
-              type="button"
-            >
-              Select safe high-confidence recommendations
-            </button>
-            <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              onClick={clearSelection}
-              type="button"
-            >
-              Clear selection
-            </button>
-            <button
-              className="rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-              disabled={selectedRecommendations.length === 0}
-              onClick={applySelectedRecommendations}
-              type="button"
-            >
-              Apply selected ({selectedRecommendations.length})
-            </button>
-            <button
-              className="rounded bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
-              onClick={applyAllSafeRecommendations}
-              type="button"
-            >
-              Apply all safe recommendations
-            </button>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
+          <div className="mt-3 flex flex-wrap gap-4 text-xs text-emerald-900">
             <label className="flex items-center gap-2">
               <input
                 checked={showOnlySafe}
@@ -252,6 +247,34 @@ export function QAPanel({
               Include graph-changing recommendations
             </label>
           </div>
+        </div>
+      ) : null}
+
+      <div className="border-b border-slate-200 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase text-slate-500">
+              QA Engine
+            </p>
+            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
+              Kiểm tra chất lượng Process Task Register
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào
+              issue để nhảy tới dòng liên quan nếu còn tồn tại.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-slate-950">
+              Tổng số issue: {issues.length}
+            </p>
+          </div>
+
+          <button
+            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={onDownloadReport}
+            type="button"
+          >
+            Download QA Report
+          </button>
         </div>
       </div>
 
@@ -503,8 +526,17 @@ export function QAPanel({
               <p>Will apply: {pendingBatchPreview.applicableCount}</p>
               <p>Skipped due to conflicts: {pendingBatchPreview.skippedCount}</p>
               <p>Affected tasks: {pendingBatchPreview.affectedTaskCount}</p>
+              <p>Field changes: {pendingBatchPreview.fieldChangeCount}</p>
               <p>New tasks: {pendingBatchPreview.newTaskCount}</p>
               <p>Connection changes: {pendingBatchPreview.connectionChangeCount}</p>
+            </div>
+            <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-semibold text-slate-800">Affected stepIds</p>
+              <p className="mt-1 break-words text-sm text-slate-600">
+                {pendingBatchPreview.affectedStepIds.length
+                  ? pendingBatchPreview.affectedStepIds.join(", ")
+                  : "None"}
+              </p>
             </div>
 
             {pendingBatchPreview.conflicts.length > 0 ? (

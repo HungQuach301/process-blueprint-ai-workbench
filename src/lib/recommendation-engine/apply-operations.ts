@@ -311,6 +311,8 @@ export type RecommendationBatchPreview = {
   applicableCount: number;
   skippedCount: number;
   affectedTaskCount: number;
+  affectedStepIds: string[];
+  fieldChangeCount: number;
   newTaskCount: number;
   connectionChangeCount: number;
   warnings: string[];
@@ -407,6 +409,21 @@ function collectConnectionChangeCount(operation: QARecommendationOperation) {
   }
 }
 
+function collectFieldChangeCount(operation: QARecommendationOperation) {
+  switch (operation.kind) {
+    case "UpdateTaskField":
+    case "SetInteractionType":
+    case "MarkReviewStatus":
+      return 1;
+    case "AssignActor":
+      return operation.actorLane ? 2 : 1;
+    case "AssignSystem":
+      return operation.systemLane ? 2 : 1;
+    default:
+      return 0;
+  }
+}
+
 function collectConflictKeyAndValue(operation: QARecommendationOperation) {
   switch (operation.kind) {
     case "UpdateTaskField":
@@ -457,6 +474,7 @@ export function previewRecommendationBatch(
   const warnings: string[] = [];
   let newTaskCount = 0;
   let connectionChangeCount = 0;
+  let fieldChangeCount = 0;
 
   recommendations.forEach((recommendation, index) => {
     recommendation.warnings?.forEach((warning) => warnings.push(warning));
@@ -464,6 +482,7 @@ export function previewRecommendationBatch(
     normalizeRecommendationOperations(recommendation).forEach((operation) => {
       collectAffectedStepIds(operation).forEach((stepId) => affectedTaskIds.add(stepId));
       connectionChangeCount += collectConnectionChangeCount(operation);
+      fieldChangeCount += collectFieldChangeCount(operation);
 
       collectCreatedStepIds(operation).forEach((stepId) => {
         newTaskCount += 1;
@@ -522,6 +541,8 @@ export function previewRecommendationBatch(
     applicableCount: recommendations.length - skippedRecommendationIndexes.size,
     skippedCount: skippedRecommendationIndexes.size,
     affectedTaskCount: affectedTaskIds.size,
+    affectedStepIds: Array.from(affectedTaskIds).sort(),
+    fieldChangeCount,
     newTaskCount,
     connectionChangeCount,
     warnings,

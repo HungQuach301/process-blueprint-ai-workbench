@@ -14,6 +14,7 @@ import type { TemplateProfile } from "@/lib/models/template-profile";
 import { applyQARecommendation } from "@/lib/qa/apply-recommendation";
 import {
   applyRecommendationBatch,
+  RecommendationApplyValidationError,
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
 import {
@@ -424,6 +425,14 @@ function persistTasks(nextTasks: ProcessTask[]) {
   return nextTasks;
 }
 
+function formatRecommendationApplyError(error: unknown) {
+  if (error instanceof RecommendationApplyValidationError) {
+    return `Không apply recommendation. ${error.messages.join(" ")}`;
+  }
+
+  return "Không apply recommendation vì dữ liệu sau apply không hợp lệ.";
+}
+
 function isEmptyInteractionType(task: ProcessTask) {
   return !task.customerInteractionType || task.customerInteractionType === "None";
 }
@@ -781,25 +790,33 @@ export function ProcessTaskRegister() {
   }
 
   function applyRecommendation(recommendation: QARecommendation) {
-    setTasks((currentTasks) =>
-      persistTasks(applyQARecommendation(currentTasks, recommendation))
-    );
-    markGeneratedArtifactsStale();
-    setSaveMessage(
-      `Đã apply recommendation "${recommendation.title}" và đánh dấu D01/D02 stale.`
-    );
+    try {
+      const nextTasks = applyQARecommendation(tasks, recommendation);
+
+      setTasks(persistTasks(nextTasks));
+      markGeneratedArtifactsStale();
+      setSaveMessage(
+        `Đã apply recommendation "${recommendation.title}" và đánh dấu D01/D02 stale.`
+      );
+    } catch (error) {
+      setSaveMessage(formatRecommendationApplyError(error));
+    }
   }
 
   function applyRecommendations(recommendations: QARecommendation[]) {
     const preview = previewRecommendationBatch(tasks, recommendations);
 
-    setTasks((currentTasks) =>
-      persistTasks(applyRecommendationBatch(currentTasks, recommendations))
-    );
-    markGeneratedArtifactsStale();
-    setSaveMessage(
-      `Đã apply ${preview.applicableCount} recommendation(s), skip ${preview.skippedCount} conflict(s), và đánh dấu D01/D02 stale.`
-    );
+    try {
+      const nextTasks = applyRecommendationBatch(tasks, recommendations);
+
+      setTasks(persistTasks(nextTasks));
+      markGeneratedArtifactsStale();
+      setSaveMessage(
+        `Đã apply ${preview.applicableCount} recommendation(s), skip ${preview.skippedCount} conflict(s), và đánh dấu D01/D02 stale.`
+      );
+    } catch (error) {
+      setSaveMessage(formatRecommendationApplyError(error));
+    }
   }
 
   return (

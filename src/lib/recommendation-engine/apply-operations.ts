@@ -5,6 +5,7 @@ import type {
   QARecommendationOperation
 } from "@/lib/recommendation-engine/types";
 import { normalizeRecommendation } from "@/lib/recommendation-engine/recommendation-factory";
+import { validateRecommendationApplyResult } from "@/lib/qa/recommendation-apply-validation";
 
 const connectionFields: QAConnectionField[] = [
   "defaultNextStep",
@@ -19,6 +20,16 @@ const safeOperationKinds = new Set<QARecommendationOperation["kind"]>([
   "SetInteractionType",
   "MarkReviewStatus"
 ]);
+
+export class RecommendationApplyValidationError extends Error {
+  messages: string[];
+
+  constructor(messages: string[]) {
+    super(messages.join("\n"));
+    this.name = "RecommendationApplyValidationError";
+    this.messages = messages;
+  }
+}
 
 function cloneTask(task: ProcessTask) {
   return { ...task };
@@ -284,14 +295,94 @@ function applyOperation(tasks: ProcessTask[], operation: QARecommendationOperati
   }
 }
 
+function assertOperationTargetsExist(
+  tasks: ProcessTask[],
+  operations: QARecommendationOperation[]
+) {
+  const stepIds = new Set(tasks.map((task) => task.stepId));
+  const messages: string[] = [];
+  const requireStepId = (stepId: string | undefined, label: string) => {
+    if (stepId && !stepIds.has(stepId)) {
+      messages.push(
+        `Không thể apply recommendation vì ${label} "${stepId}" không tồn tại trong Process Task Register.`
+      );
+    }
+  };
+
+  operations.forEach((operation) => {
+    switch (operation.kind) {
+      case "UpdateTaskField":
+      case "UpdateConnection":
+      case "AssignActor":
+      case "AssignSystem":
+      case "SetInteractionType":
+      case "MarkReviewStatus":
+        requireStepId(operation.stepId, "stepId");
+        break;
+      case "CreateTaskAfter":
+      case "CreateTaskBefore":
+        requireStepId(operation.anchorStepId, "anchorStepId");
+        break;
+      case "InsertTaskBetween":
+        requireStepId(operation.sourceStepId, "sourceStepId");
+        requireStepId(operation.targetStepId, "targetStepId");
+        break;
+      case "SplitTask":
+        requireStepId(operation.targetStepId, "targetStepId");
+        break;
+      case "CreateGateway":
+        requireStepId(operation.afterStepId, "afterStepId");
+        requireStepId(operation.beforeStepId, "beforeStepId");
+        break;
+      case "AddGatewayBranch":
+        requireStepId(operation.gatewayStepId, "gatewayStepId");
+        requireStepId(operation.targetStepId, "targetStepId");
+        break;
+      case "CreateLane":
+        operation.targetStepIds?.forEach((stepId) => requireStepId(stepId, "targetStepId"));
+        break;
+      default:
+        break;
+    }
+  });
+
+  if (messages.length > 0) {
+    throw new RecommendationApplyValidationError(messages);
+  }
+}
+
+function assertValidApplyResult(
+  beforeTasks: ProcessTask[],
+  afterTasks: ProcessTask[],
+  operations: QARecommendationOperation[]
+) {
+  const validationIssues = validateRecommendationApplyResult(
+    beforeTasks,
+    afterTasks,
+    operations.flatMap(collectCreatedStepIds)
+  );
+
+  if (validationIssues.length > 0) {
+    throw new RecommendationApplyValidationError(
+      validationIssues.map((issue) => issue.message)
+    );
+  }
+}
+
 export function applyRecommendationOperations(
   tasks: ProcessTask[],
   recommendation: QARecommendation
 ) {
-  return normalizeRecommendationOperations(recommendation).reduce(
+  const operations = normalizeRecommendationOperations(recommendation);
+  assertOperationTargetsExist(tasks, operations);
+
+  const nextTasks = operations.reduce(
     (nextTasks, operation) => applyOperation(nextTasks, operation),
     tasks.map(cloneTask)
   );
+
+  assertValidApplyResult(tasks, nextTasks, operations);
+  return nextTasks;
 }
 
 export function applyQARecommendation(
@@ -557,12 +648,22 @@ export function applyRecommendationBatch(
 ) {
   const preview = previewRecommendationBatch(tasks, recommendations);
   const skippedIndexes = new Set(preview.skippedRecommendationIndexes);
+  const appliedOperations = recommendations.flatMap((recommendation, index) =>
+    skippedIndexes.has(index) ? [] : normalizeRecommendationOperations(recommendation)
+  );
+  assertOperationTargetsExist(tasks, appliedOperations);
 
-  return recommendations.reduce(
+  const nextTasks = recommendations.reduce(
     (nextTasks, recommendation, index) =>
       skippedIndexes.has(index)
         ? nextTasks
-        : applyRecommendationOperations(nextTasks, recommendation),
+        : normalizeRecommendationOperations(recommendation).reduce(
+            (updatedTasks, operation) => applyOperation(updatedTasks, operation),
+            nextTasks
+          ),
     tasks.map(cloneTask)
   );
+
+  assertValidApplyResult(tasks, nextTasks, appliedOperations);
+  return nextTasks;
 }

@@ -2,6 +2,7 @@ import { Navigation } from "@/components/Navigation";
 import { D01BpmnOutput } from "@/components/bpmn-output/D01BpmnOutput";
 import { D02ServiceBlueprintOutput } from "@/components/service-blueprint-output/D02ServiceBlueprintOutput";
 import { ExportCenter } from "@/components/export-center/ExportCenter";
+import { AIInputBriefPanel } from "@/components/input-brief/AIInputBriefPanel";
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
 import { SectionPanel } from "@/components/SectionPanel";
@@ -28,6 +29,8 @@ export function AppShell() {
           </header>
 
           <div className="grid min-w-0 gap-4">
+            <AIInputBriefPanel />
+
             <TemplateLibraryEditor />
 
             <ProcessTaskRegister />

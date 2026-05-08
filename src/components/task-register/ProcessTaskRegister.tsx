@@ -45,6 +45,7 @@ const D01_GENERATED_STATUS_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
 
 type EditableColumn = {
   key: keyof ProcessTask;
@@ -451,27 +452,41 @@ export function ProcessTaskRegister() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    function loadSavedTasks() {
+      const savedTasks = window.localStorage.getItem(STORAGE_KEY);
+
+      if (!savedTasks) {
+        return false;
+      }
+
+      try {
+        const parsedTasks = JSON.parse(savedTasks);
+
+        if (Array.isArray(parsedTasks)) {
+          setTasks(parsedTasks as ProcessTask[]);
+          return true;
+        }
+      } catch {
+        setSaveMessage("Dữ liệu đã lưu không hợp lệ. Đang dùng dữ liệu mẫu.");
+      }
+
+      return false;
+    }
+
     const savedSampleProcess = getSampleProcess(
       window.localStorage.getItem(SAMPLE_PROCESS_STORAGE_KEY)
     );
     setSelectedSampleProcessId(savedSampleProcess.id);
 
-    const savedTasks = window.localStorage.getItem(STORAGE_KEY);
-
-    if (!savedTasks) {
+    if (!loadSavedTasks()) {
       setTasks(cloneSampleTasks(savedSampleProcess.id));
-      return;
     }
 
-    try {
-      const parsedTasks = JSON.parse(savedTasks);
+    window.addEventListener(PROCESS_TASKS_EVENT, loadSavedTasks);
 
-      if (Array.isArray(parsedTasks)) {
-        setTasks(parsedTasks as ProcessTask[]);
-      }
-    } catch {
-      setSaveMessage("Dữ liệu đã lưu không hợp lệ. Đang dùng dữ liệu mẫu.");
-    }
+    return () => {
+      window.removeEventListener(PROCESS_TASKS_EVENT, loadSavedTasks);
+    };
   }, []);
 
   const gatewayCount = useMemo(

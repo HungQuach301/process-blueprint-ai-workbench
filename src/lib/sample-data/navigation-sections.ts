@@ -13,6 +13,12 @@ export const navigationSections: NavigationSection[] = [
     status: "Placeholder"
   },
   {
+    id: "ai-settings",
+    label: "AI Settings",
+    description: "Provider and data usage mode settings for future AI workflows.",
+    status: "Scaffold"
+  },
+  {
     id: "input-brief",
     label: "Input Brief",
     description: "A future area for entering raw process notes and context.",

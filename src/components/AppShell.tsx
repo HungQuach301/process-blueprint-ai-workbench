@@ -1,4 +1,5 @@
 import { Navigation } from "@/components/Navigation";
+import { AIProviderSettingsPanel } from "@/components/ai-settings/AIProviderSettingsPanel";
 import { D01BpmnOutput } from "@/components/bpmn-output/D01BpmnOutput";
 import { D02ServiceBlueprintOutput } from "@/components/service-blueprint-output/D02ServiceBlueprintOutput";
 import { ExportCenter } from "@/components/export-center/ExportCenter";
@@ -29,6 +30,8 @@ export function AppShell() {
           </header>
 
           <div className="grid min-w-0 gap-4">
+            <AIProviderSettingsPanel />
+
             <AIInputBriefPanel />
 
             <TemplateLibraryEditor />

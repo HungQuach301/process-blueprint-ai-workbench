@@ -9,8 +9,16 @@ import {
 import {
   isGraphChangingRecommendation,
   isSafeRecommendation,
+  normalizeRecommendationOperations,
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
+import {
+  clearRecommendationFeedback,
+  exportRecommendationFeedbackJson,
+  saveRecommendationFeedback,
+  type RecommendationFeedbackEntry,
+  type RecommendationUserAction
+} from "@/lib/recommendation-engine/feedback-store";
 import type {
   QARecommendation,
   QaIssue,
@@ -51,6 +59,71 @@ const recommendationCardStyles: Record<QaSeverity, string> = {
 };
 
 const severityOrder: QaSeverity[] = ["error", "warning", "suggestion"];
+
+function createTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function getRecommendationId(recommendation: QARecommendation) {
+  return recommendation.id ?? `${recommendation.issueId ?? "issue"}-${recommendation.type ?? "recommendation"}`;
+}
+
+function getAffectedStepIds(recommendation: QARecommendation) {
+  const stepIds = new Set(recommendation.targetStepIds);
+  const addStepId = (stepId: string | null | undefined) => {
+    if (stepId) {
+      stepIds.add(stepId);
+    }
+  };
+
+  normalizeRecommendationOperations(recommendation).forEach((operation) => {
+    if ("stepId" in operation) {
+      addStepId(operation.stepId);
+    }
+
+    if ("targetStepId" in operation) {
+      addStepId(operation.targetStepId);
+    }
+
+    if ("anchorStepId" in operation) {
+      addStepId(operation.anchorStepId);
+    }
+
+    if ("sourceStepId" in operation) {
+      addStepId(operation.sourceStepId);
+    }
+
+    if ("targetStepId" in operation) {
+      addStepId(operation.targetStepId);
+    }
+
+    if ("gatewayStepId" in operation) {
+      addStepId(operation.gatewayStepId);
+    }
+  });
+
+  return Array.from(stepIds).filter(Boolean).sort();
+}
+
+function createRecommendationFeedback(
+  recommendation: QARecommendation,
+  userAction: RecommendationUserAction,
+  reason?: string
+): RecommendationFeedbackEntry {
+  return {
+    recordType: "recommendation",
+    recommendationId: getRecommendationId(recommendation),
+    issueCode: recommendation.issueCode,
+    source: recommendation.source ?? "rule",
+    userAction,
+    reason,
+    originalRecommendation: recommendation,
+    finalAppliedOperations:
+      userAction === "accepted" ? normalizeRecommendationOperations(recommendation) : [],
+    affectedStepIds: getAffectedStepIds(recommendation),
+    timestamp: new Date().toISOString()
+  };
+}
 
 export function QAPanel({
   issues,
@@ -168,10 +241,122 @@ export function QAPanel({
     setPendingBatchRecommendations(safeRecommendations);
   }
 
+  function downloadFeedbackJson() {
+    const blob = new Blob([exportRecommendationFeedbackJson()], {
+      type: "application/json;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `Recommendation_Feedback_${createTimestamp()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function clearLocalFeedback() {
+    clearRecommendationFeedback();
+  }
+
+  function rejectSingleRecommendation(reason: string) {
+    if (!pendingRecommendation) {
+      return;
+    }
+
+    saveRecommendationFeedback(
+      createRecommendationFeedback(pendingRecommendation.recommendation, "rejected", reason)
+    );
+    setPendingRecommendation(null);
+  }
+
+  function rejectBatchRecommendations(reason: string) {
+    if (!pendingBatchRecommendations || !pendingBatchPreview) {
+      return;
+    }
+
+    saveRecommendationFeedback([
+      ...pendingBatchRecommendations.map((recommendation) =>
+        createRecommendationFeedback(recommendation, "rejected", reason)
+      ),
+      {
+        recordType: "batchSummary",
+        batchId: `batch-${new Date().toISOString()}`,
+        recommendationCount: pendingBatchPreview.selectedCount,
+        appliedCount: 0,
+        skippedCount: pendingBatchPreview.selectedCount,
+        affectedStepIds: pendingBatchPreview.affectedStepIds,
+        warnings: pendingBatchPreview.warnings,
+        conflicts: pendingBatchPreview.conflicts.map((conflict) => conflict.message),
+        timestamp: new Date().toISOString()
+      }
+    ]);
+    setPendingBatchRecommendations(null);
+  }
+
+  function confirmSingleRecommendation() {
+    if (!pendingRecommendation) {
+      return;
+    }
+
+    saveRecommendationFeedback(
+      createRecommendationFeedback(pendingRecommendation.recommendation, "accepted")
+    );
+    onApplyRecommendation(pendingRecommendation.recommendation);
+    setPendingRecommendation(null);
+  }
+
+  function confirmBatchRecommendations() {
+    if (!pendingBatchRecommendations || !pendingBatchPreview) {
+      return;
+    }
+
+    const skippedIndexes = new Set(pendingBatchPreview.skippedRecommendationIndexes);
+    const timestamp = new Date().toISOString();
+
+    saveRecommendationFeedback([
+      ...pendingBatchRecommendations.map((recommendation, index) =>
+        createRecommendationFeedback(
+          recommendation,
+          skippedIndexes.has(index) ? "skipped" : "accepted",
+          skippedIndexes.has(index) ? "conflict" : undefined
+        )
+      ),
+      {
+        recordType: "batchSummary",
+        batchId: `batch-${timestamp}`,
+        recommendationCount: pendingBatchPreview.selectedCount,
+        appliedCount: pendingBatchPreview.applicableCount,
+        skippedCount: pendingBatchPreview.skippedCount,
+        affectedStepIds: pendingBatchPreview.affectedStepIds,
+        warnings: pendingBatchPreview.warnings,
+        conflicts: pendingBatchPreview.conflicts.map((conflict) => conflict.message),
+        timestamp
+      }
+    ]);
+    onApplyRecommendations(pendingBatchRecommendations);
+    setPendingBatchRecommendations(null);
+    clearSelection();
+  }
+
   return (
     <>
     <SessionFrame
       actions={
+        <div className="flex flex-wrap gap-2">
+        <button
+          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          onClick={downloadFeedbackJson}
+          type="button"
+        >
+          Export Recommendation Feedback JSON
+        </button>
+        <button
+          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          onClick={clearLocalFeedback}
+          type="button"
+        >
+          Clear Local Feedback
+        </button>
         <button
           className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           onClick={onDownloadReport}
@@ -179,6 +364,7 @@ export function QAPanel({
         >
           Download QA Report
         </button>
+        </div>
       }
       bodyClassName="p-4"
       description="QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue để nhảy tới dòng liên quan nếu còn tồn tại."
@@ -484,17 +670,14 @@ export function QAPanel({
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => setPendingRecommendation(null)}
+                onClick={() => rejectSingleRecommendation("user_cancelled")}
                 type="button"
               >
                 Cancel
               </button>
               <button
                 className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                onClick={() => {
-                  onApplyRecommendation(pendingRecommendation.recommendation);
-                  setPendingRecommendation(null);
-                }}
+                onClick={confirmSingleRecommendation}
                 type="button"
               >
                 Confirm Apply
@@ -559,7 +742,7 @@ export function QAPanel({
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => setPendingBatchRecommendations(null)}
+                onClick={() => rejectBatchRecommendations("user_cancelled")}
                 type="button"
               >
                 Cancel
@@ -567,11 +750,7 @@ export function QAPanel({
               <button
                 className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                 disabled={pendingBatchPreview.applicableCount === 0}
-                onClick={() => {
-                  onApplyRecommendations(pendingBatchRecommendations);
-                  setPendingBatchRecommendations(null);
-                  clearSelection();
-                }}
+                onClick={confirmBatchRecommendations}
                 type="button"
               >
                 Confirm Apply Batch

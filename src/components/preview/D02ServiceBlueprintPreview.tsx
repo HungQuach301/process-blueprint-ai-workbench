@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SessionFrame } from "@/components/layout/SessionFrame";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
@@ -432,23 +433,18 @@ export function D02ServiceBlueprintPreview() {
   const rows = useMemo(() => getRows(template), [template]);
 
   return (
-    <section className="rounded border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 p-4">
-        <p className="text-sm font-medium uppercase text-slate-500">
+    <SessionFrame
+      bodyClassName="p-4"
+      contentScroll="xy"
+      description={`Template: ${template.name} | Tasks: ${tasks.length}`}
+      title="Service Blueprint read-only preview"
+    >
+        <p className="mb-3 text-sm font-medium uppercase text-slate-500">
           D02 Preview
         </p>
-        <h3 className="mt-1 text-xl font-semibold text-slate-950">
-          Service Blueprint read-only preview
-        </h3>
-        <p className="mt-2 text-sm text-slate-600">
-          Template: {template.name} | Tasks: {tasks.length}
-        </p>
         <MetadataLegend />
-      </div>
-
-      <div className="overflow-x-auto p-4">
         <div
-          className="grid min-w-max border border-slate-200 text-sm"
+          className="mt-4 grid min-w-max border border-slate-200 text-sm"
           style={{
             gridTemplateColumns: `240px repeat(${phases.length}, minmax(360px, 1fr))`
           }}
@@ -506,7 +502,6 @@ export function D02ServiceBlueprintPreview() {
             </div>
           ))}
         </div>
-      </div>
-    </section>
+    </SessionFrame>
   );
 }

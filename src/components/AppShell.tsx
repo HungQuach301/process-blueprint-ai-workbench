@@ -9,8 +9,8 @@ import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
 export function AppShell() {
   return (
-    <main className="min-h-screen overflow-x-hidden">
-      <div className="mx-auto flex w-full max-w-7xl gap-6 px-6 py-6">
+    <main className="min-h-screen w-full max-w-full overflow-x-hidden">
+      <div className="mx-auto flex w-full max-w-7xl min-w-0 gap-6 px-6 py-6">
         <Navigation sections={navigationSections} />
 
         <section className="min-w-0 max-w-full flex-1">

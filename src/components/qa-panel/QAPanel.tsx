@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { SessionFrame } from "@/components/layout/SessionFrame";
 import type { ProcessTask } from "@/lib/models/process-task";
 import {
   getRecommendationChangePreview
@@ -168,11 +169,25 @@ export function QAPanel({
   }
 
   return (
-    <section className="rounded border border-slate-200 bg-white">
+    <>
+    <SessionFrame
+      actions={
+        <button
+          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          onClick={onDownloadReport}
+          type="button"
+        >
+          Download QA Report
+        </button>
+      }
+      bodyClassName="p-4"
+      description="QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue để nhảy tới dòng liên quan nếu còn tồn tại."
+      title="Kiểm tra chất lượng Process Task Register"
+    >
       {hasRecommendations ? (
-        <div className="border-b border-emerald-200 bg-emerald-50 p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div>
+        <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-semibold uppercase text-emerald-800">
                 Batch recommendations
               </p>
@@ -185,7 +200,7 @@ export function QAPanel({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex max-w-full flex-wrap items-center gap-2">
               <button
                 className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={safeRecommendations.length === 0}
@@ -250,37 +265,13 @@ export function QAPanel({
         </div>
       ) : null}
 
-      <div className="border-b border-slate-200 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
-              QA Engine
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-              Kiểm tra chất lượng Process Task Register
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào
-              issue để nhảy tới dòng liên quan nếu còn tồn tại.
-            </p>
-            <p className="mt-3 text-sm font-semibold text-slate-950">
-              Tổng số issue: {issues.length}
-            </p>
-          </div>
+      <p className="mb-4 text-sm font-semibold text-slate-950">
+        Tổng số issue: {issues.length}
+      </p>
 
-          <button
-            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={onDownloadReport}
-            type="button"
-          >
-            Download QA Report
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 p-4">
+      <div className="grid min-w-0 gap-4">
         {groupedIssues.map((group) => (
-          <section className="rounded border border-slate-200" key={group.severity}>
+          <section className="min-w-0 rounded border border-slate-200" key={group.severity}>
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
               <h3 className="text-sm font-semibold text-slate-950">
                 {severityLabels[group.severity]}
@@ -296,7 +287,7 @@ export function QAPanel({
               <div className="divide-y divide-slate-200">
                 {group.issues.map((issue) => (
                   <div
-                    className="block w-full px-4 py-3 text-left hover:bg-slate-50"
+                    className="block w-full max-w-full px-4 py-3 text-left hover:bg-slate-50"
                     key={issue.id}
                   >
                     <button
@@ -404,6 +395,7 @@ export function QAPanel({
           </section>
         ))}
       </div>
+    </SessionFrame>
 
       {pendingRecommendation ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
@@ -588,6 +580,6 @@ export function QAPanel({
           </div>
         </div>
       ) : null}
-    </section>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SessionFrame } from "@/components/layout/SessionFrame";
 import { QAPanel } from "@/components/qa-panel/QAPanel";
 import {
   parseProcessTaskRegisterWorkbook,
@@ -742,31 +743,9 @@ export function ProcessTaskRegister() {
         onIssueClick={focusIssueRow}
       />
 
-      <section className="rounded border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm font-medium uppercase text-slate-500">
-                Process Task Register
-              </p>
-              <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                Bảng công việc SME Online Loan
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau
-                khi refresh trình duyệt.
-              </p>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
-                <li>Một dòng = một task/gateway/event/data interaction.</li>
-                <li>Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.</li>
-                <li>System/data phải giữ liên kết với hành trình người dùng.</li>
-              </ul>
-              <p className="mt-2 text-sm text-slate-500">
-                Tổng dòng: {tasks.length} | Gateway: {gatewayCount}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
+      <SessionFrame
+        actions={
+          <>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={addRow}
@@ -823,18 +802,33 @@ export function ProcessTaskRegister() {
               >
                 Reset mẫu
               </button>
-            </div>
+          </>
+        }
+        bodyClassName="p-4"
+        description="Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau khi refresh trình duyệt."
+        title="Bảng công việc SME Online Loan"
+      >
+          <div className="mb-4">
+            <p className="text-sm font-medium uppercase text-slate-500">
+              Process Task Register
+            </p>
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+              <li>Một dòng = một task/gateway/event/data interaction.</li>
+              <li>Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.</li>
+              <li>System/data phải giữ liên kết với hành trình người dùng.</li>
+            </ul>
+            <p className="mt-2 text-sm text-slate-500">
+              Tổng dòng: {tasks.length} | Gateway: {gatewayCount}
+            </p>
           </div>
-
           {saveMessage ? (
             <p className="mt-3 text-sm text-slate-600">{saveMessage}</p>
           ) : null}
-        </div>
 
         {importPreview ? (
-          <div className="border-b border-slate-200 bg-slate-50 p-4">
+          <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-slate-950">
                   Preview Excel import
                 </h3>
@@ -844,7 +838,7 @@ export function ProcessTaskRegister() {
                   {importPreview.warnings.length}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex max-w-full flex-wrap gap-2">
                 <button
                   className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
                   disabled={importPreview.errors.length > 0}
@@ -887,8 +881,8 @@ export function ProcessTaskRegister() {
               </div>
             ) : null}
 
-            <div className="mt-4 overflow-x-auto rounded border border-slate-200 bg-white">
-              <table className="min-w-full text-left text-sm">
+            <div className="mt-4 w-full max-w-full overflow-x-auto rounded border border-slate-200 bg-white">
+              <table className="w-max min-w-full text-left text-sm">
                 <thead className="bg-slate-100 text-slate-700">
                   <tr>
                     <th className="border-b border-r border-slate-200 px-3 py-2">
@@ -951,8 +945,8 @@ export function ProcessTaskRegister() {
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-left text-sm">
+        <div className="w-full max-w-full overflow-x-auto">
+          <table className="w-max min-w-full border-collapse text-left text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>
                 <th className="sticky left-0 z-10 w-14 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
@@ -1062,7 +1056,7 @@ export function ProcessTaskRegister() {
             </tbody>
           </table>
         </div>
-      </section>
+      </SessionFrame>
     </>
   );
 }

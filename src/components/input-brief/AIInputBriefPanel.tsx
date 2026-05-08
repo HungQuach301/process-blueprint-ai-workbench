@@ -22,6 +22,45 @@ const D02_GENERATED_STATUS_KEY =
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
+const previewLabels = {
+  vi: {
+    sourceSummary: "Tóm tắt nguồn",
+    confidence: "Độ tin cậy",
+    assumptions: "Giả định",
+    openQuestions: "Câu hỏi cần làm rõ",
+    replaceCurrentPtr: "Replace current PTR",
+    appendToCurrentPtr: "Append to current PTR",
+    cancelDraft: "Cancel Draft",
+    stepId: "Step ID",
+    bpmnType: "BPMN Type",
+    actor: "Actor",
+    system: "System",
+    taskName: "Task Name",
+    input: "Input",
+    output: "Output",
+    defaultNextStep: "Default Next Step",
+    reviewStatus: "Review Status"
+  },
+  en: {
+    sourceSummary: "Source summary",
+    confidence: "Confidence",
+    assumptions: "Assumptions",
+    openQuestions: "Open questions",
+    replaceCurrentPtr: "Replace current PTR",
+    appendToCurrentPtr: "Append to current PTR",
+    cancelDraft: "Cancel Draft",
+    stepId: "Step ID",
+    bpmnType: "BPMN Type",
+    actor: "Actor",
+    system: "System",
+    taskName: "Task Name",
+    input: "Input",
+    output: "Output",
+    defaultNextStep: "Default Next Step",
+    reviewStatus: "Review Status"
+  }
+} satisfies Record<Locale, Record<string, string>>;
+
 type InputBriefFormState = {
   processInfo: string;
   businessObjective: string;
@@ -123,6 +162,53 @@ function markGeneratedArtifactsStale() {
   window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
   window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "stale");
   window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
+}
+
+function loadCurrentProcessTasks() {
+  const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
+
+  if (!savedTasks) {
+    return [];
+  }
+
+  try {
+    const parsedTasks = JSON.parse(savedTasks);
+    return Array.isArray(parsedTasks) ? (parsedTasks as ProcessTask[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function avoidStepIdConflicts(
+  currentTasks: ProcessTask[],
+  tasksToAppend: ProcessTask[]
+) {
+  const currentStepIds = new Set(currentTasks.map((task) => task.stepId));
+  const hasConflict = tasksToAppend.some((task) => currentStepIds.has(task.stepId));
+
+  if (!hasConflict) {
+    return tasksToAppend;
+  }
+
+  const suffix = `A${Date.now()}`;
+  const stepIdMap = new Map(
+    tasksToAppend.map((task) => [task.stepId, `${task.stepId}-${suffix}`])
+  );
+
+  return tasksToAppend.map((task) => ({
+    ...task,
+    id: `${task.id}-${suffix}`,
+    stepId: stepIdMap.get(task.stepId) ?? task.stepId,
+    defaultNextStep: task.defaultNextStep
+      ? stepIdMap.get(task.defaultNextStep) ?? task.defaultNextStep
+      : null,
+    yesNextStep: task.yesNextStep
+      ? stepIdMap.get(task.yesNextStep) ?? task.yesNextStep
+      : null,
+    noNextStep: task.noNextStep
+      ? stepIdMap.get(task.noNextStep) ?? task.noNextStep
+      : null
+  }));
 }
 
 function normalizeSavedBrief(value: unknown): InputBriefFormState {
@@ -235,32 +321,48 @@ export function AIInputBriefPanel() {
     );
   }
 
-  function applyDraftPtr() {
+  function applyDraftPtr(mode: "replace" | "append") {
     if (draftTasks.length === 0) {
       setMessage("Chưa có draft PTR để apply.");
       return;
     }
 
+    const actionLabel =
+      mode === "replace" ? "thay thế" : "append vào cuối";
     const confirmed = window.confirm(
-      "Apply draft PTR sẽ thay thế bảng Process Task Register hiện tại. Bạn muốn tiếp tục?"
+      `Apply draft PTR sẽ ${actionLabel} Process Task Register hiện tại. Bạn muốn tiếp tục?`
     );
 
     if (!confirmed) {
       return;
     }
 
-    window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(draftTasks));
+    const currentTasks = mode === "append" ? loadCurrentProcessTasks() : [];
+    const nextTasks =
+      mode === "append"
+        ? [...currentTasks, ...avoidStepIdConflicts(currentTasks, draftTasks)]
+        : draftTasks;
+
+    window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(nextTasks));
     window.dispatchEvent(new Event(PROCESS_TASKS_EVENT));
     markGeneratedArtifactsStale();
     saveAuditLogEntry({
       action: "apply_ai_draft",
       status: "success",
-      summary: "Applied draft Process Task Register from AI Input Brief workflow.",
+      summary: `Applied draft Process Task Register from AI Input Brief workflow with ${mode} mode.`,
       metadata: {
-        rowCount: draftTasks.length
+        mode,
+        draftRowCount: draftTasks.length,
+        finalRowCount: nextTasks.length
       }
     });
     setMessage("Đã apply draft PTR vào Process Task Register. QA sẽ chạy lại theo dữ liệu mới.");
+  }
+
+  function cancelDraft() {
+    setDraftTasks([]);
+    setDraftMeta(null);
+    setMessage("Đã hủy draft preview.");
   }
 
   function resetBrief() {
@@ -270,6 +372,8 @@ export function AIInputBriefPanel() {
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
   }
+
+  const labels = previewLabels[locale];
 
   return (
     <SessionFrame
@@ -344,21 +448,37 @@ export function AIInputBriefPanel() {
                 {draftTasks.length} dòng draft. {t("inputBrief.reviewBeforeApply", locale)}
               </p>
             </div>
-            <button
-              className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
-              onClick={applyDraftPtr}
-              type="button"
-            >
-              {t("inputBrief.applyDraft", locale)}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                onClick={() => applyDraftPtr("replace")}
+                type="button"
+              >
+                {labels.replaceCurrentPtr}
+              </button>
+              <button
+                className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
+                onClick={() => applyDraftPtr("append")}
+                type="button"
+              >
+                {labels.appendToCurrentPtr}
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={cancelDraft}
+                type="button"
+              >
+                {labels.cancelDraft}
+              </button>
+            </div>
           </div>
           {draftMeta ? (
             <div className="grid gap-4 border-b border-slate-200 bg-white px-4 py-4 text-sm md:grid-cols-2">
               <div>
-                <p className="font-semibold text-slate-900">Source summary</p>
+                <p className="font-semibold text-slate-900">{labels.sourceSummary}</p>
                 <p className="mt-1 text-slate-600">{draftMeta.sourceSummary}</p>
                 <p className="mt-3 text-slate-600">
-                  Confidence:{" "}
+                  {labels.confidence}:{" "}
                   <span className="font-semibold text-slate-900">
                     {draftMeta.confidence}
                   </span>
@@ -366,7 +486,7 @@ export function AIInputBriefPanel() {
               </div>
               <div className="grid gap-3">
                 <div>
-                  <p className="font-semibold text-slate-900">Assumptions</p>
+                  <p className="font-semibold text-slate-900">{labels.assumptions}</p>
                   <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
                     {draftMeta.assumptions.map((assumption) => (
                       <li key={assumption}>{assumption}</li>
@@ -374,7 +494,7 @@ export function AIInputBriefPanel() {
                   </ul>
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900">Open questions</p>
+                  <p className="font-semibold text-slate-900">{labels.openQuestions}</p>
                   <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
                     {draftMeta.openQuestions.map((question) => (
                       <li key={question}>{question}</li>
@@ -388,13 +508,15 @@ export function AIInputBriefPanel() {
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-white text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Step</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Actor</th>
-                  <th className="px-4 py-3">System</th>
-                  <th className="px-4 py-3">Task</th>
-                  <th className="px-4 py-3">Review</th>
-                  <th className="px-4 py-3">Next</th>
+                  <th className="px-4 py-3">{labels.stepId}</th>
+                  <th className="px-4 py-3">{labels.bpmnType}</th>
+                  <th className="px-4 py-3">{labels.actor}</th>
+                  <th className="px-4 py-3">{labels.system}</th>
+                  <th className="px-4 py-3">{labels.taskName}</th>
+                  <th className="px-4 py-3">{labels.input}</th>
+                  <th className="px-4 py-3">{labels.output}</th>
+                  <th className="px-4 py-3">{labels.defaultNextStep}</th>
+                  <th className="px-4 py-3">{labels.reviewStatus}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -415,11 +537,17 @@ export function AIInputBriefPanel() {
                     <td className="min-w-72 px-4 py-3 text-slate-700">
                       {task.taskName}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                      {task.reviewStatus}
+                    <td className="min-w-56 px-4 py-3 text-slate-600">
+                      {task.input}
+                    </td>
+                    <td className="min-w-56 px-4 py-3 text-slate-600">
+                      {task.output}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-600">
                       {task.defaultNextStep ?? task.yesNextStep ?? "-"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                      {task.reviewStatus}
                     </td>
                   </tr>
                 ))}

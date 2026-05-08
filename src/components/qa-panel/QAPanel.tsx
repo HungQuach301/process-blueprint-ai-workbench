@@ -65,7 +65,7 @@ export function QAPanel({
     recommendation: QARecommendation;
   } | null>(null);
   const [pendingBatchRecommendations, setPendingBatchRecommendations] = useState<QARecommendation[] | null>(null);
-  const [selectedRecommendationKeys, setSelectedRecommendationKeys] = useState<Set<string>>(() => new Set());
+  const [selectedRecommendationIds, setSelectedRecommendationIds] = useState<Set<string>>(() => new Set());
   const [showOnlySafe, setShowOnlySafe] = useState(false);
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
   const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
@@ -75,13 +75,13 @@ export function QAPanel({
         (issue.recommendations ?? []).map((recommendation, index) => ({
           issue,
           recommendation,
-          key: `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`
+          id: `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`
         }))
       ),
     [issues]
   );
-  const visibleRecommendationKeys = useMemo(() => {
-    const keys = new Set<string>();
+  const visibleRecommendationIds = useMemo(() => {
+    const ids = new Set<string>();
 
     recommendationEntries.forEach((entry) => {
       const isSafe = isSafeRecommendation(entry.recommendation);
@@ -100,13 +100,13 @@ export function QAPanel({
         return;
       }
 
-      keys.add(entry.key);
+      ids.add(entry.id);
     });
 
-    return keys;
+    return ids;
   }, [includeGraphChanging, includeMediumConfidence, recommendationEntries, showOnlySafe]);
   const selectedRecommendations = recommendationEntries
-    .filter((entry) => selectedRecommendationKeys.has(entry.key))
+    .filter((entry) => selectedRecommendationIds.has(entry.id))
     .map((entry) => entry.recommendation);
   const safeRecommendationEntries = recommendationEntries.filter((entry) =>
     isSafeRecommendation(entry.recommendation)
@@ -124,32 +124,32 @@ export function QAPanel({
     ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
     : null;
 
-  function toggleRecommendation(key: string) {
-    setSelectedRecommendationKeys((currentKeys) => {
-      const nextKeys = new Set(currentKeys);
+  function toggleRecommendation(id: string) {
+    setSelectedRecommendationIds((currentIds) => {
+      const nextIds = new Set(currentIds);
 
-      if (nextKeys.has(key)) {
-        nextKeys.delete(key);
+      if (nextIds.has(id)) {
+        nextIds.delete(id);
       } else {
-        nextKeys.add(key);
+        nextIds.add(id);
       }
 
-      return nextKeys;
+      return nextIds;
     });
   }
 
   function selectSafeRecommendations() {
-    setSelectedRecommendationKeys(
+    setSelectedRecommendationIds(
       new Set(
         recommendationEntries
           .filter((entry) => isSafeRecommendation(entry.recommendation))
-          .map((entry) => entry.key)
+          .map((entry) => entry.id)
       )
     );
   }
 
   function clearSelection() {
-    setSelectedRecommendationKeys(new Set());
+    setSelectedRecommendationIds(new Set());
   }
 
   function applySelectedRecommendations() {
@@ -323,23 +323,23 @@ export function QAPanel({
                         <div className="mt-2 space-y-3">
                           {issue.recommendations.map((recommendation, index) => (
                             (() => {
-                              const recommendationKey = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
+                              const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
 
-                              if (!visibleRecommendationKeys.has(recommendationKey)) {
+                              if (!visibleRecommendationIds.has(recommendationId)) {
                                 return null;
                               }
 
                               return (
                             <div
                               className={`rounded border p-3 ${recommendationCardStyles[issue.severity]}`}
-                              key={recommendationKey}
+                              key={recommendationId}
                             >
                               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                                 <label className="flex gap-2">
                                   <input
-                                    checked={selectedRecommendationKeys.has(recommendationKey)}
+                                    checked={selectedRecommendationIds.has(recommendationId)}
                                     className="mt-1"
-                                    onChange={() => toggleRecommendation(recommendationKey)}
+                                    onChange={() => toggleRecommendation(recommendationId)}
                                     type="checkbox"
                                   />
                                   <span>
@@ -514,7 +514,7 @@ export function QAPanel({
               Apply selected recommendations
             </h3>
             <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-              <p>Selected: {pendingBatchPreview.selectedCount}</p>
+              <p>Recommendations: {pendingBatchPreview.selectedCount}</p>
               <p>Will apply: {pendingBatchPreview.applicableCount}</p>
               <p>Skipped due to conflicts: {pendingBatchPreview.skippedCount}</p>
               <p>Affected tasks: {pendingBatchPreview.affectedTaskCount}</p>

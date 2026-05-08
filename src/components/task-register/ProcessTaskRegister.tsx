@@ -12,7 +12,10 @@ import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import { applyQARecommendation } from "@/lib/qa/apply-recommendation";
-import { applyRecommendationBatch } from "@/lib/recommendation-engine/apply-operations";
+import {
+  applyRecommendationBatch,
+  previewRecommendationBatch
+} from "@/lib/recommendation-engine/apply-operations";
 import {
   type QARecommendation,
   validateProcessTasks
@@ -723,12 +726,14 @@ export function ProcessTaskRegister() {
   }
 
   function applyRecommendations(recommendations: QARecommendation[]) {
+    const preview = previewRecommendationBatch(tasks, recommendations);
+
     setTasks((currentTasks) =>
       persistTasks(applyRecommendationBatch(currentTasks, recommendations))
     );
     markGeneratedArtifactsStale();
     setSaveMessage(
-      `Đã apply ${recommendations.length} recommendation(s) và đánh dấu D01/D02 stale.`
+      `Đã apply ${preview.applicableCount} recommendation(s), skip ${preview.skippedCount} conflict(s), và đánh dấu D01/D02 stale.`
     );
   }
 

@@ -137,6 +137,7 @@ function splitTaskName(taskName: string) {
 
 function inferCustomerInteractionType(task: ProcessTask): ProcessTask["customerInteractionType"] {
   const actor = normalize(task.actor);
+  const system = normalize(task.system);
   const taskName = normalize(task.taskName);
   const bpmnType = normalize(task.bpmnType);
   const rowType = normalize(task.rowType);
@@ -162,7 +163,7 @@ function inferCustomerInteractionType(task: ProcessTask): ProcessTask["customerI
     return "Front-stage System";
   }
 
-  if (actor.includes("system") && bpmnType === "servicetask") {
+  if ((actor.includes("system") || system.length > 0) && bpmnType === "servicetask") {
     return "Back-stage System";
   }
 
@@ -197,6 +198,13 @@ function createMissingActorRecommendations(input: RuleRecommendationInput): QARe
         targetStepIds: [task.stepId],
         previewText: `${task.stepId}: actor = System`,
         patch: { actor: "System" },
+        operations: [
+          {
+            kind: "AssignActor",
+            stepId: task.stepId,
+            actor: "System"
+          }
+        ],
         requiresConfirmation: true,
         complianceTags: ["traceability"]
       })
@@ -219,6 +227,18 @@ function createMissingActorRecommendations(input: RuleRecommendationInput): QARe
         targetStepIds: [task.stepId],
         previewText: `${task.stepId}: actor = Bank User, reviewStatus = needsReview`,
         patch: { actor: "Bank User", reviewStatus: "needsReview" },
+        operations: [
+          {
+            kind: "AssignActor",
+            stepId: task.stepId,
+            actor: "Bank User"
+          },
+          {
+            kind: "MarkReviewStatus",
+            stepId: task.stepId,
+            reviewStatus: "needsReview"
+          }
+        ],
         warnings: ["Cần business xác nhận lại vai trò thực hiện thật sự."],
         requiresConfirmation: true,
         complianceTags: ["human-review"]
@@ -256,6 +276,22 @@ function createMissingSystemRecommendations(input: RuleRecommendationInput): QAR
       targetStepIds: [task.stepId],
       previewText: `${task.stepId}: system = ${system}${system === "TBD" ? ", reviewStatus = needsReview" : ""}`,
       patch,
+      operations: [
+        {
+          kind: "AssignSystem",
+          stepId: task.stepId,
+          system
+        },
+        ...(system === "TBD"
+          ? [
+              {
+                kind: "MarkReviewStatus" as const,
+                stepId: task.stepId,
+                reviewStatus: "needsReview" as const
+              }
+            ]
+          : [])
+      ],
       warnings: system === "TBD" ? ["Cần xác nhận hệ thống xử lý thật sự."] : undefined,
       requiresConfirmation: true,
       complianceTags: ["traceability"]
@@ -349,8 +385,89 @@ function createInteractionTypeRecommendations(input: RuleRecommendationInput): Q
       targetStepIds: [task.stepId],
       previewText: `${task.stepId}: customerInteractionType = ${interactionType}`,
       patch: { customerInteractionType: interactionType },
+      operations: [
+        {
+          kind: "SetInteractionType",
+          stepId: task.stepId,
+          customerInteractionType: interactionType
+        }
+      ],
       requiresConfirmation: true,
       complianceTags: ["service-blueprint"]
+    })
+  ];
+}
+
+function createActorLaneRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const actorLane = task.actor?.trim();
+
+  if (!actorLane) {
+    return [];
+  }
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-set-actor-lane`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: `Set actorLane = ${actorLane}`,
+      description: "User Task should use actorLane = actor when no more specific lane is available.",
+      rationale: "A User Task without actorLane can be placed in the wrong lane.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: actorLane = ${actorLane}`,
+      patch: { actorLane },
+      operations: [
+        {
+          kind: "UpdateTaskField",
+          stepId: task.stepId,
+          field: "actorLane",
+          value: actorLane
+        }
+      ],
+      requiresConfirmation: true,
+      complianceTags: ["traceability", "lane-quality"]
+    })
+  ];
+}
+
+function createSystemLaneRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const systemLane = task.system?.trim();
+
+  if (!systemLane) {
+    return [];
+  }
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-set-system-lane`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: `Set systemLane = ${systemLane}`,
+      description: "Service Task should use systemLane = system when no more specific lane is available.",
+      rationale: "A Service Task without systemLane can be placed in the wrong lane.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: systemLane = ${systemLane}`,
+      patch: { systemLane },
+      operations: [
+        {
+          kind: "UpdateTaskField",
+          stepId: task.stepId,
+          field: "systemLane",
+          value: systemLane
+        }
+      ],
+      requiresConfirmation: true,
+      complianceTags: ["traceability", "lane-quality"]
     })
   ];
 }
@@ -414,6 +531,10 @@ export function createRuleRecommendationsForIssue(input: RuleRecommendationInput
       return createMissingActorRecommendations(input);
     case "MISSING_SYSTEM_FOR_SERVICE_TASK":
       return createMissingSystemRecommendations(input);
+    case "USER_TASK_MISSING_ACTOR_LANE":
+      return createActorLaneRecommendations(input);
+    case "SERVICE_TASK_MISSING_SYSTEM_LANE":
+      return createSystemLaneRecommendations(input);
     case "ROWTYPE_BPMNTYPE_MISMATCH":
       return createRowTypeBpmnTypeRecommendations(input);
     case "MULTI_ACTION_TASK":

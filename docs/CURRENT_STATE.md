@@ -19,6 +19,48 @@ Nguyên tắc quan trọng:
 - Dữ liệu ngân hàng/doanh nghiệp mặc định nên local-only hoặc no-training.
 - AI future integration phải đi qua schema validation và human approval.
 
+## Current Next Phase Priority
+
+Ưu tiên hiện tại cho phase tiếp theo:
+
+- Đơn giản hóa AI Input Brief còn 7 section hiển thị chính, đủ để người dùng nhập nhanh brief quy trình.
+- Chuẩn bị UI sẵn sàng cho tiếng Việt và tiếng Anh.
+- Hoàn thiện luồng Input Brief -> Draft Process Task Register -> Preview -> User Apply.
+- Giữ kiến trúc skill-ready để sau này có thể tách AI Input Brief, AI QA, AI Recommendation, Template Review thành các skill/agent độc lập.
+
+Nguyên tắc triển khai phase này:
+
+- Không gọi external AI API.
+- Không auto-apply output từ AI hoặc mock AI.
+- AI output luôn đi qua Draft -> Preview -> User Apply.
+- Process Task Register vẫn là nguồn sự thật chính.
+
+## Product Direction
+
+Định hướng sản phẩm:
+
+- Hỗ trợ người dùng cá nhân và người dùng tổ chức.
+- Hỗ trợ người dùng tiếng Việt và tiếng Anh.
+- Chuẩn bị cho các mode AI tương lai:
+  - BYOK
+  - Product AI
+  - Enterprise AI
+  - Local-only
+  - No-AI
+- Giữ human-in-the-loop approval làm mặc định cho mọi thay đổi quan trọng.
+
+## Architecture Principles
+
+Nguyên tắc kiến trúc cần giữ trong các phase tiếp theo:
+
+- Internal data keys giữ tiếng Anh và canonical.
+- UI labels nên đi qua i18n dictionaries khi thêm/chỉnh UI người dùng.
+- BPMN enum values giữ canonical, ví dụ `startEvent`, `userTask`, `serviceTask`, `sendTask`, `exclusiveGateway`, `endEvent`.
+- AI-generated output phải qua Draft -> Preview -> User Apply.
+- Không gọi external AI API trong phase hiện tại.
+- Không đổi D01/D02 generators khi task chỉ thuộc Input Brief, QA, Recommendation, hoặc settings.
+- Không tạo process source thứ hai ngoài Process Task Register.
+
 ## 2. Các module đã hoàn thành
 
 ### Core data model
@@ -332,11 +374,12 @@ Trạng thái:
 
 ## 8. Ưu tiên triển khai tiếp theo
 
-1. Hoàn thiện AI Input Brief MVP local-only:
-   - structured input form
-   - draft PTR preview
-   - mock extraction
-   - review-before-apply
+1. Hoàn thiện Simplified AI Input Brief MVP local-only:
+   - 7 visible input sections
+   - Vietnamese/English UI readiness through i18n dictionaries
+   - Draft Process Task Register preview
+   - Draft -> Preview -> User Apply workflow
+   - skill-ready boundary for future AI Input Brief agent
 
 2. Thêm schema validation cho AI scaffold output:
    - `ProcessTask[]`
@@ -349,31 +392,37 @@ Trạng thái:
    - BYOK placeholder
    - Enterprise provider placeholder
 
-4. Template Recommendation Engine MVP:
+4. Chuẩn hóa i18n và canonical data keys:
+   - internal keys stay English/canonical
+   - UI labels come from dictionaries
+   - BPMN enum values stay canonical
+   - no localized enum values in model data
+
+5. Template Recommendation Engine MVP:
    - rule-based template checks
    - template quality score
    - template recommendation preview
 
-5. Recommendation feedback analytics:
+6. Recommendation feedback analytics:
    - accepted/rejected/skipped counts
    - conflict rate
    - export summary
 
-6. Audit log foundation:
+7. Audit log foundation:
    - local audit entries
    - export audit JSON
    - provider/data mode metadata
 
-7. Excel export/import improvements:
+8. Excel export/import improvements:
    - export reviewed PTR to Excel
    - import reviewed Excel with validation
 
-8. D02 refinement:
+9. D02 refinement:
    - stronger row/card/source-field contract
    - preview fidelity improvements
    - large blueprint layout checks
 
-9. Enterprise readiness:
+10. Enterprise readiness:
    - backend persistence design
    - auth/role model
    - tenant isolation

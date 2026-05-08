@@ -50,14 +50,44 @@ Principles:
 - Prefer deterministic generation over hidden or non-repeatable behavior.
 - Make review states and assumptions explicit.
 
-## 7. D01 BPMN rules
+## 7. Current phase priorities
+
+Current priority is the next AI Input Brief phase.
+
+Focus areas:
+
+- Simplified AI Input Brief with 7 visible sections.
+- Vietnamese/English UI readiness.
+- Input Brief to Draft Process Task Register workflow.
+- Skill-ready architecture for future AI capabilities.
+
+Product direction:
+
+- Support both individual users and organization users.
+- Support Vietnamese and English users.
+- Prepare for future BYOK, Product AI, and Enterprise AI modes.
+- Keep human-in-the-loop approval as the default workflow.
+
+## 8. Architecture principles for AI/i18n readiness
+
+Use these principles unless the user explicitly asks otherwise:
+
+- Internal data keys should remain English and canonical.
+- UI labels should come from i18n dictionaries instead of hardcoded mixed-language labels when adding new user-facing UI.
+- BPMN enum values should remain canonical, for example `startEvent`, `userTask`, `serviceTask`, `sendTask`, `exclusiveGateway`, and `endEvent`.
+- AI output must go through Draft -> Preview -> User Apply.
+- Do not auto-apply AI output.
+- Do not call external AI APIs in this phase.
+- Preserve the Process Task Register as the single source of truth.
+
+## 9. D01 BPMN rules
 
 D01 BPMN should:
 
 - Use `ProcessTask[]` and selected BPMN `TemplateProfile`.
 - Generate valid BPMN 2.0 XML.
 - Include `bpmn:definitions`, `bpmn:collaboration`, `bpmn:participant`, `bpmn:process`, and `bpmn:laneSet`.
-- Map BPMN types consistently:
+- Map BPMN types consistently and keep enum values canonical:
   - `startEvent` -> `bpmn:startEvent`
   - `endEvent` -> `bpmn:endEvent`
   - `userTask` -> `bpmn:userTask`
@@ -73,7 +103,7 @@ D01 BPMN should:
 - Keep actor/system/data linkage visible.
 - Do not modify generator behavior casually; validate changes with sample data and a BPMN viewer.
 
-## 8. D02 Service Blueprint rules
+## 10. D02 Service Blueprint rules
 
 D02 Service Blueprint should:
 
@@ -91,7 +121,7 @@ D02 Service Blueprint should:
 - Use dynamic row height when a row/phase has many cards.
 - Keep output compatible with diagrams.net.
 
-## 9. Testing checklist
+## 11. Testing checklist
 
 For every implementation, run the relevant subset of this checklist:
 

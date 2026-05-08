@@ -15,6 +15,97 @@ const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 
+const requiredProcessTaskFields: Array<keyof ProcessTask> = [
+  "id",
+  "stepId",
+  "rowType",
+  "bpmnType",
+  "taskNature",
+  "phase",
+  "group",
+  "actor",
+  "actorLane",
+  "system",
+  "systemLane",
+  "dataObject",
+  "dataAction",
+  "taskName",
+  "input",
+  "output",
+  "defaultNextStep",
+  "conditionQuestion",
+  "yesNextStep",
+  "noNextStep",
+  "exception",
+  "exceptionHandling",
+  "sla",
+  "riskControl",
+  "sourceRef",
+  "reviewStatus",
+  "comment"
+];
+
+const rowTypes = new Set([
+  "phase",
+  "group",
+  "task",
+  "gateway",
+  "start",
+  "end",
+  "event",
+  "data",
+  "annotation"
+]);
+
+const bpmnTypes = new Set([
+  "none",
+  "startEvent",
+  "endEvent",
+  "task",
+  "userTask",
+  "manualTask",
+  "serviceTask",
+  "sendTask",
+  "scriptTask",
+  "businessRuleTask",
+  "exclusiveGateway",
+  "parallelGateway",
+  "inclusiveGateway",
+  "dataObject",
+  "dataStore"
+]);
+
+const taskNatures = new Set([
+  "manual",
+  "automatic",
+  "semiAutomatic",
+  "system",
+  "decision",
+  "approval",
+  "integration",
+  "notification",
+  "control",
+  "data"
+]);
+
+const dataActions = new Set([
+  "none",
+  "pull",
+  "push",
+  "store",
+  "create",
+  "read",
+  "update",
+  "delete",
+  "validate",
+  "approve",
+  "reject",
+  "send",
+  "receive"
+]);
+
+const reviewStatuses = new Set(["draft", "needsReview", "approved", "rejected"]);
+
 const emptyBrief: StructuredInputBrief = {
   processName: "",
   businessObjective: "",
@@ -119,9 +210,86 @@ function createBriefText(brief: StructuredInputBrief) {
     .join("\n\n");
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isNullableString(value: unknown) {
+  return value === null || typeof value === "string";
+}
+
+function validatePastedProcessTasks(value: unknown) {
+  const errors: string[] = [];
+
+  if (!Array.isArray(value)) {
+    return {
+      tasks: [],
+      errors: ["JSON phải là một mảng ProcessTask[]."]
+    };
+  }
+
+  value.forEach((row, index) => {
+    if (!isObjectRecord(row)) {
+      errors.push(`Dòng ${index + 1}: không phải object.`);
+      return;
+    }
+
+    requiredProcessTaskFields.forEach((field) => {
+      if (!(field in row)) {
+        errors.push(`Dòng ${index + 1}: thiếu field bắt buộc "${String(field)}".`);
+      }
+    });
+
+    if (typeof row.id !== "string" || row.id.trim() === "") {
+      errors.push(`Dòng ${index + 1}: id phải là chuỗi không rỗng.`);
+    }
+
+    if (typeof row.stepId !== "string" || row.stepId.trim() === "") {
+      errors.push(`Dòng ${index + 1}: stepId phải là chuỗi không rỗng.`);
+    }
+
+    if (typeof row.taskName !== "string" || row.taskName.trim() === "") {
+      errors.push(`Dòng ${index + 1}: taskName phải là chuỗi không rỗng.`);
+    }
+
+    if (typeof row.rowType !== "string" || !rowTypes.has(row.rowType)) {
+      errors.push(`Dòng ${index + 1}: rowType không hợp lệ.`);
+    }
+
+    if (typeof row.bpmnType !== "string" || !bpmnTypes.has(row.bpmnType)) {
+      errors.push(`Dòng ${index + 1}: bpmnType không hợp lệ.`);
+    }
+
+    if (typeof row.taskNature !== "string" || !taskNatures.has(row.taskNature)) {
+      errors.push(`Dòng ${index + 1}: taskNature không hợp lệ.`);
+    }
+
+    if (typeof row.dataAction !== "string" || !dataActions.has(row.dataAction)) {
+      errors.push(`Dòng ${index + 1}: dataAction không hợp lệ.`);
+    }
+
+    if (typeof row.reviewStatus !== "string" || !reviewStatuses.has(row.reviewStatus)) {
+      errors.push(`Dòng ${index + 1}: reviewStatus không hợp lệ.`);
+    }
+
+    ["parentStepId", "defaultNextStep", "yesNextStep", "noNextStep"].forEach((field) => {
+      if (!isNullableString(row[field])) {
+        errors.push(`Dòng ${index + 1}: ${field} phải là string hoặc null.`);
+      }
+    });
+  });
+
+  return {
+    tasks: errors.length === 0 ? (value as ProcessTask[]) : [],
+    errors
+  };
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<StructuredInputBrief>(emptyBrief);
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
+  const [pastedJson, setPastedJson] = useState("");
+  const [jsonErrors, setJsonErrors] = useState<string[]>([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -176,9 +344,40 @@ export function AIInputBriefPanel() {
     });
 
     setDraftTasks(response.draftProcessTasks);
+    setJsonErrors([]);
     setMessage(
       `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
     );
+  }
+
+  function previewPastedJson() {
+    if (!pastedJson.trim()) {
+      setJsonErrors(["Vui lòng paste JSON trước khi preview."]);
+      setDraftTasks([]);
+      return;
+    }
+
+    try {
+      const parsedJson = JSON.parse(pastedJson);
+      const validationResult = validatePastedProcessTasks(parsedJson);
+
+      if (validationResult.errors.length > 0) {
+        setJsonErrors(validationResult.errors);
+        setDraftTasks([]);
+        setMessage("JSON chưa hợp lệ, chưa thể preview/apply.");
+        return;
+      }
+
+      setJsonErrors([]);
+      setDraftTasks(validationResult.tasks);
+      setMessage(`Đã validate JSON thành công: ${validationResult.tasks.length} dòng PTR.`);
+    } catch (error) {
+      setJsonErrors([
+        `JSON không hợp lệ: ${error instanceof Error ? error.message : "không parse được."}`
+      ]);
+      setDraftTasks([]);
+      setMessage("JSON không hợp lệ, chưa thể preview/apply.");
+    }
   }
 
   function applyDraftPtr() {
@@ -204,6 +403,8 @@ export function AIInputBriefPanel() {
   function clearBrief() {
     setBrief(emptyBrief);
     setDraftTasks([]);
+    setPastedJson("");
+    setJsonErrors([]);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     setMessage("Đã xoá brief local và draft preview.");
   }
@@ -268,6 +469,47 @@ export function AIInputBriefPanel() {
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
         <span>{filledFieldCount}/{briefFields.length} sections filled</span>
         {message ? <span>{message}</span> : null}
+      </div>
+
+      <div className="mt-6 rounded border border-slate-200 bg-slate-50 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-950">
+              Paste AI-generated Process Task Register JSON
+            </h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Dán JSON dạng mảng ProcessTask[]. Dữ liệu chỉ được validate local, không gửi ra ngoài.
+            </p>
+          </div>
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            onClick={previewPastedJson}
+            type="button"
+          >
+            Preview Pasted JSON
+          </button>
+        </div>
+        <textarea
+          className="mt-3 min-h-48 w-full rounded border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-800 outline-none focus:border-slate-500"
+          onChange={(event) => setPastedJson(event.target.value)}
+          placeholder='[{"id":"task-1","stepId":"S001","rowType":"start",...}]'
+          value={pastedJson}
+        />
+        {jsonErrors.length > 0 ? (
+          <div className="mt-3 rounded border border-red-200 bg-red-50 p-3">
+            <p className="text-sm font-semibold text-red-800">JSON chưa hợp lệ</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
+              {jsonErrors.slice(0, 12).map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+            {jsonErrors.length > 12 ? (
+              <p className="mt-2 text-sm text-red-700">
+                Còn {jsonErrors.length - 12} lỗi khác.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {draftTasks.length > 0 ? (

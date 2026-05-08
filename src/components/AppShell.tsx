@@ -9,11 +9,11 @@ import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
 export function AppShell() {
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto flex max-w-7xl gap-6 px-6 py-6">
+    <main className="min-h-screen overflow-x-hidden">
+      <div className="mx-auto flex w-full max-w-7xl gap-6 px-6 py-6">
         <Navigation sections={navigationSections} />
 
-        <section className="flex-1">
+        <section className="min-w-0 max-w-full flex-1">
           <header className="mb-6 border-b border-slate-200 pb-5">
             <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
               MVP Skeleton
@@ -27,7 +27,7 @@ export function AppShell() {
             </p>
           </header>
 
-          <div className="grid gap-4">
+          <div className="grid min-w-0 gap-4">
             <TemplateLibraryEditor />
 
             <ProcessTaskRegister />

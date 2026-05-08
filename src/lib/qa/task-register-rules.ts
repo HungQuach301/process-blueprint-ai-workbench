@@ -53,7 +53,89 @@ export type QARecommendationPatch = Partial<
   >
 >;
 
+export type QAConnectionField = "defaultNextStep" | "yesNextStep" | "noNextStep";
+
+export type QARecommendationOperation =
+  | {
+      kind: "UpdateTaskField";
+      stepId: string;
+      field: keyof QARecommendationPatch;
+      value: QARecommendationPatch[keyof QARecommendationPatch];
+    }
+  | {
+      kind: "CreateTaskAfter";
+      anchorStepId: string;
+      task: ProcessTask;
+      connect?: boolean;
+    }
+  | {
+      kind: "CreateTaskBefore";
+      anchorStepId: string;
+      task: ProcessTask;
+      connect?: boolean;
+    }
+  | {
+      kind: "InsertTaskBetween";
+      sourceStepId: string;
+      targetStepId: string;
+      task: ProcessTask;
+    }
+  | {
+      kind: "SplitTask";
+      targetStepId: string;
+      newTasks: ProcessTask[];
+    }
+  | {
+      kind: "CreateGateway";
+      gatewayTask: ProcessTask;
+      afterStepId?: string;
+      beforeStepId?: string;
+    }
+  | {
+      kind: "AddGatewayBranch";
+      gatewayStepId: string;
+      branch: QAConnectionField;
+      targetStepId?: string;
+      newTask?: ProcessTask;
+    }
+  | {
+      kind: "UpdateConnection";
+      stepId: string;
+      field: QAConnectionField;
+      value: string | null;
+    }
+  | {
+      kind: "CreateLane";
+      laneName: string;
+      laneType: "actor" | "system" | "data";
+      targetStepIds?: string[];
+    }
+  | {
+      kind: "AssignActor";
+      stepId: string;
+      actor: string;
+      actorLane?: string;
+    }
+  | {
+      kind: "AssignSystem";
+      stepId: string;
+      system: string;
+      systemLane?: string;
+    }
+  | {
+      kind: "SetInteractionType";
+      stepId: string;
+      customerInteractionType: ProcessTask["customerInteractionType"];
+    }
+  | {
+      kind: "MarkReviewStatus";
+      stepId: string;
+      reviewStatus: ProcessTask["reviewStatus"];
+    };
+
 export type QARecommendation = {
+  id?: string;
+  issueId?: string;
   type: QARecommendationType;
   title: string;
   description: string;
@@ -61,6 +143,7 @@ export type QARecommendation = {
   impact: QARecommendationImpact;
   targetStepIds: string[];
   previewText: string;
+  operations?: QARecommendationOperation[];
   patch?: QARecommendationPatch;
   newTasks?: ProcessTask[];
   warnings?: string[];

@@ -10,7 +10,11 @@ import { createProcessTaskRegisterTemplateWorkbook } from "@/lib/excel/process-t
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
-import { validateProcessTasks } from "@/lib/qa/task-register-rules";
+import { applyQARecommendation } from "@/lib/qa/apply-recommendation";
+import {
+  type QARecommendation,
+  validateProcessTasks
+} from "@/lib/qa/task-register-rules";
 import {
   inferChannel,
   inferCustomerInteractionType
@@ -706,10 +710,22 @@ export function ProcessTaskRegister() {
     setSaveMessage("Đã hủy Excel import. Dữ liệu hiện tại không thay đổi.");
   }
 
+  function applyRecommendation(recommendation: QARecommendation) {
+    setTasks((currentTasks) =>
+      persistTasks(applyQARecommendation(currentTasks, recommendation))
+    );
+    markGeneratedArtifactsStale();
+    setSaveMessage(
+      `Đã apply recommendation "${recommendation.title}" và đánh dấu D01/D02 stale.`
+    );
+  }
+
   return (
     <>
       <QAPanel
         issues={qaIssues}
+        processTasks={tasks}
+        onApplyRecommendation={applyRecommendation}
         onDownloadReport={downloadQaReport}
         onIssueClick={focusIssueRow}
       />

@@ -13,6 +13,12 @@ import {
 import type { StructuredProcessBrief } from "@/lib/ai-intake";
 import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
+import {
+  formatQualityGateErrorsVi,
+  formatQualityGateWarningsVi,
+  runBriefQualityGate,
+  runDraftProcessTaskRegisterQualityGate
+} from "@/lib/quality-engine";
 
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
@@ -31,6 +37,7 @@ const previewLabels = {
     confidence: "Độ tin cậy",
     assumptions: "Giả định",
     openQuestions: "Câu hỏi cần làm rõ",
+    qualityGateWarnings: "Canh bao Quality Gate",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -49,6 +56,7 @@ const previewLabels = {
     confidence: "Confidence",
     assumptions: "Assumptions",
     openQuestions: "Open questions",
+    qualityGateWarnings: "Quality Gate warnings",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -247,6 +255,7 @@ export function AIInputBriefPanel() {
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
+  const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
@@ -348,13 +357,45 @@ export function AIInputBriefPanel() {
       inputLanguage: locale,
       outputLanguage: locale
     });
+    const briefQualityGate = runBriefQualityGate(structuredBrief);
+
+    if (!briefQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(briefQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Brief chua du thong tin de tao Draft PTR.");
+      return;
+    }
+
     const response = generateDraftProcessTaskRegister({
       brief: structuredBrief,
       currentLocale: locale
     });
+    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
 
-    setDraftTasks(response.draftProcessTasks);
-    setDraftMeta(response);
+    if (!draftQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Draft PTR khong dat Quality Gate.");
+      return;
+    }
+
+    const nextResponse = {
+      ...response,
+      qualityGateWarnings: [
+        ...formatQualityGateWarningsVi(briefQualityGate),
+        ...formatQualityGateWarningsVi(draftQualityGate)
+      ]
+    };
+
+    setBlockingErrors([]);
+    setDraftTasks(nextResponse.draftProcessTasks);
+    setDraftMeta(nextResponse);
     setMessage(
       `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
     );
@@ -373,6 +414,17 @@ export function AIInputBriefPanel() {
       outputLanguage: locale
     });
     const generationMode = realAIEnabled ? "real-ai" : "mock";
+    const briefQualityGate = runBriefQualityGate(structuredBrief);
+
+    if (!briefQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(briefQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Brief chua du thong tin de tao Draft PTR.");
+      return;
+    }
 
     saveAuditLogEntry({
       action: "generate_ai_draft",
@@ -390,9 +442,29 @@ export function AIInputBriefPanel() {
         brief: structuredBrief,
         currentLocale: locale
       });
+      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
 
-      setDraftTasks(response.draftProcessTasks);
-      setDraftMeta(response);
+      if (!draftQualityGate.canPreview) {
+        const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(errors);
+        setMessage("Draft PTR khong dat Quality Gate.");
+        return;
+      }
+
+      const nextResponse = {
+        ...response,
+        qualityGateWarnings: [
+          ...formatQualityGateWarningsVi(briefQualityGate),
+          ...formatQualityGateWarningsVi(draftQualityGate)
+        ]
+      };
+
+      setBlockingErrors([]);
+      setDraftTasks(nextResponse.draftProcessTasks);
+      setDraftMeta(nextResponse);
       saveAuditLogEntry({
         action: "generate_ai_draft",
         status: "success",
@@ -450,6 +522,9 @@ export function AIInputBriefPanel() {
             validationPassed: data.meta?.validationPassed ?? false
           }
         });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(data.validationErrors ?? [errorMessage]);
         setMessage(errorMessage);
         return;
       }
@@ -469,12 +544,46 @@ export function AIInputBriefPanel() {
             validationPassed: false
           }
         });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(validation.errors);
         setMessage(errorMessage);
         return;
       }
 
-      setDraftTasks(validation.value.draftProcessTasks);
-      setDraftMeta(validation.value);
+      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(validation.value);
+
+      if (!draftQualityGate.canPreview) {
+        const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: "Draft PTR khong dat Quality Gate.",
+          metadata: {
+            mode: "real-ai",
+            externalApiCalled: data.meta?.externalApiCalled ?? true,
+            validationPassed: true
+          }
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(errors);
+        setMessage("Draft PTR khong dat Quality Gate.");
+        return;
+      }
+
+      const nextDraftMeta = {
+        ...validation.value,
+        qualityGateWarnings: [
+          ...(validation.value.qualityGateWarnings ?? []),
+          ...formatQualityGateWarningsVi(draftQualityGate)
+        ]
+      };
+
+      setBlockingErrors([]);
+      setDraftTasks(nextDraftMeta.draftProcessTasks);
+      setDraftMeta(nextDraftMeta);
       saveAuditLogEntry({
         action: "generate_ai_draft",
         status: "success",
@@ -547,6 +656,7 @@ export function AIInputBriefPanel() {
   function cancelDraft() {
     setDraftTasks([]);
     setDraftMeta(null);
+    setBlockingErrors([]);
     setMessage("Đã hủy draft preview.");
   }
 
@@ -554,6 +664,7 @@ export function AIInputBriefPanel() {
     setBrief(emptyBrief);
     setDraftTasks([]);
     setDraftMeta(null);
+    setBlockingErrors([]);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
   }
@@ -637,6 +748,17 @@ export function AIInputBriefPanel() {
         {message ? <span>{message}</span> : null}
       </div>
 
+      {blockingErrors.length > 0 ? (
+        <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <p className="font-semibold">Khong the tao Draft PTR</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {blockingErrors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {draftTasks.length > 0 ? (
         <div className="mt-5 rounded border border-slate-200">
           <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
@@ -701,6 +823,19 @@ export function AIInputBriefPanel() {
                     ))}
                   </ul>
                 </div>
+                {draftMeta.qualityGateWarnings &&
+                draftMeta.qualityGateWarnings.length > 0 ? (
+                  <div className="rounded border border-amber-200 bg-amber-50 p-3">
+                    <p className="font-semibold text-amber-900">
+                      {labels.qualityGateWarnings}
+                    </p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5 text-amber-800">
+                      {draftMeta.qualityGateWarnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}

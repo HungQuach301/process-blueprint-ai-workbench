@@ -8,6 +8,12 @@ import {
   createOpenAIProvider,
   type AIModelRequest
 } from "@/lib/ai/providers/openai-provider";
+import {
+  formatQualityGateErrorsVi,
+  formatQualityGateWarningsVi,
+  runBriefQualityGate,
+  runDraftProcessTaskRegisterQualityGate
+} from "@/lib/quality-engine";
 
 export const runtime = "nodejs";
 
@@ -89,6 +95,20 @@ function createMockResponse(skillId: string, payload: unknown) {
       );
     }
 
+    const briefQualityGate = runBriefQualityGate(briefValidation.value);
+
+    if (!briefQualityGate.canPreview) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Brief chua du thong tin de tao Draft PTR.",
+          validationErrors: formatQualityGateErrorsVi(briefQualityGate),
+          qualityGate: briefQualityGate
+        },
+        { status: 400 }
+      );
+    }
+
     const draft = generateDraftProcessTaskRegister({
       brief: briefValidation.value,
       currentLocale: briefValidation.value.inputLanguage
@@ -106,17 +126,42 @@ function createMockResponse(skillId: string, payload: unknown) {
       );
     }
 
+    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(
+      draftValidation.value
+    );
+
+    if (!draftQualityGate.canPreview) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Draft PTR khong dat Quality Gate.",
+          validationErrors: formatQualityGateErrorsVi(draftQualityGate),
+          qualityGate: draftQualityGate
+        },
+        { status: 422 }
+      );
+    }
+
+    const qualityGateWarnings = [
+      ...formatQualityGateWarningsVi(briefQualityGate),
+      ...formatQualityGateWarningsVi(draftQualityGate)
+    ];
+
     return NextResponse.json({
       ok: true,
       mode: "mock",
       provider: process.env.AI_PROVIDER || "openai",
       model: process.env.AI_MODEL || "",
       skillId,
-      result: draftValidation.value,
+      result: {
+        ...draftValidation.value,
+        qualityGateWarnings
+      },
       meta: {
         externalApiCalled: false,
         realAIEnabled: false,
-        validationPassed: true
+        validationPassed: true,
+        qualityGate: draftQualityGate
       }
     });
   }
@@ -207,6 +252,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const briefQualityGate = runBriefQualityGate(briefValidation.value);
+
+  if (!briefQualityGate.canPreview) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Brief chua du thong tin de tao Draft PTR.",
+        validationErrors: formatQualityGateErrorsVi(briefQualityGate),
+        qualityGate: briefQualityGate
+      },
+      { status: 400 }
+    );
+  }
+
   const providerName = process.env.AI_PROVIDER || "openai";
 
   if (providerName !== "openai") {
@@ -269,15 +328,45 @@ export async function POST(request: Request) {
       );
     }
 
+    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(
+      draftValidation.value
+    );
+
+    if (!draftQualityGate.canPreview) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Draft PTR khong dat Quality Gate.",
+          validationErrors: formatQualityGateErrorsVi(draftQualityGate),
+          qualityGate: draftQualityGate,
+          meta: {
+            externalApiCalled: result.externalApiCalled,
+            realAIEnabled: true,
+            validationPassed: true
+          }
+        },
+        { status: 422 }
+      );
+    }
+
+    const qualityGateWarnings = [
+      ...formatQualityGateWarningsVi(briefQualityGate),
+      ...formatQualityGateWarningsVi(draftQualityGate)
+    ];
+
     return NextResponse.json({
       ok: true,
       mode: "provider-backed",
       skillId,
-      result: draftValidation.value,
+      result: {
+        ...draftValidation.value,
+        qualityGateWarnings
+      },
       meta: {
         externalApiCalled: result.externalApiCalled,
         realAIEnabled: true,
-        validationPassed: true
+        validationPassed: true,
+        qualityGate: draftQualityGate
       }
     });
   } catch (error) {

@@ -170,8 +170,11 @@ function createMockTemplateReviewResponse(payload: unknown) {
       scope: "template-review",
       executionMode: "mock",
       providerSettings: {
-        provider: "no-ai",
-        dataUsageMode: "local-only"
+        providerMode: "no-ai",
+        dataUsageMode: "local-only",
+        defaultModelCapability: "basic",
+        allowCloudAI: false,
+        requireApprovalForAIOutput: true
       },
       templateProfiles: [selectedTemplate],
       requestId: `mock-ai-template-review-${Date.now()}`
@@ -234,8 +237,11 @@ function createMockAIQAResponse(payload: unknown) {
       scope: "qa",
       executionMode: "mock",
       providerSettings: {
-        provider: "no-ai",
-        dataUsageMode: "local-only"
+        providerMode: "no-ai",
+        dataUsageMode: "local-only",
+        defaultModelCapability: "basic",
+        allowCloudAI: false,
+        requireApprovalForAIOutput: true
       },
       processTasks: payload.processTasks,
       templateProfiles: payload.templateProfiles,
@@ -384,12 +390,23 @@ function createMockResponse(skillId: string, payload: unknown) {
 }
 
 export function GET() {
+  const realAIEnabled =
+    process.env.ENABLE_REAL_AI === "true" ||
+    process.env.ENABLE_REAL_AI_QA === "true" ||
+    process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
+  const providerStatus = !realAIEnabled
+    ? "mock-only"
+    : process.env.OPENAI_API_KEY
+      ? "configured"
+      : "not configured";
+
   return NextResponse.json({
     ok: true,
     realAIEnabled: process.env.ENABLE_REAL_AI === "true",
     realAIQAEnabled: process.env.ENABLE_REAL_AI_QA === "true",
     realAITemplateReviewEnabled:
       process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
+    providerStatus,
     provider: process.env.AI_PROVIDER || "openai",
     model: process.env.AI_MODEL || ""
   });

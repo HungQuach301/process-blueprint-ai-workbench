@@ -2,6 +2,7 @@ import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type {
   AIProviderSettings,
   DataUsageMode,
+  DefaultModelCapability,
   ModelProvider
 } from "@/lib/ai/model-provider-types";
 
@@ -12,8 +13,11 @@ export const AI_GOVERNANCE_NOTICE =
   "Dữ liệu có thể được gửi tới AI provider đã cấu hình. Vui lòng kiểm tra chính sách dữ liệu trước khi tiếp tục.";
 
 export const defaultAIProviderSettings: AIProviderSettings = {
-  provider: "no-ai",
+  providerMode: "no-ai",
   dataUsageMode: "local-only",
+  defaultModelCapability: "basic",
+  allowCloudAI: false,
+  requireApprovalForAIOutput: true,
   modelName: "",
   organizationId: "",
   tenantId: ""
@@ -35,12 +39,28 @@ const dataUsageModes: DataUsageMode[] = [
   "organization-private-learning"
 ];
 
+const defaultModelCapabilities: DefaultModelCapability[] = [
+  "basic",
+  "advanced",
+  "reasoning"
+];
+
 function isModelProvider(value: unknown): value is ModelProvider {
   return modelProviders.includes(value as ModelProvider);
 }
 
 function isDataUsageMode(value: unknown): value is DataUsageMode {
   return dataUsageModes.includes(value as DataUsageMode);
+}
+
+function isDefaultModelCapability(
+  value: unknown
+): value is DefaultModelCapability {
+  return defaultModelCapabilities.includes(value as DefaultModelCapability);
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
 }
 
 export function readAIProviderSettings(): AIProviderSettings {
@@ -58,16 +78,36 @@ export function readAIProviderSettings(): AIProviderSettings {
 
   try {
     const parsedSettings = JSON.parse(savedSettings) as Partial<AIProviderSettings>;
+    const parsedLegacyProvider = parsedSettings as Partial<AIProviderSettings> & {
+      provider?: unknown;
+    };
+    const providerMode = isModelProvider(parsedSettings.providerMode)
+      ? parsedSettings.providerMode
+      : isModelProvider(parsedLegacyProvider.provider)
+        ? parsedLegacyProvider.provider
+        : defaultAIProviderSettings.providerMode;
 
     return {
       ...defaultAIProviderSettings,
       ...parsedSettings,
-      provider: isModelProvider(parsedSettings.provider)
-        ? parsedSettings.provider
-        : defaultAIProviderSettings.provider,
+      providerMode,
       dataUsageMode: isDataUsageMode(parsedSettings.dataUsageMode)
         ? parsedSettings.dataUsageMode
-        : defaultAIProviderSettings.dataUsageMode
+        : defaultAIProviderSettings.dataUsageMode,
+      defaultModelCapability: isDefaultModelCapability(
+        parsedSettings.defaultModelCapability
+      )
+        ? parsedSettings.defaultModelCapability
+        : defaultAIProviderSettings.defaultModelCapability,
+      allowCloudAI: isBoolean(parsedSettings.allowCloudAI)
+        ? parsedSettings.allowCloudAI
+        : defaultAIProviderSettings.allowCloudAI,
+      requireApprovalForAIOutput: isBoolean(
+        parsedSettings.requireApprovalForAIOutput
+      )
+        ? parsedSettings.requireApprovalForAIOutput
+        : defaultAIProviderSettings.requireApprovalForAIOutput,
+      provider: undefined
     };
   } catch {
     return defaultAIProviderSettings;
@@ -77,6 +117,15 @@ export function readAIProviderSettings(): AIProviderSettings {
 export function confirmRealAICallIfNeeded(realAIEnabled: boolean) {
   if (!realAIEnabled) {
     return true;
+  }
+
+  const settings = readAIProviderSettings();
+
+  if (!settings.allowCloudAI) {
+    window.alert(
+      "Cloud AI dang bi tat trong AI Provider Settings. Hay bat Allow Cloud AI neu muon goi Real AI."
+    );
+    return false;
   }
 
   return window.confirm(AI_GOVERNANCE_NOTICE);
@@ -106,8 +155,13 @@ export function logAICallAudit({
     summary: `${aiMode} call ${success ? "succeeded" : "failed"} for ${skillId}.`,
     metadata: {
       skillId,
-      provider: settings.provider,
+      provider: settings.providerMode,
+      providerMode: settings.providerMode,
       dataMode: settings.dataUsageMode,
+      dataUsageMode: settings.dataUsageMode,
+      defaultModelCapability: settings.defaultModelCapability,
+      allowCloudAI: settings.allowCloudAI,
+      requireApprovalForAIOutput: settings.requireApprovalForAIOutput,
       aiMode,
       externalApiCalled: externalApiCalled === true,
       errorMessage,

@@ -11,6 +11,7 @@ import {
 import type {
   AIProviderSettings,
   DataUsageMode,
+  DefaultModelCapability,
   ModelProvider
 } from "@/lib/ai/model-provider-types";
 
@@ -39,12 +40,23 @@ const dataUsageModeOptions: Array<{
   }
 ];
 
+const modelCapabilityOptions: Array<{
+  value: DefaultModelCapability;
+  label: string;
+}> = [
+  { value: "basic", label: "Basic" },
+  { value: "advanced", label: "Advanced" },
+  { value: "reasoning", label: "Reasoning" }
+];
+
 export function AIProviderSettingsPanel() {
   const [settings, setSettings] = useState<AIProviderSettings>(
     defaultAIProviderSettings
   );
   const [message, setMessage] = useState("");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [providerStatus, setProviderStatus] =
+    useState<"configured" | "not configured" | "mock-only">("mock-only");
 
   useEffect(() => {
     setSettings(readAIProviderSettings());
@@ -62,6 +74,7 @@ export function AIProviderSettingsPanel() {
           realAIEnabled?: boolean;
           realAIQAEnabled?: boolean;
           realAITemplateReviewEnabled?: boolean;
+          providerStatus?: "configured" | "not configured" | "mock-only";
         };
 
         if (active) {
@@ -70,10 +83,12 @@ export function AIProviderSettingsPanel() {
               data.realAIQAEnabled === true ||
               data.realAITemplateReviewEnabled === true
           );
+          setProviderStatus(data.providerStatus ?? "mock-only");
         }
       } catch {
         if (active) {
           setRealAIEnabled(false);
+          setProviderStatus("mock-only");
         }
       }
     }
@@ -91,9 +106,20 @@ export function AIProviderSettingsPanel() {
   }
 
   function saveSettings() {
+    const nonSecretSettings: AIProviderSettings = {
+      providerMode: settings.providerMode,
+      dataUsageMode: settings.dataUsageMode,
+      defaultModelCapability: settings.defaultModelCapability,
+      allowCloudAI: settings.allowCloudAI,
+      requireApprovalForAIOutput: settings.requireApprovalForAIOutput,
+      modelName: settings.modelName,
+      organizationId: settings.organizationId,
+      tenantId: settings.tenantId
+    };
+
     window.localStorage.setItem(
       AI_PROVIDER_SETTINGS_STORAGE_KEY,
-      JSON.stringify(settings)
+      JSON.stringify(nonSecretSettings)
     );
     setMessage("Đã lưu AI provider settings vào localStorage. Chưa có API call nào được thực hiện.");
   }
@@ -132,7 +158,7 @@ export function AIProviderSettingsPanel() {
         Do not enter production secrets in local MVP. API key thật chưa được hỗ trợ và không nên lưu trong localStorage.
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
         <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
           <p className="text-xs font-semibold uppercase text-slate-500">
             Current AI mode
@@ -154,13 +180,24 @@ export function AIProviderSettingsPanel() {
             Model provider mode
           </p>
           <p className="mt-1 font-semibold text-slate-950">
-            {settings.provider}
+            {settings.providerMode}
+          </p>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
+          <p className="text-xs font-semibold uppercase text-slate-500">
+            Environment status
+          </p>
+          <p className="mt-1 font-semibold text-slate-950">
+            {providerStatus}
           </p>
         </div>
       </div>
 
       <div className="mt-4 rounded border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
-        {AI_GOVERNANCE_NOTICE}
+        <p>{AI_GOVERNANCE_NOTICE}</p>
+        <p className="mt-1">
+          Do not enter production secrets in local MVP. API keys should be server-side only.
+        </p>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -173,12 +210,35 @@ export function AIProviderSettingsPanel() {
             onChange={(event) =>
               updateSettings({
                 ...settings,
-                provider: event.target.value as ModelProvider
+                providerMode: event.target.value as ModelProvider
               })
             }
-            value={settings.provider}
+            value={settings.providerMode}
           >
             {modelProviderOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label} ({option.value})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-sm font-medium text-slate-700">
+            Default model capability
+          </span>
+          <select
+            className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            onChange={(event) =>
+              updateSettings({
+                ...settings,
+                defaultModelCapability: event.target
+                  .value as DefaultModelCapability
+              })
+            }
+            value={settings.defaultModelCapability}
+          >
+            {modelCapabilityOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label} ({option.value})
               </option>
@@ -243,11 +303,57 @@ export function AIProviderSettingsPanel() {
             value={settings.organizationId ?? ""}
           />
         </label>
+
+        <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+          <input
+            checked={settings.allowCloudAI}
+            className="mt-1"
+            onChange={(event) =>
+              updateSettings({
+                ...settings,
+                allowCloudAI: event.target.checked
+              })
+            }
+            type="checkbox"
+          />
+          <span>
+            <span className="block font-medium text-slate-900">
+              Allow Cloud AI
+            </span>
+            <span className="mt-1 block text-slate-600">
+              Cho phép workflow AI đã bật flag gửi dữ liệu tới provider server-side.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+          <input
+            checked={settings.requireApprovalForAIOutput}
+            className="mt-1"
+            onChange={(event) =>
+              updateSettings({
+                ...settings,
+                requireApprovalForAIOutput: event.target.checked
+              })
+            }
+            type="checkbox"
+          />
+          <span>
+            <span className="block font-medium text-slate-900">
+              Require approval for AI output
+            </span>
+            <span className="mt-1 block text-slate-600">
+              AI output vẫn đi qua draft/recommendation/review trước khi Apply.
+            </span>
+          </span>
+        </label>
       </div>
 
       <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-        Current selection: provider <span className="font-semibold">{settings.provider}</span>, data mode{" "}
-        <span className="font-semibold">{settings.dataUsageMode}</span>. No external API call is made by this settings scaffold.
+        Current selection: provider{" "}
+        <span className="font-semibold">{settings.providerMode}</span>, data mode{" "}
+        <span className="font-semibold">{settings.dataUsageMode}</span>, capability{" "}
+        <span className="font-semibold">{settings.defaultModelCapability}</span>. No API key is stored in localStorage.
       </div>
 
       {message ? (

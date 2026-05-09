@@ -1266,40 +1266,42 @@ export function AIInputBriefPanel() {
 
     return (
       <label
-        className="flex min-h-full flex-col rounded border border-slate-200 bg-white p-4"
+        className="grid w-full min-w-0 gap-4 rounded border border-slate-200 bg-white p-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]"
         key={field.key}
       >
-        <span className="text-sm font-semibold text-slate-900">
-          {field.label[locale]}
-        </span>
-        <span className="mt-1 block text-sm leading-6 text-slate-600">
-          {field.helper[locale]}
-        </span>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {field.suggestions.map((suggestion) => {
-            const isSelected = selectedSuggestions.includes(suggestion);
+        <div className="min-w-0">
+          <span className="text-sm font-semibold text-slate-900">
+            {field.label[locale]}
+          </span>
+          <span className="mt-1 block text-sm leading-6 text-slate-600">
+            {field.helper[locale]}
+          </span>
+          <div className="mt-3 flex max-w-full flex-wrap gap-2">
+            {field.suggestions.map((suggestion) => {
+              const isSelected = selectedSuggestions.includes(suggestion);
 
-            return (
-              <button
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  isSelected
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
-                }`}
-                key={suggestion}
-                onClick={(event) => {
-                  event.preventDefault();
-                  toggleSuggestion(field.key, suggestion);
-                }}
-                type="button"
-              >
-                {suggestion}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  className={`max-w-full whitespace-normal rounded-full border px-3 py-1 text-left text-xs font-medium ${
+                    isSelected
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
+                  }`}
+                  key={suggestion}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    toggleSuggestion(field.key, suggestion);
+                  }}
+                  type="button"
+                >
+                  {suggestion}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <textarea
-          className="mt-3 min-h-24 w-full flex-1 rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+          className="min-h-32 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
           onChange={(event) => updateBriefField(field.key, event.target.value)}
           placeholder={field.placeholder[locale]}
           rows={field.rows}
@@ -1372,11 +1374,11 @@ export function AIInputBriefPanel() {
       </div>
 
       {briefMode === "manual" ? (
-        <div className="grid gap-4">
-          <div className="grid gap-4 xl:grid-cols-4">
+        <div className="grid w-full min-w-0 gap-4">
+          <div className="grid w-full min-w-0 gap-4">
             {primaryBriefFields.map(renderBriefField)}
           </div>
-          <div className="rounded border border-slate-200 bg-slate-50 p-4">
+          <div className="w-full min-w-0 rounded border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-slate-950">
                 Related information
@@ -1385,7 +1387,7 @@ export function AIInputBriefPanel() {
                 Split systems by audience and keep data/documents separate for a cleaner draft PTR.
               </p>
             </div>
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+            <div className="grid w-full min-w-0 gap-4">
               {relatedBriefFields.map(renderBriefField)}
             </div>
           </div>

@@ -1,189 +1,67 @@
 # Current State
 
-## 1. Mục tiêu sản phẩm hiện tại
+## 1. Stable Baseline
 
-Process Blueprint AI Workbench là MVP cho một workbench phân tích, chuẩn hóa, kiểm tra và sinh artifact quy trình doanh nghiệp.
+Current stable baseline tag:
 
-Mục tiêu hiện tại:
+- `v0.5.0`
 
-- Dùng Process Task Register làm nguồn sự thật duy nhất.
-- Sinh D01 BPMN, D02 Service Blueprint, QA Report, JSON export và ZIP package từ `ProcessTask[]` và `TemplateProfile`.
-- Giữ generation deterministic, reviewable và phù hợp dữ liệu enterprise/banking.
-- Chuẩn bị nền tảng cho AI-assisted workflow nhưng chưa gửi dữ liệu ra external AI provider.
-- Cho phép người dùng review, apply recommendation và lưu feedback local để phục vụ training/learning trong tương lai.
+Current branch for the next phase:
 
-Nguyên tắc quan trọng:
+- `feature/real-ai-integration`
 
-- Không tạo nguồn định nghĩa quy trình thứ hai ngoài Process Task Register.
-- Không tự động apply thay đổi rủi ro cao.
-- Dữ liệu ngân hàng/doanh nghiệp mặc định nên local-only hoặc no-training.
-- AI future integration phải đi qua schema validation và human approval.
+Next phase goal:
 
-## Current Next Phase Priority
+- Integrate real AI safely.
 
-Ưu tiên hiện tại cho phase tiếp theo:
+## 2. Completed Modules
 
-- Đơn giản hóa AI Input Brief còn 7 section hiển thị chính, đủ để người dùng nhập nhanh brief quy trình.
-- Chuẩn bị UI sẵn sàng cho tiếng Việt và tiếng Anh.
-- Hoàn thiện luồng Input Brief -> Draft Process Task Register -> Preview -> User Apply.
-- Giữ kiến trúc skill-ready để sau này có thể tách AI Input Brief, AI QA, AI Recommendation, Template Review thành các skill/agent độc lập.
+The following modules are considered completed in the current stable baseline:
 
-Nguyên tắc triển khai phase này:
+- Process Task Register
+- D01 BPMN
+- D02 Service Blueprint
+- QA Engine
+- Recommendation Engine
+- Feedback logging
+- Template classification
+- AI scaffolds
+- Simplified AI Input Brief
+- Local Audit Log
 
-- Không gọi external AI API.
-- Không auto-apply output từ AI hoặc mock AI.
-- AI output luôn đi qua Draft -> Preview -> User Apply.
-- Process Task Register vẫn là nguồn sự thật chính.
+## 3. Product State
 
-## Product Direction
+Process Blueprint AI Workbench is a client-side MVP for analyzing, standardizing, validating, and generating enterprise process artifacts.
 
-Định hướng sản phẩm:
+Current product principles:
 
-- Hỗ trợ người dùng cá nhân và người dùng tổ chức.
-- Hỗ trợ người dùng tiếng Việt và tiếng Anh.
-- Chuẩn bị cho các mode AI tương lai:
-  - BYOK
-  - Product AI
-  - Enterprise AI
-  - Local-only
-  - No-AI
-- Giữ human-in-the-loop approval làm mặc định cho mọi thay đổi quan trọng.
+- Use Process Task Register as the single source of truth.
+- Generate D01 BPMN, D02 Service Blueprint, QA Report, JSON exports, and ZIP package from `ProcessTask[]` and selected `TemplateProfile` data.
+- Keep artifact generation deterministic, reviewable, and traceable to source fields.
+- Preserve actor, system, data object, SLA, risk/control, and review status fields.
+- Keep human-in-the-loop approval as the default workflow.
+- Support Vietnamese and English users.
+- Prepare for future BYOK, Product AI, and Enterprise AI modes.
 
-## Architecture Principles
+## 4. Key Principle For Real AI Integration
 
-Nguyên tắc kiến trúc cần giữ trong các phase tiếp theo:
+Real AI integration must follow these rules:
 
-- Internal data keys giữ tiếng Anh và canonical.
-- UI labels nên đi qua i18n dictionaries khi thêm/chỉnh UI người dùng.
-- BPMN enum values giữ canonical, ví dụ `startEvent`, `userTask`, `serviceTask`, `sendTask`, `exclusiveGateway`, `endEvent`.
-- AI-generated output phải qua Draft -> Preview -> User Apply.
-- Không gọi external AI API trong phase hiện tại.
-- Không đổi D01/D02 generators khi task chỉ thuộc Input Brief, QA, Recommendation, hoặc settings.
-- Không tạo process source thứ hai ngoài Process Task Register.
+- No API key in browser.
+- AI output must use schema validation.
+- AI output must go to Draft/Recommendation first.
+- User approval is required before Apply.
+- Do not auto-apply AI output.
+- Do not introduce a second process definition source.
+- Process Task Register remains the source of truth.
+- External AI calls must be explicit, controlled, and compatible with the selected provider/data mode.
+- Sensitive enterprise or banking data should not be sent to external services unless explicitly approved.
 
-## 2. Các module đã hoàn thành
+## 5. Current Architecture
 
-### Core data model
+Current architecture is a client-side Next.js MVP using App Router, React, TypeScript, and Tailwind CSS.
 
-- `ProcessTask`
-- `TemplateProfile`
-- `Workspace`
-- Template classification metadata:
-  - `outputType`
-  - `processType`
-  - `journeyType`
-  - `scopeType`
-  - `businessDomain`
-  - `notationStandard`
-  - `organizationType`
-  - `tags`
-
-### Sample data
-
-- SME Online Loan workspace.
-- Sample D01 BPMN template.
-- Sample D02 Service Blueprint template.
-- Sample Process Task Register.
-
-### Process Task Register
-
-- Inline editing.
-- Controlled dropdowns cho các field chính.
-- Add row.
-- Duplicate row.
-- Delete row.
-- Save/load/reset bằng `localStorage`.
-- Excel import preview/apply flow.
-- Artifact stale marking khi dữ liệu thay đổi.
-
-### Template Library
-
-- D01 BPMN template selection.
-- D02 Service Blueprint template selection.
-- Template Profile editor.
-- Editable JSON rule fields.
-- Classification metadata editor bằng select controls.
-- Tags input dạng comma-separated.
-- Save/load/reset bằng `localStorage`.
-
-### Rule-based QA Engine và QA Panel
-
-- Rule-based validation cho Process Task Register.
-- Errors, warnings, suggestions.
-- Click issue để highlight row.
-- QA Report download.
-- Recommendation UI cho từng issue.
-- Batch recommendation UI:
-  - select safe recommendations
-  - clear selection
-  - apply selected
-  - apply all safe
-  - batch preview
-  - conflict detection
-  - confirmation before apply
-
-### Recommendation feedback logging
-
-- Local feedback logging bằng `localStorage`.
-- Export Recommendation Feedback JSON.
-- Clear Local Feedback.
-- Log accepted/rejected/skipped recommendation.
-- Log batch summary.
-- Conflict skip được ghi reason `conflict`.
-
-### D01 BPMN
-
-- BPMN 2.0 XML generation từ `ProcessTask[]`.
-- `.bpmn` download.
-- Read-only visual preview bằng `bpmn-js`.
-- Typed BPMN elements:
-  - Start Event
-  - End Event
-  - User Task
-  - Service Task
-  - Send Task
-  - Exclusive Gateway
-- Collaboration pools và internal lanes.
-- Message/data associations ở mức cơ bản.
-- BPMN DI shapes/edges.
-
-### D02 Service Blueprint
-
-- draw.io compatible XML generation từ `ProcessTask[]`.
-- `.drawio` download.
-- Một `ProcessTask` là một card.
-- Không merge nhiều task thành một card.
-- Task card gồm 3 joined boxes:
-  - Header = actor
-  - Middle = task name + BPMN type + task nature
-  - Footer = system/app
-- Phase columns.
-- Dynamic row height và phase width.
-- Separator lines.
-- Actor/system/data/control notation styling.
-- In-browser lightweight D02 preview đã có ở mức hiện tại.
-
-### Export Center
-
-- Generate all artifacts.
-- Artifact readiness/freshness status.
-- ZIP package gồm D01, D02, Process Task Register JSON, Template Profile JSON và QA Report Markdown.
-
-### AI documentation
-
-Đã có các tài liệu thiết kế:
-
-- `docs/AI_ARCHITECTURE_DESIGN.md`
-- `docs/AI_INPUT_BRIEF_DESIGN.md`
-- `docs/AI_QA_ENGINE_DESIGN.md`
-- `docs/AI_RECOMMENDATION_ENGINE_DESIGN.md`
-- `docs/AI_TEMPLATE_REVIEW_DESIGN.md`
-
-## 3. Kiến trúc hiện tại
-
-Kiến trúc hiện tại là client-side Next.js MVP với App Router, React, TypeScript và Tailwind CSS.
-
-Luồng dữ liệu chính:
+Main data flow:
 
 ```text
 ProcessTask[] + TemplateProfile[]
@@ -195,301 +73,181 @@ ProcessTask[] + TemplateProfile[]
   -> Export Center
 ```
 
-Nguồn lưu trữ hiện tại:
+Current local storage areas:
 
-- `localStorage` cho Process Task Register.
-- `localStorage` cho Template Profiles và selected D01/D02 templates.
-- `localStorage` cho artifact freshness status.
-- `localStorage` cho recommendation feedback.
+- `localStorage` for Process Task Register.
+- `localStorage` for Template Profiles and selected D01/D02 templates.
+- `localStorage` for artifact freshness status.
+- `localStorage` for recommendation feedback.
+- `localStorage` for local audit log entries.
 
-Các boundary quan trọng:
+Important boundaries:
 
-- `src/lib/models/`: core models.
+- `src/lib/models/`: canonical data models.
 - `src/lib/qa/`: rule-based QA entrypoints.
-- `src/lib/recommendation-engine/`: recommendation types, factories, preview/apply operations, feedback store.
+- `src/lib/recommendation-engine/`: recommendation types, factories, preview/apply operations, and feedback store.
 - `src/lib/generators/`: deterministic artifact generators.
-- `src/lib/ai/`: AI scaffold mock-only, chưa gọi API thật.
-- `src/components/*`: UI modules.
+- `src/lib/ai/`: AI scaffolds and mock-only services.
+- `src/lib/audit/`: local audit log foundation.
+- `src/components/`: UI modules.
 
-## 4. Recommendation Engine status
+## 6. Files And Folders Codex Must Read First
 
-Recommendation Engine hiện tại là rule-based và local.
+For every new Codex session in this repository, read these first:
 
-Đã có:
+1. `AGENTS.md`
+2. `docs/CURRENT_STATE.md`
+3. `docs/AI_ARCHITECTURE_DESIGN.md`
+4. `docs/AI_INPUT_BRIEF_DESIGN.md`
+5. `docs/AI_QA_ENGINE_DESIGN.md`
+6. `docs/AI_RECOMMENDATION_ENGINE_DESIGN.md`
+7. `docs/AI_TEMPLATE_REVIEW_DESIGN.md`
 
-- `QARecommendation` type.
-- Recommendation factory từ QA issue.
-- Operation model:
-  - `UpdateTaskField`
-  - `AssignActor`
-  - `AssignSystem`
-  - `SetInteractionType`
-  - `MarkReviewStatus`
-  - `UpdateConnection`
-  - `CreateTaskAfter`
-  - `CreateTaskBefore`
-  - `InsertTaskBetween`
-  - `SplitTask`
-  - `CreateGateway`
-  - `AddGatewayBranch`
-  - `CreateLane`
-- Single recommendation preview/apply.
-- Batch recommendation preview/apply.
-- Conflict detection.
-- Safe recommendation detection:
-  - `confidence = high`
-  - `riskLevel = low`
-  - only simple operations
-- Graph-changing recommendation không được chọn mặc định.
-- Feedback logging local.
+For real AI integration work, also inspect these folders before editing:
 
-Trạng thái:
+- `src/lib/ai/`
+- `src/lib/models/`
+- `src/lib/qa/`
+- `src/lib/recommendation-engine/`
+- `src/lib/audit/`
+- `src/components/`
 
-- Hoạt động local-only.
-- Không gọi AI API.
-- Chưa có AI ranking hoặc AI-generated recommendation thật.
-- Đã sẵn sàng để AI scaffold trả về `QARecommendation[]` trong tương lai.
+For artifact generator work, also inspect:
 
-## 5. Template Recommendation Engine status
+- `src/lib/generators/`
+- Existing D01/D02 sample data and template profiles.
 
-Template Recommendation Engine hiện ở mức thiết kế và scaffold type.
-
-Đã có:
-
-- Template classification metadata trong `TemplateProfile`.
-- Template Library editor cho metadata.
-- Tài liệu `AI_TEMPLATE_REVIEW_DESIGN.md`.
-- AI scaffold type `TemplateRecommendation` trong `src/lib/ai/ai-template-review-types.ts`.
-- Mock service `runMockTemplateReview`.
-
-Chưa có:
-
-- Rule-based template reviewer runtime.
-- Template quality score runtime.
-- UI riêng cho Template Recommendation.
-- Apply workflow cho TemplateRecommendation.
-- Feedback logging riêng cho template recommendation.
-
-Định hướng:
-
-- Template Recommendation Engine nên train/evaluate độc lập với Recommendation Engine sửa Process Task Register.
-- Output nên là `TemplateRecommendation[]`, không dùng `QARecommendation[]` cho template patch.
-- Không sửa D01/D02 generators trong giai đoạn template review.
-
-## 6. AI scaffold status
-
-AI scaffold đã được tạo trong `src/lib/ai/`.
-
-Files hiện có:
-
-- `model-provider-types.ts`
-- `ai-orchestration-types.ts`
-- `ai-qa-types.ts`
-- `ai-qa-service.ts`
-- `ai-template-review-types.ts`
-- `ai-template-review-service.ts`
-- `ai-input-brief-types.ts`
-- `ai-input-brief-service.ts`
-- `ai-recommendation-types.ts`
-- `ai-recommendation-service.ts`
-
-Provider/data modes đã định nghĩa:
-
-- Model provider:
-  - `product-ai`
-  - `openai-byok`
-  - `claude-byok`
-  - `azure-openai`
-  - `local-model`
-  - `no-ai`
-- Data usage mode:
-  - `local-only`
-  - `cloud-processing`
-  - `no-training`
-  - `organization-private-learning`
-
-Mock functions:
-
-- `runMockAIQA`
-- `runMockTemplateReview`
-- `runMockInputBriefExtraction`
-- `runMockAIRecommendations`
-
-Trạng thái:
-
-- Compile được.
-- Không có API key.
-- Không có external API/network call.
-- `meta.externalApiCalled = false`.
-- Dùng lại type hiện có như `ProcessTask`, `TemplateProfile`, `QARecommendation`.
-
-## 7. Hạn chế hiện tại
-
-### Product/runtime
-
-- Chưa có backend persistence.
-- `localStorage` là storage chính, chưa phù hợp production enterprise.
-- Chưa có auth, user role, tenant isolation.
-- Chưa có audit log UI đầy đủ.
-- Chưa có version history/rollback.
-
-### D01 BPMN
-
-- Layout còn đơn giản và có thể rất rộng với process lớn.
-- Cần validate thêm bằng Camunda Modeler với dữ liệu thực.
-- Chưa hỗ trợ đầy đủ advanced BPMN:
-  - boundary events
-  - event-based gateways
-  - subprocess
-  - complex exception choreography
-
-### D02 Service Blueprint
-
-- D02 preview còn lightweight, không thay thế kiểm tra trong diagrams.net.
-- Large blueprint vẫn cần manual layout review.
-- Template visual rules mới áp dụng một phần.
-
-### Recommendation
-
-- Recommendation hiện chủ yếu rule-based.
-- AI Recommendation chưa được gọi thật.
-- Safe criteria đang cố ý chặt.
-- Graph-changing recommendation cần review kỹ.
-- Feedback logging local chưa có analytics UI.
-
-### Template Recommendation
-
-- Mới có metadata, docs và scaffold type.
-- Chưa có scoring runtime.
-- Chưa có apply/approval UI riêng.
-
-### AI
-
-- AI scaffold chỉ mock.
-- Chưa có provider adapter.
-- Chưa có prompt pack runtime.
-- Chưa có schema validation runtime riêng cho AI output.
-- Chưa có masking/redaction pipeline.
-- Chưa có data mode enforcement UI.
-
-## 8. Ưu tiên triển khai tiếp theo
-
-1. Hoàn thiện Simplified AI Input Brief MVP local-only:
-   - 7 visible input sections
-   - Vietnamese/English UI readiness through i18n dictionaries
-   - Draft Process Task Register preview
-   - Draft -> Preview -> User Apply workflow
-   - skill-ready boundary for future AI Input Brief agent
-
-2. Thêm schema validation cho AI scaffold output:
-   - `ProcessTask[]`
-   - `QARecommendation[]`
-   - `TemplateRecommendation[]`
-
-3. Thêm UI data mode/provider mode:
-   - Local-only
-   - No-AI
-   - BYOK placeholder
-   - Enterprise provider placeholder
-
-4. Chuẩn hóa i18n và canonical data keys:
-   - internal keys stay English/canonical
-   - UI labels come from dictionaries
-   - BPMN enum values stay canonical
-   - no localized enum values in model data
-
-5. Template Recommendation Engine MVP:
-   - rule-based template checks
-   - template quality score
-   - template recommendation preview
-
-6. Recommendation feedback analytics:
-   - accepted/rejected/skipped counts
-   - conflict rate
-   - export summary
-
-7. Audit log foundation:
-   - local audit entries
-   - export audit JSON
-   - provider/data mode metadata
-
-8. Excel export/import improvements:
-   - export reviewed PTR to Excel
-   - import reviewed Excel with validation
-
-9. D02 refinement:
-   - stronger row/card/source-field contract
-   - preview fidelity improvements
-   - large blueprint layout checks
-
-10. Enterprise readiness:
-   - backend persistence design
-   - auth/role model
-   - tenant isolation
-   - no-training/BYOK governance
-
-## 9. Git baseline/tag
-
-Available tag:
-
-- `v0.4.0`
-
-Current HEAD at time of this document update:
-
-- `3d0b050`
-
-Ghi chú:
-
-- Nếu tiếp tục phát triển sau khi có thêm commit mới, hãy chạy lại:
+Before any change, run:
 
 ```powershell
-git tag --sort=-creatordate
-git rev-parse --short HEAD
 git status --short
 ```
 
-để cập nhật baseline chính xác.
+## 7. AI Scaffold Status
 
-## 10. Cách tiếp tục trong Codex session mới
+AI scaffolds exist for future integration, but the current stable baseline does not call real external AI APIs from the browser.
 
-Khi mở session Codex mới, nên bắt đầu bằng checklist sau:
+Expected AI integration direction:
 
-1. Đọc `AGENTS.md`.
-2. Đọc `docs/CURRENT_STATE.md`.
-3. Đọc tài liệu AI liên quan nếu task thuộc AI:
-   - `docs/AI_ARCHITECTURE_DESIGN.md`
-   - `docs/AI_INPUT_BRIEF_DESIGN.md`
-   - `docs/AI_QA_ENGINE_DESIGN.md`
-   - `docs/AI_RECOMMENDATION_ENGINE_DESIGN.md`
-   - `docs/AI_TEMPLATE_REVIEW_DESIGN.md`
-4. Chạy `git status --short` để biết worktree có thay đổi sẵn không.
-5. Nếu task liên quan UI/generator, đọc đúng file liên quan trước khi sửa.
-6. Trước khi code, giải thích plan bằng tiếng Việt và liệt kê file sẽ sửa.
-7. Giữ thay đổi nhỏ nhất.
-8. Không sửa D01/D02 generators nếu task không yêu cầu rõ.
-9. Không gọi external AI API nếu chưa được yêu cầu và chưa có data/provider mode an toàn.
-10. Sau khi sửa, chạy tối thiểu:
+- Browser UI collects user input and displays draft/recommendation results.
+- API keys and provider credentials must stay server-side or in a secure backend/runtime boundary.
+- AI provider adapters must return typed data.
+- AI output must be validated against schemas before entering Draft or Recommendation state.
+- Invalid AI output must be rejected or converted into explicit review issues.
+- Draft output must be previewed before user approval.
+- Apply operations must be deterministic and auditable.
 
-```powershell
-npx.cmd tsc --noEmit
-```
+## 8. Current Limitations
 
-11. Nếu thay đổi application code đáng kể, chạy thêm:
+Current product/runtime limitations:
 
-```powershell
-npm run build
-```
+- No production backend persistence yet.
+- `localStorage` is still the main storage layer.
+- No full auth, role model, or tenant isolation yet.
+- Real AI provider integration is not implemented yet.
+- Provider/data mode enforcement still needs production-ready boundaries.
+- Schema validation for real AI output must be added before external AI is enabled.
 
-12. Nếu thay đổi UI, mở app và test workflow liên quan:
+Current AI limitations:
 
-```powershell
-npm run dev
-```
+- Existing AI services are scaffold/mock-oriented.
+- No API key handling should happen in browser code.
+- No real model provider adapter should bypass schema validation.
+- No AI output should directly mutate the Process Task Register.
 
-Sau đó mở:
+## 9. Regression Test Checklist
+
+Run the relevant subset of this checklist for every implementation.
+
+TypeScript:
+
+- `npx.cmd tsc --noEmit`
+
+App availability:
+
+- Open `http://localhost:3000`
+
+Process Task Register:
+
+- Edit a cell.
+- Add row.
+- Duplicate row.
+- Delete row.
+- Save.
+- Refresh.
+- Reset.
+
+Template Library:
+
+- Edit profile.
+- Save.
+- Select D01 template.
+- Select D02 template.
+- Refresh.
+- Reset.
+
+QA:
+
+- Create a known issue.
+- Confirm issue count changes.
+- Click issue and confirm row highlight.
+- Download QA Report.
+
+D01 BPMN:
+
+- Generate XML.
+- Confirm preview renders.
+- Download `.bpmn`.
+- Open in Camunda Modeler when possible.
+
+D02 Service Blueprint:
+
+- Generate XML.
+- Download `.drawio`.
+- Open in diagrams.net when possible.
+- Check cards do not overlap.
+
+Export Center:
+
+- Generate all artifacts.
+- Confirm statuses are Fresh/Stale/Not generated as expected.
+- Download ZIP.
+- Confirm ZIP contains all expected files.
+
+AI Input Brief:
+
+- Fill the simplified 7-section brief.
+- Generate Draft Process Task Register.
+- Preview draft output.
+- Confirm no automatic Apply occurs.
+- Apply only after explicit user approval.
+
+Real AI integration, when enabled:
+
+- Confirm no API key is exposed in browser code or client bundles.
+- Confirm AI request uses the intended provider/data mode.
+- Confirm AI response passes schema validation.
+- Confirm invalid AI response is blocked.
+- Confirm AI output enters Draft/Recommendation first.
+- Confirm Apply requires user approval.
+- Confirm audit log records the relevant AI metadata without storing unnecessary sensitive data.
+
+## 10. Continuation Notes
+
+When continuing development:
+
+- Keep changes small and scoped.
+- Do not modify application code for documentation-only tasks.
+- Do not modify D01/D02 generators unless explicitly requested.
+- Do not call external AI APIs until secure provider/data mode boundaries exist.
+- Keep UI labels ready for i18n when adding user-facing UI.
+- Keep internal data keys English and canonical.
+- Keep BPMN enum values canonical, for example `startEvent`, `userTask`, `serviceTask`, `sendTask`, `exclusiveGateway`, and `endEvent`.
+
+Always remember:
 
 ```text
-http://localhost:3000
+Process Task Register is the source of truth.
+AI creates drafts or recommendations.
+User approval is required before Apply.
 ```
-
-Luôn nhớ: Process Task Register là nguồn sự thật chính, AI chỉ tạo draft/recommendation, người dùng phải review trước khi apply.

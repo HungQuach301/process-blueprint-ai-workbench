@@ -84,6 +84,38 @@ function splitLines(value: string) {
     .filter(Boolean);
 }
 
+function unique(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function splitStartEnd(value: string) {
+  const lines = splitLines(value);
+  const singleLine = lines[0] ?? "";
+  const fromToMatch =
+    singleLine.match(/từ lúc\s+(.+?)\s+đến khi\s+(.+)/i) ??
+    singleLine.match(/tu luc\s+(.+?)\s+den khi\s+(.+)/i);
+  const englishFromToMatch = singleLine.match(/from\s+(.+?)\s+to\s+(.+)/i);
+
+  if (fromToMatch) {
+    return {
+      startEvent: fromToMatch[1].trim(),
+      endEvent: fromToMatch[2].trim()
+    };
+  }
+
+  if (englishFromToMatch) {
+    return {
+      startEvent: englishFromToMatch[1].trim(),
+      endEvent: englishFromToMatch[2].trim()
+    };
+  }
+
+  return {
+    startEvent: lines[0] ?? "Request received",
+    endEvent: lines[lines.length - 1] ?? lines[0] ?? "Process completed"
+  };
+}
+
 function formatStepId(index: number) {
   return `DRAFT-${String(index).padStart(3, "0")}`;
 }
@@ -254,28 +286,38 @@ function inferConfidence(brief: StructuredProcessBrief): DraftPTRConfidence {
 export function parseStructuredProcessBriefFromForm(input: {
   processInfo: string;
   businessObjective: string;
-  scope: string;
-  startEnd: string;
+  scope?: string;
+  startEnd?: string;
+  scopeBoundary?: string;
   actors: string;
-  relatedSystems: string;
+  relatedSystems?: string;
+  customerFacingSystems?: string;
+  internalSystems?: string;
+  thirdPartySystems?: string;
   dataDocuments: string;
   inputLanguage?: IntakeLanguage;
   outputLanguage?: IntakeOutputLanguage;
 }): StructuredProcessBrief {
   const actorNames = splitLines(input.actors);
-  const systemNames = splitLines(input.relatedSystems);
+  const systemNames = unique([
+    ...splitLines(input.customerFacingSystems ?? ""),
+    ...splitLines(input.internalSystems ?? ""),
+    ...splitLines(input.thirdPartySystems ?? ""),
+    ...splitLines(input.relatedSystems ?? "")
+  ]);
   const dataNames = splitLines(input.dataDocuments);
-  const startEndLines = splitLines(input.startEnd);
+  const scope = clean(input.scope) || clean(input.scopeBoundary);
+  const startEnd = splitStartEnd(clean(input.startEnd) || clean(input.scopeBoundary));
 
   return {
     processInfo: {
       processName: firstSentence(input.processInfo, "Draft process")
     },
     businessObjective: input.businessObjective,
-    scope: input.scope,
+    scope,
     startEnd: {
-      startEvent: startEndLines[0] ?? "Request received",
-      endEvent: startEndLines[startEndLines.length - 1] ?? "Process completed"
+      startEvent: startEnd.startEvent,
+      endEvent: startEnd.endEvent
     },
     actors: actorNames.map((name) => ({
       name,

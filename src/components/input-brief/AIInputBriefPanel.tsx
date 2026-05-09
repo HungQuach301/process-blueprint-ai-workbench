@@ -23,7 +23,7 @@ import {
   type PdfExtractionResult
 } from "@/lib/ai-intake";
 import type { StructuredProcessBrief } from "@/lib/ai-intake";
-import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
+import { getLocale, t, type Locale } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
 import {
   formatQualityGateErrorsVi,
@@ -97,10 +97,11 @@ const previewLabels = {
 type InputBriefFormState = {
   processInfo: string;
   businessObjective: string;
-  scope: string;
-  startEnd: string;
+  scopeBoundary: string;
   actors: string;
-  relatedSystems: string;
+  customerFacingSystems: string;
+  internalSystems: string;
+  thirdPartySystems: string;
   dataDocuments: string;
   happyPath?: string;
   exceptions?: string;
@@ -113,25 +114,30 @@ type BriefField = {
     InputBriefFormState,
     | "processInfo"
     | "businessObjective"
-    | "scope"
-    | "startEnd"
+    | "scopeBoundary"
     | "actors"
-    | "relatedSystems"
+    | "customerFacingSystems"
+    | "internalSystems"
+    | "thirdPartySystems"
     | "dataDocuments"
   >;
-  labelKey: TranslationKey;
-  helperKey: TranslationKey;
-  placeholderKey: TranslationKey;
+  label: Record<Locale, string>;
+  helper: Record<Locale, string>;
+  placeholder: Record<Locale, string>;
+  suggestions: string[];
   rows: number;
 };
+
+type BriefMode = "manual" | "import-file" | "voice";
 
 const emptyBrief: InputBriefFormState = {
   processInfo: "",
   businessObjective: "",
-  scope: "",
-  startEnd: "",
+  scopeBoundary: "",
   actors: "",
-  relatedSystems: "",
+  customerFacingSystems: "",
+  internalSystems: "",
+  thirdPartySystems: "",
   dataDocuments: "",
   happyPath: "",
   exceptions: "",
@@ -142,54 +148,193 @@ const emptyBrief: InputBriefFormState = {
 const briefFields: BriefField[] = [
   {
     key: "processInfo",
-    labelKey: "inputBrief.processInfo",
-    helperKey: "inputBrief.processInfoHelper",
-    placeholderKey: "inputBrief.processInfoPlaceholder",
+    label: { vi: "Thông tin quy trình", en: "Process information" },
+    helper: {
+      vi: "Chọn hoặc nhập tên/mô tả ngắn về quy trình cần xây dựng.",
+      en: "Select or enter the process name or a short process description."
+    },
+    placeholder: {
+      vi: "Ví dụ: Mở tài khoản doanh nghiệp, phê duyệt khoản vay SME online...",
+      en: "Example: Corporate account opening, SME online loan approval..."
+    },
+    suggestions: [
+      "Mở tài khoản",
+      "Đăng ký vay",
+      "Bổ sung hồ sơ",
+      "Phê duyệt tín dụng",
+      "Giải ngân",
+      "KYC / onboarding",
+      "Dịch vụ sau bán",
+      "Khác"
+    ],
     rows: 3
   },
   {
     key: "businessObjective",
-    labelKey: "inputBrief.businessObjective",
-    helperKey: "inputBrief.businessObjectiveHelper",
-    placeholderKey: "inputBrief.businessObjectivePlaceholder",
+    label: { vi: "Mục tiêu nghiệp vụ", en: "Business objective" },
+    helper: {
+      vi: "Chọn hoặc nhập mục tiêu cần đạt được, kết quả kinh doanh hoặc trải nghiệm mong muốn.",
+      en: "Select or enter the desired business outcome, process goal, or experience."
+    },
+    placeholder: {
+      vi: "Ví dụ: giảm thời gian xử lý, tăng tỷ lệ hoàn tất hồ sơ, cải thiện trải nghiệm khách hàng...",
+      en: "Example: reduce handling time, increase completed applications, improve customer experience..."
+    },
+    suggestions: [
+      "Tự động hóa quy trình",
+      "Giảm TAT",
+      "Tăng trải nghiệm khách hàng",
+      "Giảm lỗi vận hành",
+      "Tăng kiểm soát rủi ro",
+      "Chuẩn hóa quy trình",
+      "Số hóa hồ sơ"
+    ],
     rows: 4
   },
   {
-    key: "scope",
-    labelKey: "inputBrief.scope",
-    helperKey: "inputBrief.scopeHelper",
-    placeholderKey: "inputBrief.scopePlaceholder",
-    rows: 4
-  },
-  {
-    key: "startEnd",
-    labelKey: "inputBrief.startEnd",
-    helperKey: "inputBrief.startEndHelper",
-    placeholderKey: "inputBrief.startEndPlaceholder",
+    key: "scopeBoundary",
+    label: { vi: "Phạm vi, bắt đầu và kết thúc", en: "Scope, start and end" },
+    helper: {
+      vi: "Chọn hoặc mô tả quy trình bắt đầu từ đâu, kết thúc khi nào, và phạm vi trong/ngoài.",
+      en: "Select or describe where the process starts, where it ends, and what is in or out of scope."
+    },
+    placeholder: {
+      vi: "Ví dụ: Từ lúc khách hàng bắt đầu yêu cầu đến khi nhận kết quả; không bao gồm hậu kiểm.",
+      en: "Example: From customer request initiation to final result; excludes post-review."
+    },
+    suggestions: [
+      "Từ lúc khách hàng bắt đầu yêu cầu đến khi nhận kết quả",
+      "Từ lúc RM tạo yêu cầu đến khi hoàn tất xử lý",
+      "Từ lúc hệ thống nhận hồ sơ đến khi phê duyệt/từ chối",
+      "End-to-end toàn bộ hành trình",
+      "Chỉ một sub-process"
+    ],
     rows: 4
   },
   {
     key: "actors",
-    labelKey: "inputBrief.actors",
-    helperKey: "inputBrief.actorsHelper",
-    placeholderKey: "inputBrief.actorsPlaceholder",
+    label: { vi: "Người tham gia / Actor", en: "Participants / Actors" },
+    helper: {
+      vi: "Chọn hoặc nhập các vai trò, phòng ban, hệ thống hoặc bên liên quan tham gia quy trình.",
+      en: "Select or enter roles, departments, systems, or stakeholders in the process."
+    },
+    placeholder: {
+      vi: "Ví dụ: Khách hàng, RM, DVKH, Ops Support, Credit Approver...",
+      en: "Example: Customer, RM, Customer Service, Ops Support, Credit Approver..."
+    },
+    suggestions: [
+      "Khách hàng",
+      "RM",
+      "DVKH",
+      "Ops Support",
+      "Credit Officer",
+      "Credit Approver",
+      "System",
+      "Third-party provider",
+      "Admin"
+    ],
     rows: 4
   },
   {
-    key: "relatedSystems",
-    labelKey: "inputBrief.relatedSystems",
-    helperKey: "inputBrief.relatedSystemsHelper",
-    placeholderKey: "inputBrief.relatedSystemsPlaceholder",
+    key: "customerFacingSystems",
+    label: {
+      vi: "Kênh/hệ thống khách hàng sử dụng",
+      en: "Customer-facing systems/channels"
+    },
+    helper: {
+      vi: "Các kênh hoặc hệ thống khách hàng nhìn thấy hoặc tương tác trực tiếp.",
+      en: "Channels or systems customers see or interact with directly."
+    },
+    placeholder: {
+      vi: "Ví dụ: Mobile App, Website, Efast / Portal, Email, SMS...",
+      en: "Example: Mobile App, Website, Efast / Portal, Email, SMS..."
+    },
+    suggestions: [
+      "Website",
+      "Mobile App",
+      "Internet Banking",
+      "Efast / Portal",
+      "Email",
+      "SMS",
+      "Call Center",
+      "Branch"
+    ],
+    rows: 3
+  },
+  {
+    key: "internalSystems",
+    label: { vi: "Hệ thống nội bộ", en: "Internal systems" },
+    helper: {
+      vi: "Các hệ thống nội bộ hỗ trợ xử lý, kiểm tra, lưu trữ hoặc workflow.",
+      en: "Internal systems used for processing, validation, storage, or workflow."
+    },
+    placeholder: {
+      vi: "Ví dụ: CRM, Core Banking, LOS, BPM/Workflow, ECM...",
+      en: "Example: CRM, Core Banking, LOS, BPM/Workflow, ECM..."
+    },
+    suggestions: [
+      "CRM",
+      "Core Banking",
+      "LOS",
+      "BPM/Workflow",
+      "ECM",
+      "DMS",
+      "S3 Bucket",
+      "Notification Service"
+    ],
+    rows: 3
+  },
+  {
+    key: "thirdPartySystems",
+    label: {
+      vi: "Hệ thống/nhà cung cấp bên thứ ba",
+      en: "Third-party systems/providers"
+    },
+    helper: {
+      vi: "Các bên ngoài tổ chức tham gia xác minh, dữ liệu, thanh toán hoặc tích hợp.",
+      en: "External providers used for verification, data, payment, or integrations."
+    },
+    placeholder: {
+      vi: "Ví dụ: CIC, eKYC provider, Tax authority, Business registry...",
+      en: "Example: CIC, eKYC provider, Tax authority, Business registry..."
+    },
+    suggestions: [
+      "CIC",
+      "Blacklist provider",
+      "eKYC provider",
+      "Tax authority",
+      "Business registry",
+      "Payment gateway"
+    ],
     rows: 3
   },
   {
     key: "dataDocuments",
-    labelKey: "inputBrief.dataDocuments",
-    helperKey: "inputBrief.dataDocumentsHelper",
-    placeholderKey: "inputBrief.dataDocumentsPlaceholder",
+    label: { vi: "Dữ liệu / hồ sơ / chứng từ", en: "Data / documents / records" },
+    helper: {
+      vi: "Các dữ liệu, hồ sơ, biểu mẫu, chứng từ hoặc kết quả xử lý dùng trong quy trình.",
+      en: "Data, documents, forms, records, or process outputs used in the process."
+    },
+    placeholder: {
+      vi: "Ví dụ: Hồ sơ khách hàng, CCCD/Hộ chiếu, báo cáo tài chính, kết quả CIC...",
+      en: "Example: customer file, ID/passport, financial statement, CIC result..."
+    },
+    suggestions: [
+      "Hồ sơ khách hàng",
+      "Giấy đăng ký kinh doanh",
+      "CCCD/Hộ chiếu",
+      "Báo cáo tài chính",
+      "Sao kê tài khoản",
+      "Hồ sơ vay",
+      "Kết quả CIC",
+      "Thông báo kết quả"
+    ],
     rows: 3
   }
 ];
+
+const primaryBriefFields = briefFields.slice(0, 4);
+const relatedBriefFields = briefFields.slice(4);
 
 function markGeneratedArtifactsStale() {
   window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
@@ -252,6 +397,9 @@ function normalizeSavedBrief(value: unknown): InputBriefFormState {
   const savedBrief = value as Partial<
     InputBriefFormState &
       StructuredInputBrief & {
+        scope?: string;
+        startEnd?: string;
+        relatedSystems?: string;
         systems?: string;
         processName?: string;
         startEvent?: string;
@@ -261,13 +409,18 @@ function normalizeSavedBrief(value: unknown): InputBriefFormState {
   const startEnd =
     savedBrief.startEnd ??
     [savedBrief.startEvent, savedBrief.endEvent].filter(Boolean).join("\n");
+  const relatedSystems = savedBrief.relatedSystems ?? savedBrief.systems ?? "";
 
   return {
     ...emptyBrief,
     ...savedBrief,
     processInfo: savedBrief.processInfo ?? savedBrief.processName ?? "",
-    startEnd,
-    relatedSystems: savedBrief.relatedSystems ?? savedBrief.systems ?? "",
+    scopeBoundary:
+      savedBrief.scopeBoundary ??
+      [savedBrief.scope, startEnd].filter(Boolean).join("\n"),
+    customerFacingSystems: savedBrief.customerFacingSystems ?? "",
+    internalSystems: savedBrief.internalSystems ?? relatedSystems,
+    thirdPartySystems: savedBrief.thirdPartySystems ?? "",
     dataDocuments: savedBrief.dataDocuments ?? ""
   };
 }
@@ -290,6 +443,7 @@ function formatLastModified(lastModified: number) {
 
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
+  const [briefMode, setBriefMode] = useState<BriefMode>("manual");
   const [intakeFiles, setIntakeFiles] = useState<IntakeFileMetadata[]>([]);
   const [selectedFileObjects, setSelectedFileObjects] = useState<File[]>([]);
   const [excelPreview, setExcelPreview] = useState<ExcelExtractionPreview | null>(
@@ -403,7 +557,21 @@ export function AIInputBriefPanel() {
   }, []);
 
   const filledFieldCount = useMemo(
-    () => briefFields.filter((field) => brief[field.key].trim()).length,
+    () =>
+      [
+        brief.processInfo,
+        brief.businessObjective,
+        brief.scopeBoundary,
+        brief.actors,
+        [
+          brief.customerFacingSystems,
+          brief.internalSystems,
+          brief.thirdPartySystems,
+          brief.dataDocuments
+        ]
+          .filter((value) => value.trim())
+          .join("\n")
+      ].filter((value) => value.trim()).length,
     [brief]
   );
 
@@ -415,9 +583,40 @@ export function AIInputBriefPanel() {
     setMessage("Brief đã được lưu local.");
   }
 
+  function toggleSuggestion(key: BriefField["key"], suggestion: string) {
+    setBrief((currentBrief) => {
+      const currentValues = currentBrief[key]
+        .split(/\r?\n/)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const hasSuggestion = currentValues.includes(suggestion);
+      const nextValues = hasSuggestion
+        ? currentValues.filter((entry) => entry !== suggestion)
+        : [...currentValues, suggestion];
+
+      return {
+        ...currentBrief,
+        [key]: nextValues.join("\n")
+      };
+    });
+    setMessage("Brief đã được lưu local.");
+  }
+
   function saveBrief() {
     window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
     setMessage("Brief đã được lưu local.");
+  }
+
+  function clearDraftPreview() {
+    setDraftTasks([]);
+    setDraftMeta(null);
+    setBlockingErrors([]);
+  }
+
+  function clearFileExtractionPreviews() {
+    setExcelPreview(null);
+    setDocxExtraction(null);
+    setPdfExtraction(null);
   }
 
   function handleFileSelection(files: FileList | null) {
@@ -433,22 +632,20 @@ export function AIInputBriefPanel() {
 
     setSelectedFileObjects(nextFiles);
     setIntakeFiles(nextFileMetadata);
-    setExcelPreview(null);
-    setDocxExtraction(null);
-    setPdfExtraction(null);
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     setMessage(
       unsupportedCount > 0
-        ? `${unsupportedCount} file khong duoc ho tro. Chi luu metadata, khong upload file.`
-        : `Da chon ${nextFileMetadata.length} file. Chi luu metadata, khong upload file.`
+        ? `${unsupportedCount} file không được hỗ trợ. Chỉ hỗ trợ .xlsx, .docx, .pdf. Không upload file.`
+        : `Đã chọn ${nextFileMetadata.length} file. File chỉ xử lý local trong browser, không upload.`
     );
   }
 
   function clearSelectedFiles() {
     setSelectedFileObjects([]);
     setIntakeFiles([]);
-    setExcelPreview(null);
-    setDocxExtraction(null);
-    setPdfExtraction(null);
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Da xoa file intake metadata local.");
   }
@@ -469,6 +666,8 @@ export function AIInputBriefPanel() {
 
   async function extractExcelFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     setMessage("Dang extract Excel local trong browser. Khong upload file.");
 
     try {
@@ -511,13 +710,14 @@ export function AIInputBriefPanel() {
 
   async function extractDocxFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     setMessage("Dang extract DOCX local trong browser. Khong upload file.");
 
     try {
       const result = await extractTextFromDocx(file);
 
       setDocxExtraction(result);
-      setExcelPreview(null);
       updateIntakeFileStatus(file, "extracted");
       setMessage(
         `Da extract DOCX local: ${result.rawText.length} ky tu, ${result.detectedSteps.length} step goi y.`
@@ -535,14 +735,14 @@ export function AIInputBriefPanel() {
 
   async function extractPdfFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     setMessage("Dang extract PDF text local trong browser. Khong upload file.");
 
     try {
       const result = await extractTextFromPdf(file);
 
       setPdfExtraction(result);
-      setExcelPreview(null);
-      setDocxExtraction(null);
       updateIntakeFileStatus(file, "extracted");
       setMessage(`Da extract PDF local: ${result.rawText.length} ky tu.`);
     } catch (error) {
@@ -611,14 +811,77 @@ export function AIInputBriefPanel() {
     );
   }
 
+  function generateDraftPtrFromPdfExtraction() {
+    if (!pdfExtraction) {
+      setMessage("Chưa có PDF extraction để tạo Draft PTR.");
+      return;
+    }
+
+    const pdfLines = pdfExtraction.rawText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const structuredBrief = parseStructuredProcessBriefFromForm({
+      processInfo: pdfLines[0] || "PDF extracted process",
+      businessObjective: pdfExtraction.rawText.slice(0, 1200),
+      scope: pdfExtraction.rawText.slice(0, 1200),
+      startEnd: [
+        pdfLines[0] || "Request received",
+        pdfLines[pdfLines.length - 1] || "Process completed"
+      ].join("\n"),
+      actors: "",
+      relatedSystems: "",
+      dataDocuments: "",
+      inputLanguage: locale,
+      outputLanguage: locale
+    });
+    const response = generateDraftProcessTaskRegister({
+      brief: structuredBrief,
+      currentLocale: locale
+    });
+    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
+    const nextResponse = {
+      ...response,
+      assumptions: [
+        ...response.assumptions,
+        "PDF text extraction is local and rule-based.",
+        "Generated Draft PTR must be reviewed before Apply."
+      ],
+      openQuestions:
+        pdfExtraction.warnings.length > 0
+          ? pdfExtraction.warnings
+          : ["Review extracted PDF text before applying to PTR."],
+      qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
+      sourceSummary: "Draft generated locally from PDF extracted text."
+    };
+
+    if (!draftQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Draft PTR từ PDF không đạt Quality Gate.");
+      return;
+    }
+
+    setBlockingErrors([]);
+    setDraftTasks(nextResponse.draftProcessTasks);
+    setDraftMeta(nextResponse);
+    setMessage(
+      `Đã tạo draft PTR từ PDF extraction: ${nextResponse.draftProcessTasks.length} dòng. Hãy review trước khi Apply.`
+    );
+  }
+
   function generateDraftPtr() {
     const structuredBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
-      scope: brief.scope,
-      startEnd: brief.startEnd,
+      scopeBoundary: brief.scopeBoundary,
       actors: brief.actors,
-      relatedSystems: brief.relatedSystems,
+      customerFacingSystems: brief.customerFacingSystems,
+      internalSystems: brief.internalSystems,
+      thirdPartySystems: brief.thirdPartySystems,
       dataDocuments: brief.dataDocuments,
       inputLanguage: locale,
       outputLanguage: locale
@@ -671,10 +934,11 @@ export function AIInputBriefPanel() {
     const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
-      scope: brief.scope,
-      startEnd: brief.startEnd,
+      scopeBoundary: brief.scopeBoundary,
       actors: brief.actors,
-      relatedSystems: brief.relatedSystems,
+      customerFacingSystems: brief.customerFacingSystems,
+      internalSystems: brief.internalSystems,
+      thirdPartySystems: brief.thirdPartySystems,
       dataDocuments: brief.dataDocuments,
       inputLanguage: locale,
       outputLanguage: locale
@@ -994,6 +1258,57 @@ export function AIInputBriefPanel() {
 
   const labels = previewLabels[locale];
 
+  function renderBriefField(field: BriefField) {
+    const selectedSuggestions = brief[field.key]
+      .split(/\r?\n/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    return (
+      <label
+        className="flex min-h-full flex-col rounded border border-slate-200 bg-white p-4"
+        key={field.key}
+      >
+        <span className="text-sm font-semibold text-slate-900">
+          {field.label[locale]}
+        </span>
+        <span className="mt-1 block text-sm leading-6 text-slate-600">
+          {field.helper[locale]}
+        </span>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {field.suggestions.map((suggestion) => {
+            const isSelected = selectedSuggestions.includes(suggestion);
+
+            return (
+              <button
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  isSelected
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
+                }`}
+                key={suggestion}
+                onClick={(event) => {
+                  event.preventDefault();
+                  toggleSuggestion(field.key, suggestion);
+                }}
+                type="button"
+              >
+                {suggestion}
+              </button>
+            );
+          })}
+        </div>
+        <textarea
+          className="mt-3 min-h-24 w-full flex-1 rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+          onChange={(event) => updateBriefField(field.key, event.target.value)}
+          placeholder={field.placeholder[locale]}
+          rows={field.rows}
+          value={brief[field.key]}
+        />
+      </label>
+    );
+  }
+
   return (
     <SessionFrame
       actions={
@@ -1033,30 +1348,58 @@ export function AIInputBriefPanel() {
       description={t("inputBrief.description", locale)}
       title={t("inputBrief.title", locale)}
     >
-      <div className="grid gap-4 lg:grid-cols-2">
-        {briefFields.map((field) => (
-          <label
-            className="block rounded border border-slate-200 bg-white p-4"
-            key={field.key}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[
+          { id: "manual" as const, label: "Manual Input", disabled: false },
+          { id: "import-file" as const, label: "Import File", disabled: false },
+          { id: "voice" as const, label: "Voice Input", disabled: true }
+        ].map((mode) => (
+          <button
+            className={`rounded border px-3 py-2 text-sm font-semibold ${
+              briefMode === mode.id
+                ? "border-slate-900 bg-slate-900 text-white"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            } disabled:cursor-not-allowed disabled:opacity-50`}
+            disabled={mode.disabled}
+            key={mode.id}
+            onClick={() => setBriefMode(mode.id)}
+            type="button"
           >
-            <span className="text-sm font-semibold text-slate-900">
-              {t(field.labelKey, locale)}
-            </span>
-            <span className="mt-1 block text-sm leading-6 text-slate-600">
-              {t(field.helperKey, locale)}
-            </span>
-            <textarea
-              className="mt-3 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
-              onChange={(event) => updateBriefField(field.key, event.target.value)}
-              placeholder={t(field.placeholderKey, locale)}
-              rows={field.rows}
-              value={brief[field.key]}
-            />
-          </label>
+            {mode.label}
+            {mode.disabled ? " - coming soon" : ""}
+          </button>
         ))}
       </div>
 
-      <div className="mt-4 rounded border border-slate-200 bg-white p-4">
+      {briefMode === "manual" ? (
+        <div className="grid gap-4">
+          <div className="grid gap-4 xl:grid-cols-4">
+            {primaryBriefFields.map(renderBriefField)}
+          </div>
+          <div className="rounded border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-slate-950">
+                Related information
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Split systems by audience and keep data/documents separate for a cleaner draft PTR.
+              </p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+              {relatedBriefFields.map(renderBriefField)}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {briefMode === "voice" ? (
+        <div className="rounded border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          Voice Input is coming soon. No recording, upload, or external processing is implemented in this step.
+        </div>
+      ) : null}
+
+      {briefMode === "import-file" ? (
+      <div className="rounded border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-950">
@@ -1082,13 +1425,19 @@ export function AIInputBriefPanel() {
             Select local files
           </span>
           <input
-            accept=".xlsx,.docx,.pdf,image/*"
+            accept=".xlsx,.docx,.pdf"
             className="mt-2 block w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
             multiple
             onChange={(event) => handleFileSelection(event.target.files)}
             type="file"
           />
         </label>
+
+        {intakeFiles.length > 0 && selectedFileObjects.length === 0 ? (
+          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất.
+          </p>
+        ) : null}
 
         {intakeFiles.length > 0 ? (
           <div className="mt-4 overflow-x-auto rounded border border-slate-200">
@@ -1140,7 +1489,7 @@ export function AIInputBriefPanel() {
                               void extractExcelFile(selectedFile);
                             } else {
                               setMessage(
-                                "Please re-select the Excel file before extracting. Browser file objects are not persisted after refresh."
+                                "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất."
                               );
                             }
                           }}
@@ -1164,7 +1513,7 @@ export function AIInputBriefPanel() {
                               void extractDocxFile(selectedFile);
                             } else {
                               setMessage(
-                                "Please re-select the DOCX file before extracting. Browser file objects are not persisted after refresh."
+                                "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất."
                               );
                             }
                           }}
@@ -1188,7 +1537,7 @@ export function AIInputBriefPanel() {
                               void extractPdfFile(selectedFile);
                             } else {
                               setMessage(
-                                "Please re-select the PDF file before extracting. Browser file objects are not persisted after refresh."
+                                "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất."
                               );
                             }
                           }}
@@ -1207,46 +1556,14 @@ export function AIInputBriefPanel() {
 
         {excelPreview ? (
           <div className="mt-4 rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-            <p className="font-semibold">Excel extraction preview</p>
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
-              <p>
-                Detected sheet:{" "}
-                <span className="font-semibold">{excelPreview.detectedSheet}</span>
-              </p>
-              <p>
-                Sheets:{" "}
-                <span className="font-semibold">
-                  {excelPreview.sheetNames.join(", ")}
-                </span>
-              </p>
-              <p>
-                Detected columns:{" "}
-                <span className="font-semibold">
-                  {excelPreview.detectedColumns.join(", ") || "None"}
-                </span>
-              </p>
-              <p>
-                Unmapped columns:{" "}
-                <span className="font-semibold">
-                  {excelPreview.unmappedColumns.join(", ") || "None"}
-                </span>
-              </p>
-            </div>
-            <div className="mt-3">
-              <p className="font-semibold">Mapped fields</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {Object.entries(excelPreview.mappedFields).map(
-                  ([fieldName, columnName]) => (
-                    <span
-                      className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-sky-900"
-                      key={fieldName}
-                    >
-                      {fieldName}: {columnName}
-                    </span>
-                  )
-                )}
-              </div>
-            </div>
+            <p className="font-semibold">Excel extraction summary</p>
+            <p className="mt-1">
+              Sheet {excelPreview.detectedSheet} produced{" "}
+              <span className="font-semibold">
+                {excelPreview.draftTasks.length}
+              </span>{" "}
+              draft PTR row(s). Draft Preview is shown below for review before Apply.
+            </p>
             {excelPreview.warnings.length > 0 ? (
               <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
                 <p className="font-semibold">Warnings</p>
@@ -1280,7 +1597,11 @@ export function AIInputBriefPanel() {
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="rounded border border-violet-200 bg-white p-3">
-                <p className="font-semibold">Structured extraction result</p>
+                <p className="font-semibold">Extraction summary</p>
+                <p className="mt-2">
+                  Extracted {docxExtraction.rawText.length} characters and{" "}
+                  {docxExtraction.detectedSteps.length} likely step(s).
+                </p>
                 <p className="mt-2">
                   Actors: {docxExtraction.detectedActors.join(", ") || "None"}
                 </p>
@@ -1319,22 +1640,26 @@ export function AIInputBriefPanel() {
                 </ul>
               </div>
             </div>
-
-            <div className="mt-3 rounded border border-violet-200 bg-white p-3">
-              <p className="font-semibold">Extracted raw text</p>
-              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-700">
-                {docxExtraction.rawText}
-              </pre>
-            </div>
           </div>
         ) : null}
 
         {pdfExtraction ? (
           <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-            <p className="font-semibold">PDF text extraction preview</p>
-            <p className="mt-1 text-emerald-900">
-              Basic text-based local extraction only. OCR is not implemented in this phase.
-            </p>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="font-semibold">PDF extraction summary</p>
+                <p className="mt-1 text-emerald-900">
+                  Extracted {pdfExtraction.rawText.length} characters with local text parsing. OCR is not implemented in this phase.
+                </p>
+              </div>
+              <button
+                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                onClick={generateDraftPtrFromPdfExtraction}
+                type="button"
+              >
+                Generate Draft PTR
+              </button>
+            </div>
             {pdfExtraction.warnings.length > 0 ? (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-emerald-900">
                 {pdfExtraction.warnings.map((warning) => (
@@ -1342,22 +1667,20 @@ export function AIInputBriefPanel() {
                 ))}
               </ul>
             ) : null}
-            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded border border-emerald-200 bg-white p-3 text-xs leading-5 text-slate-700">
-              {pdfExtraction.rawText}
-            </pre>
           </div>
         ) : null}
 
         {intakeFiles.some((file) => file.status === "unsupported") ? (
           <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            Unsupported file type detected. Supported formats are .xlsx, .docx, .pdf, and image files.
+            Unsupported file type detected. Supported formats are .xlsx, .docx, and .pdf. Voice/OCR/Image extraction is not supported yet.
           </p>
         ) : null}
       </div>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
         <span>
-          {filledFieldCount}/{briefFields.length}{" "}
+          {filledFieldCount}/5{" "}
           {t("inputBrief.sectionsFilled", locale)}
         </span>
         <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">

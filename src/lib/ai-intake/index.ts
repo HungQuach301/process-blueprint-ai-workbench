@@ -49,3 +49,10 @@ export { extractDraftTasksFromExcel } from "@/lib/ai-intake/excel-extractor";
 export type { DocxExtractionResult } from "@/lib/ai-intake/docx-extractor";
 
 export { extractTextFromDocx } from "@/lib/ai-intake/docx-extractor";
+
+export type { PdfExtractionResult } from "@/lib/ai-intake/pdf-extractor";
+
+export {
+  extractTextFromPdf,
+  PDF_TEXT_EXTRACTION_FAILURE_MESSAGE
+} from "@/lib/ai-intake/pdf-extractor";

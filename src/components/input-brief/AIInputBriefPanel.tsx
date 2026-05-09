@@ -12,13 +12,15 @@ import {
   createIntakeFileMetadata,
   extractDraftTasksFromExcel,
   extractTextFromDocx,
+  extractTextFromPdf,
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
   validateDraftProcessTaskRegister,
   type DocxExtractionResult,
   type DraftPTRGenerationResult,
   type ExcelExtractionPreview,
-  type IntakeFileMetadata
+  type IntakeFileMetadata,
+  type PdfExtractionResult
 } from "@/lib/ai-intake";
 import type { StructuredProcessBrief } from "@/lib/ai-intake";
 import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
@@ -295,6 +297,9 @@ export function AIInputBriefPanel() {
   );
   const [docxExtraction, setDocxExtraction] =
     useState<DocxExtractionResult | null>(null);
+  const [pdfExtraction, setPdfExtraction] = useState<PdfExtractionResult | null>(
+    null
+  );
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
@@ -430,6 +435,7 @@ export function AIInputBriefPanel() {
     setIntakeFiles(nextFileMetadata);
     setExcelPreview(null);
     setDocxExtraction(null);
+    setPdfExtraction(null);
     setMessage(
       unsupportedCount > 0
         ? `${unsupportedCount} file khong duoc ho tro. Chi luu metadata, khong upload file.`
@@ -442,6 +448,7 @@ export function AIInputBriefPanel() {
     setIntakeFiles([]);
     setExcelPreview(null);
     setDocxExtraction(null);
+    setPdfExtraction(null);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Da xoa file intake metadata local.");
   }
@@ -522,6 +529,29 @@ export function AIInputBriefPanel() {
         error instanceof Error
           ? `DOCX extraction failed: ${error.message}`
           : "DOCX extraction failed."
+      );
+    }
+  }
+
+  async function extractPdfFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    setMessage("Dang extract PDF text local trong browser. Khong upload file.");
+
+    try {
+      const result = await extractTextFromPdf(file);
+
+      setPdfExtraction(result);
+      setExcelPreview(null);
+      setDocxExtraction(null);
+      updateIntakeFileStatus(file, "extracted");
+      setMessage(`Da extract PDF local: ${result.rawText.length} ky tu.`);
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setPdfExtraction(null);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Không thể trích xuất text từ file PDF này. Vui lòng paste nội dung, dùng Word/Excel, hoặc chờ tính năng OCR ở phiên bản sau."
       );
     }
   }
@@ -953,6 +983,7 @@ export function AIInputBriefPanel() {
     setSelectedFileObjects([]);
     setExcelPreview(null);
     setDocxExtraction(null);
+    setPdfExtraction(null);
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
@@ -1141,6 +1172,30 @@ export function AIInputBriefPanel() {
                         >
                           Extract
                         </button>
+                      ) : file.fileName.toLowerCase().endsWith(".pdf") &&
+                        file.status !== "unsupported" ? (
+                        <button
+                          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={file.status === "pending-extraction"}
+                          onClick={() => {
+                            const selectedFile = selectedFileObjects.find(
+                              (item) =>
+                                item.name === file.fileName &&
+                                item.lastModified === file.lastModified
+                            );
+
+                            if (selectedFile) {
+                              void extractPdfFile(selectedFile);
+                            } else {
+                              setMessage(
+                                "Please re-select the PDF file before extracting. Browser file objects are not persisted after refresh."
+                              );
+                            }
+                          }}
+                          type="button"
+                        >
+                          Extract
+                        </button>
                       ) : null}
                     </td>
                   </tr>
@@ -1271,6 +1326,25 @@ export function AIInputBriefPanel() {
                 {docxExtraction.rawText}
               </pre>
             </div>
+          </div>
+        ) : null}
+
+        {pdfExtraction ? (
+          <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+            <p className="font-semibold">PDF text extraction preview</p>
+            <p className="mt-1 text-emerald-900">
+              Basic text-based local extraction only. OCR is not implemented in this phase.
+            </p>
+            {pdfExtraction.warnings.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-emerald-900">
+                {pdfExtraction.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : null}
+            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded border border-emerald-200 bg-white p-3 text-xs leading-5 text-slate-700">
+              {pdfExtraction.rawText}
+            </pre>
           </div>
         ) : null}
 

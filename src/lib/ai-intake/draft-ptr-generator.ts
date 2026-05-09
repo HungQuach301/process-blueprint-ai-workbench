@@ -17,6 +17,7 @@ export type DraftPTRGenerationResult = {
   draftProcessTasks: ProcessTask[];
   assumptions: string[];
   openQuestions: string[];
+  qualityGateWarnings?: string[];
   sourceSummary: string;
   confidence: DraftPTRConfidence;
   inputLanguage: IntakeLanguage;

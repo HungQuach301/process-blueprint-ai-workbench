@@ -6,15 +6,25 @@ export type ModelProvider =
   | "local-model"
   | "no-ai";
 
+export type ModelProviderMode = ModelProvider;
+
 export type DataUsageMode =
   | "local-only"
   | "cloud-processing"
   | "no-training"
   | "organization-private-learning";
 
+export type DefaultModelCapability = "basic" | "advanced" | "reasoning";
+
+export type ProviderStatus = "configured" | "not configured" | "mock-only";
+
 export type AIProviderSettings = {
-  provider: ModelProvider;
+  providerMode: ModelProviderMode;
   dataUsageMode: DataUsageMode;
+  defaultModelCapability: DefaultModelCapability;
+  allowCloudAI: boolean;
+  requireApprovalForAIOutput: boolean;
+  provider?: ModelProvider;
   modelName?: string;
   organizationId?: string;
   tenantId?: string;

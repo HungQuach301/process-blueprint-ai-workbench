@@ -62,7 +62,7 @@ export function createMockAIResponseMeta(
 
   return {
     requestId,
-    provider: context.providerSettings.provider,
+    provider: context.providerSettings.providerMode,
     dataUsageMode: context.providerSettings.dataUsageMode,
     executionMode: "mock",
     externalApiCalled: false,
@@ -71,7 +71,7 @@ export function createMockAIResponseMeta(
     audit: {
       requestId,
       scope: context.scope,
-      provider: context.providerSettings.provider,
+      provider: context.providerSettings.providerMode,
       dataUsageMode: context.providerSettings.dataUsageMode,
       executionMode: "mock",
       timestamp,

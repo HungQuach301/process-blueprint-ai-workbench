@@ -2,8 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import {
+  confirmRealAICallIfNeeded,
+  logAICallAudit
+} from "@/lib/ai/ai-governance";
 import type { ProcessTask } from "@/lib/models/process-task";
-import { runMockAIQA } from "@/lib/ai/ai-qa-service";
+import type { TemplateProfile } from "@/lib/models/template-profile";
+import {
+  sampleBpmnTemplateProfile,
+  sampleServiceBlueprintTemplateProfile
+} from "@/lib/sample-data/sme-online-loan";
 import {
   getRecommendationChangePreview
 } from "@/lib/qa/apply-recommendation";
@@ -25,6 +33,12 @@ import type {
   QaIssue,
   QaSeverity
 } from "@/lib/qa/task-register-rules";
+
+const TEMPLATES_STORAGE_KEY =
+  "process-blueprint-ai-workbench:template-profiles";
+const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
+const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
+const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
 
 type QAPanelProps = {
   issues: QaIssue[];
@@ -126,6 +140,39 @@ function createRecommendationFeedback(
   };
 }
 
+function readSelectedTemplateProfiles() {
+  let templateProfiles: TemplateProfile[] = [
+    sampleBpmnTemplateProfile,
+    sampleServiceBlueprintTemplateProfile
+  ];
+
+  try {
+    const savedTemplates = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
+
+    if (savedTemplates) {
+      const parsedTemplates = JSON.parse(savedTemplates);
+
+      if (Array.isArray(parsedTemplates)) {
+        templateProfiles = parsedTemplates as TemplateProfile[];
+      }
+    }
+  } catch {
+    templateProfiles = [sampleBpmnTemplateProfile, sampleServiceBlueprintTemplateProfile];
+  }
+
+  const selectedD01TemplateId =
+    window.localStorage.getItem(D01_STORAGE_KEY) ?? sampleBpmnTemplateProfile.id;
+  const selectedD02TemplateId =
+    window.localStorage.getItem(D02_STORAGE_KEY) ??
+    sampleServiceBlueprintTemplateProfile.id;
+  const selectedTemplates = templateProfiles.filter(
+    (template) =>
+      template.id === selectedD01TemplateId || template.id === selectedD02TemplateId
+  );
+
+  return selectedTemplates.length > 0 ? selectedTemplates : templateProfiles;
+}
+
 export function QAPanel({
   issues,
   processTasks,
@@ -136,6 +183,8 @@ export function QAPanel({
 }: QAPanelProps) {
   const [aiQaIssues, setAiQaIssues] = useState<QaIssue[]>([]);
   const [aiQaMessage, setAiQaMessage] = useState("");
+  const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
+  const [isRunningAIQA, setIsRunningAIQA] = useState(false);
   const [pendingRecommendation, setPendingRecommendation] = useState<{
     issue: QaIssue;
     recommendation: QARecommendation;
@@ -149,6 +198,35 @@ export function QAPanel({
     setAiQaIssues([]);
     setAiQaMessage("");
   }, [processTasks]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAIQAMode() {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "GET"
+        });
+        const data = (await response.json()) as {
+          realAIQAEnabled?: boolean;
+        };
+
+        if (active) {
+          setRealAIQAEnabled(data.realAIQAEnabled === true);
+        }
+      } catch {
+        if (active) {
+          setRealAIQAEnabled(false);
+        }
+      }
+    }
+
+    loadAIQAMode();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const displayIssues = useMemo(
     () => [...aiQaIssues, ...issues],
@@ -271,46 +349,125 @@ export function QAPanel({
     clearRecommendationFeedback();
   }
 
-  function runMockAiQa() {
-    const response = runMockAIQA({
-      context: {
-        scope: "qa",
-        executionMode: "mock",
-        providerSettings: {
-          provider: "no-ai",
-          dataUsageMode: "local-only"
-        },
-        processTasks,
-        requestId: `mock-ai-qa-${Date.now()}`
-      },
-      processTasks
-    });
+  async function runAiQa() {
+    if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
+      setAiQaMessage("Da huy goi Real AI QA. Khong co recommendation nao duoc tao.");
+      return;
+    }
 
-    const recommendations = response.recommendations;
-
-    setAiQaIssues(
-      recommendations.length > 0
-        ? [
-            {
-              id: `mock-ai-qa-${response.meta.requestId}`,
-              issueCode: "SERVICE_BLUEPRINT_CARD_READINESS",
-              stepId: recommendations[0].targetStepIds[0] ?? processTasks[0]?.stepId ?? "AI",
-              taskName: "Mock AI QA recommendation",
-              severity: "suggestion",
-              message:
-                "Mock AI QA found a low-risk review recommendation using the existing Recommendation Engine schema.",
-              suggestedFix:
-                "Review the AI recommendation, preview the operation, then apply only after confirmation.",
-              recommendations
-            }
-          ]
-        : []
-    );
+    setIsRunningAIQA(true);
     setAiQaMessage(
-      recommendations.length > 0
-        ? `Mock AI QA returned ${recommendations.length} recommendation(s). No external API call was made.`
-        : "Mock AI QA did not return recommendations for the current PTR."
+      realAIQAEnabled
+        ? "Running real AI QA through the server route..."
+        : "Running mock AI QA. Real AI QA is disabled."
     );
+
+    try {
+      const routeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          payload: {
+            processTasks,
+            qaIssues: issues,
+            templateProfiles: readSelectedTemplateProfiles()
+          }
+        })
+      });
+      const data = (await routeResponse.json()) as {
+        ok?: boolean;
+        mode?: "mock" | "provider-backed";
+        result?: {
+          recommendations?: QARecommendation[];
+        };
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+          realAIQAEnabled?: boolean;
+        };
+      };
+
+      if (!routeResponse.ok || !data.ok) {
+        const errorMessage = [
+          data.error || "AI QA failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: realAIQAEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
+        });
+        setAiQaIssues([]);
+        setAiQaMessage(errorMessage);
+        return;
+      }
+
+      const recommendations = (data.result?.recommendations ?? []).map(
+        (recommendation) => ({
+          ...recommendation,
+          source: "ai" as const,
+          requiresConfirmation: true
+        })
+      );
+
+      setAiQaIssues(
+        recommendations.length > 0
+          ? [
+              {
+                id: `ai-process-qa-${Date.now()}`,
+                issueCode: "SERVICE_BLUEPRINT_CARD_READINESS",
+                stepId:
+                  recommendations[0].targetStepIds[0] ??
+                  processTasks[0]?.stepId ??
+                  "AI",
+                taskName:
+                  data.mode === "provider-backed"
+                    ? "AI QA recommendation"
+                    : "Mock AI QA recommendation",
+                severity: "suggestion",
+                message:
+                  "AI QA returned recommendation(s) using the existing Recommendation Engine schema.",
+                suggestedFix:
+                  "Review the AI recommendation, preview the operation, then apply only after confirmation.",
+                recommendations
+              }
+            ]
+          : []
+      );
+      setAiQaMessage(
+        recommendations.length > 0
+          ? `${data.mode === "provider-backed" ? "Real" : "Mock"} AI QA returned ${recommendations.length} recommendation(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
+          : "AI QA did not return recommendations for the current PTR."
+      );
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_SKILL_ID,
+        success: true,
+        realAIEnabled: data.mode === "provider-backed",
+        externalApiCalled: data.meta?.externalApiCalled === true,
+        extraMetadata: {
+          recommendationCount: recommendations.length
+        }
+      });
+    } catch {
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_SKILL_ID,
+        success: false,
+        errorMessage: "AI QA request failed.",
+        realAIEnabled: realAIQAEnabled,
+        externalApiCalled: false
+      });
+      setAiQaIssues([]);
+      setAiQaMessage("AI QA request failed. No recommendation was applied.");
+    } finally {
+      setIsRunningAIQA(false);
+    }
   }
 
   function rejectSingleRecommendation(reason: string) {
@@ -400,10 +557,15 @@ export function QAPanel({
         <div className="flex flex-wrap gap-2">
         <button
           className="w-fit rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
-          onClick={runMockAiQa}
+          disabled={isRunningAIQA}
+          onClick={runAiQa}
           type="button"
         >
-          Run mock AI QA
+          {isRunningAIQA
+            ? "Running AI QA..."
+            : realAIQAEnabled
+              ? "Run real AI QA"
+              : "Run mock AI QA"}
         </button>
         <button
           className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"

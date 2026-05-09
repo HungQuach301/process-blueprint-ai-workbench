@@ -40,3 +40,27 @@ export type SkillDefinition = {
   auditLevel: SkillAuditLevel;
   tier: SkillTier;
 };
+
+export type SkillPipelineStepId =
+  | "structured-brief-normalization"
+  | "file-extraction"
+  | "draft-ptr-generation"
+  | "draft-ptr-qa"
+  | "recommendation-generation"
+  | "human-checkpoint";
+
+export type SkillPipelineStep = {
+  id: SkillPipelineStepId;
+  description: string;
+  optional?: boolean;
+  humanCheckpoint?: boolean;
+};
+
+export type SkillPipelineDefinition = {
+  id: string;
+  version: string;
+  description: string;
+  steps: SkillPipelineStep[];
+  appliesToSkillIds: string[];
+  executesExternalAI: boolean;
+};

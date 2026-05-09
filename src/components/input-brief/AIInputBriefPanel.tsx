@@ -2,17 +2,39 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import {
+  confirmRealAICallIfNeeded,
+  logAICallAudit
+} from "@/lib/ai/ai-governance";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
+  createIntakeFileMetadata,
+  extractDraftTasksFromExcel,
+  extractTextFromDocx,
+  extractTextFromPdf,
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
-  type DraftPTRGenerationResult
+  validateDraftProcessTaskRegister,
+  type DocxExtractionResult,
+  type DraftPTRGenerationResult,
+  type ExcelExtractionPreview,
+  type IntakeFileMetadata,
+  type PdfExtractionResult
 } from "@/lib/ai-intake";
+import type { StructuredProcessBrief } from "@/lib/ai-intake";
 import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
+import {
+  formatQualityGateErrorsVi,
+  formatQualityGateWarningsVi,
+  runBriefQualityGate,
+  runDraftProcessTaskRegisterQualityGate
+} from "@/lib/quality-engine";
 
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
+const FILE_METADATA_STORAGE_KEY =
+  "process-blueprint-ai-workbench:input-brief-file-metadata";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
 const D01_GENERATED_STATUS_KEY =
@@ -21,6 +43,15 @@ const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
+const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
+
+const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
+  selected: "border-slate-200 bg-slate-50 text-slate-700",
+  "pending-extraction": "border-amber-200 bg-amber-50 text-amber-800",
+  extracted: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  unsupported: "border-red-200 bg-red-50 text-red-800",
+  failed: "border-red-200 bg-red-50 text-red-800"
+};
 
 const previewLabels = {
   vi: {
@@ -28,6 +59,7 @@ const previewLabels = {
     confidence: "Độ tin cậy",
     assumptions: "Giả định",
     openQuestions: "Câu hỏi cần làm rõ",
+    qualityGateWarnings: "Canh bao Quality Gate",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -46,6 +78,7 @@ const previewLabels = {
     confidence: "Confidence",
     assumptions: "Assumptions",
     openQuestions: "Open questions",
+    qualityGateWarnings: "Quality Gate warnings",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -239,12 +272,42 @@ function normalizeSavedBrief(value: unknown): InputBriefFormState {
   };
 }
 
+function formatFileSize(fileSize: number) {
+  if (fileSize < 1024) {
+    return `${fileSize} B`;
+  }
+
+  if (fileSize < 1024 * 1024) {
+    return `${(fileSize / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(fileSize / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatLastModified(lastModified: number) {
+  return new Date(lastModified).toLocaleString();
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
+  const [intakeFiles, setIntakeFiles] = useState<IntakeFileMetadata[]>([]);
+  const [selectedFileObjects, setSelectedFileObjects] = useState<File[]>([]);
+  const [excelPreview, setExcelPreview] = useState<ExcelExtractionPreview | null>(
+    null
+  );
+  const [docxExtraction, setDocxExtraction] =
+    useState<DocxExtractionResult | null>(null);
+  const [pdfExtraction, setPdfExtraction] = useState<PdfExtractionResult | null>(
+    null
+  );
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
+  const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
   const [locale, setActiveLocale] = useState<Locale>("vi");
+  const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [aiModeLoaded, setAiModeLoaded] = useState(false);
+  const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -279,6 +342,66 @@ export function AIInputBriefPanel() {
     window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
   }, [brief]);
 
+  useEffect(() => {
+    const savedFileMetadata = window.localStorage.getItem(
+      FILE_METADATA_STORAGE_KEY
+    );
+
+    if (!savedFileMetadata) {
+      return;
+    }
+
+    try {
+      const parsedFileMetadata = JSON.parse(savedFileMetadata);
+
+      if (Array.isArray(parsedFileMetadata)) {
+        setIntakeFiles(parsedFileMetadata as IntakeFileMetadata[]);
+      }
+    } catch {
+      setIntakeFiles([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      FILE_METADATA_STORAGE_KEY,
+      JSON.stringify(intakeFiles)
+    );
+  }, [intakeFiles]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAIMode() {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "GET"
+        });
+        const data = (await response.json()) as {
+          realAIEnabled?: boolean;
+        };
+
+        if (active) {
+          setRealAIEnabled(data.realAIEnabled === true);
+        }
+      } catch {
+        if (active) {
+          setRealAIEnabled(false);
+        }
+      } finally {
+        if (active) {
+          setAiModeLoaded(true);
+        }
+      }
+    }
+
+    loadAIMode();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const filledFieldCount = useMemo(
     () => briefFields.filter((field) => brief[field.key].trim()).length,
     [brief]
@@ -297,6 +420,197 @@ export function AIInputBriefPanel() {
     setMessage("Brief đã được lưu local.");
   }
 
+  function handleFileSelection(files: FileList | null) {
+    if (!files) {
+      return;
+    }
+
+    const nextFiles = Array.from(files);
+    const nextFileMetadata = nextFiles.map(createIntakeFileMetadata);
+    const unsupportedCount = nextFileMetadata.filter(
+      (file) => file.status === "unsupported"
+    ).length;
+
+    setSelectedFileObjects(nextFiles);
+    setIntakeFiles(nextFileMetadata);
+    setExcelPreview(null);
+    setDocxExtraction(null);
+    setPdfExtraction(null);
+    setMessage(
+      unsupportedCount > 0
+        ? `${unsupportedCount} file khong duoc ho tro. Chi luu metadata, khong upload file.`
+        : `Da chon ${nextFileMetadata.length} file. Chi luu metadata, khong upload file.`
+    );
+  }
+
+  function clearSelectedFiles() {
+    setSelectedFileObjects([]);
+    setIntakeFiles([]);
+    setExcelPreview(null);
+    setDocxExtraction(null);
+    setPdfExtraction(null);
+    window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
+    setMessage("Da xoa file intake metadata local.");
+  }
+
+  function updateIntakeFileStatus(
+    file: File,
+    status: IntakeFileMetadata["status"]
+  ) {
+    setIntakeFiles((currentFiles) =>
+      currentFiles.map((currentFile) =>
+        currentFile.fileName === file.name &&
+        currentFile.lastModified === file.lastModified
+          ? { ...currentFile, status }
+          : currentFile
+      )
+    );
+  }
+
+  async function extractExcelFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    setMessage("Dang extract Excel local trong browser. Khong upload file.");
+
+    try {
+      const preview = await extractDraftTasksFromExcel(file);
+
+      setExcelPreview(preview);
+      setDraftTasks(preview.draftTasks);
+      setDraftMeta({
+        draftProcessTasks: preview.draftTasks,
+        assumptions: [
+          "Draft was extracted locally from an Excel workbook.",
+          "Rows are not applied until the user confirms Apply."
+        ],
+        openQuestions:
+          preview.warnings.length > 0
+            ? preview.warnings
+            : ["Review extracted rows before applying to PTR."],
+        qualityGateWarnings: preview.warnings,
+        sourceSummary: `Excel extraction from ${file.name}, sheet ${preview.detectedSheet}.`,
+        confidence: preview.warnings.length > 0 ? "medium" : "high",
+        inputLanguage: locale,
+        outputLanguage: locale
+      });
+      updateIntakeFileStatus(file, "extracted");
+      setMessage(
+        `Da extract ${preview.draftTasks.length} draft task tu sheet ${preview.detectedSheet}. Hay review truoc khi Apply.`
+      );
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setExcelPreview(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setMessage(
+        error instanceof Error
+          ? `Excel extraction failed: ${error.message}`
+          : "Excel extraction failed."
+      );
+    }
+  }
+
+  async function extractDocxFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    setMessage("Dang extract DOCX local trong browser. Khong upload file.");
+
+    try {
+      const result = await extractTextFromDocx(file);
+
+      setDocxExtraction(result);
+      setExcelPreview(null);
+      updateIntakeFileStatus(file, "extracted");
+      setMessage(
+        `Da extract DOCX local: ${result.rawText.length} ky tu, ${result.detectedSteps.length} step goi y.`
+      );
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setDocxExtraction(null);
+      setMessage(
+        error instanceof Error
+          ? `DOCX extraction failed: ${error.message}`
+          : "DOCX extraction failed."
+      );
+    }
+  }
+
+  async function extractPdfFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    setMessage("Dang extract PDF text local trong browser. Khong upload file.");
+
+    try {
+      const result = await extractTextFromPdf(file);
+
+      setPdfExtraction(result);
+      setExcelPreview(null);
+      setDocxExtraction(null);
+      updateIntakeFileStatus(file, "extracted");
+      setMessage(`Da extract PDF local: ${result.rawText.length} ky tu.`);
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setPdfExtraction(null);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Không thể trích xuất text từ file PDF này. Vui lòng paste nội dung, dùng Word/Excel, hoặc chờ tính năng OCR ở phiên bản sau."
+      );
+    }
+  }
+
+  function generateDraftPtrFromDocxExtraction() {
+    if (!docxExtraction) {
+      setMessage("Chua co DOCX extraction de tao Draft PTR.");
+      return;
+    }
+
+    const structuredBrief = parseStructuredProcessBriefFromForm({
+      processInfo:
+        docxExtraction.detectedSteps[0] ||
+        docxExtraction.rawText.split(/\r?\n/).find(Boolean) ||
+        "DOCX extracted process",
+      businessObjective: docxExtraction.rawText.slice(0, 1200),
+      scope: docxExtraction.rawText.slice(0, 1200),
+      startEnd: [
+        docxExtraction.detectedSteps[0] || "Request received",
+        docxExtraction.detectedSteps[docxExtraction.detectedSteps.length - 1] ||
+          "Process completed"
+      ].join("\n"),
+      actors: docxExtraction.detectedActors.join("\n"),
+      relatedSystems: docxExtraction.detectedSystems.join("\n"),
+      dataDocuments: docxExtraction.detectedDataObjects.join("\n"),
+      inputLanguage: locale,
+      outputLanguage: locale
+    });
+    const response = generateDraftProcessTaskRegister({
+      brief: structuredBrief,
+      currentLocale: locale
+    });
+    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
+    const nextResponse = {
+      ...response,
+      assumptions: [...response.assumptions, ...docxExtraction.assumptions],
+      openQuestions: docxExtraction.openQuestions,
+      qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
+      sourceSummary: "Draft generated locally from DOCX extracted text."
+    };
+
+    if (!draftQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Draft PTR tu DOCX khong dat Quality Gate.");
+      return;
+    }
+
+    setBlockingErrors([]);
+    setDraftTasks(nextResponse.draftProcessTasks);
+    setDraftMeta(nextResponse);
+    setMessage(
+      `Da tao draft PTR tu DOCX extraction: ${nextResponse.draftProcessTasks.length} dong. Hay review truoc khi Apply.`
+    );
+  }
+
   function generateDraftPtr() {
     const structuredBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
@@ -309,16 +623,313 @@ export function AIInputBriefPanel() {
       inputLanguage: locale,
       outputLanguage: locale
     });
+    const briefQualityGate = runBriefQualityGate(structuredBrief);
+
+    if (!briefQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(briefQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Brief chua du thong tin de tao Draft PTR.");
+      return;
+    }
+
     const response = generateDraftProcessTaskRegister({
       brief: structuredBrief,
       currentLocale: locale
     });
+    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
 
-    setDraftTasks(response.draftProcessTasks);
-    setDraftMeta(response);
+    if (!draftQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Draft PTR khong dat Quality Gate.");
+      return;
+    }
+
+    const nextResponse = {
+      ...response,
+      qualityGateWarnings: [
+        ...formatQualityGateWarningsVi(briefQualityGate),
+        ...formatQualityGateWarningsVi(draftQualityGate)
+      ]
+    };
+
+    setBlockingErrors([]);
+    setDraftTasks(nextResponse.draftProcessTasks);
+    setDraftMeta(nextResponse);
     setMessage(
       `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
     );
+  }
+
+  async function generateDraftPtrWithAI() {
+    const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
+      processInfo: brief.processInfo,
+      businessObjective: brief.businessObjective,
+      scope: brief.scope,
+      startEnd: brief.startEnd,
+      actors: brief.actors,
+      relatedSystems: brief.relatedSystems,
+      dataDocuments: brief.dataDocuments,
+      inputLanguage: locale,
+      outputLanguage: locale
+    });
+    const generationMode = realAIEnabled ? "real-ai" : "mock";
+    const briefQualityGate = runBriefQualityGate(structuredBrief);
+
+    if (!briefQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(briefQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Brief chua du thong tin de tao Draft PTR.");
+      return;
+    }
+
+    if (!confirmRealAICallIfNeeded(realAIEnabled)) {
+      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      return;
+    }
+
+    saveAuditLogEntry({
+      action: "generate_ai_draft",
+      status: "success",
+      summary: `Started ${generationMode} draft generation from Input Brief.`,
+      metadata: {
+        mode: generationMode,
+        realAIEnabled,
+        sectionsFilled: filledFieldCount
+      }
+    });
+
+    if (!realAIEnabled) {
+      const response = generateDraftProcessTaskRegister({
+        brief: structuredBrief,
+        currentLocale: locale
+      });
+      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
+
+      if (!draftQualityGate.canPreview) {
+        const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(errors);
+        setMessage("Draft PTR khong dat Quality Gate.");
+        return;
+      }
+
+      const nextResponse = {
+        ...response,
+        qualityGateWarnings: [
+          ...formatQualityGateWarningsVi(briefQualityGate),
+          ...formatQualityGateWarningsVi(draftQualityGate)
+        ]
+      };
+
+      setBlockingErrors([]);
+      setDraftTasks(nextResponse.draftProcessTasks);
+      setDraftMeta(nextResponse);
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "success",
+        summary: "Generated draft PTR with local mock mode.",
+        metadata: {
+          mode: "mock",
+          externalApiCalled: false,
+          draftRowCount: response.draftProcessTasks.length
+        }
+      });
+      logAICallAudit({
+        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        success: true,
+        realAIEnabled: false,
+        externalApiCalled: false,
+        extraMetadata: {
+          draftRowCount: response.draftProcessTasks.length
+        }
+      });
+      setMessage(
+        `Mock mode: Ä‘Ã£ táº¡o draft PTR local ${response.draftProcessTasks.length} dÃ²ng. KhÃ´ng gá»i external API.`
+      );
+      return;
+    }
+
+    setIsGeneratingWithAI(true);
+    setMessage("Real AI mode: Ä‘ang gá»i server-side AI provider...");
+
+    try {
+      const routeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          payload: structuredBrief
+        })
+      });
+      const data = (await routeResponse.json()) as {
+        ok?: boolean;
+        result?: unknown;
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+          validationPassed?: boolean;
+        };
+      };
+
+      if (!routeResponse.ok || !data.ok) {
+        const errorMessage = [
+          data.error || "AI draft generation failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: "real-ai",
+            externalApiCalled: data.meta?.externalApiCalled ?? true,
+            validationPassed: data.meta?.validationPassed ?? false
+          }
+        });
+        logAICallAudit({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: true,
+          externalApiCalled: data.meta?.externalApiCalled ?? true
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(data.validationErrors ?? [errorMessage]);
+        setMessage(errorMessage);
+        return;
+      }
+
+      const validation = validateDraftProcessTaskRegister(data.result);
+
+      if (!validation.ok) {
+        const errorMessage = `AI output rejected: ${validation.errors.join(" ")}`;
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: "real-ai",
+            externalApiCalled: data.meta?.externalApiCalled ?? true,
+            validationPassed: false
+          }
+        });
+        logAICallAudit({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: true,
+          externalApiCalled: data.meta?.externalApiCalled ?? true
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(validation.errors);
+        setMessage(errorMessage);
+        return;
+      }
+
+      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(validation.value);
+
+      if (!draftQualityGate.canPreview) {
+        const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: "Draft PTR khong dat Quality Gate.",
+          metadata: {
+            mode: "real-ai",
+            externalApiCalled: data.meta?.externalApiCalled ?? true,
+            validationPassed: true
+          }
+        });
+        logAICallAudit({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          success: false,
+          errorMessage: "Draft PTR khong dat Quality Gate.",
+          realAIEnabled: true,
+          externalApiCalled: data.meta?.externalApiCalled ?? true
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(errors);
+        setMessage("Draft PTR khong dat Quality Gate.");
+        return;
+      }
+
+      const nextDraftMeta = {
+        ...validation.value,
+        qualityGateWarnings: [
+          ...(validation.value.qualityGateWarnings ?? []),
+          ...formatQualityGateWarningsVi(draftQualityGate)
+        ]
+      };
+
+      setBlockingErrors([]);
+      setDraftTasks(nextDraftMeta.draftProcessTasks);
+      setDraftMeta(nextDraftMeta);
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "success",
+        summary: "Generated schema-valid draft PTR with real AI mode.",
+        metadata: {
+          mode: "real-ai",
+          externalApiCalled: data.meta?.externalApiCalled ?? true,
+          validationPassed: true,
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
+      logAICallAudit({
+        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        success: true,
+        realAIEnabled: true,
+        externalApiCalled: data.meta?.externalApiCalled ?? true,
+        extraMetadata: {
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
+      setMessage(
+        `Real AI mode: Ä‘Ã£ táº¡o draft PTR há»£p lá»‡ ${validation.value.draftProcessTasks.length} dÃ²ng. HÃ£y review trÆ°á»›c khi Apply.`
+      );
+    } catch {
+      logAICallAudit({
+        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        success: false,
+        errorMessage: "AI draft generation request failed.",
+        realAIEnabled: true,
+        externalApiCalled: false
+      });
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "failure",
+        summary: "AI draft generation request failed.",
+        metadata: {
+          mode: "real-ai",
+          externalApiCalled: false,
+          validationPassed: false
+        }
+      });
+      setMessage("AI draft generation request failed. Draft was not applied.");
+    } finally {
+      setIsGeneratingWithAI(false);
+    }
   }
 
   function applyDraftPtr(mode: "replace" | "append") {
@@ -362,14 +973,22 @@ export function AIInputBriefPanel() {
   function cancelDraft() {
     setDraftTasks([]);
     setDraftMeta(null);
+    setBlockingErrors([]);
     setMessage("Đã hủy draft preview.");
   }
 
   function resetBrief() {
     setBrief(emptyBrief);
+    setIntakeFiles([]);
+    setSelectedFileObjects([]);
+    setExcelPreview(null);
+    setDocxExtraction(null);
+    setPdfExtraction(null);
     setDraftTasks([]);
     setDraftMeta(null);
+    setBlockingErrors([]);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
+    window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
   }
 
@@ -400,6 +1019,14 @@ export function AIInputBriefPanel() {
           >
             {t("inputBrief.generateDraftProcessTaskRegister", locale)}
           </button>
+          <button
+            className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isGeneratingWithAI}
+            onClick={generateDraftPtrWithAI}
+            type="button"
+          >
+            {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
+          </button>
         </>
       }
       bodyClassName="p-4"
@@ -429,13 +1056,330 @@ export function AIInputBriefPanel() {
         ))}
       </div>
 
+      <div className="mt-4 rounded border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">
+              File Intake
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Current MVP keeps selected files local unless real AI/cloud mode is explicitly enabled.
+              File content is not parsed or uploaded in this phase.
+            </p>
+          </div>
+          <button
+            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={intakeFiles.length === 0}
+            onClick={clearSelectedFiles}
+            type="button"
+          >
+            Clear files
+          </button>
+        </div>
+
+        <label className="mt-4 block">
+          <span className="text-sm font-medium text-slate-700">
+            Select local files
+          </span>
+          <input
+            accept=".xlsx,.docx,.pdf,image/*"
+            className="mt-2 block w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            multiple
+            onChange={(event) => handleFileSelection(event.target.files)}
+            type="file"
+          />
+        </label>
+
+        {intakeFiles.length > 0 ? (
+          <div className="mt-4 overflow-x-auto rounded border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">File name</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Size</th>
+                  <th className="px-3 py-2">Last modified</th>
+                  <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {intakeFiles.map((file) => (
+                  <tr key={`${file.fileName}-${file.lastModified}`}>
+                    <td className="max-w-72 truncate px-3 py-2 font-medium text-slate-900">
+                      {file.fileName}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{file.fileType}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                      {formatFileSize(file.fileSize)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                      {formatLastModified(file.lastModified)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <span
+                        className={`rounded border px-2 py-1 text-xs font-semibold ${fileStatusStyles[file.status]}`}
+                      >
+                        {file.status}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {file.fileName.toLowerCase().endsWith(".xlsx") &&
+                      file.status !== "unsupported" ? (
+                        <button
+                          className="rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={file.status === "pending-extraction"}
+                          onClick={() => {
+                            const selectedFile = selectedFileObjects.find(
+                              (item) =>
+                                item.name === file.fileName &&
+                                item.lastModified === file.lastModified
+                            );
+
+                            if (selectedFile) {
+                              void extractExcelFile(selectedFile);
+                            } else {
+                              setMessage(
+                                "Please re-select the Excel file before extracting. Browser file objects are not persisted after refresh."
+                              );
+                            }
+                          }}
+                          type="button"
+                        >
+                          Extract
+                        </button>
+                      ) : file.fileName.toLowerCase().endsWith(".docx") &&
+                        file.status !== "unsupported" ? (
+                        <button
+                          className="rounded border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={file.status === "pending-extraction"}
+                          onClick={() => {
+                            const selectedFile = selectedFileObjects.find(
+                              (item) =>
+                                item.name === file.fileName &&
+                                item.lastModified === file.lastModified
+                            );
+
+                            if (selectedFile) {
+                              void extractDocxFile(selectedFile);
+                            } else {
+                              setMessage(
+                                "Please re-select the DOCX file before extracting. Browser file objects are not persisted after refresh."
+                              );
+                            }
+                          }}
+                          type="button"
+                        >
+                          Extract
+                        </button>
+                      ) : file.fileName.toLowerCase().endsWith(".pdf") &&
+                        file.status !== "unsupported" ? (
+                        <button
+                          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={file.status === "pending-extraction"}
+                          onClick={() => {
+                            const selectedFile = selectedFileObjects.find(
+                              (item) =>
+                                item.name === file.fileName &&
+                                item.lastModified === file.lastModified
+                            );
+
+                            if (selectedFile) {
+                              void extractPdfFile(selectedFile);
+                            } else {
+                              setMessage(
+                                "Please re-select the PDF file before extracting. Browser file objects are not persisted after refresh."
+                              );
+                            }
+                          }}
+                          type="button"
+                        >
+                          Extract
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {excelPreview ? (
+          <div className="mt-4 rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+            <p className="font-semibold">Excel extraction preview</p>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <p>
+                Detected sheet:{" "}
+                <span className="font-semibold">{excelPreview.detectedSheet}</span>
+              </p>
+              <p>
+                Sheets:{" "}
+                <span className="font-semibold">
+                  {excelPreview.sheetNames.join(", ")}
+                </span>
+              </p>
+              <p>
+                Detected columns:{" "}
+                <span className="font-semibold">
+                  {excelPreview.detectedColumns.join(", ") || "None"}
+                </span>
+              </p>
+              <p>
+                Unmapped columns:{" "}
+                <span className="font-semibold">
+                  {excelPreview.unmappedColumns.join(", ") || "None"}
+                </span>
+              </p>
+            </div>
+            <div className="mt-3">
+              <p className="font-semibold">Mapped fields</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {Object.entries(excelPreview.mappedFields).map(
+                  ([fieldName, columnName]) => (
+                    <span
+                      className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-sky-900"
+                      key={fieldName}
+                    >
+                      {fieldName}: {columnName}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+            {excelPreview.warnings.length > 0 ? (
+              <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                <p className="font-semibold">Warnings</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {excelPreview.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {docxExtraction ? (
+          <div className="mt-4 rounded border border-violet-200 bg-violet-50 p-3 text-sm text-violet-950">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="font-semibold">DOCX extraction preview</p>
+                <p className="mt-1 text-violet-900">
+                  Local text extraction only. No file upload or external AI call.
+                </p>
+              </div>
+              <button
+                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                onClick={generateDraftPtrFromDocxExtraction}
+                type="button"
+              >
+                Generate Draft PTR
+              </button>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="rounded border border-violet-200 bg-white p-3">
+                <p className="font-semibold">Structured extraction result</p>
+                <p className="mt-2">
+                  Actors: {docxExtraction.detectedActors.join(", ") || "None"}
+                </p>
+                <p className="mt-1">
+                  Systems: {docxExtraction.detectedSystems.join(", ") || "None"}
+                </p>
+                <p className="mt-1">
+                  Data objects:{" "}
+                  {docxExtraction.detectedDataObjects.join(", ") || "None"}
+                </p>
+                <div className="mt-2">
+                  <p className="font-semibold">Detected steps</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {docxExtraction.detectedSteps.slice(0, 10).map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                    {docxExtraction.detectedSteps.length === 0 ? (
+                      <li>No step-like lines detected.</li>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="rounded border border-violet-200 bg-white p-3">
+                <p className="font-semibold">Assumptions</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {docxExtraction.assumptions.map((assumption) => (
+                    <li key={assumption}>{assumption}</li>
+                  ))}
+                </ul>
+                <p className="mt-3 font-semibold">Open questions</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {docxExtraction.openQuestions.map((question) => (
+                    <li key={question}>{question}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded border border-violet-200 bg-white p-3">
+              <p className="font-semibold">Extracted raw text</p>
+              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-700">
+                {docxExtraction.rawText}
+              </pre>
+            </div>
+          </div>
+        ) : null}
+
+        {pdfExtraction ? (
+          <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+            <p className="font-semibold">PDF text extraction preview</p>
+            <p className="mt-1 text-emerald-900">
+              Basic text-based local extraction only. OCR is not implemented in this phase.
+            </p>
+            {pdfExtraction.warnings.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-emerald-900">
+                {pdfExtraction.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : null}
+            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded border border-emerald-200 bg-white p-3 text-xs leading-5 text-slate-700">
+              {pdfExtraction.rawText}
+            </pre>
+          </div>
+        ) : null}
+
+        {intakeFiles.some((file) => file.status === "unsupported") ? (
+          <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            Unsupported file type detected. Supported formats are .xlsx, .docx, .pdf, and image files.
+          </p>
+        ) : null}
+      </div>
+
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
         <span>
           {filledFieldCount}/{briefFields.length}{" "}
           {t("inputBrief.sectionsFilled", locale)}
         </span>
+        <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
+          {aiModeLoaded
+            ? realAIEnabled
+              ? "Real AI mode"
+              : "Mock mode"
+            : "Checking AI mode..."}
+        </span>
         {message ? <span>{message}</span> : null}
       </div>
+
+      {blockingErrors.length > 0 ? (
+        <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <p className="font-semibold">Khong the tao Draft PTR</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {blockingErrors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {draftTasks.length > 0 ? (
         <div className="mt-5 rounded border border-slate-200">
@@ -501,6 +1445,19 @@ export function AIInputBriefPanel() {
                     ))}
                   </ul>
                 </div>
+                {draftMeta.qualityGateWarnings &&
+                draftMeta.qualityGateWarnings.length > 0 ? (
+                  <div className="rounded border border-amber-200 bg-amber-50 p-3">
+                    <p className="font-semibold text-amber-900">
+                      {labels.qualityGateWarnings}
+                    </p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5 text-amber-800">
+                      {draftMeta.qualityGateWarnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}

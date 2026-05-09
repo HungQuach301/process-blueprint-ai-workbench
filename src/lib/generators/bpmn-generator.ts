@@ -5,6 +5,8 @@ type BpmnNode = {
   task: ProcessTask;
   id: string;
   tagName: string;
+  processId: string;
+  poolId: string;
   laneId: string;
   x: number;
   y: number;
@@ -17,12 +19,9 @@ type SequenceFlow = {
   sourceRef: string;
   targetRef: string;
   label?: string;
-};
-
-type Association = {
-  id: string;
-  sourceRef: string;
-  targetRef: string;
+  sourceStepId: string;
+  branch?: "Yes" | "No";
+  conditionQuestion?: string;
 };
 
 type DataReference = {
@@ -30,15 +29,38 @@ type DataReference = {
   objectId: string;
   name: string;
   sourceNodeId: string;
+  processId: string;
+  associationType: "input" | "output" | "none";
   x: number;
   y: number;
+};
+
+type DataObjectDefinition = {
+  id: string;
+  name: string;
+  processId: string;
 };
 
 type Lane = {
   id: string;
   name: string;
-  type: "actor" | "system" | "data";
+  processId: string;
   y: number;
+};
+
+type Pool = {
+  participantId: string;
+  processId?: string;
+  name: string;
+  y: number;
+  height: number;
+};
+
+type MessageFlow = {
+  id: string;
+  sourceRef: string;
+  targetRef: string;
+  label?: string;
 };
 
 const LANE_HEIGHT = 170;
@@ -46,6 +68,22 @@ const LANE_WIDTH_PADDING = 260;
 const START_X = 120;
 const NODE_Y_OFFSET = 55;
 const HORIZONTAL_GAP = 250;
+const CUSTOMER_PROCESS_ID = "Process_SME_Customer";
+const BANK_PROCESS_ID = "Process_Bank_Financial_Institution";
+const CUSTOMER_PARTICIPANT_ID = "Participant_SME_Customer";
+const BANK_PARTICIPANT_ID = "Participant_Bank_Financial_Institution";
+const EXTERNAL_PARTICIPANT_ID = "Participant_External_Data_Providers";
+const BANK_POOL_Y = LANE_HEIGHT + 50;
+const BANK_LANE_NAMES = [
+  "Digital Channel / Loan Portal",
+  "RM",
+  "Ops Support",
+  "Credit Approver",
+  "LOS / Workflow System",
+  "Notification Service",
+  "Document / OCR Service"
+];
+const EXTERNAL_POOL_Y = BANK_POOL_Y + BANK_LANE_NAMES.length * LANE_HEIGHT + 50;
 
 function escapeXml(value: string) {
   return value
@@ -67,8 +105,28 @@ function normalize(value: string | null | undefined) {
   return value?.trim() ?? "";
 }
 
-function unique(values: string[]) {
-  return [...new Set(values.map(normalize).filter(Boolean))];
+function normalizeKey(value: string) {
+  return normalize(value).toLowerCase();
+}
+
+function hasHumanActor(task: ProcessTask) {
+  const actor = normalize(task.actor).toLowerCase();
+  const actorLane = normalize(task.actorLane).toLowerCase();
+
+  return Boolean(actor || actorLane) && actor !== "system" && actorLane !== "system";
+}
+
+function isAutomaticOrSystemTask(task: ProcessTask) {
+  const taskNature = normalize(task.taskNature).toLowerCase();
+  const actor = normalize(task.actor).toLowerCase();
+  const actorLane = normalize(task.actorLane).toLowerCase();
+
+  return (
+    taskNature === "automatic" ||
+    taskNature === "system" ||
+    actor === "system" ||
+    actorLane === "system"
+  );
 }
 
 function getBpmnTag(task: ProcessTask) {
@@ -85,8 +143,18 @@ function getBpmnTag(task: ProcessTask) {
       return "bpmn:sendTask";
     case "exclusiveGateway":
       return "bpmn:exclusiveGateway";
-    default:
+    case "task":
       return "bpmn:task";
+    default:
+      if (isAutomaticOrSystemTask(task)) {
+        return "bpmn:serviceTask";
+      }
+
+      if (hasHumanActor(task)) {
+        return "bpmn:userTask";
+      }
+
+      return "bpmn:userTask";
   }
 }
 
@@ -102,45 +170,101 @@ function getNodeSize(tagName: string) {
   return { width: 130, height: 80 };
 }
 
-function buildLanes(tasks: ProcessTask[]) {
-  const actorLaneNames = unique(tasks.map((task) => task.actorLane));
-  const systemLaneNames = unique(tasks.map((task) => task.systemLane));
-  const dataLaneNames = unique(
-    tasks
-      .filter((task) => task.rowType === "data" || normalize(task.dataObject))
-      .map(() => "Data")
-  );
+function getNodeIdPrefix(tagName: string) {
+  switch (tagName) {
+    case "bpmn:startEvent":
+      return "StartEvent";
+    case "bpmn:endEvent":
+      return "EndEvent";
+    case "bpmn:exclusiveGateway":
+      return "Gateway";
+    case "bpmn:userTask":
+      return "UserTask";
+    case "bpmn:serviceTask":
+      return "ServiceTask";
+    case "bpmn:sendTask":
+      return "SendTask";
+    default:
+      return "Activity";
+  }
+}
 
+function buildPools() {
   return [
-    ...actorLaneNames.map((name) => ({ name, type: "actor" as const })),
-    ...systemLaneNames
-      .filter((name) => !actorLaneNames.includes(name))
-      .map((name) => ({ name, type: "system" as const })),
-    ...dataLaneNames
-      .filter((name) => !actorLaneNames.includes(name) && !systemLaneNames.includes(name))
-      .map((name) => ({ name, type: "data" as const }))
-  ].map<Lane>((lane, index) => ({
-    id: `Lane_${sanitizeId(lane.name)}`,
-    name: lane.name,
-    type: lane.type,
-    y: index * LANE_HEIGHT
+    {
+      participantId: CUSTOMER_PARTICIPANT_ID,
+      processId: CUSTOMER_PROCESS_ID,
+      name: "SME Customer",
+      y: 0,
+      height: LANE_HEIGHT
+    },
+    {
+      participantId: BANK_PARTICIPANT_ID,
+      processId: BANK_PROCESS_ID,
+      name: "Bank / Financial Institution",
+      y: BANK_POOL_Y,
+      height: BANK_LANE_NAMES.length * LANE_HEIGHT
+    },
+    {
+      participantId: EXTERNAL_PARTICIPANT_ID,
+      name: "External Data Providers",
+      y: EXTERNAL_POOL_Y,
+      height: LANE_HEIGHT
+    }
+  ] satisfies Pool[];
+}
+
+function buildLanes() {
+  return BANK_LANE_NAMES.map<Lane>((name, index) => ({
+    id: `Lane_Bank_${sanitizeId(name)}`,
+    name,
+    processId: BANK_PROCESS_ID,
+    y: BANK_POOL_Y + index * LANE_HEIGHT
   }));
 }
 
-function getLaneName(task: ProcessTask) {
-  if (task.rowType === "data") {
-    return "Data";
+function isCustomerTask(task: ProcessTask) {
+  const text = normalize(`${task.actor} ${task.actorLane}`).toLowerCase();
+
+  return text.includes("customer") || text.includes("khách hàng");
+}
+
+function getProcessId(task: ProcessTask) {
+  return isCustomerTask(task) ? CUSTOMER_PROCESS_ID : BANK_PROCESS_ID;
+}
+
+function getPoolId(task: ProcessTask) {
+  return isCustomerTask(task) ? CUSTOMER_PARTICIPANT_ID : BANK_PARTICIPANT_ID;
+}
+
+function getBankLaneName(task: ProcessTask) {
+  const text = normalize(`${task.actor} ${task.actorLane} ${task.system} ${task.systemLane}`).toLowerCase();
+
+  if (text.includes("rm")) {
+    return "RM";
   }
 
-  if (normalize(task.actorLane)) {
-    return task.actorLane;
+  if (text.includes("ops")) {
+    return "Ops Support";
   }
 
-  if (normalize(task.systemLane)) {
-    return task.systemLane;
+  if (text.includes("approver") || text.includes("credit approver")) {
+    return "Credit Approver";
   }
 
-  return "Unassigned";
+  if (text.includes("notification")) {
+    return "Notification Service";
+  }
+
+  if (text.includes("document") || text.includes("ocr")) {
+    return "Document / OCR Service";
+  }
+
+  if (text.includes("portal") || text.includes("digital channel")) {
+    return "Digital Channel / Loan Portal";
+  }
+
+  return "LOS / Workflow System";
 }
 
 function buildNodes(tasks: ProcessTask[], lanes: Lane[]) {
@@ -149,15 +273,22 @@ function buildNodes(tasks: ProcessTask[], lanes: Lane[]) {
   return tasks.map<BpmnNode>((task, index) => {
     const tagName = getBpmnTag(task);
     const size = getNodeSize(tagName);
-    const lane = laneByName.get(getLaneName(task)) ?? lanes[0];
+    const processId = getProcessId(task);
+    const poolId = getPoolId(task);
+    const lane = processId === BANK_PROCESS_ID
+      ? laneByName.get(getBankLaneName(task)) ?? lanes[0]
+      : null;
+    const poolY = processId === CUSTOMER_PROCESS_ID ? 0 : BANK_POOL_Y;
 
     return {
       task,
-      id: `Activity_${sanitizeId(task.stepId || task.id)}`,
+      id: `${getNodeIdPrefix(tagName)}_${sanitizeId(task.stepId || task.id)}`,
       tagName,
-      laneId: lane?.id ?? "Lane_Unassigned",
+      processId,
+      poolId,
+      laneId: lane?.id ?? "",
       x: START_X + index * HORIZONTAL_GAP,
-      y: (lane?.y ?? 0) + NODE_Y_OFFSET,
+      y: (lane?.y ?? poolY) + NODE_Y_OFFSET,
       width: size.width,
       height: size.height
     };
@@ -176,8 +307,8 @@ function buildSequenceFlows(tasks: ProcessTask[], nodeByStepId: Map<string, Bpmn
 
     const nextSteps = [
       { value: task.defaultNextStep, label: undefined },
-      { value: task.yesNextStep, label: "Yes" },
-      { value: task.noNextStep, label: "No" }
+      { value: task.yesNextStep, label: "Yes" as const },
+      { value: task.noNextStep, label: "No" as const }
     ];
 
     nextSteps.forEach((nextStep) => {
@@ -199,7 +330,10 @@ function buildSequenceFlows(tasks: ProcessTask[], nodeByStepId: Map<string, Bpmn
         }`,
         sourceRef: sourceNode.id,
         targetRef: targetNode.id,
-        label: nextStep.label
+        label: nextStep.label,
+        sourceStepId: task.stepId,
+        branch: nextStep.label,
+        conditionQuestion: task.conditionQuestion
       });
     });
   });
@@ -207,37 +341,156 @@ function buildSequenceFlows(tasks: ProcessTask[], nodeByStepId: Map<string, Bpmn
   return flows;
 }
 
-function buildDataReferences(nodes: BpmnNode[]) {
-  const references: DataReference[] = [];
-  const associations: Association[] = [];
+function isExternalDataCheck(node: BpmnNode) {
+  const text = normalize(
+    `${node.task.taskName} ${node.task.group} ${node.task.system} ${node.task.dataObject} ${node.task.input}`
+  ).toLowerCase();
 
-  nodes.forEach((node) => {
-    const dataObjectName = normalize(node.task.dataObject);
+  return text.includes("blacklist") || text.includes("cic") || text.includes("external data");
+}
 
-    if (!dataObjectName || node.task.dataAction === "none") {
+function getProcessSequenceFlows(
+  flows: SequenceFlow[],
+  processId: string,
+  nodeById: Map<string, BpmnNode>
+) {
+  return flows.filter((flow) => {
+    const source = nodeById.get(flow.sourceRef);
+    const target = nodeById.get(flow.targetRef);
+
+    return source?.processId === processId && target?.processId === processId;
+  });
+}
+
+function buildMessageFlows(flows: SequenceFlow[], nodes: BpmnNode[], nodeById: Map<string, BpmnNode>) {
+  const messageFlows: MessageFlow[] = [];
+
+  flows.forEach((flow) => {
+    const source = nodeById.get(flow.sourceRef);
+    const target = nodeById.get(flow.targetRef);
+
+    if (!source || !target || source.processId === target.processId) {
       return;
     }
 
-    const referenceId = `DataRef_${sanitizeId(node.task.stepId)}_${sanitizeId(dataObjectName)}`;
-    const objectId = `DataObject_${sanitizeId(node.task.stepId)}_${sanitizeId(dataObjectName)}`;
-
-    references.push({
-      id: referenceId,
-      objectId,
-      name: dataObjectName,
-      sourceNodeId: node.id,
-      x: node.x,
-      y: node.y + node.height + 35
-    });
-
-    associations.push({
-      id: `Association_${sanitizeId(node.task.stepId)}_${sanitizeId(dataObjectName)}`,
-      sourceRef: node.id,
-      targetRef: referenceId
+    messageFlows.push({
+      id: `MessageFlow_${sanitizeId(flow.id)}`,
+      sourceRef: source.id,
+      targetRef: target.id,
+      label: flow.label
     });
   });
 
-  return { references, associations };
+  nodes.filter(isExternalDataCheck).forEach((node) => {
+    messageFlows.push(
+      {
+        id: `MessageFlow_${sanitizeId(node.task.stepId)}_External_Request`,
+        sourceRef: node.id,
+        targetRef: EXTERNAL_PARTICIPANT_ID,
+        label: "Request data check"
+      },
+      {
+        id: `MessageFlow_External_${sanitizeId(node.task.stepId)}_Response`,
+        sourceRef: EXTERNAL_PARTICIPANT_ID,
+        targetRef: node.id,
+        label: "Return data result"
+      }
+    );
+  });
+
+  return messageFlows;
+}
+
+function buildDataReferences(nodes: BpmnNode[]) {
+  const objectByName = new Map<string, DataObjectDefinition>();
+  const objects: DataObjectDefinition[] = [];
+  const references: DataReference[] = [];
+
+  function findNearestPreviousTask(index: number) {
+    for (let previousIndex = index - 1; previousIndex >= 0; previousIndex -= 1) {
+      const previousNode = nodes[previousIndex];
+
+      if (previousNode?.tagName.toLowerCase().endsWith("task")) {
+        return previousNode;
+      }
+    }
+
+    return null;
+  }
+
+  function resolveDataOwnerNode(node: BpmnNode, index: number) {
+    if (node.tagName.toLowerCase().endsWith("task")) {
+      return node;
+    }
+
+    if (node.tagName === "bpmn:exclusiveGateway") {
+      return findNearestPreviousTask(index);
+    }
+
+    return null;
+  }
+
+  nodes.forEach((node, index) => {
+    const dataObjectName = normalize(node.task.dataObject);
+    const dataAction = normalize(node.task.dataAction).toLowerCase();
+
+    if (!dataObjectName || dataAction === "none") {
+      return;
+    }
+
+    const ownerNode = resolveDataOwnerNode(node, index);
+
+    // Gateways and end events should not own data refs. If there is no safe
+    // previous task to attach to, skip the data object to avoid orphan refs.
+    if (!ownerNode) {
+      return;
+    }
+
+    const canAttachToTask = ownerNode.tagName.toLowerCase().endsWith("task");
+    const associationType =
+      node.tagName === "bpmn:exclusiveGateway"
+        ? "output"
+        : canAttachToTask && (dataAction === "pull" || dataAction === "read")
+          ? "input"
+        : canAttachToTask &&
+            (dataAction === "push" || dataAction === "store" || dataAction === "update")
+          ? "output"
+          : "none";
+
+    if (associationType === "none") {
+      return;
+    }
+
+    const objectKey = `${ownerNode.processId}:${normalizeKey(dataObjectName)}`;
+    let dataObject = objectByName.get(objectKey);
+
+    if (!dataObject) {
+      dataObject = {
+        id: `DataObject_${sanitizeId(ownerNode.processId)}_${sanitizeId(dataObjectName)}`,
+        name: dataObjectName,
+        processId: ownerNode.processId
+      };
+      objectByName.set(objectKey, dataObject);
+      objects.push(dataObject);
+    }
+
+    const referenceId = `DataRef_${sanitizeId(ownerNode.task.stepId)}_${sanitizeId(
+      dataObjectName
+    )}_${sanitizeId(node.task.stepId)}`;
+
+    references.push({
+      id: referenceId,
+      objectId: dataObject.id,
+      name: dataObjectName,
+      sourceNodeId: ownerNode.id,
+      processId: ownerNode.processId,
+      associationType,
+      x: ownerNode.x,
+      y: ownerNode.y + ownerNode.height + 35
+    });
+  });
+
+  return { objects, references };
 }
 
 function getIncomingFlows(nodeId: string, flows: SequenceFlow[]) {
@@ -248,47 +501,230 @@ function getOutgoingFlows(nodeId: string, flows: SequenceFlow[]) {
   return flows.filter((flow) => flow.sourceRef === nodeId).map((flow) => flow.id);
 }
 
-function renderNode(node: BpmnNode, flows: SequenceFlow[]) {
+function getDefaultFlowId(node: BpmnNode, flows: SequenceFlow[]) {
+  if (node.tagName !== "bpmn:exclusiveGateway") {
+    return "";
+  }
+
+  const outgoingFlows = flows.filter((flow) => flow.sourceRef === node.id);
+  const noFlow = outgoingFlows.find((flow) => flow.branch === "No");
+
+  return noFlow?.id ?? outgoingFlows[0]?.id ?? "";
+}
+
+function getDataReferencesForNode(node: BpmnNode, dataReferences: DataReference[]) {
+  return dataReferences.filter(
+    (reference) => reference.sourceNodeId === node.id && reference.associationType !== "none"
+  );
+}
+
+function renderIoSpecification(dataReferences: DataReference[]) {
+  if (dataReferences.length === 0) {
+    return "";
+  }
+
+  const dataInputs = dataReferences
+    .filter((reference) => reference.associationType === "input")
+    .map(
+      (reference) =>
+        `      <bpmn:dataInput id="DataInput_${reference.id}" name="${escapeXml(reference.name)}" />`
+    );
+  const dataOutputs = dataReferences
+    .filter((reference) => reference.associationType === "output")
+    .map(
+      (reference) =>
+        `      <bpmn:dataOutput id="DataOutput_${reference.id}" name="${escapeXml(reference.name)}" />`
+    );
+  const inputRefs = dataInputs.length
+    ? dataReferences
+        .filter((reference) => reference.associationType === "input")
+        .map((reference) => `        <bpmn:dataInputRefs>DataInput_${reference.id}</bpmn:dataInputRefs>`)
+    : [];
+  const outputRefs = dataOutputs.length
+    ? dataReferences
+        .filter((reference) => reference.associationType === "output")
+        .map((reference) => `        <bpmn:dataOutputRefs>DataOutput_${reference.id}</bpmn:dataOutputRefs>`)
+    : [];
+
+  return [
+    "      <bpmn:ioSpecification>",
+    ...dataInputs,
+    ...dataOutputs,
+    `        <bpmn:inputSet id="InputSet_${dataReferences[0].sourceNodeId}">`,
+    ...inputRefs,
+    "        </bpmn:inputSet>",
+    `        <bpmn:outputSet id="OutputSet_${dataReferences[0].sourceNodeId}">`,
+    ...outputRefs,
+    "        </bpmn:outputSet>",
+    "      </bpmn:ioSpecification>"
+  ].join("\n");
+}
+
+function renderDataAssociations(dataReferences: DataReference[]) {
+  return dataReferences
+    .map((reference) => {
+      if (reference.associationType === "input") {
+        return [
+          `      <bpmn:dataInputAssociation id="DataInputAssociation_${reference.id}">`,
+          `        <bpmn:sourceRef>${reference.id}</bpmn:sourceRef>`,
+          `        <bpmn:targetRef>DataInput_${reference.id}</bpmn:targetRef>`,
+          "      </bpmn:dataInputAssociation>"
+        ].join("\n");
+      }
+
+      if (reference.associationType === "output") {
+        return [
+          `      <bpmn:dataOutputAssociation id="DataOutputAssociation_${reference.id}">`,
+          `        <bpmn:sourceRef>DataOutput_${reference.id}</bpmn:sourceRef>`,
+          `        <bpmn:targetRef>${reference.id}</bpmn:targetRef>`,
+          "      </bpmn:dataOutputAssociation>"
+        ].join("\n");
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function renderNode(node: BpmnNode, flows: SequenceFlow[], dataReferences: DataReference[]) {
   const incoming = getIncomingFlows(node.id, flows)
     .map((flowId) => `      <bpmn:incoming>${flowId}</bpmn:incoming>`)
     .join("\n");
   const outgoing = getOutgoingFlows(node.id, flows)
     .map((flowId) => `      <bpmn:outgoing>${flowId}</bpmn:outgoing>`)
     .join("\n");
-  const children = [incoming, outgoing].filter(Boolean).join("\n");
+  const nodeDataReferences = getDataReferencesForNode(node, dataReferences);
+  const children = [
+    incoming,
+    outgoing,
+    renderIoSpecification(nodeDataReferences),
+    renderDataAssociations(nodeDataReferences)
+  ]
+    .filter(Boolean)
+    .join("\n");
   const name = escapeXml(node.task.taskName || node.task.stepId);
+  const defaultFlowId = getDefaultFlowId(node, flows);
+  const defaultAttribute = defaultFlowId
+    ? ` default="${escapeXml(defaultFlowId)}"`
+    : "";
 
   if (!children) {
-    return `    <${node.tagName} id="${node.id}" name="${name}" />`;
+    return `    <${node.tagName} id="${node.id}" name="${name}"${defaultAttribute} />`;
   }
 
-  return `    <${node.tagName} id="${node.id}" name="${name}">\n${children}\n    </${node.tagName}>`;
+  return `    <${node.tagName} id="${node.id}" name="${name}"${defaultAttribute}>\n${children}\n    </${node.tagName}>`;
 }
 
-function renderSequenceFlow(flow: SequenceFlow) {
+function getConditionExpression(flow: SequenceFlow) {
+  if (!flow.branch) {
+    return "";
+  }
+
+  const question = normalize(flow.conditionQuestion) || "gateway condition";
+
+  return `${question} = ${flow.branch}`;
+}
+
+function isDefaultSequenceFlow(
+  flow: SequenceFlow,
+  flows: SequenceFlow[],
+  nodeById: Map<string, BpmnNode>
+) {
+  const sourceNode = nodeById.get(flow.sourceRef);
+
+  if (!sourceNode || sourceNode.tagName !== "bpmn:exclusiveGateway") {
+    return false;
+  }
+
+  return getDefaultFlowId(sourceNode, flows) === flow.id;
+}
+
+function renderSequenceFlow(
+  flow: SequenceFlow,
+  flows: SequenceFlow[],
+  nodeById: Map<string, BpmnNode>
+) {
   const name = flow.label ? ` name="${escapeXml(flow.label)}"` : "";
 
-  return `    <bpmn:sequenceFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}" />`;
+  if (!flow.branch || isDefaultSequenceFlow(flow, flows, nodeById)) {
+    return `    <bpmn:sequenceFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}" />`;
+  }
+
+  return [
+    `    <bpmn:sequenceFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}">`,
+    `      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${escapeXml(
+      getConditionExpression(flow)
+    )}</bpmn:conditionExpression>`,
+    "    </bpmn:sequenceFlow>"
+  ].join("\n");
 }
 
 function renderLane(lane: Lane, nodes: BpmnNode[]) {
-  const refs = nodes
+  const nodeRefs = nodes
     .filter((node) => node.laneId === lane.id)
-    .map((node) => `        <bpmn:flowNodeRef>${node.id}</bpmn:flowNodeRef>`)
-    .join("\n");
+    .map((node) => `        <bpmn:flowNodeRef>${node.id}</bpmn:flowNodeRef>`);
+  const refs = nodeRefs.join("\n");
 
   return `      <bpmn:lane id="${lane.id}" name="${escapeXml(lane.name)}">\n${refs}\n      </bpmn:lane>`;
 }
 
-function renderDataObject(reference: DataReference) {
+function renderDataObject(object: DataObjectDefinition) {
+  return `    <bpmn:dataObject id="${object.id}" name="${escapeXml(object.name)}" />`;
+}
+
+function renderDataObjectReference(reference: DataReference) {
   return [
-    `    <bpmn:dataObject id="${reference.objectId}" name="${escapeXml(reference.name)}" />`,
     `    <bpmn:dataObjectReference id="${reference.id}" name="${escapeXml(reference.name)}" dataObjectRef="${reference.objectId}" />`
   ].join("\n");
 }
 
-function renderAssociation(association: Association) {
-  return `    <bpmn:association id="${association.id}" sourceRef="${association.sourceRef}" targetRef="${association.targetRef}" />`;
+function renderMessageFlow(flow: MessageFlow) {
+  const name = flow.label ? ` name="${escapeXml(flow.label)}"` : "";
+
+  return `    <bpmn:messageFlow id="${flow.id}"${name} sourceRef="${flow.sourceRef}" targetRef="${flow.targetRef}" />`;
+}
+
+function renderProcess(
+  processId: string,
+  name: string,
+  nodes: BpmnNode[],
+  lanes: Lane[],
+  flows: SequenceFlow[],
+  dataObjects: DataObjectDefinition[],
+  dataReferences: DataReference[],
+  nodeById: Map<string, BpmnNode>
+) {
+  const processNodes = nodes.filter((node) => node.processId === processId);
+  const processLanes = lanes.filter((lane) => lane.processId === processId);
+  const processFlows = getProcessSequenceFlows(flows, processId, nodeById);
+  const processDataObjects = dataObjects.filter((object) => object.processId === processId);
+  const processDataReferences = dataReferences.filter(
+    (reference) => reference.processId === processId
+  );
+  const laneSet = processLanes.length
+    ? [
+        `    <bpmn:laneSet id="LaneSet_${sanitizeId(processId)}">`,
+        processLanes.map((lane) => renderLane(lane, processNodes)).join("\n"),
+        "    </bpmn:laneSet>"
+      ].join("\n")
+    : "";
+
+  return [
+    `  <bpmn:process id="${processId}" name="${escapeXml(name)}" isExecutable="false">`,
+    laneSet,
+    processNodes
+      .map((node) => renderNode(node, processFlows, processDataReferences))
+      .join("\n"),
+    processFlows
+      .map((flow) => renderSequenceFlow(flow, processFlows, nodeById))
+      .join("\n"),
+    processDataObjects.map(renderDataObject).join("\n"),
+    processDataReferences.map(renderDataObjectReference).join("\n"),
+    "  </bpmn:process>"
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function renderShape(id: string, bpmnElement: string, x: number, y: number, width: number, height: number) {
@@ -322,10 +758,40 @@ function getSequenceWaypoints(source: BpmnNode, target: BpmnNode) {
   ];
 }
 
-function getAssociationWaypoints(source: BpmnNode, target: DataReference) {
+function getPoolCenter(pool: Pool, diagramWidth: number) {
+  return {
+    x: 60 + diagramWidth / 2,
+    y: pool.y + pool.height / 2
+  };
+}
+
+function getMessageWaypoints(
+  flow: MessageFlow,
+  nodeById: Map<string, BpmnNode>,
+  poolByParticipantId: Map<string, Pool>,
+  diagramWidth: number
+) {
+  const sourceNode = nodeById.get(flow.sourceRef);
+  const targetNode = nodeById.get(flow.targetRef);
+  const sourcePool = poolByParticipantId.get(flow.sourceRef);
+  const targetPool = poolByParticipantId.get(flow.targetRef);
+  const source = sourceNode
+    ? { x: sourceNode.x + sourceNode.width / 2, y: sourceNode.y + sourceNode.height / 2 }
+    : sourcePool
+      ? getPoolCenter(sourcePool, diagramWidth)
+      : { x: 60, y: 0 };
+  const target = targetNode
+    ? { x: targetNode.x + targetNode.width / 2, y: targetNode.y + targetNode.height / 2 }
+    : targetPool
+      ? getPoolCenter(targetPool, diagramWidth)
+      : { x: 60, y: 0 };
+  const midY = source.y + (target.y - source.y) / 2;
+
   return [
-    { x: source.x + source.width / 2, y: source.y + source.height },
-    { x: target.x + 18, y: target.y }
+    source,
+    { x: source.x, y: midY },
+    { x: target.x, y: midY },
+    target
   ];
 }
 
@@ -333,46 +799,71 @@ export function generateBpmnXml(
   processTasks: ProcessTask[],
   templateProfile: TemplateProfile
 ) {
-  const processId = `Process_${sanitizeId(templateProfile.id || "D01_BPMN")}`;
   const collaborationId = `Collaboration_${sanitizeId(templateProfile.id || "D01_BPMN")}`;
-  const participantId = `Participant_${sanitizeId(templateProfile.id || "D01_BPMN")}`;
   const diagramId = `Diagram_${sanitizeId(templateProfile.id || "D01_BPMN")}`;
   const planeId = `Plane_${sanitizeId(templateProfile.id || "D01_BPMN")}`;
-  const lanes = buildLanes(processTasks);
+  const pools = buildPools();
+  const poolByParticipantId = new Map(pools.map((pool) => [pool.participantId, pool]));
+  const lanes = buildLanes();
   const nodes = buildNodes(processTasks, lanes);
   const nodeByStepId = new Map(nodes.map((node) => [node.task.stepId, node]));
   const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const sequenceFlows = buildSequenceFlows(processTasks, nodeByStepId);
-  const { references: dataReferences, associations } = buildDataReferences(nodes);
+  const processSequenceFlows = sequenceFlows.filter((flow) => {
+    const source = nodeById.get(flow.sourceRef);
+    const target = nodeById.get(flow.targetRef);
+
+    return source?.processId === target?.processId;
+  });
+  const messageFlows = buildMessageFlows(sequenceFlows, nodes, nodeById);
+  const { objects: dataObjects, references: dataReferences } = buildDataReferences(nodes);
   const diagramWidth =
     START_X + Math.max(processTasks.length - 1, 0) * HORIZONTAL_GAP + LANE_WIDTH_PADDING;
-  const diagramHeight = Math.max(lanes.length, 1) * LANE_HEIGHT;
+  const diagramHeight = EXTERNAL_POOL_Y + LANE_HEIGHT;
 
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_D01_BPMN" targetNamespace="https://process-blueprint-ai-workbench.local/bpmn">',
+    '<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_D01_BPMN" targetNamespace="https://process-blueprint-ai-workbench.local/bpmn">',
     `  <bpmn:collaboration id="${collaborationId}">`,
-    `    <bpmn:participant id="${participantId}" name="${escapeXml(templateProfile.name)}" processRef="${processId}" />`,
+    `    <bpmn:participant id="${CUSTOMER_PARTICIPANT_ID}" name="SME Customer" processRef="${CUSTOMER_PROCESS_ID}" />`,
+    `    <bpmn:participant id="${BANK_PARTICIPANT_ID}" name="Bank / Financial Institution" processRef="${BANK_PROCESS_ID}" />`,
+    `    <bpmn:participant id="${EXTERNAL_PARTICIPANT_ID}" name="External Data Providers" />`,
+    messageFlows.map(renderMessageFlow).join("\n"),
     "  </bpmn:collaboration>",
-    `  <bpmn:process id="${processId}" name="${escapeXml(templateProfile.name)}" isExecutable="false">`,
-    '    <bpmn:laneSet id="LaneSet_D01_BPMN">',
-    lanes.map((lane) => renderLane(lane, nodes)).join("\n"),
-    "    </bpmn:laneSet>",
-    nodes.map((node) => renderNode(node, sequenceFlows)).join("\n"),
-    sequenceFlows.map(renderSequenceFlow).join("\n"),
-    dataReferences.map(renderDataObject).join("\n"),
-    associations.map(renderAssociation).join("\n"),
-    "  </bpmn:process>",
+    renderProcess(
+      CUSTOMER_PROCESS_ID,
+      "SME Customer Process",
+      nodes,
+      lanes,
+      sequenceFlows,
+      dataObjects,
+      dataReferences,
+      nodeById
+    ),
+    renderProcess(
+      BANK_PROCESS_ID,
+      `${templateProfile.name} - Bank Process`,
+      nodes,
+      lanes,
+      sequenceFlows,
+      dataObjects,
+      dataReferences,
+      nodeById
+    ),
     `  <bpmndi:BPMNDiagram id="${diagramId}">`,
     `    <bpmndi:BPMNPlane id="${planeId}" bpmnElement="${collaborationId}">`,
-    renderShape(
-      `${participantId}_di`,
-      participantId,
-      60,
-      0,
-      diagramWidth,
-      diagramHeight
-    ),
+    pools
+      .map((pool) =>
+        renderShape(
+          `${pool.participantId}_di`,
+          pool.participantId,
+          60,
+          pool.y,
+          diagramWidth,
+          pool.height
+        )
+      )
+      .join("\n"),
     lanes
       .map((lane) =>
         renderShape(`${lane.id}_di`, lane.id, 90, lane.y, diagramWidth - 30, LANE_HEIGHT)
@@ -388,7 +879,7 @@ export function generateBpmnXml(
         renderShape(`${reference.id}_di`, reference.id, reference.x, reference.y, 36, 50)
       )
       .join("\n"),
-    sequenceFlows
+    processSequenceFlows
       .map((flow) => {
         const source = nodeById.get(flow.sourceRef);
         const target = nodeById.get(flow.targetRef);
@@ -405,24 +896,14 @@ export function generateBpmnXml(
       })
       .filter(Boolean)
       .join("\n"),
-    associations
-      .map((association) => {
-        const source = nodeById.get(association.sourceRef);
-        const target = dataReferences.find(
-          (reference) => reference.id === association.targetRef
-        );
-
-        if (!source || !target) {
-          return "";
-        }
-
-        return renderEdge(
-          `${association.id}_di`,
-          association.id,
-          getAssociationWaypoints(source, target)
-        );
-      })
-      .filter(Boolean)
+    messageFlows
+      .map((flow) =>
+        renderEdge(
+          `${flow.id}_di`,
+          flow.id,
+          getMessageWaypoints(flow, nodeById, poolByParticipantId, diagramWidth)
+        )
+      )
       .join("\n"),
     "    </bpmndi:BPMNPlane>",
     "  </bpmndi:BPMNDiagram>",

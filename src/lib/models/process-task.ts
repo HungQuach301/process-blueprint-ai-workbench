@@ -3,6 +3,8 @@ export type RowType =
   | "group"
   | "task"
   | "gateway"
+  | "start"
+  | "end"
   | "event"
   | "data"
   | "annotation";
@@ -57,6 +59,31 @@ export type ReviewStatus =
   | "approved"
   | "rejected";
 
+export type CustomerInteractionType =
+  | "None"
+  | "Customer Action"
+  | "Front-stage People"
+  | "Front-stage System"
+  | "Back-stage People"
+  | "Back-stage System"
+  | "Support Process"
+  | "Data / Control";
+
+export type Channel =
+  | "Portal"
+  | "Mobile App"
+  | "Email"
+  | "SMS"
+  | "Phone Call"
+  | "RM Meeting"
+  | "Branch"
+  | "LOS"
+  | "OCR"
+  | "CIC"
+  | "Internal System"
+  | "Document Store"
+  | "Other";
+
 export interface ProcessTask {
   id: string;
   stepId: string;
@@ -86,4 +113,6 @@ export interface ProcessTask {
   sourceRef: string;
   reviewStatus: ReviewStatus;
   comment: string;
+  customerInteractionType?: CustomerInteractionType;
+  channel?: Channel;
 }

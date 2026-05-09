@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
+import { SessionFrame } from "@/components/layout/SessionFrame";
 
 type BpmnPreviewProps = {
   xml: string;
@@ -87,21 +88,8 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
   }
 
   return (
-    <section className="rounded border border-slate-200 bg-white">
-      <div className="flex flex-col gap-3 border-b border-slate-200 p-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-sm font-medium uppercase text-slate-500">
-            BPMN Preview
-          </p>
-          <h3 className="mt-1 text-xl font-semibold text-slate-950">
-            Xem trước BPMN
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Preview chỉ đọc từ XML đã generate. Chưa có chỉnh sửa trực quan ở
-            bước này.
-          </p>
-        </div>
-
+    <SessionFrame
+      actions={
         <button
           className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
           onClick={fitToViewport}
@@ -109,8 +97,13 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
         >
           Fit to viewport
         </button>
-      </div>
-
+      }
+      description="Preview chỉ đọc từ XML đã generate. Chưa có chỉnh sửa trực quan ở bước này."
+      title="Xem trước BPMN"
+    >
+      <p className="border-b border-slate-200 px-4 py-3 text-sm font-medium uppercase text-slate-500">
+        BPMN Preview
+      </p>
       {errorMessage ? (
         <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorMessage}
@@ -118,6 +111,6 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
       ) : null}
 
       <div className="h-[560px] w-full bg-white" ref={containerRef} />
-    </section>
+    </SessionFrame>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { SessionFrame } from "@/components/layout/SessionFrame";
 import { BpmnPreview } from "@/components/preview/BpmnPreview";
+import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -16,6 +18,9 @@ const TEMPLATES_STORAGE_KEY =
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D01_GENERATED_XML_KEY =
   "process-blueprint-ai-workbench:generated-d01-bpmn-xml";
+const D01_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d01-bpmn-status";
+const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 
 function readProcessTasks() {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
@@ -76,6 +81,17 @@ export function D01BpmnOutput() {
 
       setXml(generatedXml);
       window.localStorage.setItem(D01_GENERATED_XML_KEY, generatedXml);
+      window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "fresh");
+      window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
+      saveAuditLogEntry({
+        action: "generate_d01",
+        status: "success",
+        summary: "Generated D01 BPMN XML.",
+        metadata: {
+          rowCount: processTasks.length,
+          templateId: selectedTemplate.id
+        }
+      });
       setMessage("Đã generate D01 BPMN XML.");
     } catch (error) {
       setXml("");
@@ -107,23 +123,9 @@ export function D01BpmnOutput() {
   }
 
   return (
-    <section className="rounded border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
-              D01 BPMN Output
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-              Generate D01 BPMN XML
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Tạo BPMN XML từ Process Task Register đã lưu và template D01 đang
-              chọn. Chưa có preview trực quan ở bước này.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+    <SessionFrame
+      actions={
+        <>
             <button
               className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
               onClick={generateXml}
@@ -138,18 +140,22 @@ export function D01BpmnOutput() {
             >
               Download .bpmn
             </button>
-          </div>
-        </div>
-
+        </>
+      }
+      bodyClassName="p-4"
+      description="Tạo BPMN XML từ Process Task Register đã lưu và template D01 đang chọn. Chưa có chỉnh sửa trực quan ở bước này."
+      title="Generate D01 BPMN XML"
+    >
+        <p className="mb-4 text-sm font-medium uppercase text-slate-500">
+          D01 BPMN Output
+        </p>
         {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
-      </div>
 
-      <div className="p-4">
         <div className="mb-4">
           <BpmnPreview xml={xml} />
         </div>
 
-        <label className="grid gap-2 text-sm font-medium text-slate-700">
+        <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
           XML đã generate
           <textarea
             className="min-h-96 w-full rounded border border-slate-300 bg-slate-950 p-3 font-mono text-xs font-normal text-slate-50"
@@ -157,7 +163,6 @@ export function D01BpmnOutput() {
             value={xml}
           />
         </label>
-      </div>
-    </section>
+    </SessionFrame>
   );
 }

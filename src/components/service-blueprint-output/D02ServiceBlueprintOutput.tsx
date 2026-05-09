@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { SessionFrame } from "@/components/layout/SessionFrame";
+import { D02ServiceBlueprintPreview } from "@/components/preview/D02ServiceBlueprintPreview";
+import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
+  sampleBpmnTemplateProfile,
   sampleProcessTasks,
   sampleServiceBlueprintTemplateProfile
 } from "@/lib/sample-data/sme-online-loan";
@@ -15,6 +19,9 @@ const TEMPLATES_STORAGE_KEY =
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const D02_GENERATED_XML_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-xml";
+const D02_GENERATED_STATUS_KEY =
+  "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
+const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 
 function readProcessTasks() {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
@@ -37,9 +44,16 @@ function readSelectedD02Template() {
   const selectedTemplateId =
     window.localStorage.getItem(D02_STORAGE_KEY) ??
     sampleServiceBlueprintTemplateProfile.id;
+  const sampleTemplates = [
+    sampleServiceBlueprintTemplateProfile,
+    sampleBpmnTemplateProfile
+  ];
 
   if (!savedTemplates) {
-    return sampleServiceBlueprintTemplateProfile;
+    return (
+      sampleTemplates.find((template) => template.id === selectedTemplateId) ??
+      sampleServiceBlueprintTemplateProfile
+    );
   }
 
   const parsedTemplates = JSON.parse(savedTemplates);
@@ -60,9 +74,31 @@ function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+type ArtifactStatus = "fresh" | "stale" | "not_generated";
+
+function readArtifactStatus(): ArtifactStatus {
+  const status = window.localStorage.getItem(D02_GENERATED_STATUS_KEY);
+
+  return status === "fresh" || status === "stale" ? status : "not_generated";
+}
+
 export function D02ServiceBlueprintOutput() {
   const [xml, setXml] = useState("");
   const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<ArtifactStatus>("not_generated");
+
+  function refreshStatus() {
+    setStatus(readArtifactStatus());
+  }
+
+  useEffect(() => {
+    refreshStatus();
+    window.addEventListener(ARTIFACT_STATUS_EVENT, refreshStatus);
+
+    return () => {
+      window.removeEventListener(ARTIFACT_STATUS_EVENT, refreshStatus);
+    };
+  }, []);
 
   function generateXml() {
     try {
@@ -79,7 +115,21 @@ export function D02ServiceBlueprintOutput() {
 
       setXml(generatedXml);
       window.localStorage.setItem(D02_GENERATED_XML_KEY, generatedXml);
-      setMessage("Đã generate D02 Service Blueprint draw.io XML.");
+      window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "fresh");
+      window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
+      setStatus("fresh");
+      saveAuditLogEntry({
+        action: "generate_d02",
+        status: "success",
+        summary: "Generated D02 Service Blueprint draw.io XML.",
+        metadata: {
+          rowCount: processTasks.length,
+          templateId: selectedTemplate.id
+        }
+      });
+      setMessage(
+        `Đã generate D02 từ Process Task Register hiện tại và template: ${selectedTemplate.name}.`
+      );
     } catch (error) {
       setXml("");
       setMessage(
@@ -112,23 +162,9 @@ export function D02ServiceBlueprintOutput() {
   }
 
   return (
-    <section className="rounded border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
-              D02 Service Blueprint Output
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-              Generate D02 Service Blueprint
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Tạo draw.io XML từ Process Task Register đã lưu và template D02
-              đang chọn. File có thể mở bằng draw.io / diagrams.net.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+    <SessionFrame
+      actions={
+        <>
             <button
               className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
               onClick={generateXml}
@@ -143,14 +179,38 @@ export function D02ServiceBlueprintOutput() {
             >
               Download .drawio
             </button>
-          </div>
+        </>
+      }
+      bodyClassName="p-4"
+      description="Tạo draw.io XML từ Process Task Register đã lưu và template D02 đang chọn. File có thể mở bằng draw.io / diagrams.net."
+      title="Generate D02 Service Blueprint"
+    >
+        <p className="mb-2 text-sm font-medium uppercase text-slate-500">
+          D02 Service Blueprint Output
+        </p>
+        <p
+          className={`mb-4 text-sm ${
+            status === "fresh"
+              ? "text-emerald-700"
+              : status === "stale"
+                ? "text-amber-700"
+                : "text-slate-500"
+          }`}
+        >
+          Trạng thái D02:{" "}
+          {status === "fresh"
+            ? "Fresh"
+            : status === "stale"
+              ? "Stale - cần generate lại sau khi dữ liệu/template thay đổi"
+              : "Not generated"}
+        </p>
+        {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+
+        <div className="mb-4">
+          <D02ServiceBlueprintPreview />
         </div>
 
-        {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
-      </div>
-
-      <div className="p-4">
-        <label className="grid gap-2 text-sm font-medium text-slate-700">
+        <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
           draw.io XML đã generate
           <textarea
             className="min-h-96 w-full rounded border border-slate-300 bg-slate-950 p-3 font-mono text-xs font-normal text-slate-50"
@@ -158,7 +218,6 @@ export function D02ServiceBlueprintOutput() {
             value={xml}
           />
         </label>
-      </div>
-    </section>
+    </SessionFrame>
   );
 }

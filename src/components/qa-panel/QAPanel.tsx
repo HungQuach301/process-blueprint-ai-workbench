@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import {
+  confirmRealAICallIfNeeded,
+  logAICallAudit
+} from "@/lib/ai/ai-governance";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
@@ -346,6 +350,11 @@ export function QAPanel({
   }
 
   async function runAiQa() {
+    if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
+      setAiQaMessage("Da huy goi Real AI QA. Khong co recommendation nao duoc tao.");
+      return;
+    }
+
     setIsRunningAIQA(true);
     setAiQaMessage(
       realAIQAEnabled
@@ -383,10 +392,20 @@ export function QAPanel({
       };
 
       if (!routeResponse.ok || !data.ok) {
+        const errorMessage = [
+          data.error || "AI QA failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: realAIQAEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
+        });
         setAiQaIssues([]);
-        setAiQaMessage(
-          [data.error || "AI QA failed.", ...(data.validationErrors ?? [])].join(" ")
-        );
+        setAiQaMessage(errorMessage);
         return;
       }
 
@@ -427,7 +446,23 @@ export function QAPanel({
           ? `${data.mode === "provider-backed" ? "Real" : "Mock"} AI QA returned ${recommendations.length} recommendation(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
           : "AI QA did not return recommendations for the current PTR."
       );
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_SKILL_ID,
+        success: true,
+        realAIEnabled: data.mode === "provider-backed",
+        externalApiCalled: data.meta?.externalApiCalled === true,
+        extraMetadata: {
+          recommendationCount: recommendations.length
+        }
+      });
     } catch {
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_SKILL_ID,
+        success: false,
+        errorMessage: "AI QA request failed.",
+        realAIEnabled: realAIQAEnabled,
+        externalApiCalled: false
+      });
       setAiQaIssues([]);
       setAiQaMessage("AI QA request failed. No recommendation was applied.");
     } finally {

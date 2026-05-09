@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import {
+  AI_GOVERNANCE_NOTICE,
+  AI_PROVIDER_SETTINGS_STORAGE_KEY,
+  defaultAIProviderSettings,
+  readAIProviderSettings
+} from "@/lib/ai/ai-governance";
 import type {
   AIProviderSettings,
   DataUsageMode,
   ModelProvider
 } from "@/lib/ai/model-provider-types";
-
-const STORAGE_KEY = "process-blueprint-ai-workbench:ai-provider-settings";
 
 const modelProviderOptions: Array<{
   value: ModelProvider;
@@ -35,53 +39,50 @@ const dataUsageModeOptions: Array<{
   }
 ];
 
-const defaultSettings: AIProviderSettings = {
-  provider: "no-ai",
-  dataUsageMode: "local-only",
-  modelName: "",
-  organizationId: "",
-  tenantId: ""
-};
-
-function isModelProvider(value: unknown): value is ModelProvider {
-  return modelProviderOptions.some((option) => option.value === value);
-}
-
-function isDataUsageMode(value: unknown): value is DataUsageMode {
-  return dataUsageModeOptions.some((option) => option.value === value);
-}
-
-function readSavedSettings() {
-  const savedSettings = window.localStorage.getItem(STORAGE_KEY);
-
-  if (!savedSettings) {
-    return defaultSettings;
-  }
-
-  try {
-    const parsedSettings = JSON.parse(savedSettings);
-
-    return {
-      ...defaultSettings,
-      ...parsedSettings,
-      provider: isModelProvider(parsedSettings?.provider)
-        ? parsedSettings.provider
-        : defaultSettings.provider,
-      dataUsageMode: isDataUsageMode(parsedSettings?.dataUsageMode)
-        ? parsedSettings.dataUsageMode
-        : defaultSettings.dataUsageMode
-    };
-  } catch {
-    return defaultSettings;
-  }
-}
-
 export function AIProviderSettingsPanel() {
-  const [settings, setSettings] = useState<AIProviderSettings>(defaultSettings);
+  const [settings, setSettings] = useState<AIProviderSettings>(
+    defaultAIProviderSettings
+  );
   const [message, setMessage] = useState("");
+  const [realAIEnabled, setRealAIEnabled] = useState(false);
 
   useEffect(() => {
-    setSettings(readSavedSettings());
+    setSettings(readAIProviderSettings());
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAIMode() {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "GET"
+        });
+        const data = (await response.json()) as {
+          realAIEnabled?: boolean;
+          realAIQAEnabled?: boolean;
+          realAITemplateReviewEnabled?: boolean;
+        };
+
+        if (active) {
+          setRealAIEnabled(
+            data.realAIEnabled === true ||
+              data.realAIQAEnabled === true ||
+              data.realAITemplateReviewEnabled === true
+          );
+        }
+      } catch {
+        if (active) {
+          setRealAIEnabled(false);
+        }
+      }
+    }
+
+    loadAIMode();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   function updateSettings(nextSettings: AIProviderSettings) {
@@ -90,13 +91,16 @@ export function AIProviderSettingsPanel() {
   }
 
   function saveSettings() {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    window.localStorage.setItem(
+      AI_PROVIDER_SETTINGS_STORAGE_KEY,
+      JSON.stringify(settings)
+    );
     setMessage("Đã lưu AI provider settings vào localStorage. Chưa có API call nào được thực hiện.");
   }
 
   function resetSettings() {
-    setSettings(defaultSettings);
-    window.localStorage.removeItem(STORAGE_KEY);
+    setSettings(defaultAIProviderSettings);
+    window.localStorage.removeItem(AI_PROVIDER_SETTINGS_STORAGE_KEY);
     setMessage("Đã reset AI provider settings về No-AI / Local only.");
   }
 
@@ -126,6 +130,37 @@ export function AIProviderSettingsPanel() {
     >
       <div id="ai-settings" className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         Do not enter production secrets in local MVP. API key thật chưa được hỗ trợ và không nên lưu trong localStorage.
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
+          <p className="text-xs font-semibold uppercase text-slate-500">
+            Current AI mode
+          </p>
+          <p className="mt-1 font-semibold text-slate-950">
+            {realAIEnabled ? "Real AI" : "Mock AI"}
+          </p>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
+          <p className="text-xs font-semibold uppercase text-slate-500">
+            Data usage mode
+          </p>
+          <p className="mt-1 font-semibold text-slate-950">
+            {settings.dataUsageMode}
+          </p>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
+          <p className="text-xs font-semibold uppercase text-slate-500">
+            Model provider mode
+          </p>
+          <p className="mt-1 font-semibold text-slate-950">
+            {settings.provider}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+        {AI_GOVERNANCE_NOTICE}
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

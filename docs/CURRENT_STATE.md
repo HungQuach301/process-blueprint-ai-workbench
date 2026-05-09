@@ -2,21 +2,17 @@
 
 ## 1. Stable Baseline
 
-Current stable baseline tag:
+Current baseline/tag:
 
-- `v0.5.0`
+- `v0.6.0-ai-template-review`
 
 Current branch for the next phase:
 
 - `feature/real-ai-integration`
 
-Next phase goal:
-
-- Integrate real AI safely.
-
 ## 2. Completed Modules
 
-The following modules are considered completed in the current stable baseline:
+The following modules are completed in the current baseline:
 
 - Process Task Register
 - D01 BPMN
@@ -25,43 +21,44 @@ The following modules are considered completed in the current stable baseline:
 - Recommendation Engine
 - Feedback logging
 - Template classification
-- AI scaffolds
+- Template Recommendation Engine
 - Simplified AI Input Brief
+- Real AI Input Brief path
+- Real AI QA path
+- AI Template Review path
 - Local Audit Log
 
 ## 3. Product State
 
-Process Blueprint AI Workbench is a client-side MVP for analyzing, standardizing, validating, and generating enterprise process artifacts.
+Process Blueprint AI Workbench is a client-side Next.js MVP for analyzing, standardizing, validating, and generating enterprise process artifacts.
 
-Current product principles:
+Current product state:
 
-- Use Process Task Register as the single source of truth.
-- Generate D01 BPMN, D02 Service Blueprint, QA Report, JSON exports, and ZIP package from `ProcessTask[]` and selected `TemplateProfile` data.
-- Keep artifact generation deterministic, reviewable, and traceable to source fields.
-- Preserve actor, system, data object, SLA, risk/control, and review status fields.
-- Keep human-in-the-loop approval as the default workflow.
-- Support Vietnamese and English users.
-- Prepare for future BYOK, Product AI, and Enterprise AI modes.
+- Process Task Register remains the single source of truth.
+- D01 BPMN, D02 Service Blueprint, QA Report, JSON exports, and ZIP package are generated from `ProcessTask[]` and selected `TemplateProfile` data.
+- Rule-based QA and Recommendation Engine are available.
+- AI Input Brief can produce Draft PTR through mock or server-side real AI path.
+- AI QA can produce `QARecommendation[]` through mock or server-side real AI path.
+- AI Template Review can produce `TemplateRecommendation[]` and optional `TemplateQualityScore` through mock or server-side real AI path.
+- AI outputs are routed to draft, recommendation, or review surfaces before any user action.
 
-## 4. Key Principle For Real AI Integration
+## 4. Key Principles
 
-Real AI integration must follow these rules:
+All AI work must follow these principles:
 
 - No API key in browser.
-- AI output must use schema validation.
-- AI output must go to Draft/Recommendation first.
-- User approval is required before Apply.
-- Do not auto-apply AI output.
-- Do not introduce a second process definition source.
-- Process Task Register remains the source of truth.
-- External AI calls must be explicit, controlled, and compatible with the selected provider/data mode.
-- Sensitive enterprise or banking data should not be sent to external services unless explicitly approved.
+- No auto-apply AI output.
+- AI output must pass schema and quality gates.
+- User approval is required before applying changes.
+- Audit every AI action.
+- Process Task Register remains the source of truth for generated artifacts.
+- Template review recommendations are shown for human review and are not auto-applied.
 
 ## 5. Current Architecture
 
-Current architecture is a client-side Next.js MVP using App Router, React, TypeScript, and Tailwind CSS.
+Current architecture is a client-side Next.js app with server-side API routes for real AI provider calls.
 
-Main data flow:
+Main deterministic flow:
 
 ```text
 ProcessTask[] + TemplateProfile[]
@@ -73,25 +70,70 @@ ProcessTask[] + TemplateProfile[]
   -> Export Center
 ```
 
-Current local storage areas:
+Current AI-assisted flow:
 
-- `localStorage` for Process Task Register.
-- `localStorage` for Template Profiles and selected D01/D02 templates.
-- `localStorage` for artifact freshness status.
-- `localStorage` for recommendation feedback.
-- `localStorage` for local audit log entries.
+```text
+User action
+  -> /api/ai/run-skill
+  -> server-side provider adapter when enabled
+  -> schema / quality validation
+  -> Draft or Recommendation or Template Review UI
+  -> user review
+  -> explicit Apply only where supported
+```
 
 Important boundaries:
 
 - `src/lib/models/`: canonical data models.
+- `src/lib/ai/`: AI request/response types, mock services, provider adapters.
+- `src/lib/ai-intake/`: Input Brief to Draft PTR generation and validation.
+- `src/lib/quality-engine/`: AI Draft PTR quality gates.
 - `src/lib/qa/`: rule-based QA entrypoints.
-- `src/lib/recommendation-engine/`: recommendation types, factories, preview/apply operations, and feedback store.
+- `src/lib/recommendation-engine/`: QA Recommendation schema, preview/apply, feedback logging.
+- `src/lib/template-recommendation-engine/`: Template Recommendation schema validation.
 - `src/lib/generators/`: deterministic artifact generators.
-- `src/lib/ai/`: AI scaffolds and mock-only services.
 - `src/lib/audit/`: local audit log foundation.
 - `src/components/`: UI modules.
+- `src/app/api/ai/run-skill/route.ts`: server-side AI skill route.
 
-## 6. Files And Folders Codex Must Read First
+## 6. Current AI Paths
+
+Implemented AI skill paths:
+
+- `input-brief-to-ptr`
+  - Input: `StructuredProcessBrief`
+  - Output: Draft Process Task Register
+  - Apply behavior: user preview and explicit apply only
+
+- `ai-process-qa`
+  - Input: `ProcessTask[]`, rule-based QA issues, selected template metadata
+  - Output: `QARecommendation[]`
+  - Apply behavior: existing Recommendation Engine preview/apply workflow
+
+- `ai-template-review`
+  - Input: selected `TemplateProfile`, `outputType`, `processType`, `businessDomain`
+  - Output: `TemplateRecommendation[]`, optional `TemplateQualityScore`
+  - Apply behavior: display only in this phase; no auto-apply
+
+Feature flags:
+
+- `ENABLE_REAL_AI`
+- `ENABLE_REAL_AI_QA`
+- `ENABLE_REAL_AI_TEMPLATE_REVIEW`
+
+Default behavior should remain mock/local unless the relevant flag is enabled and server-side provider settings are configured.
+
+## 7. Next Priority
+
+Next implementation priorities:
+
+- AI Governance baseline
+- Model Provider settings
+- File Extraction: Excel, DOCX, PDF
+- File extraction to Draft PTR workflow
+- Lightweight Skill Pipeline
+
+## 8. Files And Folders Codex Must Read First
 
 For every new Codex session in this repository, read these first:
 
@@ -103,57 +145,22 @@ For every new Codex session in this repository, read these first:
 6. `docs/AI_RECOMMENDATION_ENGINE_DESIGN.md`
 7. `docs/AI_TEMPLATE_REVIEW_DESIGN.md`
 
-For real AI integration work, also inspect these folders before editing:
+For real AI integration work, also inspect:
 
+- `src/app/api/ai/run-skill/route.ts`
 - `src/lib/ai/`
-- `src/lib/models/`
-- `src/lib/qa/`
+- `src/lib/ai-intake/`
+- `src/lib/quality-engine/`
 - `src/lib/recommendation-engine/`
+- `src/lib/template-recommendation-engine/`
 - `src/lib/audit/`
-- `src/components/`
-
-For artifact generator work, also inspect:
-
-- `src/lib/generators/`
-- Existing D01/D02 sample data and template profiles.
+- Relevant UI component under `src/components/`
 
 Before any change, run:
 
 ```powershell
 git status --short
 ```
-
-## 7. AI Scaffold Status
-
-AI scaffolds exist for future integration, but the current stable baseline does not call real external AI APIs from the browser.
-
-Expected AI integration direction:
-
-- Browser UI collects user input and displays draft/recommendation results.
-- API keys and provider credentials must stay server-side or in a secure backend/runtime boundary.
-- AI provider adapters must return typed data.
-- AI output must be validated against schemas before entering Draft or Recommendation state.
-- Invalid AI output must be rejected or converted into explicit review issues.
-- Draft output must be previewed before user approval.
-- Apply operations must be deterministic and auditable.
-
-## 8. Current Limitations
-
-Current product/runtime limitations:
-
-- No production backend persistence yet.
-- `localStorage` is still the main storage layer.
-- No full auth, role model, or tenant isolation yet.
-- Real AI provider integration is not implemented yet.
-- Provider/data mode enforcement still needs production-ready boundaries.
-- Schema validation for real AI output must be added before external AI is enabled.
-
-Current AI limitations:
-
-- Existing AI services are scaffold/mock-oriented.
-- No API key handling should happen in browser code.
-- No real model provider adapter should bypass schema validation.
-- No AI output should directly mutate the Process Task Register.
 
 ## 9. Regression Test Checklist
 
@@ -183,6 +190,9 @@ Template Library:
 - Save.
 - Select D01 template.
 - Select D02 template.
+- Run mock AI Template Review.
+- Confirm recommendations display.
+- Confirm no template changes are auto-applied.
 - Refresh.
 - Reset.
 
@@ -191,7 +201,19 @@ QA:
 - Create a known issue.
 - Confirm issue count changes.
 - Click issue and confirm row highlight.
+- Run mock AI QA.
+- Confirm AI recommendations appear with rule recommendations.
+- Apply an AI recommendation only after confirmation.
 - Download QA Report.
+
+AI Input Brief:
+
+- Fill the simplified 7-section brief.
+- Generate Draft Process Task Register.
+- Confirm schema/quality gate errors block invalid output.
+- Preview valid draft output.
+- Confirm no automatic Apply occurs.
+- Apply only after explicit user approval.
 
 D01 BPMN:
 
@@ -214,23 +236,15 @@ Export Center:
 - Download ZIP.
 - Confirm ZIP contains all expected files.
 
-AI Input Brief:
-
-- Fill the simplified 7-section brief.
-- Generate Draft Process Task Register.
-- Preview draft output.
-- Confirm no automatic Apply occurs.
-- Apply only after explicit user approval.
-
 Real AI integration, when enabled:
 
 - Confirm no API key is exposed in browser code or client bundles.
-- Confirm AI request uses the intended provider/data mode.
+- Confirm AI request uses the intended server-side provider route.
 - Confirm AI response passes schema validation.
 - Confirm invalid AI response is blocked.
-- Confirm AI output enters Draft/Recommendation first.
-- Confirm Apply requires user approval.
-- Confirm audit log records the relevant AI metadata without storing unnecessary sensitive data.
+- Confirm AI output enters Draft, Recommendation, or Template Review first.
+- Confirm Apply requires user approval where Apply is supported.
+- Confirm audit log records relevant AI metadata without storing unnecessary sensitive data.
 
 ## 10. Continuation Notes
 
@@ -239,7 +253,8 @@ When continuing development:
 - Keep changes small and scoped.
 - Do not modify application code for documentation-only tasks.
 - Do not modify D01/D02 generators unless explicitly requested.
-- Do not call external AI APIs until secure provider/data mode boundaries exist.
+- Do not call external AI APIs from browser code.
+- Keep API keys server-side only.
 - Keep UI labels ready for i18n when adding user-facing UI.
 - Keep internal data keys English and canonical.
 - Keep BPMN enum values canonical, for example `startEvent`, `userTask`, `serviceTask`, `sendTask`, `exclusiveGateway`, and `endEvent`.
@@ -248,6 +263,6 @@ Always remember:
 
 ```text
 Process Task Register is the source of truth.
-AI creates drafts or recommendations.
-User approval is required before Apply.
+AI creates drafts, recommendations, or review findings.
+User approval is required before applying changes.
 ```

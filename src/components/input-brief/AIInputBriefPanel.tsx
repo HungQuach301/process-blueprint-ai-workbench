@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import {
+  confirmRealAICallIfNeeded,
+  logAICallAudit
+} from "@/lib/ai/ai-governance";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
@@ -426,6 +430,11 @@ export function AIInputBriefPanel() {
       return;
     }
 
+    if (!confirmRealAICallIfNeeded(realAIEnabled)) {
+      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      return;
+    }
+
     saveAuditLogEntry({
       action: "generate_ai_draft",
       status: "success",
@@ -472,6 +481,15 @@ export function AIInputBriefPanel() {
         metadata: {
           mode: "mock",
           externalApiCalled: false,
+          draftRowCount: response.draftProcessTasks.length
+        }
+      });
+      logAICallAudit({
+        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        success: true,
+        realAIEnabled: false,
+        externalApiCalled: false,
+        extraMetadata: {
           draftRowCount: response.draftProcessTasks.length
         }
       });
@@ -522,6 +540,13 @@ export function AIInputBriefPanel() {
             validationPassed: data.meta?.validationPassed ?? false
           }
         });
+        logAICallAudit({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: true,
+          externalApiCalled: data.meta?.externalApiCalled ?? true
+        });
         setDraftTasks([]);
         setDraftMeta(null);
         setBlockingErrors(data.validationErrors ?? [errorMessage]);
@@ -544,6 +569,13 @@ export function AIInputBriefPanel() {
             validationPassed: false
           }
         });
+        logAICallAudit({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: true,
+          externalApiCalled: data.meta?.externalApiCalled ?? true
+        });
         setDraftTasks([]);
         setDraftMeta(null);
         setBlockingErrors(validation.errors);
@@ -565,6 +597,13 @@ export function AIInputBriefPanel() {
             externalApiCalled: data.meta?.externalApiCalled ?? true,
             validationPassed: true
           }
+        });
+        logAICallAudit({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          success: false,
+          errorMessage: "Draft PTR khong dat Quality Gate.",
+          realAIEnabled: true,
+          externalApiCalled: data.meta?.externalApiCalled ?? true
         });
         setDraftTasks([]);
         setDraftMeta(null);
@@ -595,10 +634,26 @@ export function AIInputBriefPanel() {
           draftRowCount: validation.value.draftProcessTasks.length
         }
       });
+      logAICallAudit({
+        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        success: true,
+        realAIEnabled: true,
+        externalApiCalled: data.meta?.externalApiCalled ?? true,
+        extraMetadata: {
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
       setMessage(
         `Real AI mode: Ä‘Ã£ táº¡o draft PTR há»£p lá»‡ ${validation.value.draftProcessTasks.length} dÃ²ng. HÃ£y review trÆ°á»›c khi Apply.`
       );
     } catch {
+      logAICallAudit({
+        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        success: false,
+        errorMessage: "AI draft generation request failed.",
+        realAIEnabled: true,
+        externalApiCalled: false
+      });
       saveAuditLogEntry({
         action: "generate_ai_draft",
         status: "failure",

@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  confirmRealAICallIfNeeded,
+  logAICallAudit
+} from "@/lib/ai/ai-governance";
 import type {
   TemplateQualityScore,
   TemplateRecommendation
@@ -464,6 +468,13 @@ export function TemplateLibraryEditor() {
     setIsReviewingTemplate(true);
     setTemplateReviewRecommendations([]);
     setTemplateQualityScore(null);
+
+    if (!confirmRealAICallIfNeeded(realAITemplateReviewEnabled)) {
+      setIsReviewingTemplate(false);
+      setMessage("Da huy goi Real AI Template Review. Khong co thay doi nao duoc ap dung.");
+      return;
+    }
+
     setMessage(
       realAITemplateReviewEnabled
         ? "Dang chay real AI Template Review qua server route..."
@@ -501,11 +512,19 @@ export function TemplateLibraryEditor() {
       };
 
       if (!response.ok || !data.ok) {
-        setMessage(
-          [data.error || "AI Template Review failed.", ...(data.validationErrors ?? [])].join(
-            " "
-          )
-        );
+        const errorMessage = [
+          data.error || "AI Template Review failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+
+        logAICallAudit({
+          skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: realAITemplateReviewEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAITemplateReviewEnabled
+        });
+        setMessage(errorMessage);
         return;
       }
 
@@ -518,7 +537,24 @@ export function TemplateLibraryEditor() {
           data.meta?.externalApiCalled === true ? "yes" : "no"
         }. Template changes were not auto-applied.`
       );
+      logAICallAudit({
+        skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+        success: true,
+        realAIEnabled: data.mode === "provider-backed",
+        externalApiCalled: data.meta?.externalApiCalled === true,
+        extraMetadata: {
+          recommendationCount: data.result?.recommendations?.length ?? 0,
+          hasQualityScore: Boolean(data.result?.qualityScore)
+        }
+      });
     } catch {
+      logAICallAudit({
+        skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+        success: false,
+        errorMessage: "AI Template Review request failed.",
+        realAIEnabled: realAITemplateReviewEnabled,
+        externalApiCalled: false
+      });
       setMessage("AI Template Review request failed. No template change was applied.");
     } finally {
       setIsReviewingTemplate(false);

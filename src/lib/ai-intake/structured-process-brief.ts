@@ -23,6 +23,7 @@ export type ActorSection = {
 export type RelatedSystemSection = {
   name: string;
   purpose?: string;
+  category?: "customer" | "internal" | "thirdParty" | "other";
 };
 
 export type DataDocumentSection = {
@@ -34,10 +35,15 @@ export type DataDocumentSection = {
 export type StructuredProcessBrief = {
   processInfo: ProcessInfoSection;
   businessObjective: string;
+  scopeBoundary?: string;
   scope: string;
   startEnd: StartEndSection;
   actors: ActorSection[];
+  customerSystems?: RelatedSystemSection[];
+  internalSystems?: RelatedSystemSection[];
+  thirdPartySystems?: RelatedSystemSection[];
   relatedSystems?: RelatedSystemSection[];
+  systemsAndDocuments?: string;
   dataDocuments?: DataDocumentSection[];
   inputLanguage?: IntakeLanguage;
   outputLanguage?: IntakeOutputLanguage;

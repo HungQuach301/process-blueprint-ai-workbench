@@ -294,6 +294,10 @@ function formatLastModified(lastModified: number) {
   return new Date(lastModified).toLocaleString();
 }
 
+function mergeUniqueMessages(...messageGroups: string[][]) {
+  return Array.from(new Set(messageGroups.flat().filter(Boolean)));
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [intakeFiles, setIntakeFiles] = useState<IntakeFileMetadata[]>([]);
@@ -310,6 +314,7 @@ export function AIInputBriefPanel() {
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
   const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
+  const [canApplyDraft, setCanApplyDraft] = useState(false);
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [aiStatus, setAIStatus] = useState<AISkillStatus>({
     realAIEnabled: false,
@@ -541,6 +546,7 @@ export function AIInputBriefPanel() {
       setExcelPreview(null);
       setDraftTasks([]);
       setDraftMeta(null);
+      setCanApplyDraft(false);
       setMessage(
         error instanceof Error
           ? `Excel extraction failed: ${error.message}`
@@ -627,7 +633,7 @@ export function AIInputBriefPanel() {
     const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
     const nextResponse = {
       ...response,
-      assumptions: [...response.assumptions, ...docxExtraction.assumptions],
+      assumptions: mergeUniqueMessages(response.assumptions, docxExtraction.assumptions),
       openQuestions: docxExtraction.openQuestions,
       qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
       sourceSummary: "Draft generated locally from DOCX extracted text."
@@ -638,6 +644,7 @@ export function AIInputBriefPanel() {
 
       setDraftTasks([]);
       setDraftMeta(null);
+      setCanApplyDraft(false);
       setBlockingErrors(errors);
       setMessage("Draft PTR tu DOCX khong dat Quality Gate.");
       return;
@@ -646,6 +653,7 @@ export function AIInputBriefPanel() {
     setBlockingErrors([]);
     setDraftTasks(nextResponse.draftProcessTasks);
     setDraftMeta(nextResponse);
+    setCanApplyDraft(draftQualityGate.canApplyAfterReview);
     setMessage(
       `Da tao draft PTR tu DOCX extraction: ${nextResponse.draftProcessTasks.length} dong. Hay review truoc khi Apply.`
     );
@@ -670,6 +678,7 @@ export function AIInputBriefPanel() {
 
       setDraftTasks([]);
       setDraftMeta(null);
+      setCanApplyDraft(false);
       setBlockingErrors(errors);
       setMessage("Brief chua du thong tin de tao Draft PTR.");
       return;
@@ -686,6 +695,7 @@ export function AIInputBriefPanel() {
 
       setDraftTasks([]);
       setDraftMeta(null);
+      setCanApplyDraft(false);
       setBlockingErrors(errors);
       setMessage("Draft PTR khong dat Quality Gate.");
       return;
@@ -693,15 +703,16 @@ export function AIInputBriefPanel() {
 
     const nextResponse = {
       ...response,
-      qualityGateWarnings: [
-        ...formatQualityGateWarningsVi(briefQualityGate),
-        ...formatQualityGateWarningsVi(draftQualityGate)
-      ]
+      qualityGateWarnings: mergeUniqueMessages(
+        formatQualityGateWarningsVi(briefQualityGate),
+        formatQualityGateWarningsVi(draftQualityGate)
+      )
     };
 
     setBlockingErrors([]);
     setDraftTasks(nextResponse.draftProcessTasks);
     setDraftMeta(nextResponse);
+    setCanApplyDraft(draftQualityGate.canApplyAfterReview);
     setMessage(
       `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
     );
@@ -728,6 +739,7 @@ export function AIInputBriefPanel() {
 
       setDraftTasks([]);
       setDraftMeta(null);
+      setCanApplyDraft(false);
       setBlockingErrors(errors);
       setMessage("Brief chua du thong tin de tao Draft PTR.");
       return;
@@ -762,6 +774,7 @@ export function AIInputBriefPanel() {
 
         setDraftTasks([]);
         setDraftMeta(null);
+        setCanApplyDraft(false);
         setBlockingErrors(errors);
         setMessage("Draft PTR khong dat Quality Gate.");
         return;
@@ -769,15 +782,16 @@ export function AIInputBriefPanel() {
 
       const nextResponse = {
         ...response,
-        qualityGateWarnings: [
-          ...formatQualityGateWarningsVi(briefQualityGate),
-          ...formatQualityGateWarningsVi(draftQualityGate)
-        ]
+        qualityGateWarnings: mergeUniqueMessages(
+          formatQualityGateWarningsVi(briefQualityGate),
+          formatQualityGateWarningsVi(draftQualityGate)
+        )
       };
 
       setBlockingErrors([]);
       setDraftTasks(nextResponse.draftProcessTasks);
       setDraftMeta(nextResponse);
+      setCanApplyDraft(draftQualityGate.canApplyAfterReview);
       saveAuditLogEntry({
         action: "generate_ai_draft",
         status: "success",
@@ -856,6 +870,7 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
+        setCanApplyDraft(false);
         setBlockingErrors(data.validationErrors ?? [errorMessage]);
         setMessage(errorMessage);
         return;
@@ -886,6 +901,7 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
+        setCanApplyDraft(false);
         setBlockingErrors(validation.errors);
         setMessage(errorMessage);
         return;
@@ -916,6 +932,7 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
+        setCanApplyDraft(false);
         setBlockingErrors(errors);
         setMessage("Draft PTR khong dat Quality Gate.");
         return;
@@ -923,15 +940,16 @@ export function AIInputBriefPanel() {
 
       const nextDraftMeta = {
         ...validation.value,
-        qualityGateWarnings: [
-          ...(validation.value.qualityGateWarnings ?? []),
-          ...formatQualityGateWarningsVi(draftQualityGate)
-        ]
+        qualityGateWarnings: mergeUniqueMessages(
+          validation.value.qualityGateWarnings ?? [],
+          formatQualityGateWarningsVi(draftQualityGate)
+        )
       };
 
       setBlockingErrors([]);
       setDraftTasks(nextDraftMeta.draftProcessTasks);
       setDraftMeta(nextDraftMeta);
+      setCanApplyDraft(draftQualityGate.canApplyAfterReview);
       saveAuditLogEntry({
         action: "generate_ai_draft",
         status: "success",
@@ -986,6 +1004,11 @@ export function AIInputBriefPanel() {
       return;
     }
 
+    if (!canApplyDraft) {
+      setMessage("Draft PTR dang co loi blocking Quality Gate. Khong the Apply.");
+      return;
+    }
+
     const actionLabel =
       mode === "replace" ? "thay thế" : "append vào cuối";
     const confirmed = window.confirm(
@@ -1022,6 +1045,7 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
+    setCanApplyDraft(false);
     setMessage("Đã hủy draft preview.");
   }
 
@@ -1035,6 +1059,7 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
+    setCanApplyDraft(false);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
@@ -1481,6 +1506,7 @@ export function AIInputBriefPanel() {
             <div className="flex flex-wrap gap-2">
               <button
                 className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                disabled={!canApplyDraft}
                 onClick={() => applyDraftPtr("replace")}
                 type="button"
               >
@@ -1488,6 +1514,7 @@ export function AIInputBriefPanel() {
               </button>
               <button
                 className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
+                disabled={!canApplyDraft}
                 onClick={() => applyDraftPtr("append")}
                 type="button"
               >

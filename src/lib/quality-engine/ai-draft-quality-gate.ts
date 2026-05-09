@@ -18,6 +18,17 @@ const canonicalBpmnTypes = new Set([
   "dataObject",
   "dataStore"
 ]);
+const canonicalRowTypes = new Set([
+  "phase",
+  "group",
+  "task",
+  "gateway",
+  "start",
+  "end",
+  "event",
+  "data",
+  "annotation"
+]);
 
 export type QualityGateSeverity = "blocking" | "warning";
 
@@ -143,13 +154,18 @@ export function runDraftProcessTaskRegisterQualityGate(
 
     if (!clean(task.rowType)) {
       issues.push(blocking("missing_row_type", `Dong ${index + 1} thieu rowType.`));
+    } else if (!canonicalRowTypes.has(task.rowType)) {
+      issues.push(
+        blocking(
+          "invalid_row_type",
+          `Dong ${index + 1} co rowType khong canonical: ${task.rowType}.`
+        )
+      );
     }
 
     if (!clean(task.bpmnType)) {
       issues.push(blocking("missing_bpmn_type", `Dong ${index + 1} thieu bpmnType.`));
-    }
-
-    if (!canonicalBpmnTypes.has(task.bpmnType)) {
+    } else if (!canonicalBpmnTypes.has(task.bpmnType)) {
       issues.push(
         blocking(
           "invalid_bpmn_type",
@@ -162,6 +178,37 @@ export function runDraftProcessTaskRegisterQualityGate(
       issues.push(blocking("missing_task_name", `Dong ${index + 1} thieu taskName.`));
     }
 
+    if (!clean(task.actor) && task.bpmnType !== "serviceTask") {
+      issues.push(
+        warning(
+          "missing_actor",
+          `Dong ${index + 1} (${task.stepId || "chua co stepId"}) chua co actor. Vui long review ownership truoc khi Apply.`
+        )
+      );
+    }
+
+    if (!clean(task.system) && ["serviceTask", "sendTask", "scriptTask", "businessRuleTask"].includes(task.bpmnType)) {
+      issues.push(
+        warning(
+          "missing_system",
+          `Dong ${index + 1} (${task.stepId || "chua co stepId"}) chua co system/app. Vui long bo sung neu can.`
+        )
+      );
+    }
+
+    if (
+      !clean(task.actor) &&
+      !clean(task.system) &&
+      task.reviewStatus !== "needsReview"
+    ) {
+      issues.push(
+        blocking(
+          "orphan_task_without_review",
+          `Dong ${index + 1} (${task.stepId || "chua co stepId"}) co ve bi orphan va chua duoc danh dau needsReview.`
+        )
+      );
+    }
+
     if (stepIds.has(task.stepId)) {
       issues.push(blocking("duplicate_step_id", `Trung stepId: ${task.stepId}.`));
     }
@@ -170,8 +217,13 @@ export function runDraftProcessTaskRegisterQualityGate(
       issues.push(blocking("duplicate_id", `Trung id: ${task.id}.`));
     }
 
-    stepIds.add(task.stepId);
-    ids.add(task.id);
+    if (clean(task.stepId)) {
+      stepIds.add(task.stepId);
+    }
+
+    if (clean(task.id)) {
+      ids.add(task.id);
+    }
 
     if (task.bpmnType === "startEvent" || task.rowType === "start") {
       hasStart = true;

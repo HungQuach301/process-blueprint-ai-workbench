@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import {
+  generateDraftProcessTaskRegister,
+  validateDraftProcessTaskRegister,
+  validateStructuredProcessBrief
+} from "@/lib/ai-intake";
+import {
   createOpenAIProvider,
   type AIModelRequest
 } from "@/lib/ai/providers/openai-provider";
@@ -10,6 +15,8 @@ type RunSkillRequestBody = {
   skillId?: unknown;
   payload?: unknown;
 };
+
+const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -26,7 +33,94 @@ function isValidRunSkillRequest(
   );
 }
 
+function extractJsonObject(value: string) {
+  const trimmedValue = value.trim();
+  const fencedJsonMatch = trimmedValue.match(/```(?:json)?\s*([\s\S]*?)```/i);
+
+  if (fencedJsonMatch?.[1]) {
+    return fencedJsonMatch[1].trim();
+  }
+
+  return trimmedValue;
+}
+
+function createPromptForInputBriefToPtr(payload: unknown) {
+  return [
+    {
+      role: "system" as const,
+      content:
+        "You convert a StructuredProcessBrief into a DraftProcessTaskRegister. Return only valid JSON. Do not include markdown. Every draftProcessTasks item must match the ProcessTask shape, use canonical enum values, set reviewStatus to needsReview, and keep output reviewable before user apply."
+    },
+    {
+      role: "user" as const,
+      content: JSON.stringify(
+        {
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          requiredOutputShape: {
+            draftProcessTasks: "ProcessTask[]",
+            assumptions: "string[]",
+            openQuestions: "string[]",
+            sourceSummary: "string",
+            confidence: "low | medium | high",
+            inputLanguage: "vi | en",
+            outputLanguage: "vi | en | bilingual"
+          },
+          structuredBrief: payload
+        },
+        null,
+        2
+      )
+    }
+  ];
+}
+
 function createMockResponse(skillId: string, payload: unknown) {
+  if (skillId === INPUT_BRIEF_TO_PTR_SKILL_ID) {
+    const briefValidation = validateStructuredProcessBrief(payload);
+
+    if (!briefValidation.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Invalid StructuredProcessBrief.",
+          validationErrors: briefValidation.errors
+        },
+        { status: 400 }
+      );
+    }
+
+    const draft = generateDraftProcessTaskRegister({
+      brief: briefValidation.value,
+      currentLocale: briefValidation.value.inputLanguage
+    });
+    const draftValidation = validateDraftProcessTaskRegister(draft);
+
+    if (!draftValidation.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Mock draft failed schema validation.",
+          validationErrors: draftValidation.errors
+        },
+        { status: 422 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      mode: "mock",
+      provider: process.env.AI_PROVIDER || "openai",
+      model: process.env.AI_MODEL || "",
+      skillId,
+      result: draftValidation.value,
+      meta: {
+        externalApiCalled: false,
+        realAIEnabled: false,
+        validationPassed: true
+      }
+    });
+  }
+
   return {
     ok: true,
     mode: "mock",
@@ -40,9 +134,19 @@ function createMockResponse(skillId: string, payload: unknown) {
     },
     meta: {
       externalApiCalled: false,
-      realAIEnabled: false
+      realAIEnabled: false,
+      validationPassed: false
     }
   };
+}
+
+export function GET() {
+  return NextResponse.json({
+    ok: true,
+    realAIEnabled: process.env.ENABLE_REAL_AI === "true",
+    provider: process.env.AI_PROVIDER || "openai",
+    model: process.env.AI_MODEL || ""
+  });
 }
 
 export async function POST(request: Request) {
@@ -74,7 +178,33 @@ export async function POST(request: Request) {
   const enableRealAI = process.env.ENABLE_REAL_AI === "true";
 
   if (!enableRealAI) {
-    return NextResponse.json(createMockResponse(skillId, body.payload));
+    const mockResponse = createMockResponse(skillId, body.payload);
+    return mockResponse instanceof NextResponse
+      ? mockResponse
+      : NextResponse.json(mockResponse);
+  }
+
+  if (skillId !== INPUT_BRIEF_TO_PTR_SKILL_ID) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Unsupported skillId: ${skillId}`
+      },
+      { status: 400 }
+    );
+  }
+
+  const briefValidation = validateStructuredProcessBrief(body.payload);
+
+  if (!briefValidation.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Invalid StructuredProcessBrief.",
+        validationErrors: briefValidation.errors
+      },
+      { status: 400 }
+    );
   }
 
   const providerName = process.env.AI_PROVIDER || "openai";
@@ -97,19 +227,57 @@ export async function POST(request: Request) {
 
     const aiRequest: AIModelRequest = {
       skillId,
-      payload: body.payload
+      payload: briefValidation.value,
+      messages: createPromptForInputBriefToPtr(briefValidation.value)
     };
 
     const result = await provider.run(aiRequest);
+    let parsedResult: unknown;
+
+    try {
+      parsedResult = JSON.parse(extractJsonObject(result.content));
+    } catch {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "AI output was not valid JSON.",
+          meta: {
+            externalApiCalled: result.externalApiCalled,
+            realAIEnabled: true,
+            validationPassed: false
+          }
+        },
+        { status: 422 }
+      );
+    }
+
+    const draftValidation = validateDraftProcessTaskRegister(parsedResult);
+
+    if (!draftValidation.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "AI output failed DraftProcessTaskRegister schema validation.",
+          validationErrors: draftValidation.errors,
+          meta: {
+            externalApiCalled: result.externalApiCalled,
+            realAIEnabled: true,
+            validationPassed: false
+          }
+        },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({
       ok: true,
       mode: "provider-backed",
       skillId,
-      result,
+      result: draftValidation.value,
       meta: {
         externalApiCalled: result.externalApiCalled,
-        realAIEnabled: true
+        realAIEnabled: true,
+        validationPassed: true
       }
     });
   } catch (error) {

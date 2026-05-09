@@ -7,8 +7,10 @@ import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
+  validateDraftProcessTaskRegister,
   type DraftPTRGenerationResult
 } from "@/lib/ai-intake";
+import type { StructuredProcessBrief } from "@/lib/ai-intake";
 import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
 
@@ -21,6 +23,7 @@ const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
+const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
 
 const previewLabels = {
   vi: {
@@ -245,6 +248,9 @@ export function AIInputBriefPanel() {
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
   const [locale, setActiveLocale] = useState<Locale>("vi");
+  const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [aiModeLoaded, setAiModeLoaded] = useState(false);
+  const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -278,6 +284,39 @@ export function AIInputBriefPanel() {
   useEffect(() => {
     window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
   }, [brief]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAIMode() {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "GET"
+        });
+        const data = (await response.json()) as {
+          realAIEnabled?: boolean;
+        };
+
+        if (active) {
+          setRealAIEnabled(data.realAIEnabled === true);
+        }
+      } catch {
+        if (active) {
+          setRealAIEnabled(false);
+        }
+      } finally {
+        if (active) {
+          setAiModeLoaded(true);
+        }
+      }
+    }
+
+    loadAIMode();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filledFieldCount = useMemo(
     () => briefFields.filter((field) => brief[field.key].trim()).length,
@@ -319,6 +358,152 @@ export function AIInputBriefPanel() {
     setMessage(
       `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
     );
+  }
+
+  async function generateDraftPtrWithAI() {
+    const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
+      processInfo: brief.processInfo,
+      businessObjective: brief.businessObjective,
+      scope: brief.scope,
+      startEnd: brief.startEnd,
+      actors: brief.actors,
+      relatedSystems: brief.relatedSystems,
+      dataDocuments: brief.dataDocuments,
+      inputLanguage: locale,
+      outputLanguage: locale
+    });
+    const generationMode = realAIEnabled ? "real-ai" : "mock";
+
+    saveAuditLogEntry({
+      action: "generate_ai_draft",
+      status: "success",
+      summary: `Started ${generationMode} draft generation from Input Brief.`,
+      metadata: {
+        mode: generationMode,
+        realAIEnabled,
+        sectionsFilled: filledFieldCount
+      }
+    });
+
+    if (!realAIEnabled) {
+      const response = generateDraftProcessTaskRegister({
+        brief: structuredBrief,
+        currentLocale: locale
+      });
+
+      setDraftTasks(response.draftProcessTasks);
+      setDraftMeta(response);
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "success",
+        summary: "Generated draft PTR with local mock mode.",
+        metadata: {
+          mode: "mock",
+          externalApiCalled: false,
+          draftRowCount: response.draftProcessTasks.length
+        }
+      });
+      setMessage(
+        `Mock mode: Ä‘Ã£ táº¡o draft PTR local ${response.draftProcessTasks.length} dÃ²ng. KhÃ´ng gá»i external API.`
+      );
+      return;
+    }
+
+    setIsGeneratingWithAI(true);
+    setMessage("Real AI mode: Ä‘ang gá»i server-side AI provider...");
+
+    try {
+      const routeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          payload: structuredBrief
+        })
+      });
+      const data = (await routeResponse.json()) as {
+        ok?: boolean;
+        result?: unknown;
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+          validationPassed?: boolean;
+        };
+      };
+
+      if (!routeResponse.ok || !data.ok) {
+        const errorMessage = [
+          data.error || "AI draft generation failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: "real-ai",
+            externalApiCalled: data.meta?.externalApiCalled ?? true,
+            validationPassed: data.meta?.validationPassed ?? false
+          }
+        });
+        setMessage(errorMessage);
+        return;
+      }
+
+      const validation = validateDraftProcessTaskRegister(data.result);
+
+      if (!validation.ok) {
+        const errorMessage = `AI output rejected: ${validation.errors.join(" ")}`;
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: "real-ai",
+            externalApiCalled: data.meta?.externalApiCalled ?? true,
+            validationPassed: false
+          }
+        });
+        setMessage(errorMessage);
+        return;
+      }
+
+      setDraftTasks(validation.value.draftProcessTasks);
+      setDraftMeta(validation.value);
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "success",
+        summary: "Generated schema-valid draft PTR with real AI mode.",
+        metadata: {
+          mode: "real-ai",
+          externalApiCalled: data.meta?.externalApiCalled ?? true,
+          validationPassed: true,
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
+      setMessage(
+        `Real AI mode: Ä‘Ã£ táº¡o draft PTR há»£p lá»‡ ${validation.value.draftProcessTasks.length} dÃ²ng. HÃ£y review trÆ°á»›c khi Apply.`
+      );
+    } catch {
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "failure",
+        summary: "AI draft generation request failed.",
+        metadata: {
+          mode: "real-ai",
+          externalApiCalled: false,
+          validationPassed: false
+        }
+      });
+      setMessage("AI draft generation request failed. Draft was not applied.");
+    } finally {
+      setIsGeneratingWithAI(false);
+    }
   }
 
   function applyDraftPtr(mode: "replace" | "append") {
@@ -400,6 +585,14 @@ export function AIInputBriefPanel() {
           >
             {t("inputBrief.generateDraftProcessTaskRegister", locale)}
           </button>
+          <button
+            className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isGeneratingWithAI}
+            onClick={generateDraftPtrWithAI}
+            type="button"
+          >
+            {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
+          </button>
         </>
       }
       bodyClassName="p-4"
@@ -433,6 +626,13 @@ export function AIInputBriefPanel() {
         <span>
           {filledFieldCount}/{briefFields.length}{" "}
           {t("inputBrief.sectionsFilled", locale)}
+        </span>
+        <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
+          {aiModeLoaded
+            ? realAIEnabled
+              ? "Real AI mode"
+              : "Mock mode"
+            : "Checking AI mode..."}
         </span>
         {message ? <span>{message}</span> : null}
       </div>

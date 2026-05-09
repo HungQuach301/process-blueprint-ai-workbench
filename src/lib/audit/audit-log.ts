@@ -2,6 +2,7 @@ const STORAGE_KEY = "process-blueprint-ai-workbench:audit-log";
 
 export type AuditAction =
   | "import_excel"
+  | "generate_ai_draft"
   | "apply_recommendation"
   | "apply_ai_draft"
   | "generate_d01"

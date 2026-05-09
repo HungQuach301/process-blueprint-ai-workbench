@@ -21,3 +21,13 @@ export {
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm
 } from "@/lib/ai-intake/draft-ptr-generator";
+
+export type {
+  DraftProcessTaskRegister,
+  SchemaValidationResult
+} from "@/lib/ai-intake/draft-ptr-schema";
+
+export {
+  validateDraftProcessTaskRegister,
+  validateStructuredProcessBrief
+} from "@/lib/ai-intake/draft-ptr-schema";

@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type {
+  TemplateQualityScore,
+  TemplateRecommendation
+} from "@/lib/ai/ai-template-review-types";
+import type {
   TemplateBusinessDomain,
   TemplateJourneyType,
   TemplateNotationStandard,
@@ -27,6 +31,7 @@ const D01_GENERATED_STATUS_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 
 type RuleField =
   | "laneRules"
@@ -286,6 +291,13 @@ export function TemplateLibraryEditor() {
     sampleServiceBlueprintTemplateProfile.id
   );
   const [message, setMessage] = useState("");
+  const [templateReviewRecommendations, setTemplateReviewRecommendations] =
+    useState<TemplateRecommendation[]>([]);
+  const [templateQualityScore, setTemplateQualityScore] =
+    useState<TemplateQualityScore | null>(null);
+  const [realAITemplateReviewEnabled, setRealAITemplateReviewEnabled] =
+    useState(false);
+  const [isReviewingTemplate, setIsReviewingTemplate] = useState(false);
 
   useEffect(() => {
     const savedTemplates = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
@@ -316,6 +328,37 @@ export function TemplateLibraryEditor() {
     if (savedD02) {
       setSelectedD02TemplateId(savedD02);
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadTemplateReviewMode() {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "GET"
+        });
+        const data = (await response.json()) as {
+          realAITemplateReviewEnabled?: boolean;
+        };
+
+        if (active) {
+          setRealAITemplateReviewEnabled(
+            data.realAITemplateReviewEnabled === true
+          );
+        }
+      } catch {
+        if (active) {
+          setRealAITemplateReviewEnabled(false);
+        }
+      }
+    }
+
+    loadTemplateReviewMode();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const activeDraft = useMemo(
@@ -399,6 +442,89 @@ export function TemplateLibraryEditor() {
     setMessage("Đã chọn template cho D02 Service Blueprint.");
   }
 
+  async function runTemplateReview() {
+    if (!activeDraft) {
+      setMessage("Khong co template de review.");
+      return;
+    }
+
+    let selectedTemplate: TemplateProfile;
+
+    try {
+      selectedTemplate = draftToProfile(activeDraft);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Khong the review template: ${error.message}`
+          : "Khong the review template vi JSON rule khong hop le."
+      );
+      return;
+    }
+
+    setIsReviewingTemplate(true);
+    setTemplateReviewRecommendations([]);
+    setTemplateQualityScore(null);
+    setMessage(
+      realAITemplateReviewEnabled
+        ? "Dang chay real AI Template Review qua server route..."
+        : "Dang chay mock AI Template Review."
+    );
+
+    try {
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+          payload: {
+            selectedTemplate,
+            outputType: selectedTemplate.outputType,
+            processType: selectedTemplate.processType,
+            businessDomain: selectedTemplate.businessDomain
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        mode?: "mock" | "provider-backed";
+        result?: {
+          recommendations?: TemplateRecommendation[];
+          qualityScore?: TemplateQualityScore;
+        };
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+        };
+      };
+
+      if (!response.ok || !data.ok) {
+        setMessage(
+          [data.error || "AI Template Review failed.", ...(data.validationErrors ?? [])].join(
+            " "
+          )
+        );
+        return;
+      }
+
+      setTemplateReviewRecommendations(data.result?.recommendations ?? []);
+      setTemplateQualityScore(data.result?.qualityScore ?? null);
+      setMessage(
+        `${data.mode === "provider-backed" ? "Real" : "Mock"} AI Template Review returned ${
+          data.result?.recommendations?.length ?? 0
+        } recommendation(s). External API called: ${
+          data.meta?.externalApiCalled === true ? "yes" : "no"
+        }. Template changes were not auto-applied.`
+      );
+    } catch {
+      setMessage("AI Template Review request failed. No template change was applied.");
+    } finally {
+      setIsReviewingTemplate(false);
+    }
+  }
+
   return (
     <section className="rounded border border-slate-200 bg-white">
       <div className="border-b border-slate-200 p-4">
@@ -430,6 +556,18 @@ export function TemplateLibraryEditor() {
             >
               Reset mẫu
             </button>
+            <button
+              className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isReviewingTemplate}
+              onClick={runTemplateReview}
+              type="button"
+            >
+              {isReviewingTemplate
+                ? "Reviewing..."
+                : realAITemplateReviewEnabled
+                  ? "Run real AI Template Review"
+                  : "Run mock AI Template Review"}
+            </button>
           </div>
         </div>
 
@@ -449,6 +587,61 @@ export function TemplateLibraryEditor() {
         </div>
 
         {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+
+        {templateQualityScore ? (
+          <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+            <p className="font-semibold">
+              Template quality score: {templateQualityScore.score}/
+              {templateQualityScore.maxScore}
+            </p>
+            <p className="mt-1">{templateQualityScore.summary}</p>
+          </div>
+        ) : null}
+
+        {templateReviewRecommendations.length > 0 ? (
+          <div className="mt-4 rounded border border-indigo-200 bg-indigo-50 p-3">
+            <p className="text-sm font-semibold text-indigo-950">
+              AI Template Recommendations
+            </p>
+            <p className="mt-1 text-sm text-indigo-900">
+              Human review required. No template change is auto-applied in this phase.
+            </p>
+            <div className="mt-3 grid gap-3">
+              {templateReviewRecommendations.map((recommendation) => (
+                <div
+                  className="rounded border border-indigo-200 bg-white p-3 text-sm"
+                  key={recommendation.id}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-900">
+                      source: {recommendation.source ?? "ai"}
+                    </span>
+                    <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                      {recommendation.type}
+                    </span>
+                    <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                      risk: {recommendation.riskLevel}
+                    </span>
+                  </div>
+                  <p className="mt-2 font-semibold text-slate-950">
+                    {recommendation.title}
+                  </p>
+                  <p className="mt-1 text-slate-700">{recommendation.description}</p>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Affected fields: {recommendation.affectedFields.join(", ")}
+                  </p>
+                  {recommendation.warnings?.length ? (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-700">
+                      {recommendation.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-0 lg:grid-cols-[320px_1fr]">

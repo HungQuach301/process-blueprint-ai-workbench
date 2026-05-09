@@ -10,6 +10,8 @@ import {
 } from "@/lib/ai/providers/openai-provider";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
+import { runMockTemplateReview } from "@/lib/ai/ai-template-review-service";
+import type { AITemplateReviewRequest } from "@/lib/ai/ai-template-review-types";
 import {
   formatQualityGateErrorsVi,
   formatQualityGateWarningsVi,
@@ -17,6 +19,7 @@ import {
   runDraftProcessTaskRegisterQualityGate
 } from "@/lib/quality-engine";
 import { validateAIQARecommendations } from "@/lib/recommendation-engine/qa-recommendation-schema";
+import { validateTemplateReviewOutput } from "@/lib/template-recommendation-engine";
 
 export const runtime = "nodejs";
 
@@ -27,6 +30,7 @@ type RunSkillRequestBody = {
 
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -106,12 +110,112 @@ function createPromptForAIProcessQA(payload: unknown) {
   ];
 }
 
+function createPromptForAITemplateReview(payload: unknown) {
+  return [
+    {
+      role: "system" as const,
+      content:
+        "You review one TemplateProfile and return only JSON with recommendations and optional qualityScore. Recommendations must be TemplateRecommendation objects, source ai, templateId matching the selected template, affectedFields, and requiresConfirmation true. Do not auto-apply template changes."
+    },
+    {
+      role: "user" as const,
+      content: JSON.stringify(
+        {
+          skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+          requiredOutput: {
+            recommendations: "TemplateRecommendation[]",
+            qualityScore: "TemplateQualityScore optional"
+          },
+          context: payload
+        },
+        null,
+        2
+      )
+    }
+  ];
+}
+
 function isAIQAPayload(value: unknown): value is Omit<AIQARequest, "context"> {
   return (
     isObject(value) &&
     Array.isArray(value.processTasks) &&
     (value.templateProfiles === undefined || Array.isArray(value.templateProfiles))
   );
+}
+
+type TemplateReviewPayload = Omit<AITemplateReviewRequest, "context" | "templateProfiles"> & {
+  selectedTemplate?: unknown;
+};
+
+function isTemplateReviewPayload(
+  value: unknown
+): value is TemplateReviewPayload {
+  return isObject(value) && isObject(value.selectedTemplate);
+}
+
+function createMockTemplateReviewResponse(payload: unknown) {
+  if (!isTemplateReviewPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Template review request must include selectedTemplate."
+      },
+      { status: 400 }
+    );
+  }
+
+  const selectedTemplate = payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number];
+  const response = runMockTemplateReview({
+    context: {
+      scope: "template-review",
+      executionMode: "mock",
+      providerSettings: {
+        provider: "no-ai",
+        dataUsageMode: "local-only"
+      },
+      templateProfiles: [selectedTemplate],
+      requestId: `mock-ai-template-review-${Date.now()}`
+    },
+    templateProfiles: [selectedTemplate],
+    outputType: payload.outputType,
+    processType: payload.processType,
+    businessDomain: payload.businessDomain
+  });
+  const validation = validateTemplateReviewOutput(
+    {
+      recommendations: response.recommendations,
+      qualityScore: response.qualityScore
+    },
+    selectedTemplate
+  );
+
+  if (!validation.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Mock template review output failed schema validation.",
+        validationErrors: validation.errors
+      },
+      { status: 422 }
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: process.env.AI_PROVIDER || "openai",
+    model: process.env.AI_MODEL || "",
+    skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+    result: {
+      recommendations: validation.recommendations,
+      qualityScore: validation.qualityScore
+    },
+    meta: {
+      externalApiCalled: false,
+      realAITemplateReviewEnabled: false,
+      validationPassed: true
+    }
+  });
 }
 
 function createMockAIQAResponse(payload: unknown) {
@@ -284,6 +388,8 @@ export function GET() {
     ok: true,
     realAIEnabled: process.env.ENABLE_REAL_AI === "true",
     realAIQAEnabled: process.env.ENABLE_REAL_AI_QA === "true",
+    realAITemplateReviewEnabled:
+      process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
     provider: process.env.AI_PROVIDER || "openai",
     model: process.env.AI_MODEL || ""
   });
@@ -315,6 +421,119 @@ export async function POST(request: Request) {
   }
 
   const skillId = body.skillId.trim();
+  const enableRealAITemplateReview =
+    process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
+
+  if (
+    skillId === AI_TEMPLATE_REVIEW_SKILL_ID &&
+    !enableRealAITemplateReview
+  ) {
+    return createMockTemplateReviewResponse(body.payload);
+  }
+
+  if (skillId === AI_TEMPLATE_REVIEW_SKILL_ID) {
+    if (!isTemplateReviewPayload(body.payload)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Template review request must include selectedTemplate."
+        },
+        { status: 400 }
+      );
+    }
+
+    const selectedTemplate = body.payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number];
+    const providerName = process.env.AI_PROVIDER || "openai";
+
+    if (providerName !== "openai") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Unsupported AI_PROVIDER: ${providerName}`
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const provider = createOpenAIProvider({
+        apiKey: process.env.OPENAI_API_KEY || "",
+        model: process.env.AI_MODEL || ""
+      });
+      const result = await provider.run({
+        skillId,
+        payload: body.payload,
+        messages: createPromptForAITemplateReview(body.payload)
+      });
+      let parsedResult: unknown;
+
+      try {
+        parsedResult = JSON.parse(extractJsonObject(result.content));
+      } catch {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "AI template review output was not valid JSON.",
+            meta: {
+              externalApiCalled: result.externalApiCalled,
+              realAITemplateReviewEnabled: true,
+              validationPassed: false
+            }
+          },
+          { status: 422 }
+        );
+      }
+
+      const validation = validateTemplateReviewOutput(
+        parsedResult,
+        selectedTemplate
+      );
+
+      if (!validation.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "AI template review output failed TemplateRecommendation schema validation.",
+            validationErrors: validation.errors,
+            meta: {
+              externalApiCalled: result.externalApiCalled,
+              realAITemplateReviewEnabled: true,
+              validationPassed: false
+            }
+          },
+          { status: 422 }
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+        mode: "provider-backed",
+        skillId,
+        result: {
+          recommendations: validation.recommendations,
+          qualityScore: validation.qualityScore
+        },
+        meta: {
+          externalApiCalled: result.externalApiCalled,
+          realAITemplateReviewEnabled: true,
+          validationPassed: true
+        }
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "AI template review provider request failed."
+        },
+        { status: 500 }
+      );
+    }
+  }
+
   const enableRealAIQA = process.env.ENABLE_REAL_AI_QA === "true";
 
   if (skillId === AI_PROCESS_QA_SKILL_ID && !enableRealAIQA) {

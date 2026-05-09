@@ -41,3 +41,7 @@ export {
   createIntakeFileMetadata,
   isSupportedIntakeFile
 } from "@/lib/ai-intake/file-intake";
+
+export type { ExcelExtractionPreview } from "@/lib/ai-intake/excel-extractor";
+
+export { extractDraftTasksFromExcel } from "@/lib/ai-intake/excel-extractor";

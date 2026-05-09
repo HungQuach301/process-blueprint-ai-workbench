@@ -10,10 +10,12 @@ import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
   createIntakeFileMetadata,
+  extractDraftTasksFromExcel,
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
   validateDraftProcessTaskRegister,
   type DraftPTRGenerationResult,
+  type ExcelExtractionPreview,
   type IntakeFileMetadata
 } from "@/lib/ai-intake";
 import type { StructuredProcessBrief } from "@/lib/ai-intake";
@@ -285,6 +287,10 @@ function formatLastModified(lastModified: number) {
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [intakeFiles, setIntakeFiles] = useState<IntakeFileMetadata[]>([]);
+  const [selectedFileObjects, setSelectedFileObjects] = useState<File[]>([]);
+  const [excelPreview, setExcelPreview] = useState<ExcelExtractionPreview | null>(
+    null
+  );
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
@@ -410,12 +416,15 @@ export function AIInputBriefPanel() {
       return;
     }
 
-    const nextFileMetadata = Array.from(files).map(createIntakeFileMetadata);
+    const nextFiles = Array.from(files);
+    const nextFileMetadata = nextFiles.map(createIntakeFileMetadata);
     const unsupportedCount = nextFileMetadata.filter(
       (file) => file.status === "unsupported"
     ).length;
 
+    setSelectedFileObjects(nextFiles);
     setIntakeFiles(nextFileMetadata);
+    setExcelPreview(null);
     setMessage(
       unsupportedCount > 0
         ? `${unsupportedCount} file khong duoc ho tro. Chi luu metadata, khong upload file.`
@@ -424,9 +433,67 @@ export function AIInputBriefPanel() {
   }
 
   function clearSelectedFiles() {
+    setSelectedFileObjects([]);
     setIntakeFiles([]);
+    setExcelPreview(null);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Da xoa file intake metadata local.");
+  }
+
+  function updateIntakeFileStatus(
+    file: File,
+    status: IntakeFileMetadata["status"]
+  ) {
+    setIntakeFiles((currentFiles) =>
+      currentFiles.map((currentFile) =>
+        currentFile.fileName === file.name &&
+        currentFile.lastModified === file.lastModified
+          ? { ...currentFile, status }
+          : currentFile
+      )
+    );
+  }
+
+  async function extractExcelFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    setMessage("Dang extract Excel local trong browser. Khong upload file.");
+
+    try {
+      const preview = await extractDraftTasksFromExcel(file);
+
+      setExcelPreview(preview);
+      setDraftTasks(preview.draftTasks);
+      setDraftMeta({
+        draftProcessTasks: preview.draftTasks,
+        assumptions: [
+          "Draft was extracted locally from an Excel workbook.",
+          "Rows are not applied until the user confirms Apply."
+        ],
+        openQuestions:
+          preview.warnings.length > 0
+            ? preview.warnings
+            : ["Review extracted rows before applying to PTR."],
+        qualityGateWarnings: preview.warnings,
+        sourceSummary: `Excel extraction from ${file.name}, sheet ${preview.detectedSheet}.`,
+        confidence: preview.warnings.length > 0 ? "medium" : "high",
+        inputLanguage: locale,
+        outputLanguage: locale
+      });
+      updateIntakeFileStatus(file, "extracted");
+      setMessage(
+        `Da extract ${preview.draftTasks.length} draft task tu sheet ${preview.detectedSheet}. Hay review truoc khi Apply.`
+      );
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setExcelPreview(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setMessage(
+        error instanceof Error
+          ? `Excel extraction failed: ${error.message}`
+          : "Excel extraction failed."
+      );
+    }
   }
 
   function generateDraftPtr() {
@@ -798,6 +865,8 @@ export function AIInputBriefPanel() {
   function resetBrief() {
     setBrief(emptyBrief);
     setIntakeFiles([]);
+    setSelectedFileObjects([]);
+    setExcelPreview(null);
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
@@ -914,6 +983,7 @@ export function AIInputBriefPanel() {
                   <th className="px-3 py-2">Size</th>
                   <th className="px-3 py-2">Last modified</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -936,10 +1006,92 @@ export function AIInputBriefPanel() {
                         {file.status}
                       </span>
                     </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      {file.fileName.toLowerCase().endsWith(".xlsx") &&
+                      file.status !== "unsupported" ? (
+                        <button
+                          className="rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={file.status === "pending-extraction"}
+                          onClick={() => {
+                            const selectedFile = selectedFileObjects.find(
+                              (item) =>
+                                item.name === file.fileName &&
+                                item.lastModified === file.lastModified
+                            );
+
+                            if (selectedFile) {
+                              void extractExcelFile(selectedFile);
+                            } else {
+                              setMessage(
+                                "Please re-select the Excel file before extracting. Browser file objects are not persisted after refresh."
+                              );
+                            }
+                          }}
+                          type="button"
+                        >
+                          Extract
+                        </button>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : null}
+
+        {excelPreview ? (
+          <div className="mt-4 rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+            <p className="font-semibold">Excel extraction preview</p>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <p>
+                Detected sheet:{" "}
+                <span className="font-semibold">{excelPreview.detectedSheet}</span>
+              </p>
+              <p>
+                Sheets:{" "}
+                <span className="font-semibold">
+                  {excelPreview.sheetNames.join(", ")}
+                </span>
+              </p>
+              <p>
+                Detected columns:{" "}
+                <span className="font-semibold">
+                  {excelPreview.detectedColumns.join(", ") || "None"}
+                </span>
+              </p>
+              <p>
+                Unmapped columns:{" "}
+                <span className="font-semibold">
+                  {excelPreview.unmappedColumns.join(", ") || "None"}
+                </span>
+              </p>
+            </div>
+            <div className="mt-3">
+              <p className="font-semibold">Mapped fields</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {Object.entries(excelPreview.mappedFields).map(
+                  ([fieldName, columnName]) => (
+                    <span
+                      className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-sky-900"
+                      key={fieldName}
+                    >
+                      {fieldName}: {columnName}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+            {excelPreview.warnings.length > 0 ? (
+              <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                <p className="font-semibold">Warnings</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {excelPreview.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

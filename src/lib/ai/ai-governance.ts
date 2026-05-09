@@ -1,4 +1,4 @@
-import { saveAuditLogEntry } from "@/lib/audit/audit-log";
+﻿import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type {
   AIProviderSettings,
   DataUsageMode,
@@ -10,7 +10,7 @@ export const AI_PROVIDER_SETTINGS_STORAGE_KEY =
   "process-blueprint-ai-workbench:ai-provider-settings";
 
 export const AI_GOVERNANCE_NOTICE =
-  "Dữ liệu có thể được gửi tới AI provider đã cấu hình. Vui lòng kiểm tra chính sách dữ liệu trước khi tiếp tục.";
+  "Dữ liệu có thể được gửi tới AI provider đã cấu hình.";
 
 export const defaultAIProviderSettings: AIProviderSettings = {
   providerMode: "no-ai",
@@ -169,3 +169,4 @@ export function logAICallAudit({
     }
   });
 }
+

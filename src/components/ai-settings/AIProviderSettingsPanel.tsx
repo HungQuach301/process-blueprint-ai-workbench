@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
+import { exportAuditLogJson, loadAuditLog } from "@/lib/audit/audit-log";
 import {
   AI_GOVERNANCE_NOTICE,
   AI_PROVIDER_SETTINGS_STORAGE_KEY,
@@ -14,6 +15,7 @@ import type {
   DefaultModelCapability,
   ModelProvider
 } from "@/lib/ai/model-provider-types";
+import type { AuditLogEntry } from "@/lib/audit/audit-log";
 
 const modelProviderOptions: Array<{
   value: ModelProvider;
@@ -56,7 +58,10 @@ export function AIProviderSettingsPanel() {
   const [message, setMessage] = useState("");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
   const [providerStatus, setProviderStatus] =
-    useState<"configured" | "not configured" | "mock-only">("mock-only");
+    useState<"configured" | "missing-key" | "not configured" | "mock-only">("mock-only");
+  const [environmentProvider, setEnvironmentProvider] =
+    useState<"mock" | "openai" | "anthropic">("mock");
+  const [lastAICall, setLastAICall] = useState<AuditLogEntry | null>(null);
 
   useEffect(() => {
     setSettings(readAIProviderSettings());
@@ -74,7 +79,8 @@ export function AIProviderSettingsPanel() {
           realAIEnabled?: boolean;
           realAIQAEnabled?: boolean;
           realAITemplateReviewEnabled?: boolean;
-          providerStatus?: "configured" | "not configured" | "mock-only";
+          providerStatus?: "configured" | "missing-key" | "not configured" | "mock-only";
+          provider?: "mock" | "openai" | "anthropic";
         };
 
         if (active) {
@@ -84,11 +90,13 @@ export function AIProviderSettingsPanel() {
               data.realAITemplateReviewEnabled === true
           );
           setProviderStatus(data.providerStatus ?? "mock-only");
+          setEnvironmentProvider(data.provider ?? "mock");
         }
       } catch {
         if (active) {
           setRealAIEnabled(false);
           setProviderStatus("mock-only");
+          setEnvironmentProvider("mock");
         }
       }
     }
@@ -99,6 +107,40 @@ export function AIProviderSettingsPanel() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    setLastAICall(
+      loadAuditLog().find((entry) => entry.action === "ai_call") ?? null
+    );
+  }, [message]);
+
+  function getProviderLabel() {
+    if (environmentProvider === "openai") {
+      return "OpenAI";
+    }
+
+    if (environmentProvider === "anthropic") {
+      return "Claude";
+    }
+
+    return "Mock";
+  }
+
+  function downloadAuditLog() {
+    const blob = new Blob([exportAuditLogJson()], {
+      type: "application/json;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `Audit_Log_${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setMessage("Đã export audit log JSON.");
+  }
 
   function updateSettings(nextSettings: AIProviderSettings) {
     setSettings(nextSettings);
@@ -136,6 +178,13 @@ export function AIProviderSettingsPanel() {
         <>
           <button
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={downloadAuditLog}
+            type="button"
+          >
+            Export Audit Log
+          </button>
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             onClick={resetSettings}
             type="button"
           >
@@ -158,13 +207,21 @@ export function AIProviderSettingsPanel() {
         Do not enter production secrets in local MVP. API key thật chưa được hỗ trợ và không nên lưu trong localStorage.
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-4">
+      <div className="mt-4 grid gap-3 md:grid-cols-5">
         <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
           <p className="text-xs font-semibold uppercase text-slate-500">
             Current AI mode
           </p>
           <p className="mt-1 font-semibold text-slate-950">
             {realAIEnabled ? "Real AI" : "Mock AI"}
+          </p>
+        </div>
+        <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
+          <p className="text-xs font-semibold uppercase text-slate-500">
+            Provider
+          </p>
+          <p className="mt-1 font-semibold text-slate-950">
+            {getProviderLabel()}
           </p>
         </div>
         <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
@@ -198,6 +255,37 @@ export function AIProviderSettingsPanel() {
         <p className="mt-1">
           Do not enter production secrets in local MVP. API keys should be server-side only.
         </p>
+      </div>
+
+      <div className="mt-4 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              Last AI call status
+            </p>
+            {lastAICall ? (
+              <div className="mt-1 space-y-1">
+                <p className="font-semibold text-slate-950">
+                  {lastAICall.status} - {lastAICall.summary}
+                </p>
+                <p className="text-slate-600">{lastAICall.timestamp}</p>
+                <p className="text-slate-600">
+                  Provider: {String(lastAICall.metadata?.provider ?? "unknown")} |
+                  Data mode: {String(lastAICall.metadata?.dataUsageMode ?? "unknown")}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-slate-600">No AI call has been logged yet.</p>
+            )}
+          </div>
+          <button
+            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={downloadAuditLog}
+            type="button"
+          >
+            Export Audit Log JSON
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

@@ -31,3 +31,13 @@ export {
   validateDraftProcessTaskRegister,
   validateStructuredProcessBrief
 } from "@/lib/ai-intake/draft-ptr-schema";
+
+export type {
+  IntakeFileMetadata,
+  IntakeFileStatus
+} from "@/lib/ai-intake/file-intake";
+
+export {
+  createIntakeFileMetadata,
+  isSupportedIntakeFile
+} from "@/lib/ai-intake/file-intake";

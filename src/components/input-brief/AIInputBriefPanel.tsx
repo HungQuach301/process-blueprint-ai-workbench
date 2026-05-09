@@ -9,10 +9,12 @@ import {
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
+  createIntakeFileMetadata,
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
   validateDraftProcessTaskRegister,
-  type DraftPTRGenerationResult
+  type DraftPTRGenerationResult,
+  type IntakeFileMetadata
 } from "@/lib/ai-intake";
 import type { StructuredProcessBrief } from "@/lib/ai-intake";
 import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
@@ -25,6 +27,8 @@ import {
 } from "@/lib/quality-engine";
 
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
+const FILE_METADATA_STORAGE_KEY =
+  "process-blueprint-ai-workbench:input-brief-file-metadata";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
 const D01_GENERATED_STATUS_KEY =
@@ -34,6 +38,14 @@ const D02_GENERATED_STATUS_KEY =
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
+
+const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
+  selected: "border-slate-200 bg-slate-50 text-slate-700",
+  "pending-extraction": "border-amber-200 bg-amber-50 text-amber-800",
+  extracted: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  unsupported: "border-red-200 bg-red-50 text-red-800",
+  failed: "border-red-200 bg-red-50 text-red-800"
+};
 
 const previewLabels = {
   vi: {
@@ -254,8 +266,25 @@ function normalizeSavedBrief(value: unknown): InputBriefFormState {
   };
 }
 
+function formatFileSize(fileSize: number) {
+  if (fileSize < 1024) {
+    return `${fileSize} B`;
+  }
+
+  if (fileSize < 1024 * 1024) {
+    return `${(fileSize / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(fileSize / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatLastModified(lastModified: number) {
+  return new Date(lastModified).toLocaleString();
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
+  const [intakeFiles, setIntakeFiles] = useState<IntakeFileMetadata[]>([]);
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
@@ -297,6 +326,33 @@ export function AIInputBriefPanel() {
   useEffect(() => {
     window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
   }, [brief]);
+
+  useEffect(() => {
+    const savedFileMetadata = window.localStorage.getItem(
+      FILE_METADATA_STORAGE_KEY
+    );
+
+    if (!savedFileMetadata) {
+      return;
+    }
+
+    try {
+      const parsedFileMetadata = JSON.parse(savedFileMetadata);
+
+      if (Array.isArray(parsedFileMetadata)) {
+        setIntakeFiles(parsedFileMetadata as IntakeFileMetadata[]);
+      }
+    } catch {
+      setIntakeFiles([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      FILE_METADATA_STORAGE_KEY,
+      JSON.stringify(intakeFiles)
+    );
+  }, [intakeFiles]);
 
   useEffect(() => {
     let active = true;
@@ -347,6 +403,30 @@ export function AIInputBriefPanel() {
   function saveBrief() {
     window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
     setMessage("Brief đã được lưu local.");
+  }
+
+  function handleFileSelection(files: FileList | null) {
+    if (!files) {
+      return;
+    }
+
+    const nextFileMetadata = Array.from(files).map(createIntakeFileMetadata);
+    const unsupportedCount = nextFileMetadata.filter(
+      (file) => file.status === "unsupported"
+    ).length;
+
+    setIntakeFiles(nextFileMetadata);
+    setMessage(
+      unsupportedCount > 0
+        ? `${unsupportedCount} file khong duoc ho tro. Chi luu metadata, khong upload file.`
+        : `Da chon ${nextFileMetadata.length} file. Chi luu metadata, khong upload file.`
+    );
+  }
+
+  function clearSelectedFiles() {
+    setIntakeFiles([]);
+    window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
+    setMessage("Da xoa file intake metadata local.");
   }
 
   function generateDraftPtr() {
@@ -717,10 +797,12 @@ export function AIInputBriefPanel() {
 
   function resetBrief() {
     setBrief(emptyBrief);
+    setIntakeFiles([]);
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
+    window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
   }
 
@@ -786,6 +868,86 @@ export function AIInputBriefPanel() {
             />
           </label>
         ))}
+      </div>
+
+      <div className="mt-4 rounded border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">
+              File Intake
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Current MVP keeps selected files local unless real AI/cloud mode is explicitly enabled.
+              File content is not parsed or uploaded in this phase.
+            </p>
+          </div>
+          <button
+            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={intakeFiles.length === 0}
+            onClick={clearSelectedFiles}
+            type="button"
+          >
+            Clear files
+          </button>
+        </div>
+
+        <label className="mt-4 block">
+          <span className="text-sm font-medium text-slate-700">
+            Select local files
+          </span>
+          <input
+            accept=".xlsx,.docx,.pdf,image/*"
+            className="mt-2 block w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            multiple
+            onChange={(event) => handleFileSelection(event.target.files)}
+            type="file"
+          />
+        </label>
+
+        {intakeFiles.length > 0 ? (
+          <div className="mt-4 overflow-x-auto rounded border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-3 py-2">File name</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Size</th>
+                  <th className="px-3 py-2">Last modified</th>
+                  <th className="px-3 py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {intakeFiles.map((file) => (
+                  <tr key={`${file.fileName}-${file.lastModified}`}>
+                    <td className="max-w-72 truncate px-3 py-2 font-medium text-slate-900">
+                      {file.fileName}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{file.fileType}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                      {formatFileSize(file.fileSize)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                      {formatLastModified(file.lastModified)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2">
+                      <span
+                        className={`rounded border px-2 py-1 text-xs font-semibold ${fileStatusStyles[file.status]}`}
+                      >
+                        {file.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {intakeFiles.some((file) => file.status === "unsupported") ? (
+          <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            Unsupported file type detected. Supported formats are .xlsx, .docx, .pdf, and image files.
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">

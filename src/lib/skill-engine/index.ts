@@ -4,6 +4,9 @@ export type {
   SkillCategory,
   SkillDataClassification,
   SkillDefinition,
+  SkillPipelineDefinition,
+  SkillPipelineStep,
+  SkillPipelineStepId,
   SkillModelRequirements,
   SkillSchemaReference,
   SkillTier
@@ -14,3 +17,9 @@ export {
   inputBriefToPtrSkillDefinition,
   skillRegistry
 } from "@/lib/skill-engine/skill-registry";
+
+export {
+  getSkillPipelineDefinition,
+  intakeToProcessTaskRegisterPipeline,
+  skillPipelineRegistry
+} from "@/lib/skill-engine/pipeline-registry";

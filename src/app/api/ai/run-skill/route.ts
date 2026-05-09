@@ -12,6 +12,10 @@ import {
 import { createAnthropicProvider } from "@/lib/ai/providers/anthropic-provider";
 import { createMockProvider } from "@/lib/ai/providers/mock-provider";
 import { createOpenAIProvider } from "@/lib/ai/providers/openai-provider";
+import {
+  inputBriefToPtrOutputSchema,
+  validateAIOutputAgainstSchema
+} from "@/lib/ai/schemas";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
 import { runMockTemplateReview } from "@/lib/ai/ai-template-review-service";
@@ -86,11 +90,11 @@ function resolveProvider(requestedProvider: unknown): AIProviderId {
 
 function getConfiguredModel(provider: AIProviderId) {
   if (provider === "openai") {
-    return process.env.AI_MODEL_OPENAI || "";
+    return process.env.AI_MODEL_OPENAI || "gpt-4o-mini";
   }
 
   if (provider === "anthropic") {
-    return process.env.AI_MODEL_ANTHROPIC || "";
+    return process.env.AI_MODEL_ANTHROPIC || "claude-3-5-sonnet-latest";
   }
 
   return "mock";
@@ -503,18 +507,19 @@ function createMockResponse(skillId: string, payload: unknown) {
 export function GET() {
   const realAIEnabled = isRealAIEnabled();
   const provider = resolveProvider(undefined);
-  const hasProviderKey = hasConfiguredProviderKey(provider);
+  const providerAdapter = createProviderAdapter(provider);
+  const providerAdapterStatus = providerAdapter.getStatus();
   const providerStatus = !realAIEnabled || provider === "mock"
     ? "mock-only"
-    : hasProviderKey
-      ? "configured"
-      : "not configured";
+    : providerAdapterStatus;
 
   return NextResponse.json({
     ok: true,
     realAIEnabled,
     realAIInputBriefEnabled:
-      realAIEnabled && process.env.ENABLE_REAL_AI_INPUT_BRIEF === "true",
+      realAIEnabled &&
+      process.env.ENABLE_REAL_AI_INPUT_BRIEF === "true" &&
+      providerStatus === "configured",
     realAIQAEnabled: realAIEnabled && process.env.ENABLE_REAL_AI_QA === "true",
     realAITemplateReviewEnabled:
       realAIEnabled && process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
@@ -859,21 +864,25 @@ export async function POST(request: Request) {
       skillId,
       payload: briefValidation.value,
       messages: createPromptForInputBriefToPtr(briefValidation.value),
-      outputSchema: body.outputSchema
+      outputSchema: inputBriefToPtrOutputSchema
     };
 
-    const result = await provider.run(aiRequest);
-    let parsedResult: unknown;
+    const result = await provider.generateStructured(aiRequest);
 
-    try {
-      parsedResult = JSON.parse(extractJsonObject(result.content));
-    } catch {
+    if (!result.ok) {
+      logServerAIAuditEvent({
+        skillId,
+        provider: result.provider,
+        success: false,
+        externalApiCalled: result.meta.externalApiCalled
+      });
+
       return NextResponse.json(
         {
           ok: false,
-          error: "AI output was not valid JSON.",
+          error: result.error || "AI structured output request failed.",
           meta: {
-            externalApiCalled: result.externalApiCalled,
+            externalApiCalled: result.meta.externalApiCalled,
             realAIEnabled: true,
             validationPassed: false
           }
@@ -882,7 +891,35 @@ export async function POST(request: Request) {
       );
     }
 
-    const draftValidation = validateDraftProcessTaskRegister(parsedResult);
+    const schemaValidation = validateAIOutputAgainstSchema(
+      result.result,
+      inputBriefToPtrOutputSchema
+    );
+
+    if (!schemaValidation.ok) {
+      logServerAIAuditEvent({
+        skillId,
+        provider: result.provider,
+        success: false,
+        externalApiCalled: result.meta.externalApiCalled
+      });
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "AI output failed DraftProcessTaskRegister JSON schema validation.",
+          validationErrors: schemaValidation.errors,
+          meta: {
+            externalApiCalled: result.meta.externalApiCalled,
+            realAIEnabled: true,
+            validationPassed: false
+          }
+        },
+        { status: 422 }
+      );
+    }
+
+    const draftValidation = validateDraftProcessTaskRegister(result.result);
 
     if (!draftValidation.ok) {
       return NextResponse.json(
@@ -891,7 +928,7 @@ export async function POST(request: Request) {
           error: "AI output failed DraftProcessTaskRegister schema validation.",
           validationErrors: draftValidation.errors,
           meta: {
-            externalApiCalled: result.externalApiCalled,
+            externalApiCalled: result.meta.externalApiCalled,
             realAIEnabled: true,
             validationPassed: false
           }
@@ -912,7 +949,7 @@ export async function POST(request: Request) {
           validationErrors: formatQualityGateErrorsVi(draftQualityGate),
           qualityGate: draftQualityGate,
           meta: {
-            externalApiCalled: result.externalApiCalled,
+            externalApiCalled: result.meta.externalApiCalled,
             realAIEnabled: true,
             validationPassed: true
           }
@@ -930,7 +967,7 @@ export async function POST(request: Request) {
       skillId,
       provider: result.provider,
       success: true,
-      externalApiCalled: result.externalApiCalled
+      externalApiCalled: result.meta.externalApiCalled
     });
 
     return NextResponse.json({
@@ -944,7 +981,7 @@ export async function POST(request: Request) {
         qualityGateWarnings
       },
       meta: {
-        externalApiCalled: result.externalApiCalled,
+        externalApiCalled: result.meta.externalApiCalled,
         realAIEnabled: true,
         validationPassed: true,
         qualityGate: draftQualityGate

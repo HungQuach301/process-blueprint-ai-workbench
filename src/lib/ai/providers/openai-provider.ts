@@ -65,7 +65,7 @@ function createJsonSchemaFormat(request: StructuredAIRequest) {
       64
     ),
     schema,
-    strict: true
+    strict: false
   };
 }
 

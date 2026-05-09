@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
-import {
-  confirmRealAICallIfNeeded,
-  logAICallAudit
-} from "@/lib/ai/ai-governance";
+import { logAICallAudit } from "@/lib/ai/ai-governance";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
@@ -44,6 +41,15 @@ const D02_GENERATED_STATUS_KEY =
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
+type GenerationMode = "mock" | "real";
+
+type AISkillStatus = {
+  realAIEnabled: boolean;
+  realAIInputBriefEnabled: boolean;
+  providerStatus: "configured" | "missing-key" | "mock-only" | "not configured";
+  provider: "mock" | "openai" | "anthropic";
+  model: string;
+};
 
 const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
   selected: "border-slate-200 bg-slate-50 text-slate-700",
@@ -305,7 +311,14 @@ export function AIInputBriefPanel() {
   const [message, setMessage] = useState("");
   const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
   const [locale, setActiveLocale] = useState<Locale>("vi");
-  const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [aiStatus, setAIStatus] = useState<AISkillStatus>({
+    realAIEnabled: false,
+    realAIInputBriefEnabled: false,
+    providerStatus: "mock-only",
+    provider: "mock",
+    model: "mock"
+  });
+  const [generationMode, setGenerationMode] = useState<GenerationMode>("mock");
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
 
@@ -379,14 +392,30 @@ export function AIInputBriefPanel() {
         });
         const data = (await response.json()) as {
           realAIEnabled?: boolean;
+          realAIInputBriefEnabled?: boolean;
+          providerStatus?: AISkillStatus["providerStatus"];
+          provider?: AISkillStatus["provider"];
+          model?: string;
         };
 
         if (active) {
-          setRealAIEnabled(data.realAIEnabled === true);
+          setAIStatus({
+            realAIEnabled: data.realAIEnabled === true,
+            realAIInputBriefEnabled: data.realAIInputBriefEnabled === true,
+            providerStatus: data.providerStatus ?? "mock-only",
+            provider: data.provider ?? "mock",
+            model: data.model ?? "mock"
+          });
         }
       } catch {
         if (active) {
-          setRealAIEnabled(false);
+          setAIStatus({
+            realAIEnabled: false,
+            realAIInputBriefEnabled: false,
+            providerStatus: "mock-only",
+            provider: "mock",
+            model: "mock"
+          });
         }
       } finally {
         if (active) {
@@ -401,6 +430,17 @@ export function AIInputBriefPanel() {
       active = false;
     };
   }, []);
+
+  const realAIInputBriefAvailable =
+    aiStatus.realAIEnabled &&
+    aiStatus.realAIInputBriefEnabled &&
+    aiStatus.providerStatus === "configured";
+
+  useEffect(() => {
+    if (!realAIInputBriefAvailable && generationMode === "real") {
+      setGenerationMode("mock");
+    }
+  }, [generationMode, realAIInputBriefAvailable]);
 
   const filledFieldCount = useMemo(
     () => briefFields.filter((field) => brief[field.key].trim()).length,
@@ -667,7 +707,7 @@ export function AIInputBriefPanel() {
     );
   }
 
-  async function generateDraftPtrWithAI() {
+  async function generateDraftPtrWithAI(requestedMode: GenerationMode = generationMode) {
     const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
@@ -679,7 +719,8 @@ export function AIInputBriefPanel() {
       inputLanguage: locale,
       outputLanguage: locale
     });
-    const generationMode = realAIEnabled ? "real-ai" : "mock";
+    const useRealAI = requestedMode === "real" && realAIInputBriefAvailable;
+    const auditMode = useRealAI ? "real-ai" : "mock";
     const briefQualityGate = runBriefQualityGate(structuredBrief);
 
     if (!briefQualityGate.canPreview) {
@@ -692,23 +733,24 @@ export function AIInputBriefPanel() {
       return;
     }
 
-    if (!confirmRealAICallIfNeeded(realAIEnabled)) {
-      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+    if (requestedMode === "real" && !realAIInputBriefAvailable) {
+      setMessage("Real AI Input Brief is not enabled or provider is not configured.");
       return;
     }
 
     saveAuditLogEntry({
       action: "generate_ai_draft",
       status: "success",
-      summary: `Started ${generationMode} draft generation from Input Brief.`,
+      summary: `Started ${auditMode} draft generation from Input Brief.`,
       metadata: {
-        mode: generationMode,
-        realAIEnabled,
+        mode: auditMode,
+        realAIEnabled: useRealAI,
+        provider: useRealAI ? aiStatus.provider : "mock",
         sectionsFilled: filledFieldCount
       }
     });
 
-    if (!realAIEnabled) {
+    if (!useRealAI) {
       const response = generateDraftProcessTaskRegister({
         brief: structuredBrief,
         currentLocale: locale
@@ -772,6 +814,7 @@ export function AIInputBriefPanel() {
         },
         body: JSON.stringify({
           skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          provider: aiStatus.provider,
           payload: structuredBrief
         })
       });
@@ -780,6 +823,7 @@ export function AIInputBriefPanel() {
         result?: unknown;
         error?: string;
         validationErrors?: string[];
+        provider?: string;
         meta?: {
           externalApiCalled?: boolean;
           validationPassed?: boolean;
@@ -798,6 +842,7 @@ export function AIInputBriefPanel() {
           summary: errorMessage,
           metadata: {
             mode: "real-ai",
+            provider: data.provider ?? aiStatus.provider,
             externalApiCalled: data.meta?.externalApiCalled ?? true,
             validationPassed: data.meta?.validationPassed ?? false
           }
@@ -827,6 +872,7 @@ export function AIInputBriefPanel() {
           summary: errorMessage,
           metadata: {
             mode: "real-ai",
+            provider: data.provider ?? aiStatus.provider,
             externalApiCalled: data.meta?.externalApiCalled ?? true,
             validationPassed: false
           }
@@ -856,6 +902,7 @@ export function AIInputBriefPanel() {
           summary: "Draft PTR khong dat Quality Gate.",
           metadata: {
             mode: "real-ai",
+            provider: data.provider ?? aiStatus.provider,
             externalApiCalled: data.meta?.externalApiCalled ?? true,
             validationPassed: true
           }
@@ -891,6 +938,7 @@ export function AIInputBriefPanel() {
         summary: "Generated schema-valid draft PTR with real AI mode.",
         metadata: {
           mode: "real-ai",
+          provider: data.provider ?? aiStatus.provider,
           externalApiCalled: data.meta?.externalApiCalled ?? true,
           validationPassed: true,
           draftRowCount: validation.value.draftProcessTasks.length
@@ -1012,21 +1060,59 @@ export function AIInputBriefPanel() {
           >
             {t("inputBrief.resetBrief", locale)}
           </button>
+          <div className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+            <label className="flex items-center gap-1">
+              <input
+                checked={generationMode === "mock"}
+                name="input-brief-generation-mode"
+                onChange={() => setGenerationMode("mock")}
+                type="radio"
+              />
+              Mock generation
+            </label>
+            {realAIInputBriefAvailable ? (
+              <label className="flex items-center gap-1">
+                <input
+                  checked={generationMode === "real"}
+                  name="input-brief-generation-mode"
+                  onChange={() => setGenerationMode("real")}
+                  type="radio"
+                />
+                Real AI generation
+              </label>
+            ) : null}
+          </div>
           <button
             className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            onClick={generateDraftPtr}
+            disabled={generationMode === "real" && isGeneratingWithAI}
+            onClick={() => {
+              if (generationMode === "real") {
+                void generateDraftPtrWithAI("real");
+              } else {
+                generateDraftPtr();
+              }
+            }}
             type="button"
           >
-            {t("inputBrief.generateDraftProcessTaskRegister", locale)}
+            {generationMode === "real"
+              ? isGeneratingWithAI
+                ? "Generating with Real AI..."
+                : "Generate with Real AI"
+              : t("inputBrief.generateDraftProcessTaskRegister", locale)}
           </button>
-          <button
-            className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isGeneratingWithAI}
-            onClick={generateDraftPtrWithAI}
-            type="button"
-          >
-            {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
-          </button>
+          {realAIInputBriefAvailable ? (
+            <button
+              className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isGeneratingWithAI}
+              onClick={() => {
+                setGenerationMode("real");
+                void generateDraftPtrWithAI("real");
+              }}
+              type="button"
+            >
+              {isGeneratingWithAI ? "Generating..." : "Generate with Real AI"}
+            </button>
+          ) : null}
         </>
       }
       bodyClassName="p-4"
@@ -1362,8 +1448,8 @@ export function AIInputBriefPanel() {
         </span>
         <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
           {aiModeLoaded
-            ? realAIEnabled
-              ? "Real AI mode"
+            ? realAIInputBriefAvailable
+              ? `Real AI ready (${aiStatus.provider})`
               : "Mock mode"
             : "Checking AI mode..."}
         </span>

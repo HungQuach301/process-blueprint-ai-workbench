@@ -11,9 +11,11 @@ import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
   createIntakeFileMetadata,
   extractDraftTasksFromExcel,
+  extractTextFromDocx,
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
   validateDraftProcessTaskRegister,
+  type DocxExtractionResult,
   type DraftPTRGenerationResult,
   type ExcelExtractionPreview,
   type IntakeFileMetadata
@@ -291,6 +293,8 @@ export function AIInputBriefPanel() {
   const [excelPreview, setExcelPreview] = useState<ExcelExtractionPreview | null>(
     null
   );
+  const [docxExtraction, setDocxExtraction] =
+    useState<DocxExtractionResult | null>(null);
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
@@ -425,6 +429,7 @@ export function AIInputBriefPanel() {
     setSelectedFileObjects(nextFiles);
     setIntakeFiles(nextFileMetadata);
     setExcelPreview(null);
+    setDocxExtraction(null);
     setMessage(
       unsupportedCount > 0
         ? `${unsupportedCount} file khong duoc ho tro. Chi luu metadata, khong upload file.`
@@ -436,6 +441,7 @@ export function AIInputBriefPanel() {
     setSelectedFileObjects([]);
     setIntakeFiles([]);
     setExcelPreview(null);
+    setDocxExtraction(null);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Da xoa file intake metadata local.");
   }
@@ -494,6 +500,85 @@ export function AIInputBriefPanel() {
           : "Excel extraction failed."
       );
     }
+  }
+
+  async function extractDocxFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    setMessage("Dang extract DOCX local trong browser. Khong upload file.");
+
+    try {
+      const result = await extractTextFromDocx(file);
+
+      setDocxExtraction(result);
+      setExcelPreview(null);
+      updateIntakeFileStatus(file, "extracted");
+      setMessage(
+        `Da extract DOCX local: ${result.rawText.length} ky tu, ${result.detectedSteps.length} step goi y.`
+      );
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setDocxExtraction(null);
+      setMessage(
+        error instanceof Error
+          ? `DOCX extraction failed: ${error.message}`
+          : "DOCX extraction failed."
+      );
+    }
+  }
+
+  function generateDraftPtrFromDocxExtraction() {
+    if (!docxExtraction) {
+      setMessage("Chua co DOCX extraction de tao Draft PTR.");
+      return;
+    }
+
+    const structuredBrief = parseStructuredProcessBriefFromForm({
+      processInfo:
+        docxExtraction.detectedSteps[0] ||
+        docxExtraction.rawText.split(/\r?\n/).find(Boolean) ||
+        "DOCX extracted process",
+      businessObjective: docxExtraction.rawText.slice(0, 1200),
+      scope: docxExtraction.rawText.slice(0, 1200),
+      startEnd: [
+        docxExtraction.detectedSteps[0] || "Request received",
+        docxExtraction.detectedSteps[docxExtraction.detectedSteps.length - 1] ||
+          "Process completed"
+      ].join("\n"),
+      actors: docxExtraction.detectedActors.join("\n"),
+      relatedSystems: docxExtraction.detectedSystems.join("\n"),
+      dataDocuments: docxExtraction.detectedDataObjects.join("\n"),
+      inputLanguage: locale,
+      outputLanguage: locale
+    });
+    const response = generateDraftProcessTaskRegister({
+      brief: structuredBrief,
+      currentLocale: locale
+    });
+    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
+    const nextResponse = {
+      ...response,
+      assumptions: [...response.assumptions, ...docxExtraction.assumptions],
+      openQuestions: docxExtraction.openQuestions,
+      qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
+      sourceSummary: "Draft generated locally from DOCX extracted text."
+    };
+
+    if (!draftQualityGate.canPreview) {
+      const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(errors);
+      setMessage("Draft PTR tu DOCX khong dat Quality Gate.");
+      return;
+    }
+
+    setBlockingErrors([]);
+    setDraftTasks(nextResponse.draftProcessTasks);
+    setDraftMeta(nextResponse);
+    setMessage(
+      `Da tao draft PTR tu DOCX extraction: ${nextResponse.draftProcessTasks.length} dong. Hay review truoc khi Apply.`
+    );
   }
 
   function generateDraftPtr() {
@@ -867,6 +952,7 @@ export function AIInputBriefPanel() {
     setIntakeFiles([]);
     setSelectedFileObjects([]);
     setExcelPreview(null);
+    setDocxExtraction(null);
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
@@ -1031,6 +1117,30 @@ export function AIInputBriefPanel() {
                         >
                           Extract
                         </button>
+                      ) : file.fileName.toLowerCase().endsWith(".docx") &&
+                        file.status !== "unsupported" ? (
+                        <button
+                          className="rounded border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={file.status === "pending-extraction"}
+                          onClick={() => {
+                            const selectedFile = selectedFileObjects.find(
+                              (item) =>
+                                item.name === file.fileName &&
+                                item.lastModified === file.lastModified
+                            );
+
+                            if (selectedFile) {
+                              void extractDocxFile(selectedFile);
+                            } else {
+                              setMessage(
+                                "Please re-select the DOCX file before extracting. Browser file objects are not persisted after refresh."
+                              );
+                            }
+                          }}
+                          type="button"
+                        >
+                          Extract
+                        </button>
                       ) : null}
                     </td>
                   </tr>
@@ -1092,6 +1202,75 @@ export function AIInputBriefPanel() {
                 </ul>
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {docxExtraction ? (
+          <div className="mt-4 rounded border border-violet-200 bg-violet-50 p-3 text-sm text-violet-950">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="font-semibold">DOCX extraction preview</p>
+                <p className="mt-1 text-violet-900">
+                  Local text extraction only. No file upload or external AI call.
+                </p>
+              </div>
+              <button
+                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                onClick={generateDraftPtrFromDocxExtraction}
+                type="button"
+              >
+                Generate Draft PTR
+              </button>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="rounded border border-violet-200 bg-white p-3">
+                <p className="font-semibold">Structured extraction result</p>
+                <p className="mt-2">
+                  Actors: {docxExtraction.detectedActors.join(", ") || "None"}
+                </p>
+                <p className="mt-1">
+                  Systems: {docxExtraction.detectedSystems.join(", ") || "None"}
+                </p>
+                <p className="mt-1">
+                  Data objects:{" "}
+                  {docxExtraction.detectedDataObjects.join(", ") || "None"}
+                </p>
+                <div className="mt-2">
+                  <p className="font-semibold">Detected steps</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {docxExtraction.detectedSteps.slice(0, 10).map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                    {docxExtraction.detectedSteps.length === 0 ? (
+                      <li>No step-like lines detected.</li>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="rounded border border-violet-200 bg-white p-3">
+                <p className="font-semibold">Assumptions</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {docxExtraction.assumptions.map((assumption) => (
+                    <li key={assumption}>{assumption}</li>
+                  ))}
+                </ul>
+                <p className="mt-3 font-semibold">Open questions</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5">
+                  {docxExtraction.openQuestions.map((question) => (
+                    <li key={question}>{question}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded border border-violet-200 bg-white p-3">
+              <p className="font-semibold">Extracted raw text</p>
+              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-700">
+                {docxExtraction.rawText}
+              </pre>
+            </div>
           </div>
         ) : null}
 

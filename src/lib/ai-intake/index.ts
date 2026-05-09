@@ -45,3 +45,7 @@ export {
 export type { ExcelExtractionPreview } from "@/lib/ai-intake/excel-extractor";
 
 export { extractDraftTasksFromExcel } from "@/lib/ai-intake/excel-extractor";
+
+export type { DocxExtractionResult } from "@/lib/ai-intake/docx-extractor";
+
+export { extractTextFromDocx } from "@/lib/ai-intake/docx-extractor";

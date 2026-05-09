@@ -1,5 +1,7 @@
 export type AIProviderId = "mock" | "openai" | "anthropic";
 
+export type AIProviderStatus = "configured" | "missing-key" | "mock-only";
+
 export type AIModelMessage = {
   role: "system" | "user" | "assistant";
   content: string;
@@ -39,9 +41,12 @@ export type StructuredAIResponse = {
     validationPassed?: boolean;
     realAIEnabled: boolean;
     outputSchemaProvided?: boolean;
+    providerStatus?: AIProviderStatus;
   };
 };
 
 export interface AIProviderAdapter {
   run(request: AIModelRequest): Promise<AIModelResponse>;
+  generateStructured(request: StructuredAIRequest): Promise<StructuredAIResponse>;
+  getStatus(): AIProviderStatus;
 }

@@ -5,9 +5,13 @@ import {
   validateStructuredProcessBrief
 } from "@/lib/ai-intake";
 import {
-  createOpenAIProvider,
-  type AIModelRequest
-} from "@/lib/ai/providers/openai-provider";
+  type AIModelRequest,
+  type AIProviderAdapter,
+  type AIProviderId
+} from "@/lib/ai/provider-types";
+import { createAnthropicProvider } from "@/lib/ai/providers/anthropic-provider";
+import { createMockProvider } from "@/lib/ai/providers/mock-provider";
+import { createOpenAIProvider } from "@/lib/ai/providers/openai-provider";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
 import { runMockTemplateReview } from "@/lib/ai/ai-template-review-service";
@@ -25,7 +29,9 @@ export const runtime = "nodejs";
 
 type RunSkillRequestBody = {
   skillId?: unknown;
+  provider?: unknown;
   payload?: unknown;
+  outputSchema?: unknown;
 };
 
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
@@ -34,6 +40,111 @@ const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isAIProviderId(value: unknown): value is AIProviderId {
+  return value === "mock" || value === "openai" || value === "anthropic";
+}
+
+function isRealAIEnabled() {
+  return process.env.ENABLE_REAL_AI === "true";
+}
+
+function isSkillRealAIEnabled(skillId: string) {
+  if (!isRealAIEnabled()) {
+    return false;
+  }
+
+  if (skillId === INPUT_BRIEF_TO_PTR_SKILL_ID) {
+    return process.env.ENABLE_REAL_AI_INPUT_BRIEF === "true";
+  }
+
+  if (skillId === AI_PROCESS_QA_SKILL_ID) {
+    return process.env.ENABLE_REAL_AI_QA === "true";
+  }
+
+  if (skillId === AI_TEMPLATE_REVIEW_SKILL_ID) {
+    return process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
+  }
+
+  return true;
+}
+
+function resolveProvider(requestedProvider: unknown): AIProviderId {
+  if (!isRealAIEnabled()) {
+    return "mock";
+  }
+
+  if (isAIProviderId(requestedProvider)) {
+    return requestedProvider;
+  }
+
+  return isAIProviderId(process.env.AI_PROVIDER)
+    ? process.env.AI_PROVIDER
+    : "mock";
+}
+
+function getConfiguredModel(provider: AIProviderId) {
+  if (provider === "openai") {
+    return process.env.AI_MODEL_OPENAI || "";
+  }
+
+  if (provider === "anthropic") {
+    return process.env.AI_MODEL_ANTHROPIC || "";
+  }
+
+  return "mock";
+}
+
+function hasConfiguredProviderKey(provider: AIProviderId) {
+  if (provider === "openai") {
+    return Boolean(process.env.OPENAI_API_KEY);
+  }
+
+  if (provider === "anthropic") {
+    return Boolean(process.env.ANTHROPIC_API_KEY);
+  }
+
+  return false;
+}
+
+function createProviderAdapter(provider: AIProviderId): AIProviderAdapter {
+  if (provider === "openai") {
+    return createOpenAIProvider({
+      apiKey: process.env.OPENAI_API_KEY || "",
+      model: getConfiguredModel("openai")
+    });
+  }
+
+  if (provider === "anthropic") {
+    return createAnthropicProvider({
+      apiKey: process.env.ANTHROPIC_API_KEY || "",
+      model: getConfiguredModel("anthropic")
+    });
+  }
+
+  return createMockProvider();
+}
+
+function logServerAIAuditEvent({
+  skillId,
+  provider,
+  success,
+  externalApiCalled
+}: {
+  skillId: string;
+  provider: AIProviderId;
+  success: boolean;
+  externalApiCalled: boolean;
+}) {
+  console.info("[ai-audit]", {
+    action: "ai_call",
+    skillId,
+    provider,
+    success,
+    externalApiCalled,
+    timestamp: new Date().toISOString()
+  });
 }
 
 function isValidRunSkillRequest(
@@ -206,8 +317,8 @@ function createMockTemplateReviewResponse(payload: unknown) {
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: process.env.AI_PROVIDER || "openai",
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: "mock",
     skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
     result: {
       recommendations: validation.recommendations,
@@ -270,8 +381,8 @@ function createMockAIQAResponse(payload: unknown) {
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: process.env.AI_PROVIDER || "openai",
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: "mock",
     skillId: AI_PROCESS_QA_SKILL_ID,
     result: {
       recommendations: validation.recommendations
@@ -354,8 +465,8 @@ function createMockResponse(skillId: string, payload: unknown) {
     return NextResponse.json({
       ok: true,
       mode: "mock",
-      provider: process.env.AI_PROVIDER || "openai",
-      model: process.env.AI_MODEL || "",
+      provider: "mock",
+      model: "mock",
       skillId,
       result: {
         ...draftValidation.value,
@@ -373,8 +484,8 @@ function createMockResponse(skillId: string, payload: unknown) {
   return {
     ok: true,
     mode: "mock",
-    provider: process.env.AI_PROVIDER || "openai",
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: "mock",
     skillId,
     result: {
       message:
@@ -390,25 +501,26 @@ function createMockResponse(skillId: string, payload: unknown) {
 }
 
 export function GET() {
-  const realAIEnabled =
-    process.env.ENABLE_REAL_AI === "true" ||
-    process.env.ENABLE_REAL_AI_QA === "true" ||
-    process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
-  const providerStatus = !realAIEnabled
+  const realAIEnabled = isRealAIEnabled();
+  const provider = resolveProvider(undefined);
+  const hasProviderKey = hasConfiguredProviderKey(provider);
+  const providerStatus = !realAIEnabled || provider === "mock"
     ? "mock-only"
-    : process.env.OPENAI_API_KEY
+    : hasProviderKey
       ? "configured"
       : "not configured";
 
   return NextResponse.json({
     ok: true,
-    realAIEnabled: process.env.ENABLE_REAL_AI === "true",
-    realAIQAEnabled: process.env.ENABLE_REAL_AI_QA === "true",
+    realAIEnabled,
+    realAIInputBriefEnabled:
+      realAIEnabled && process.env.ENABLE_REAL_AI_INPUT_BRIEF === "true",
+    realAIQAEnabled: realAIEnabled && process.env.ENABLE_REAL_AI_QA === "true",
     realAITemplateReviewEnabled:
-      process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
+      realAIEnabled && process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
     providerStatus,
-    provider: process.env.AI_PROVIDER || "openai",
-    model: process.env.AI_MODEL || ""
+    provider,
+    model: getConfiguredModel(provider)
   });
 }
 
@@ -438,8 +550,9 @@ export async function POST(request: Request) {
   }
 
   const skillId = body.skillId.trim();
+  const selectedProvider = resolveProvider(body.provider);
   const enableRealAITemplateReview =
-    process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
+    isSkillRealAIEnabled(AI_TEMPLATE_REVIEW_SKILL_ID);
 
   if (
     skillId === AI_TEMPLATE_REVIEW_SKILL_ID &&
@@ -460,27 +573,23 @@ export async function POST(request: Request) {
     }
 
     const selectedTemplate = body.payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number];
-    const providerName = process.env.AI_PROVIDER || "openai";
-
-    if (providerName !== "openai") {
+    if (selectedProvider === "mock") {
       return NextResponse.json(
         {
           ok: false,
-          error: `Unsupported AI_PROVIDER: ${providerName}`
+          error: "Real AI provider must be openai or anthropic when enabled."
         },
         { status: 400 }
       );
     }
 
     try {
-      const provider = createOpenAIProvider({
-        apiKey: process.env.OPENAI_API_KEY || "",
-        model: process.env.AI_MODEL || ""
-      });
+      const provider = createProviderAdapter(selectedProvider);
       const result = await provider.run({
         skillId,
         payload: body.payload,
-        messages: createPromptForAITemplateReview(body.payload)
+        messages: createPromptForAITemplateReview(body.payload),
+        outputSchema: body.outputSchema
       });
       let parsedResult: unknown;
 
@@ -523,9 +632,18 @@ export async function POST(request: Request) {
         );
       }
 
+      logServerAIAuditEvent({
+        skillId,
+        provider: result.provider,
+        success: true,
+        externalApiCalled: result.externalApiCalled
+      });
+
       return NextResponse.json({
         ok: true,
         mode: "provider-backed",
+        provider: result.provider,
+        model: result.model,
         skillId,
         result: {
           recommendations: validation.recommendations,
@@ -538,6 +656,12 @@ export async function POST(request: Request) {
         }
       });
     } catch (error) {
+      logServerAIAuditEvent({
+        skillId,
+        provider: selectedProvider,
+        success: false,
+        externalApiCalled: hasConfiguredProviderKey(selectedProvider)
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -551,7 +675,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const enableRealAIQA = process.env.ENABLE_REAL_AI_QA === "true";
+  const enableRealAIQA = isSkillRealAIEnabled(AI_PROCESS_QA_SKILL_ID);
 
   if (skillId === AI_PROCESS_QA_SKILL_ID && !enableRealAIQA) {
     return createMockAIQAResponse(body.payload);
@@ -568,27 +692,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const providerName = process.env.AI_PROVIDER || "openai";
-
-    if (providerName !== "openai") {
+    if (selectedProvider === "mock") {
       return NextResponse.json(
         {
           ok: false,
-          error: `Unsupported AI_PROVIDER: ${providerName}`
+          error: "Real AI provider must be openai or anthropic when enabled."
         },
         { status: 400 }
       );
     }
 
     try {
-      const provider = createOpenAIProvider({
-        apiKey: process.env.OPENAI_API_KEY || "",
-        model: process.env.AI_MODEL || ""
-      });
+      const provider = createProviderAdapter(selectedProvider);
       const aiRequest: AIModelRequest = {
         skillId,
         payload: body.payload,
-        messages: createPromptForAIProcessQA(body.payload)
+        messages: createPromptForAIProcessQA(body.payload),
+        outputSchema: body.outputSchema
       };
       const result = await provider.run(aiRequest);
       let parsedResult: unknown;
@@ -634,9 +754,18 @@ export async function POST(request: Request) {
         );
       }
 
+      logServerAIAuditEvent({
+        skillId,
+        provider: result.provider,
+        success: true,
+        externalApiCalled: result.externalApiCalled
+      });
+
       return NextResponse.json({
         ok: true,
         mode: "provider-backed",
+        provider: result.provider,
+        model: result.model,
         skillId,
         result: {
           recommendations: validation.recommendations
@@ -648,6 +777,12 @@ export async function POST(request: Request) {
         }
       });
     } catch (error) {
+      logServerAIAuditEvent({
+        skillId,
+        provider: selectedProvider,
+        success: false,
+        externalApiCalled: hasConfiguredProviderKey(selectedProvider)
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -661,7 +796,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const enableRealAI = process.env.ENABLE_REAL_AI === "true";
+  const enableRealAI = isSkillRealAIEnabled(INPUT_BRIEF_TO_PTR_SKILL_ID);
 
   if (!enableRealAI) {
     const mockResponse = createMockResponse(skillId, body.payload);
@@ -707,28 +842,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const providerName = process.env.AI_PROVIDER || "openai";
-
-  if (providerName !== "openai") {
+  if (selectedProvider === "mock") {
     return NextResponse.json(
       {
         ok: false,
-        error: `Unsupported AI_PROVIDER: ${providerName}`
+        error: "Real AI provider must be openai or anthropic when enabled."
       },
       { status: 400 }
     );
   }
 
   try {
-    const provider = createOpenAIProvider({
-      apiKey: process.env.OPENAI_API_KEY || "",
-      model: process.env.AI_MODEL || ""
-    });
+    const provider = createProviderAdapter(selectedProvider);
 
     const aiRequest: AIModelRequest = {
       skillId,
       payload: briefValidation.value,
-      messages: createPromptForInputBriefToPtr(briefValidation.value)
+      messages: createPromptForInputBriefToPtr(briefValidation.value),
+      outputSchema: body.outputSchema
     };
 
     const result = await provider.run(aiRequest);
@@ -795,9 +926,18 @@ export async function POST(request: Request) {
       ...formatQualityGateWarningsVi(draftQualityGate)
     ];
 
+    logServerAIAuditEvent({
+      skillId,
+      provider: result.provider,
+      success: true,
+      externalApiCalled: result.externalApiCalled
+    });
+
     return NextResponse.json({
       ok: true,
       mode: "provider-backed",
+      provider: result.provider,
+      model: result.model,
       skillId,
       result: {
         ...draftValidation.value,
@@ -811,6 +951,12 @@ export async function POST(request: Request) {
       }
     });
   } catch (error) {
+    logServerAIAuditEvent({
+      skillId,
+      provider: selectedProvider,
+      success: false,
+      externalApiCalled: hasConfiguredProviderKey(selectedProvider)
+    });
     return NextResponse.json(
       {
         ok: false,

@@ -1,26 +1,9 @@
-export type AIModelMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
-};
-
-export type AIModelRequest = {
-  skillId: string;
-  payload: unknown;
-  model?: string;
-  messages?: AIModelMessage[];
-};
-
-export type AIModelResponse = {
-  provider: "openai";
-  model: string;
-  content: string;
-  raw?: unknown;
-  externalApiCalled: boolean;
-};
-
-export interface ModelProvider {
-  run(request: AIModelRequest): Promise<AIModelResponse>;
-}
+import type {
+  AIModelMessage,
+  AIModelRequest,
+  AIModelResponse,
+  AIProviderAdapter
+} from "@/lib/ai/provider-types";
 
 type OpenAIProviderOptions = {
   apiKey: string;
@@ -54,7 +37,7 @@ function buildInput(request: AIModelRequest): AIModelMessage[] {
 
 export function createOpenAIProvider(
   options: OpenAIProviderOptions
-): ModelProvider {
+): AIProviderAdapter {
   return {
     async run(request) {
       if (!options.apiKey) {
@@ -64,7 +47,7 @@ export function createOpenAIProvider(
       const model = request.model || options.model;
 
       if (!model) {
-        throw new Error("AI_MODEL is required when real AI is enabled.");
+        throw new Error("AI_MODEL_OPENAI is required when OpenAI real AI is enabled.");
       }
 
       const response = await fetch("https://api.openai.com/v1/responses", {

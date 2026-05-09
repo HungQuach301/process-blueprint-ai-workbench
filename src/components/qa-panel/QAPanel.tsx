@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
-  confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import type { ProcessTask } from "@/lib/models/process-task";
@@ -39,6 +38,13 @@ const TEMPLATES_STORAGE_KEY =
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+
+type AIQAStatus = {
+  realAIEnabled: boolean;
+  realAIQAEnabled: boolean;
+  providerStatus: "configured" | "missing-key" | "mock-only" | "not configured";
+  provider: "mock" | "openai" | "anthropic";
+};
 
 type QAPanelProps = {
   issues: QaIssue[];
@@ -183,7 +189,12 @@ export function QAPanel({
 }: QAPanelProps) {
   const [aiQaIssues, setAiQaIssues] = useState<QaIssue[]>([]);
   const [aiQaMessage, setAiQaMessage] = useState("");
-  const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
+  const [aiQaStatus, setAIQAStatus] = useState<AIQAStatus>({
+    realAIEnabled: false,
+    realAIQAEnabled: false,
+    providerStatus: "mock-only",
+    provider: "mock"
+  });
   const [isRunningAIQA, setIsRunningAIQA] = useState(false);
   const [pendingRecommendation, setPendingRecommendation] = useState<{
     issue: QaIssue;
@@ -208,15 +219,28 @@ export function QAPanel({
           method: "GET"
         });
         const data = (await response.json()) as {
+          realAIEnabled?: boolean;
           realAIQAEnabled?: boolean;
+          providerStatus?: AIQAStatus["providerStatus"];
+          provider?: AIQAStatus["provider"];
         };
 
         if (active) {
-          setRealAIQAEnabled(data.realAIQAEnabled === true);
+          setAIQAStatus({
+            realAIEnabled: data.realAIEnabled === true,
+            realAIQAEnabled: data.realAIQAEnabled === true,
+            providerStatus: data.providerStatus ?? "mock-only",
+            provider: data.provider ?? "mock"
+          });
         }
       } catch {
         if (active) {
-          setRealAIQAEnabled(false);
+          setAIQAStatus({
+            realAIEnabled: false,
+            realAIQAEnabled: false,
+            providerStatus: "mock-only",
+            provider: "mock"
+          });
         }
       }
     }
@@ -287,6 +311,10 @@ export function QAPanel({
   const pendingBatchPreview = pendingBatchRecommendations
     ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
     : null;
+  const realAIQAAvailable =
+    aiQaStatus.realAIEnabled &&
+    aiQaStatus.realAIQAEnabled &&
+    aiQaStatus.providerStatus === "configured";
 
   function toggleRecommendation(id: string) {
     setSelectedRecommendationIds((currentIds) => {
@@ -350,14 +378,9 @@ export function QAPanel({
   }
 
   async function runAiQa() {
-    if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
-      setAiQaMessage("Da huy goi Real AI QA. Khong co recommendation nao duoc tao.");
-      return;
-    }
-
     setIsRunningAIQA(true);
     setAiQaMessage(
-      realAIQAEnabled
+      realAIQAAvailable
         ? "Running real AI QA through the server route..."
         : "Running mock AI QA. Real AI QA is disabled."
     );
@@ -370,6 +393,7 @@ export function QAPanel({
         },
         body: JSON.stringify({
           skillId: AI_PROCESS_QA_SKILL_ID,
+          provider: realAIQAAvailable ? aiQaStatus.provider : "mock",
           payload: {
             processTasks,
             qaIssues: issues,
@@ -401,8 +425,8 @@ export function QAPanel({
           skillId: AI_PROCESS_QA_SKILL_ID,
           success: false,
           errorMessage,
-          realAIEnabled: realAIQAEnabled,
-          externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
+          realAIEnabled: realAIQAAvailable,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIQAAvailable
         });
         setAiQaIssues([]);
         setAiQaMessage(errorMessage);
@@ -460,7 +484,7 @@ export function QAPanel({
         skillId: AI_PROCESS_QA_SKILL_ID,
         success: false,
         errorMessage: "AI QA request failed.",
-        realAIEnabled: realAIQAEnabled,
+        realAIEnabled: realAIQAAvailable,
         externalApiCalled: false
       });
       setAiQaIssues([]);
@@ -563,7 +587,7 @@ export function QAPanel({
         >
           {isRunningAIQA
             ? "Running AI QA..."
-            : realAIQAEnabled
+            : realAIQAAvailable
               ? "Run real AI QA"
               : "Run mock AI QA"}
         </button>

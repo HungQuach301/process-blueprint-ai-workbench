@@ -13,6 +13,7 @@ import { createAnthropicProvider } from "@/lib/ai/providers/anthropic-provider";
 import { createMockProvider } from "@/lib/ai/providers/mock-provider";
 import { createOpenAIProvider } from "@/lib/ai/providers/openai-provider";
 import {
+  aiProcessQaOutputSchema,
   inputBriefToPtrOutputSchema,
   validateAIOutputAgainstSchema
 } from "@/lib/ai/schemas";
@@ -520,7 +521,10 @@ export function GET() {
       realAIEnabled &&
       process.env.ENABLE_REAL_AI_INPUT_BRIEF === "true" &&
       providerStatus === "configured",
-    realAIQAEnabled: realAIEnabled && process.env.ENABLE_REAL_AI_QA === "true",
+    realAIQAEnabled:
+      realAIEnabled &&
+      process.env.ENABLE_REAL_AI_QA === "true" &&
+      providerStatus === "configured",
     realAITemplateReviewEnabled:
       realAIEnabled && process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
     providerStatus,
@@ -713,20 +717,24 @@ export async function POST(request: Request) {
         skillId,
         payload: body.payload,
         messages: createPromptForAIProcessQA(body.payload),
-        outputSchema: body.outputSchema
+        outputSchema: aiProcessQaOutputSchema
       };
-      const result = await provider.run(aiRequest);
-      let parsedResult: unknown;
+      const result = await provider.generateStructured(aiRequest);
 
-      try {
-        parsedResult = JSON.parse(extractJsonObject(result.content));
-      } catch {
+      if (!result.ok) {
+        logServerAIAuditEvent({
+          skillId,
+          provider: result.provider,
+          success: false,
+          externalApiCalled: result.meta.externalApiCalled
+        });
+
         return NextResponse.json(
           {
             ok: false,
-            error: "AI QA output was not valid JSON.",
+            error: result.error || "AI QA structured output request failed.",
             meta: {
-              externalApiCalled: result.externalApiCalled,
+              externalApiCalled: result.meta.externalApiCalled,
               realAIQAEnabled: true,
               validationPassed: false
             }
@@ -735,11 +743,36 @@ export async function POST(request: Request) {
         );
       }
 
-      const recommendationsOutput = isObject(parsedResult)
-        ? parsedResult.recommendations
-        : parsedResult;
+      const schemaValidation = validateAIOutputAgainstSchema(
+        result.result,
+        aiProcessQaOutputSchema
+      );
+
+      if (!schemaValidation.ok) {
+        logServerAIAuditEvent({
+          skillId,
+          provider: result.provider,
+          success: false,
+          externalApiCalled: result.meta.externalApiCalled
+        });
+
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "AI QA output failed QARecommendation JSON schema validation.",
+            validationErrors: schemaValidation.errors,
+            meta: {
+              externalApiCalled: result.meta.externalApiCalled,
+              realAIQAEnabled: true,
+              validationPassed: false
+            }
+          },
+          { status: 422 }
+        );
+      }
+
       const validation = validateAIQARecommendations(
-        recommendationsOutput,
+        result.result,
         body.payload.processTasks.map((task) => task.stepId)
       );
 
@@ -750,7 +783,7 @@ export async function POST(request: Request) {
             error: "AI QA output failed QARecommendation schema validation.",
             validationErrors: validation.errors,
             meta: {
-              externalApiCalled: result.externalApiCalled,
+              externalApiCalled: result.meta.externalApiCalled,
               realAIQAEnabled: true,
               validationPassed: false
             }
@@ -763,7 +796,7 @@ export async function POST(request: Request) {
         skillId,
         provider: result.provider,
         success: true,
-        externalApiCalled: result.externalApiCalled
+        externalApiCalled: result.meta.externalApiCalled
       });
 
       return NextResponse.json({
@@ -776,7 +809,7 @@ export async function POST(request: Request) {
           recommendations: validation.recommendations
         },
         meta: {
-          externalApiCalled: result.externalApiCalled,
+          externalApiCalled: result.meta.externalApiCalled,
           realAIQAEnabled: true,
           validationPassed: true
         }

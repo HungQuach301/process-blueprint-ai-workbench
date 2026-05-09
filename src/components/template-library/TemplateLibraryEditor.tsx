@@ -567,7 +567,7 @@ export function TemplateLibraryEditor() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
-              Template Library
+              Template Hub
             </p>
             <h2 className="mt-1 text-2xl font-semibold text-slate-950">
               Thư viện template đầu ra

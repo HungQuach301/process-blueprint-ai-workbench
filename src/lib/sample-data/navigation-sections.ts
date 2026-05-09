@@ -14,7 +14,7 @@ export const navigationSections: NavigationSection[] = [
   },
   {
     id: "ai-settings",
-    label: "AI Settings",
+    label: "AI Connection Center",
     description: "Provider and data usage mode settings for future AI workflows.",
     status: "Scaffold"
   },
@@ -26,7 +26,7 @@ export const navigationSections: NavigationSection[] = [
   },
   {
     id: "template-library",
-    label: "Template Library",
+    label: "Template Hub",
     description: "A future collection of reusable process blueprint templates.",
     status: "Placeholder"
   },

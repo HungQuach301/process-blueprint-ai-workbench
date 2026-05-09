@@ -20,6 +20,9 @@ import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
 export function AppShell() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
+  const sectionById = Object.fromEntries(
+    navigationSections.map((section) => [section.id, section])
+  );
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -65,23 +68,41 @@ export function AppShell() {
           </header>
 
           <div className="grid min-w-0 gap-4">
-            <AIProviderSettingsPanel />
+            {sectionById.workspace ? (
+              <SectionPanel section={sectionById.workspace} />
+            ) : null}
 
-            <AIInputBriefPanel />
+            <div id="ai-settings">
+              <AIProviderSettingsPanel />
+            </div>
 
-            <TemplateLibraryEditor />
+            <div id="input-brief">
+              <AIInputBriefPanel />
+            </div>
 
-            <ProcessTaskRegister />
+            <div id="template-library">
+              <TemplateLibraryEditor />
+            </div>
 
-            <D01BpmnOutput />
+            <div id="process-task-register">
+              <ProcessTaskRegister />
+            </div>
 
-            <D02ServiceBlueprintOutput />
+            {sectionById["qa-panel"] ? (
+              <SectionPanel section={sectionById["qa-panel"]} />
+            ) : null}
 
-            <ExportCenter />
+            <div id="d01-bpmn-preview">
+              <D01BpmnOutput />
+            </div>
 
-            {navigationSections.map((section) => (
-              <SectionPanel key={section.id} section={section} />
-            ))}
+            <div id="d02-service-blueprint-preview">
+              <D02ServiceBlueprintOutput />
+            </div>
+
+            <div id="export-center">
+              <ExportCenter />
+            </div>
           </div>
         </section>
       </div>

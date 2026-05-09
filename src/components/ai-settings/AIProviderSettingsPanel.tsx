@@ -152,9 +152,9 @@ export function AIProviderSettingsPanel() {
       }
       bodyClassName="p-4"
       description="Scaffold cấu hình provider/data mode cho các AI workflow tương lai. Panel này chỉ lưu localStorage và không gọi external API."
-      title="AI Provider Settings"
+      title="AI Connection Center"
     >
-      <div id="ai-settings" className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+      <div id="ai-settings-governance-notice" className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         Do not enter production secrets in local MVP. API key thật chưa được hỗ trợ và không nên lưu trong localStorage.
       </div>
 

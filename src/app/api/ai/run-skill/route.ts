@@ -8,12 +8,15 @@ import {
   createOpenAIProvider,
   type AIModelRequest
 } from "@/lib/ai/providers/openai-provider";
+import { runMockAIQA } from "@/lib/ai/ai-qa-service";
+import type { AIQARequest } from "@/lib/ai/ai-qa-types";
 import {
   formatQualityGateErrorsVi,
   formatQualityGateWarningsVi,
   runBriefQualityGate,
   runDraftProcessTaskRegisterQualityGate
 } from "@/lib/quality-engine";
+import { validateAIQARecommendations } from "@/lib/recommendation-engine/qa-recommendation-schema";
 
 export const runtime = "nodejs";
 
@@ -23,6 +26,7 @@ type RunSkillRequestBody = {
 };
 
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
+const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -78,6 +82,96 @@ function createPromptForInputBriefToPtr(payload: unknown) {
       )
     }
   ];
+}
+
+function createPromptForAIProcessQA(payload: unknown) {
+  return [
+    {
+      role: "system" as const,
+      content:
+        "You review a Process Task Register and return only a JSON array of QARecommendation objects. Do not include markdown. Every recommendation must use source ai, existing targetStepIds, structured operations, previewText, confidence, impact, riskLevel, and requiresConfirmation true. Do not auto-apply anything."
+    },
+    {
+      role: "user" as const,
+      content: JSON.stringify(
+        {
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          requiredOutput: "QARecommendation[]",
+          context: payload
+        },
+        null,
+        2
+      )
+    }
+  ];
+}
+
+function isAIQAPayload(value: unknown): value is Omit<AIQARequest, "context"> {
+  return (
+    isObject(value) &&
+    Array.isArray(value.processTasks) &&
+    (value.templateProfiles === undefined || Array.isArray(value.templateProfiles))
+  );
+}
+
+function createMockAIQAResponse(payload: unknown) {
+  if (!isAIQAPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "AI QA request must include processTasks and optional templateProfiles."
+      },
+      { status: 400 }
+    );
+  }
+
+  const response = runMockAIQA({
+    context: {
+      scope: "qa",
+      executionMode: "mock",
+      providerSettings: {
+        provider: "no-ai",
+        dataUsageMode: "local-only"
+      },
+      processTasks: payload.processTasks,
+      templateProfiles: payload.templateProfiles,
+      requestId: `mock-ai-process-qa-${Date.now()}`
+    },
+    processTasks: payload.processTasks,
+    templateProfiles: payload.templateProfiles,
+    issueCodes: payload.issueCodes
+  });
+  const validation = validateAIQARecommendations(
+    response.recommendations,
+    payload.processTasks.map((task) => task.stepId)
+  );
+
+  if (!validation.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Mock AI QA output failed schema validation.",
+        validationErrors: validation.errors
+      },
+      { status: 422 }
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: process.env.AI_PROVIDER || "openai",
+    model: process.env.AI_MODEL || "",
+    skillId: AI_PROCESS_QA_SKILL_ID,
+    result: {
+      recommendations: validation.recommendations
+    },
+    meta: {
+      externalApiCalled: false,
+      realAIQAEnabled: false,
+      validationPassed: true
+    }
+  });
 }
 
 function createMockResponse(skillId: string, payload: unknown) {
@@ -189,6 +283,7 @@ export function GET() {
   return NextResponse.json({
     ok: true,
     realAIEnabled: process.env.ENABLE_REAL_AI === "true",
+    realAIQAEnabled: process.env.ENABLE_REAL_AI_QA === "true",
     provider: process.env.AI_PROVIDER || "openai",
     model: process.env.AI_MODEL || ""
   });
@@ -220,6 +315,116 @@ export async function POST(request: Request) {
   }
 
   const skillId = body.skillId.trim();
+  const enableRealAIQA = process.env.ENABLE_REAL_AI_QA === "true";
+
+  if (skillId === AI_PROCESS_QA_SKILL_ID && !enableRealAIQA) {
+    return createMockAIQAResponse(body.payload);
+  }
+
+  if (skillId === AI_PROCESS_QA_SKILL_ID) {
+    if (!isAIQAPayload(body.payload)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "AI QA request must include processTasks and optional templateProfiles."
+        },
+        { status: 400 }
+      );
+    }
+
+    const providerName = process.env.AI_PROVIDER || "openai";
+
+    if (providerName !== "openai") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: `Unsupported AI_PROVIDER: ${providerName}`
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const provider = createOpenAIProvider({
+        apiKey: process.env.OPENAI_API_KEY || "",
+        model: process.env.AI_MODEL || ""
+      });
+      const aiRequest: AIModelRequest = {
+        skillId,
+        payload: body.payload,
+        messages: createPromptForAIProcessQA(body.payload)
+      };
+      const result = await provider.run(aiRequest);
+      let parsedResult: unknown;
+
+      try {
+        parsedResult = JSON.parse(extractJsonObject(result.content));
+      } catch {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "AI QA output was not valid JSON.",
+            meta: {
+              externalApiCalled: result.externalApiCalled,
+              realAIQAEnabled: true,
+              validationPassed: false
+            }
+          },
+          { status: 422 }
+        );
+      }
+
+      const recommendationsOutput = isObject(parsedResult)
+        ? parsedResult.recommendations
+        : parsedResult;
+      const validation = validateAIQARecommendations(
+        recommendationsOutput,
+        body.payload.processTasks.map((task) => task.stepId)
+      );
+
+      if (!validation.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "AI QA output failed QARecommendation schema validation.",
+            validationErrors: validation.errors,
+            meta: {
+              externalApiCalled: result.externalApiCalled,
+              realAIQAEnabled: true,
+              validationPassed: false
+            }
+          },
+          { status: 422 }
+        );
+      }
+
+      return NextResponse.json({
+        ok: true,
+        mode: "provider-backed",
+        skillId,
+        result: {
+          recommendations: validation.recommendations
+        },
+        meta: {
+          externalApiCalled: result.externalApiCalled,
+          realAIQAEnabled: true,
+          validationPassed: true
+        }
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "AI QA provider request failed."
+        },
+        { status: 500 }
+      );
+    }
+  }
+
   const enableRealAI = process.env.ENABLE_REAL_AI === "true";
 
   if (!enableRealAI) {

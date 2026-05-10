@@ -2,11 +2,11 @@
 
 ## Last updated
 
-YYYY-MM-DD
+2026-05-10
 
 ## Current branch
 
-TBD
+feature/real-ai-integration
 
 ## Current product phase
 
@@ -14,15 +14,19 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- TBD
+- Created MVP1 release documentation.
+- Added an MVP1 release checklist covering Process Modeling Core, real AI readiness, API key safety, manual regression, export tests, and GitHub release readiness.
+- Added MVP1 release notes covering summary, included features, AI behavior, known limitations, test checklist, and version/tag placeholder.
 
 ## Files changed
 
-- TBD
+- `docs/MVP1_RELEASE_CHECKLIST.md`
+- `docs/MVP1_RELEASE_NOTES.md`
+- `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- TBD
+- No new product or architecture decision was made. This session documented MVP1 release readiness only.
 
 ## Current blockers
 
@@ -30,7 +34,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-TBD
+Review the MVP1 release checklist, replace release placeholders with the final version/tag, then run the full manual release regression before creating the GitHub release.
 
 ## Exact prompt for next ChatGPT session
 

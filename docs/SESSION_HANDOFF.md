@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved QA recommendation safety UX for MVP1-AI RC2.
+- Graph-changing recommendations are now hidden by default behind the Advanced structure changes option.
+- Renamed the graph-changing toggle to user-friendly EN/VI copy: `Show advanced structure changes` / `Hiển thị thay đổi cấu trúc nâng cao`.
+- Replaced per-card direct apply wording with `Preview change`; recommendations still require preview/confirmation before apply.
+- Tightened Select safe so it excludes graph-changing, high-risk, high-impact, and medium-impact recommendations unless the existing medium opt-in is enabled.
+- Recommendation cards now expose confidence, risk, affected steps, and change summary for easier review.
+- QA issues are grouped as Critical, Warnings, Suggestions, and Advanced structure changes.
 - Improved AI provider status and AI Run History for MVP1-AI RC2.
 - AI Connection Center now receives selected provider status, effective provider, and fallback-active metadata from `/api/ai/run-skill`.
 - Product AI/OpenAI/Claude missing-env or disabled states now clearly surface local/mock fallback instead of implying a successful external provider call.

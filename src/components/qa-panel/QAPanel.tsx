@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
@@ -17,7 +17,6 @@ import {
 } from "@/lib/qa/apply-recommendation";
 import {
   isGraphChangingRecommendation,
-  isSafeRecommendation,
   normalizeRecommendationOperations,
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
@@ -83,11 +82,26 @@ const qaPanelText = {
     runReal: "Chay AI QA",
     runMock: "Chay mock QA",
     showOnlySafe: "Chi hien de xuat an toan",
-    includeMedium: "Bao gom do tin cay trung binh",
-    includeGraph: "Bao gom de xuat doi graph",
+    includeMedium: "Bao gom muc trung binh",
+    includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
     providerCompare: "So sanh provider",
     totalIssues: "Tong so issue",
-    noRecommendations: "Chua co de xuat tu dong."
+    noRecommendations: "Chua co de xuat tu dong.",
+    hiddenAdvanced: "Thay đổi cấu trúc nâng cao đang được ẩn.",
+    automaticRecommendations: "Gợi ý tự động",
+    suggestedFix: "Cách sửa",
+    noIssuesInGroup: "Không có issue trong nhóm này.",
+    critical: "Nghiêm trọng",
+    warnings: "Cảnh báo",
+    suggestions: "Gợi ý",
+    advancedStructureChanges: "Thay đổi cấu trúc nâng cao",
+    confidence: "Độ tin cậy",
+    impact: "Tác động",
+    risk: "Rủi ro",
+    affectedSteps: "Bước bị ảnh hưởng",
+    changeSummary: "Tóm tắt thay đổi",
+    previewChange: "Xem trước thay đổi",
+    none: "Không có"
   },
   en: {
     title: "QA Panel",
@@ -108,11 +122,26 @@ const qaPanelText = {
     runReal: "Run AI QA",
     runMock: "Run mock QA",
     showOnlySafe: "Show only safe recommendations",
-    includeMedium: "Include medium confidence",
-    includeGraph: "Include graph-changing recommendations",
+    includeMedium: "Include medium confidence/impact",
+    includeGraph: "Show advanced structure changes",
     providerCompare: "Provider Compare",
     totalIssues: "Total issues",
-    noRecommendations: "No automatic recommendations yet."
+    noRecommendations: "No automatic recommendations yet.",
+    hiddenAdvanced: "Advanced structure changes are hidden.",
+    automaticRecommendations: "Automatic recommendations",
+    suggestedFix: "Suggested fix",
+    noIssuesInGroup: "No issues in this group.",
+    critical: "Critical",
+    warnings: "Warnings",
+    suggestions: "Suggestions",
+    advancedStructureChanges: "Advanced structure changes",
+    confidence: "Confidence",
+    impact: "Impact",
+    risk: "Risk",
+    affectedSteps: "Affected steps",
+    changeSummary: "Change summary",
+    previewChange: "Preview change",
+    none: "None"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -123,12 +152,6 @@ type QAPanelProps = {
   onDownloadReport: () => void;
   onApplyRecommendation: (recommendation: QARecommendation) => void;
   onApplyRecommendations: (recommendations: QARecommendation[]) => void;
-};
-
-const severityLabels: Record<QaSeverity, string> = {
-  error: "Lỗi",
-  warning: "Cảnh báo",
-  suggestion: "Gợi ý"
 };
 
 const severityStyles: Record<QaSeverity, string> = {
@@ -149,7 +172,9 @@ const recommendationCardStyles: Record<QaSeverity, string> = {
   suggestion: "border-sky-200 bg-white"
 };
 
-const severityOrder: QaSeverity[] = ["error", "warning", "suggestion"];
+const advancedGroupStyles = "border-violet-200 bg-violet-50 text-violet-800";
+const advancedRecommendationBoxStyle = "border-violet-200 bg-violet-50";
+const advancedRecommendationCardStyle = "border-violet-200 bg-white";
 
 function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -194,6 +219,37 @@ function getAffectedStepIds(recommendation: QARecommendation) {
   });
 
   return Array.from(stepIds).filter(Boolean).sort();
+}
+
+function isAdvancedStructureRecommendation(recommendation: QARecommendation) {
+  return isGraphChangingRecommendation(recommendation);
+}
+
+function canSelectAsSafeRecommendation(
+  recommendation: QARecommendation,
+  includeMediumImpact: boolean
+) {
+  if (isAdvancedStructureRecommendation(recommendation)) {
+    return false;
+  }
+
+  if (recommendation.riskLevel !== "low") {
+    return false;
+  }
+
+  if (recommendation.impact === "high") {
+    return false;
+  }
+
+  if (recommendation.impact === "medium" && !includeMediumImpact) {
+    return false;
+  }
+
+  if (recommendation.confidence === "high") {
+    return true;
+  }
+
+  return includeMediumImpact && recommendation.confidence === "medium";
 }
 
 function createRecommendationFeedback(
@@ -270,7 +326,7 @@ export function QAPanel({
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState<Set<string>>(() => new Set());
   const [showOnlySafe, setShowOnlySafe] = useState(false);
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
-  const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
+  const [includeGraphChanging, setIncludeGraphChanging] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [compareModeEnabled, setCompareModeEnabled] = useState(false);
   const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
@@ -347,19 +403,17 @@ export function QAPanel({
     const ids = new Set<string>();
 
     recommendationEntries.forEach((entry) => {
-      const isSafe = isSafeRecommendation(entry.recommendation);
-      const isMediumLowRisk =
-        includeMediumConfidence &&
-        entry.recommendation.confidence === "medium" &&
-        entry.recommendation.riskLevel === "low" &&
-        !isGraphChangingRecommendation(entry.recommendation);
-      const isGraphChanging = isGraphChangingRecommendation(entry.recommendation);
+      const isSafe = canSelectAsSafeRecommendation(
+        entry.recommendation,
+        includeMediumConfidence
+      );
+      const isGraphChanging = isAdvancedStructureRecommendation(entry.recommendation);
 
       if (!includeGraphChanging && isGraphChanging) {
         return;
       }
 
-      if (showOnlySafe && !isSafe && !isMediumLowRisk) {
+      if (showOnlySafe && !isSafe) {
         return;
       }
 
@@ -369,10 +423,13 @@ export function QAPanel({
     return ids;
   }, [includeGraphChanging, includeMediumConfidence, recommendationEntries, showOnlySafe]);
   const selectedRecommendations = recommendationEntries
-    .filter((entry) => selectedRecommendationIds.has(entry.id))
+    .filter(
+      (entry) =>
+        selectedRecommendationIds.has(entry.id) && visibleRecommendationIds.has(entry.id)
+    )
     .map((entry) => entry.recommendation);
   const safeRecommendationEntries = recommendationEntries.filter((entry) =>
-    isSafeRecommendation(entry.recommendation)
+    canSelectAsSafeRecommendation(entry.recommendation, includeMediumConfidence)
   );
   const safeRecommendations = safeRecommendationEntries.map((entry) => entry.recommendation);
   const existingRuleRecommendations = useMemo(
@@ -380,17 +437,70 @@ export function QAPanel({
     [issues]
   );
   const hasRecommendations = recommendationEntries.length > 0;
-  const groupedIssues = severityOrder.map((severity) => ({
-    severity,
-    issues: displayIssues.filter((issue) => issue.severity === severity)
-  }));
+  const text = qaPanelText[locale];
+  const localizedSeverityLabels: Record<QaSeverity, string> = {
+    error: text.critical,
+    warning: text.warnings,
+    suggestion: text.suggestions
+  };
+  const groupedIssues = [
+    {
+      key: "error",
+      label: localizedSeverityLabels.error,
+      issues: displayIssues.filter(
+        (issue) =>
+          issue.severity === "error" &&
+          !(
+            includeGraphChanging &&
+            issue.recommendations?.some(isAdvancedStructureRecommendation)
+          )
+      ),
+      severity: "error" as QaSeverity
+    },
+    {
+      key: "warning",
+      label: localizedSeverityLabels.warning,
+      issues: displayIssues.filter(
+        (issue) =>
+          issue.severity === "warning" &&
+          !(
+            includeGraphChanging &&
+            issue.recommendations?.some(isAdvancedStructureRecommendation)
+          )
+      ),
+      severity: "warning" as QaSeverity
+    },
+    {
+      key: "suggestion",
+      label: localizedSeverityLabels.suggestion,
+      issues: displayIssues.filter(
+        (issue) =>
+          issue.severity === "suggestion" &&
+          !(
+            includeGraphChanging &&
+            issue.recommendations?.some(isAdvancedStructureRecommendation)
+          )
+      ),
+      severity: "suggestion" as QaSeverity
+    },
+    {
+      key: "advanced",
+      label: text.advancedStructureChanges,
+      issues: includeGraphChanging
+        ? displayIssues.filter((issue) =>
+            issue.recommendations?.some(isAdvancedStructureRecommendation)
+          )
+        : [],
+      severity: "suggestion" as QaSeverity,
+      isAdvanced: true
+    }
+  ];
   const pendingChanges = pendingRecommendation
     ? getRecommendationChangePreview(processTasks, pendingRecommendation.recommendation)
     : [];
   const pendingBatchPreview = pendingBatchRecommendations
     ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
     : null;
-  const text = qaPanelText[locale];
 
   function toggleRecommendation(id: string) {
     setSelectedRecommendationIds((currentIds) => {
@@ -410,7 +520,9 @@ export function QAPanel({
     setSelectedRecommendationIds(
       new Set(
         recommendationEntries
-          .filter((entry) => isSafeRecommendation(entry.recommendation))
+          .filter((entry) =>
+            canSelectAsSafeRecommendation(entry.recommendation, includeMediumConfidence)
+          )
           .map((entry) => entry.id)
       )
     );
@@ -1095,13 +1207,15 @@ export function QAPanel({
 
       <div className="grid w-full max-w-full min-w-0 gap-4 overflow-x-auto">
         {groupedIssues.map((group) => (
-          <section className="min-w-0 rounded border border-slate-200" key={group.severity}>
+          <section className="min-w-0 rounded border border-slate-200" key={group.key}>
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
               <h3 className="text-sm font-semibold text-slate-950">
-                {severityLabels[group.severity]}
+                {group.label}
               </h3>
               <span
-                className={`rounded border px-2 py-1 text-xs font-semibold ${severityStyles[group.severity]}`}
+                className={`rounded border px-2 py-1 text-xs font-semibold ${
+                  group.isAdvanced ? advancedGroupStyles : severityStyles[group.severity]
+                }`}
               >
                 {group.issues.length}
               </span>
@@ -1126,7 +1240,7 @@ export function QAPanel({
                         <span
                           className={`rounded border px-2 py-1 text-xs font-semibold ${severityStyles[issue.severity]}`}
                         >
-                          {severityLabels[issue.severity]}
+                          {localizedSeverityLabels[issue.severity]}
                         </span>
                       </div>
                       <p className="mt-2 text-sm font-semibold text-slate-950">
@@ -1134,14 +1248,18 @@ export function QAPanel({
                       </p>
                       <p className="mt-1 text-sm text-slate-700">{issue.message}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Cách sửa: {issue.suggestedFix}
+                        {text.suggestedFix}: {issue.suggestedFix}
                       </p>
                     </button>
                     <div
-                      className={`mt-3 rounded border p-3 ${recommendationBoxStyles[issue.severity]}`}
+                      className={`mt-3 rounded border p-3 ${
+                        group.isAdvanced
+                          ? advancedRecommendationBoxStyle
+                          : recommendationBoxStyles[issue.severity]
+                      }`}
                     >
                       <p className="text-xs font-semibold uppercase text-slate-600">
-                        Gợi ý tự động
+                        {text.automaticRecommendations}
                       </p>
                       {issue.recommendations?.length ? (
                         <div className="mt-2 space-y-3">
@@ -1155,7 +1273,11 @@ export function QAPanel({
 
                               return (
                             <div
-                              className={`rounded border p-3 ${recommendationCardStyles[issue.severity]}`}
+                              className={`rounded border p-3 ${
+                                group.isAdvanced
+                                  ? advancedRecommendationCardStyle
+                                  : recommendationCardStyles[issue.severity]
+                              }`}
                               key={recommendationId}
                             >
                               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -1174,8 +1296,14 @@ export function QAPanel({
                                     {recommendation.description}
                                   </p>
                                   <p className="mt-1 text-xs text-slate-500">
-                                    Confidence: {recommendation.confidence} | Impact:{" "}
-                                    {recommendation.impact} | Risk: {recommendation.riskLevel ?? "medium"}
+                                    {text.confidence}: {recommendation.confidence} | {text.impact}:{" "}
+                                    {recommendation.impact} | {text.risk}: {recommendation.riskLevel ?? "medium"}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {text.affectedSteps}:{" "}
+                                    {getAffectedStepIds(recommendation).length
+                                      ? getAffectedStepIds(recommendation).join(", ")
+                                      : text.none}
                                   </p>
                                   </span>
                                 </label>
@@ -1189,18 +1317,27 @@ export function QAPanel({
                                   }
                                   type="button"
                                 >
-                                  Apply
+                                  {text.previewChange}
                                 </button>
                               </div>
                               {recommendation.previewText ? (
                                 <p className="mt-1 whitespace-pre-line text-xs text-slate-500">
-                                  Preview: {recommendation.previewText}
+                                  {text.changeSummary}: {recommendation.previewText}
                                 </p>
                               ) : null}
                             </div>
                               );
                             })()
                           ))}
+                          {issue.recommendations.every((recommendation, index) => {
+                            const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
+
+                            return !visibleRecommendationIds.has(recommendationId);
+                          }) ? (
+                            <p className="text-sm text-slate-600">
+                              {text.hiddenAdvanced}
+                            </p>
+                          ) : null}
                         </div>
                       ) : (
                         <p className="mt-2 text-sm text-slate-600">
@@ -1213,7 +1350,7 @@ export function QAPanel({
               </div>
             ) : (
               <p className="px-4 py-3 text-sm text-slate-500">
-                Không có issue trong nhóm này.
+                {text.noIssuesInGroup}
               </p>
             )}
           </section>

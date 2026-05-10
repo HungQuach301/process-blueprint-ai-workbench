@@ -8,7 +8,8 @@ export type AuditAction =
   | "apply_ai_draft"
   | "generate_d01"
   | "generate_d02"
-  | "export_zip";
+  | "export_zip"
+  | "export_ai_coding_pack";
 
 export type AuditLogEntry = {
   id: string;

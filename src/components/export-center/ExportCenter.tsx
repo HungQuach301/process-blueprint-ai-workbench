@@ -6,6 +6,10 @@ import {
   exportAuditLogJson,
   saveAuditLogEntry
 } from "@/lib/audit/audit-log";
+import {
+  generateAICodingPack,
+  type AICodingPackFiles
+} from "@/lib/generators/ai-coding-pack-generator";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
@@ -43,6 +47,11 @@ type OutputArtifacts = {
   processTaskRegisterJson: string;
   templateProfileJson: string;
   qaReportMarkdown: string;
+};
+
+type AICodingPackPreview = {
+  timestamp: string;
+  files: AICodingPackFiles;
 };
 
 function createTimestamp() {
@@ -99,8 +108,14 @@ function downloadBlob(content: BlobPart, fileName: string, type: string) {
 
 export function ExportCenter() {
   const [artifacts, setArtifacts] = useState<OutputArtifacts | null>(null);
+  const [aiCodingPack, setAICodingPack] = useState<AICodingPackPreview | null>(
+    null
+  );
+  const [projectContext, setProjectContext] = useState("");
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadingAICodingPack, setIsDownloadingAICodingPack] =
+    useState(false);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
 
@@ -219,6 +234,46 @@ export function ExportCenter() {
     }
   }
 
+  function buildAICodingPack() {
+    const timestamp = createTimestamp();
+    const processTasks = readProcessTasks();
+    const templateProfiles = readTemplateProfiles();
+    const selectedD01TemplateId =
+      window.localStorage.getItem(D01_STORAGE_KEY) ??
+      sampleWorkspace.selectedBpmnTemplateId;
+    const selectedD02TemplateId =
+      window.localStorage.getItem(D02_STORAGE_KEY) ??
+      sampleWorkspace.selectedServiceBlueprintTemplateId;
+    const selectedD01Template = findTemplate(
+      templateProfiles,
+      selectedD01TemplateId,
+      sampleBpmnTemplateProfile
+    );
+    const selectedD02Template = findTemplate(
+      templateProfiles,
+      selectedD02TemplateId,
+      sampleServiceBlueprintTemplateProfile
+    );
+    const files = generateAICodingPack({
+      processTasks,
+      selectedD01Template,
+      selectedD02Template,
+      projectContext,
+      generatedAt: timestamp,
+      assumptions: [
+        "MVP1 AI Coding Pack is generated deterministically from Process Task Register and selected template metadata."
+      ],
+      openQuestions: [
+        "Confirm target repository architecture before applying generated implementation steps."
+      ]
+    });
+
+    return {
+      timestamp,
+      files
+    };
+  }
+
   async function downloadZip() {
     try {
       setIsDownloading(true);
@@ -278,6 +333,66 @@ export function ExportCenter() {
       "application/json;charset=utf-8"
     );
     setMessage("Đã export audit log JSON.");
+  }
+
+  function previewAICodingPack() {
+    try {
+      const nextPack = buildAICodingPack();
+
+      setAICodingPack(nextPack);
+      setMessage("Da tao preview AI Coding Pack deterministic.");
+    } catch (error) {
+      setAICodingPack(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao AI Coding Pack: ${error.message}`
+          : "Khong the tao AI Coding Pack. Vui long kiem tra du lieu."
+      );
+    }
+  }
+
+  async function downloadAICodingPackZip() {
+    try {
+      setIsDownloadingAICodingPack(true);
+      const currentPack = aiCodingPack ?? buildAICodingPack();
+      const zip = new JSZip();
+      const { files, timestamp } = currentPack;
+
+      zip.file("AGENTS.md", files.agentsMd);
+      zip.file("CLAUDE.md", files.claudeMd);
+      zip.file("cursor-rules.md", files.cursorRulesMd);
+      zip.file("spec.json", files.specJson);
+      zip.file("acceptance-criteria.md", files.acceptanceCriteriaMd);
+      zip.file("implementation-plan.md", files.implementationPlanMd);
+      zip.file("test-plan.md", files.testPlanMd);
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      downloadBlob(
+        zipBlob,
+        `AI_Coding_Pack_${timestamp}.zip`,
+        "application/zip"
+      );
+      saveAuditLogEntry({
+        action: "export_ai_coding_pack",
+        status: "success",
+        summary: "Exported deterministic AI Coding Pack ZIP.",
+        metadata: {
+          timestamp,
+          fileCount: 7
+        }
+      });
+      setAICodingPack(currentPack);
+      setMessage("Da tao ZIP AI Coding Pack.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Khong the download AI Coding Pack: ${error.message}`
+          : "Khong the download AI Coding Pack. Vui long thu lai."
+      );
+    } finally {
+      setIsDownloadingAICodingPack(false);
+    }
   }
 
   return (
@@ -353,6 +468,92 @@ export function ExportCenter() {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="border-t border-slate-200 p-4">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
+          <div>
+            <p className="text-sm font-medium uppercase text-slate-500">
+              AI Coding Pack
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-slate-950">
+              Export AI-ready coding context
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Deterministic MVP1 export for Codex, Claude Code, Cursor, or
+              similar coding tools. Source data comes from Process Task
+              Register and selected template metadata. No browser AI call is
+              made.
+            </p>
+            <label className="mt-4 block">
+              <span className="text-sm font-medium text-slate-700">
+                Optional project context
+              </span>
+              <textarea
+                className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                onChange={(event) => setProjectContext(event.target.value)}
+                placeholder="Example: Target repo, frontend/backend stack, coding constraints, team conventions..."
+                value={projectContext}
+              />
+            </label>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={previewAICodingPack}
+                type="button"
+              >
+                Preview AI Coding Pack
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={isDownloadingAICodingPack}
+                onClick={downloadAICodingPackZip}
+                type="button"
+              >
+                {isDownloadingAICodingPack
+                  ? "Dang tao AI Coding Pack..."
+                  : "Download AI Coding Pack ZIP"}
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-semibold text-slate-950">
+              Included files
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+              <li>AGENTS.md</li>
+              <li>CLAUDE.md</li>
+              <li>cursor-rules.md</li>
+              <li>spec.json</li>
+              <li>acceptance-criteria.md</li>
+              <li>implementation-plan.md</li>
+              <li>test-plan.md</li>
+            </ul>
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              AI enhancement is planned as future skill
+              `user-stories-to-ai-coding-pack`; MVP1 uses deterministic export
+              first.
+            </p>
+          </div>
+        </div>
+
+        {aiCodingPack ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: spec.json
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {aiCodingPack.timestamp}. Step IDs are preserved
+                for traceability.
+              </p>
+            </div>
+            <pre className="max-h-96 overflow-auto p-4 text-xs leading-5 text-slate-700">
+              {aiCodingPack.files.specJson}
+            </pre>
+          </div>
+        ) : null}
       </div>
     </section>
   );

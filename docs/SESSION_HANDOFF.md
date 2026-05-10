@@ -14,12 +14,12 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- Improved AI Input Brief UX for MVP1.
-- Kept the Draft -> Preview -> User Apply workflow; no auto-apply behavior was added.
-- Added visible Manual Input, Import File, and Voice Input - Coming soon modes.
-- Updated Manual Input sections to use multiple-choice options with conditional `Khác / Other` free text.
-- Kept related systems split into customer-facing, internal, and third-party groups.
-- Kept Data / Documents as a separate section from systems.
+- Fixed File Intake behavior for MVP1.
+- PDF file rows now expose a clear `Generate Draft PTR` action.
+- PDF draft generation extracts locally and shows Draft Preview without auto-applying to Process Task Register.
+- Uploading a new file clears stale extraction previews, stale draft preview, and validation/quality blocking state.
+- Clearing or removing files clears file-derived previews and draft state.
+- Image/OCR files are accepted for selection but shown as unsupported; no OCR implementation or external API call was added.
 
 ## Files changed
 
@@ -28,7 +28,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Important decisions made
 
-- No new product or architecture decision was made. This session applied a scoped MVP1 AI Input Brief UX improvement only.
+- No new product or architecture decision was made. This session applied a scoped MVP1 File Intake fix only.
 
 ## Current blockers
 
@@ -36,7 +36,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-Manually verify AI Input Brief modes, conditional Other text, local Draft PTR generation, draft preview, and explicit Apply behavior in the running app.
+Manually verify File Intake: PDF upload shows `Generate Draft PTR`, PDF generation shows draft preview without auto-apply, uploading another file clears the stale draft, image upload shows OCR unsupported, and remove/clear file clears file-derived state.
 
 ## Exact prompt for next ChatGPT session
 

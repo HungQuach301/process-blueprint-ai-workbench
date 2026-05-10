@@ -451,6 +451,18 @@ function splitBriefLines(value: string) {
     .filter(Boolean);
 }
 
+function isImageIntakeFile(file: Pick<IntakeFileMetadata, "fileName" | "fileType">) {
+  const fileName = file.fileName.toLowerCase();
+  const fileType = file.fileType.toLowerCase();
+
+  return (
+    fileType.startsWith("image/") ||
+    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff"].some((extension) =>
+      fileName.endsWith(extension)
+    )
+  );
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [briefMode, setBriefMode] = useState<BriefMode>("manual");
@@ -678,22 +690,28 @@ export function AIInputBriefPanel() {
   }
 
   function handleFileSelection(files: FileList | null) {
-    if (!files) {
+    if (!files || files.length === 0) {
+      clearSelectedFiles();
       return;
     }
 
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     const nextFiles = Array.from(files);
     const nextFileMetadata = nextFiles.map(createIntakeFileMetadata);
     const unsupportedCount = nextFileMetadata.filter(
       (file) => file.status === "unsupported"
     ).length;
+    const unsupportedImageCount = nextFileMetadata.filter(
+      (file) => file.status === "unsupported" && isImageIntakeFile(file)
+    ).length;
 
     setSelectedFileObjects(nextFiles);
     setIntakeFiles(nextFileMetadata);
-    clearFileExtractionPreviews();
-    clearDraftPreview();
     setMessage(
-      unsupportedCount > 0
+      unsupportedImageCount > 0
+        ? `${unsupportedImageCount} image file không được hỗ trợ. OCR/Image extraction chưa có trong MVP1; không upload file.`
+        : unsupportedCount > 0
         ? `${unsupportedCount} file không được hỗ trợ. Chỉ hỗ trợ .xlsx, .docx, .pdf. Không upload file.`
         : `Đã chọn ${nextFileMetadata.length} file. File chỉ xử lý local trong browser, không upload.`
     );
@@ -706,6 +724,30 @@ export function AIInputBriefPanel() {
     clearDraftPreview();
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Da xoa file intake metadata local.");
+  }
+
+  function removeSelectedFile(fileToRemove: IntakeFileMetadata) {
+    setSelectedFileObjects((currentFiles) =>
+      currentFiles.filter(
+        (file) =>
+          !(
+            file.name === fileToRemove.fileName &&
+            file.lastModified === fileToRemove.lastModified
+          )
+      )
+    );
+    setIntakeFiles((currentFiles) =>
+      currentFiles.filter(
+        (file) =>
+          !(
+            file.fileName === fileToRemove.fileName &&
+            file.lastModified === fileToRemove.lastModified
+          )
+      )
+    );
+    clearFileExtractionPreviews();
+    clearDraftPreview();
+    setMessage("Đã remove file và clear preview/draft liên quan.");
   }
 
   function updateIntakeFileStatus(
@@ -810,6 +852,85 @@ export function AIInputBriefPanel() {
         error instanceof Error
           ? error.message
           : "Không thể trích xuất text từ file PDF này. Vui lòng paste nội dung, dùng Word/Excel, hoặc chờ tính năng OCR ở phiên bản sau."
+      );
+    }
+  }
+
+  async function generateDraftPtrFromPdfFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
+    setMessage("Đang extract PDF local và tạo Draft PTR. Không upload file.");
+
+    try {
+      const result = await extractTextFromPdf(file);
+      const pdfLines = result.rawText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const structuredBrief = parseStructuredProcessBriefFromForm({
+        processInfo: pdfLines[0] || "PDF extracted process",
+        businessObjective: result.rawText.slice(0, 1200),
+        scope: result.rawText.slice(0, 1200),
+        startEnd: [
+          pdfLines[0] || "Request received",
+          pdfLines[pdfLines.length - 1] || "Process completed"
+        ].join("\n"),
+        actors: "",
+        relatedSystems: "",
+        dataDocuments: "",
+        inputLanguage: locale,
+        outputLanguage: locale
+      });
+      const response = generateDraftProcessTaskRegister({
+        brief: structuredBrief,
+        currentLocale: locale
+      });
+      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
+      const nextResponse = {
+        ...response,
+        assumptions: [
+          ...response.assumptions,
+          "PDF text extraction is local and rule-based.",
+          "Generated Draft PTR must be reviewed before Apply."
+        ],
+        openQuestions:
+          result.warnings.length > 0
+            ? result.warnings
+            : ["Review extracted PDF text before applying to PTR."],
+        qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
+        sourceSummary: `Draft generated locally from PDF file ${file.name}.`
+      };
+
+      setPdfExtraction(result);
+      updateIntakeFileStatus(file, "extracted");
+
+      if (!draftQualityGate.canPreview) {
+        const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(errors);
+        setMessage("Draft PTR từ PDF không đạt Quality Gate.");
+        return;
+      }
+
+      setBlockingErrors([]);
+      setDraftTasks(nextResponse.draftProcessTasks);
+      setDraftMeta(nextResponse);
+      setMessage(
+        `Đã tạo draft PTR từ PDF: ${nextResponse.draftProcessTasks.length} dòng. Hãy review trước khi Apply.`
+      );
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setPdfExtraction(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors([]);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Không thể trích xuất PDF để tạo Draft PTR. OCR chưa được hỗ trợ trong MVP1."
       );
     }
   }
@@ -1500,7 +1621,7 @@ export function AIInputBriefPanel() {
             Select local files
           </span>
           <input
-            accept=".xlsx,.docx,.pdf"
+            accept=".xlsx,.docx,.pdf,image/*"
             className="mt-2 block w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
             multiple
             onChange={(event) => handleFileSelection(event.target.files)}
@@ -1609,7 +1730,7 @@ export function AIInputBriefPanel() {
                             );
 
                             if (selectedFile) {
-                              void extractPdfFile(selectedFile);
+                              void generateDraftPtrFromPdfFile(selectedFile);
                             } else {
                               setMessage(
                                 "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất."
@@ -1618,9 +1739,22 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          Extract
+                          Generate Draft PTR
                         </button>
+                      ) : file.status === "unsupported" ? (
+                        <span className="text-xs font-semibold text-red-700">
+                          {isImageIntakeFile(file)
+                            ? "OCR/Image unsupported in MVP1"
+                            : "Unsupported file type"}
+                        </span>
                       ) : null}
+                      <button
+                        className="ml-2 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        onClick={() => removeSelectedFile(file)}
+                        type="button"
+                      >
+                        Remove
+                      </button>
                     </td>
                   </tr>
                 ))}

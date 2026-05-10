@@ -31,7 +31,26 @@ export type AuditLogEntry = {
   status: "success" | "failure";
   summary: string;
   timestamp: string;
-  metadata?: Record<string, string | number | boolean | null | undefined>;
+  metadata?: Record<string, unknown>;
+};
+
+export type AIRunRecord = {
+  id: string;
+  skillId: string;
+  provider: string;
+  model: string;
+  status: "success" | "failure";
+  timestamp: string;
+  latencyMs?: number;
+  validationPassed?: boolean;
+  tokenUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+  externalApiCalled: boolean;
+  warnings: string[];
+  requestId?: string;
 };
 
 function readEntries(): AuditLogEntry[] {
@@ -54,6 +73,125 @@ export function loadAuditLog() {
   return readEntries();
 }
 
+function metadataString(
+  metadata: Record<string, unknown> | undefined,
+  keys: string[],
+  fallback = ""
+) {
+  for (const key of keys) {
+    const value = metadata?.[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function metadataNumber(
+  metadata: Record<string, unknown> | undefined,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = metadata?.[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function metadataBoolean(
+  metadata: Record<string, unknown> | undefined,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = metadata?.[key];
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function metadataStringArray(
+  metadata: Record<string, unknown> | undefined,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = metadata?.[key];
+
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === "string");
+    }
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return [value];
+    }
+  }
+
+  return [];
+}
+
+function metadataTokenUsage(metadata: Record<string, unknown> | undefined) {
+  const tokenUsage = metadata?.tokenUsage;
+
+  if (typeof tokenUsage !== "object" || tokenUsage === null) {
+    return undefined;
+  }
+
+  const usage = tokenUsage as Record<string, unknown>;
+  const inputTokens =
+    typeof usage.inputTokens === "number" ? usage.inputTokens : undefined;
+  const outputTokens =
+    typeof usage.outputTokens === "number" ? usage.outputTokens : undefined;
+  const totalTokens =
+    typeof usage.totalTokens === "number" ? usage.totalTokens : undefined;
+
+  if (
+    inputTokens === undefined &&
+    outputTokens === undefined &&
+    totalTokens === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens
+  };
+}
+
+export function loadAIRunHistory(): AIRunRecord[] {
+  return loadAuditLog()
+    .filter((entry) => entry.action === "ai_call")
+    .map((entry) => ({
+      id: entry.id,
+      skillId: metadataString(entry.metadata, ["skillId"], "unknown-skill"),
+      provider: metadataString(
+        entry.metadata,
+        ["providerId", "provider", "providerMode"],
+        "unknown-provider"
+      ),
+      model: metadataString(entry.metadata, ["model"], ""),
+      status: entry.status,
+      timestamp: entry.timestamp,
+      latencyMs: metadataNumber(entry.metadata, ["latencyMs"]),
+      validationPassed: metadataBoolean(entry.metadata, ["validationPassed"]),
+      tokenUsage: metadataTokenUsage(entry.metadata),
+      externalApiCalled:
+        metadataBoolean(entry.metadata, ["externalApiCalled"]) ?? false,
+      warnings: metadataStringArray(entry.metadata, ["warnings", "warning"]),
+      requestId: metadataString(entry.metadata, ["requestId"])
+    }));
+}
+
 export function saveAuditLogEntry(
   entry: Omit<AuditLogEntry, "id" | "timestamp">
 ) {
@@ -74,6 +212,10 @@ export function saveAuditLogEntry(
 
 export function exportAuditLogJson() {
   return JSON.stringify(loadAuditLog(), null, 2);
+}
+
+export function exportAIRunHistoryJson() {
+  return JSON.stringify(loadAIRunHistory(), null, 2);
 }
 
 export function clearAuditLog() {

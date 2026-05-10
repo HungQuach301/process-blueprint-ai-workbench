@@ -3,9 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import JSZip from "jszip";
 import {
+  exportAIRunHistoryJson,
   exportAuditLogJson,
+  loadAIRunHistory,
+  type AIRunRecord,
   saveAuditLogEntry
 } from "@/lib/audit/audit-log";
+import { logAICallAudit } from "@/lib/ai/ai-governance";
 import {
   generateAICodingPack,
   type AICodingPackFiles
@@ -119,6 +123,30 @@ type AICodingPackRouteResponse = {
   assumptions: string[];
   openQuestions: string[];
   qualityIssues?: string[];
+};
+
+type AIRunRouteMeta = {
+  providerId?: string;
+  provider?: string;
+  model?: string;
+  requestId?: string;
+  latencyMs?: number;
+  validationPassed?: boolean;
+  tokenUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+  externalApiCalled?: boolean;
+  warnings?: string[];
+};
+
+type AISkillRouteResponse<T> = {
+  ok?: boolean;
+  result?: T;
+  error?: string;
+  validationErrors?: string[];
+  meta?: AIRunRouteMeta;
 };
 
 function mapCodingPackPreviewToRouteFiles(files: AICodingPackFiles) {
@@ -250,6 +278,7 @@ export function ExportCenter() {
   const [productDeliveryContext, setProductDeliveryContext] = useState("");
   const [productDeliveryNotes, setProductDeliveryNotes] = useState("");
   const [productDeliveryFileText, setProductDeliveryFileText] = useState("");
+  const [aiRunHistory, setAIRunHistory] = useState<AIRunRecord[]>([]);
   const [brdPreview, setBRDPreview] = useState<BRDPreview | null>(null);
   const [srsPreview, setSRSPreview] = useState<SRSPreview | null>(null);
   const [userStoryPreview, setUserStoryPreview] =
@@ -289,6 +318,10 @@ export function ExportCenter() {
     setD02Status(readArtifactStatus(D02_GENERATED_STATUS_KEY));
   }
 
+  function refreshAIRunHistory() {
+    setAIRunHistory(loadAIRunHistory());
+  }
+
   useEffect(() => {
     function handleArtifactStatusChange() {
       refreshArtifactStatuses();
@@ -299,6 +332,7 @@ export function ExportCenter() {
     }
 
     refreshArtifactStatuses();
+    refreshAIRunHistory();
     window.addEventListener(ARTIFACT_STATUS_EVENT, handleArtifactStatusChange);
 
     return () => {
@@ -329,6 +363,34 @@ export function ExportCenter() {
     }),
     [artifacts, d01Status, d02Status, exportPackageStatus]
   );
+
+  function logRouteAIRun({
+    skillId,
+    success,
+    meta,
+    errorMessage
+  }: {
+    skillId: string;
+    success: boolean;
+    meta?: AIRunRouteMeta;
+    errorMessage?: string;
+  }) {
+    logAICallAudit({
+      skillId,
+      success,
+      errorMessage,
+      realAIEnabled: meta?.externalApiCalled === true,
+      externalApiCalled: meta?.externalApiCalled === true,
+      provider: meta?.providerId ?? meta?.provider,
+      model: meta?.model,
+      requestId: meta?.requestId,
+      latencyMs: meta?.latencyMs,
+      validationPassed: meta?.validationPassed ?? success,
+      tokenUsage: meta?.tokenUsage,
+      warnings: meta?.warnings
+    });
+    refreshAIRunHistory();
+  }
 
   function buildArtifacts() {
     const timestamp = createTimestamp();
@@ -509,15 +571,16 @@ export function ExportCenter() {
           }
         })
       });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        result?: BRD;
-        error?: string;
-        validationErrors?: string[];
-      };
+      const data = (await response.json()) as AISkillRouteResponse<BRD>;
 
       if (!response.ok || !data.ok || !data.result) {
         setBRDPreview(null);
+        logRouteAIRun({
+          skillId,
+          success: false,
+          meta: data.meta,
+          errorMessage: data.error
+        });
         setMessage(
           data.validationErrors?.length
             ? data.validationErrors.join(" ")
@@ -544,9 +607,16 @@ export function ExportCenter() {
           qualityIssueCount: data.result.qualityIssues.length
         }
       });
+      logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage("Da tao preview BRD structured. Chua save/apply.");
     } catch (error) {
       setBRDPreview(null);
+      logRouteAIRun({
+        skillId,
+        success: false,
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown BRD generation error."
+      });
       setMessage(
         error instanceof Error
           ? `Khong the tao BRD preview: ${error.message}`
@@ -601,15 +671,16 @@ export function ExportCenter() {
           }
         })
       });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        result?: SRS;
-        error?: string;
-        validationErrors?: string[];
-      };
+      const data = (await response.json()) as AISkillRouteResponse<SRS>;
 
       if (!response.ok || !data.ok || !data.result) {
         setSRSPreview(null);
+        logRouteAIRun({
+          skillId,
+          success: false,
+          meta: data.meta,
+          errorMessage: data.error
+        });
         setMessage(
           data.validationErrors?.length
             ? data.validationErrors.join(" ")
@@ -640,9 +711,16 @@ export function ExportCenter() {
           qualityIssueCount: data.result.qualityIssues.length
         }
       });
+      logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage("Da tao preview SRS structured. Chua save/apply.");
     } catch (error) {
       setSRSPreview(null);
+      logRouteAIRun({
+        skillId,
+        success: false,
+        errorMessage:
+          error instanceof Error ? error.message : "Unknown SRS generation error."
+      });
       setMessage(
         error instanceof Error
           ? `Khong the tao SRS preview: ${error.message}`
@@ -691,16 +769,17 @@ export function ExportCenter() {
           }
         })
       });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        result?: UserStorySet;
-        error?: string;
-        validationErrors?: string[];
-      };
+      const data = (await response.json()) as AISkillRouteResponse<UserStorySet>;
 
       if (!response.ok || !data.ok || !data.result) {
         setUserStoryPreview(null);
         setAcceptanceCriteriaPreview(null);
+        logRouteAIRun({
+          skillId,
+          success: false,
+          meta: data.meta,
+          errorMessage: data.error
+        });
         setMessage(
           data.validationErrors?.length
             ? data.validationErrors.join(" ")
@@ -729,10 +808,19 @@ export function ExportCenter() {
           qualityIssueCount: data.result.qualityIssues.length
         }
       });
+      logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage("Da tao preview User Stories structured. Chua save/apply.");
     } catch (error) {
       setUserStoryPreview(null);
       setAcceptanceCriteriaPreview(null);
+      logRouteAIRun({
+        skillId,
+        success: false,
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : "Unknown user story generation error."
+      });
       setMessage(
         error instanceof Error
           ? `Khong the tao User Stories preview: ${error.message}`
@@ -773,15 +861,18 @@ export function ExportCenter() {
           }
         })
       });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        result?: AcceptanceCriteriaSet;
-        error?: string;
-        validationErrors?: string[];
-      };
+      const data =
+        (await response.json()) as AISkillRouteResponse<AcceptanceCriteriaSet>;
+      const skillId = "user-stories-to-acceptance-criteria";
 
       if (!response.ok || !data.ok || !data.result) {
         setAcceptanceCriteriaPreview(null);
+        logRouteAIRun({
+          skillId,
+          success: false,
+          meta: data.meta,
+          errorMessage: data.error
+        });
         setMessage(
           data.validationErrors?.length
             ? data.validationErrors.join(" ")
@@ -808,9 +899,18 @@ export function ExportCenter() {
           qualityIssueCount: data.result.qualityIssues.length
         }
       });
+      logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage("Da tao preview Acceptance Criteria structured. Chua save/apply.");
     } catch (error) {
       setAcceptanceCriteriaPreview(null);
+      logRouteAIRun({
+        skillId: "user-stories-to-acceptance-criteria",
+        success: false,
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : "Unknown acceptance criteria generation error."
+      });
       setMessage(
         error instanceof Error
           ? `Khong the tao Acceptance Criteria preview: ${error.message}`
@@ -864,15 +964,17 @@ export function ExportCenter() {
           }
         })
       });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        result?: ProductScopeReview;
-        error?: string;
-        validationErrors?: string[];
-      };
+      const data =
+        (await response.json()) as AISkillRouteResponse<ProductScopeReview>;
 
       if (!response.ok || !data.ok || !data.result) {
         setProductScopeReviewPreview(null);
+        logRouteAIRun({
+          skillId,
+          success: false,
+          meta: data.meta,
+          errorMessage: data.error
+        });
         setMessage(
           data.validationErrors?.length
             ? data.validationErrors.join(" ")
@@ -902,9 +1004,18 @@ export function ExportCenter() {
           qualityIssueCount: data.result.qualityIssues.length
         }
       });
+      logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage("Da tao preview Product Scope Review/MVP Slicing. Chua save/apply.");
     } catch (error) {
       setProductScopeReviewPreview(null);
+      logRouteAIRun({
+        skillId,
+        success: false,
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : "Unknown product scope review generation error."
+      });
       setMessage(
         error instanceof Error
           ? `Khong the tao Product Scope Review preview: ${error.message}`
@@ -953,15 +1064,18 @@ export function ExportCenter() {
           }
         })
       });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        result?: RequirementQAResponse;
-        error?: string;
-        validationErrors?: string[];
-      };
+      const data =
+        (await response.json()) as AISkillRouteResponse<RequirementQAResponse>;
+      const skillId = "requirement-quality-check";
 
       if (!response.ok || !data.ok || !data.result) {
         setRequirementQAPreview(null);
+        logRouteAIRun({
+          skillId,
+          success: false,
+          meta: data.meta,
+          errorMessage: data.error
+        });
         setMessage(
           data.validationErrors?.length
             ? data.validationErrors.join(" ")
@@ -993,9 +1107,18 @@ export function ExportCenter() {
             data.result.coverage.storiesWithoutAcceptanceCriteriaIds.length
         }
       });
+      logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage("Da tao preview Requirement QA. Khong save/apply tu dong.");
     } catch (error) {
       setRequirementQAPreview(null);
+      logRouteAIRun({
+        skillId: "requirement-quality-check",
+        success: false,
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : "Unknown requirement QA generation error."
+      });
       setMessage(
         error instanceof Error
           ? `Khong the tao Requirement QA preview: ${error.message}`
@@ -1066,6 +1189,15 @@ export function ExportCenter() {
       "application/json;charset=utf-8"
     );
     setMessage("Đã export audit log JSON.");
+  }
+
+  function downloadAIRunHistory() {
+    downloadBlob(
+      exportAIRunHistoryJson(),
+      `AI_Run_History_${createTimestamp()}.json`,
+      "application/json;charset=utf-8"
+    );
+    setMessage("Da export AI Run History JSON.");
   }
 
   function previewAICodingPack() {
@@ -1183,15 +1315,18 @@ export function ExportCenter() {
           }
         })
       });
-      const data = (await response.json()) as {
-        ok?: boolean;
-        result?: AICodingPackRouteResponse;
-        error?: string;
-        validationErrors?: string[];
-      };
+      const data =
+        (await response.json()) as AISkillRouteResponse<AICodingPackRouteResponse>;
+      const skillId = "user-stories-to-ai-coding-pack";
 
       if (!response.ok || !data.ok || !data.result) {
         setAICodingPack(null);
+        logRouteAIRun({
+          skillId,
+          success: false,
+          meta: data.meta,
+          errorMessage: data.error
+        });
         setMessage(
           data.validationErrors?.length
             ? data.validationErrors.join(" ")
@@ -1220,9 +1355,18 @@ export function ExportCenter() {
           qualityIssueCount: data.result.qualityIssues?.length ?? 0
         }
       });
+      logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage("Da tao preview AI Coding Pack tu Product Delivery artifacts.");
     } catch (error) {
       setAICodingPack(null);
+      logRouteAIRun({
+        skillId: "user-stories-to-ai-coding-pack",
+        success: false,
+        errorMessage:
+          error instanceof Error
+            ? error.message
+            : "Unknown AI Coding Pack generation error."
+      });
       setMessage(
         error instanceof Error
           ? `Khong the tao Product Delivery AI Coding Pack: ${error.message}`
@@ -1462,6 +1606,13 @@ export function ExportCenter() {
             >
               Export Audit Log JSON
             </button>
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={downloadAIRunHistory}
+              type="button"
+            >
+              Export AI Run History JSON
+            </button>
           </div>
         </div>
 
@@ -1495,6 +1646,108 @@ export function ExportCenter() {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="border-t border-slate-200 p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase text-slate-500">
+              Local Audit Log
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-slate-950">
+              AI Run History
+            </h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Shows safe metadata for AI skill runs only. Prompt text and full
+              model output are not stored in this local history.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={refreshAIRunHistory}
+              type="button"
+            >
+              Refresh history
+            </button>
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={downloadAIRunHistory}
+              type="button"
+            >
+              Export history JSON
+            </button>
+          </div>
+        </div>
+
+        {aiRunHistory.length ? (
+          <div className="mt-4 overflow-x-auto rounded border border-slate-200">
+            <table className="min-w-[56rem] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-3 py-2 font-semibold">Skill</th>
+                  <th className="px-3 py-2 font-semibold">Provider</th>
+                  <th className="px-3 py-2 font-semibold">Status</th>
+                  <th className="px-3 py-2 font-semibold">Validation</th>
+                  <th className="px-3 py-2 font-semibold">Latency</th>
+                  <th className="px-3 py-2 font-semibold">External</th>
+                  <th className="px-3 py-2 font-semibold">Tokens</th>
+                  <th className="px-3 py-2 font-semibold">Warnings</th>
+                  <th className="px-3 py-2 font-semibold">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
+                {aiRunHistory.slice(0, 8).map((run) => (
+                  <tr key={run.id}>
+                    <td className="px-3 py-2 font-medium text-slate-950">
+                      {run.skillId}
+                    </td>
+                    <td className="px-3 py-2">
+                      {run.provider}
+                      {run.model ? ` / ${run.model}` : ""}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={`rounded px-2 py-1 text-xs font-medium ${
+                          run.status === "success"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-rose-50 text-rose-700"
+                        }`}
+                      >
+                        {run.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      {run.validationPassed === undefined
+                        ? "unknown"
+                        : run.validationPassed
+                          ? "passed"
+                          : "failed"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {run.latencyMs === undefined ? "-" : `${run.latencyMs}ms`}
+                    </td>
+                    <td className="px-3 py-2">
+                      {run.externalApiCalled ? "yes" : "no"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {run.tokenUsage?.totalTokens ?? "-"}
+                    </td>
+                    <td className="px-3 py-2">{run.warnings.length}</td>
+                    <td className="px-3 py-2 text-xs text-slate-500">
+                      {new Date(run.timestamp).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+            No AI run records yet. Run a Module 2 or Module 3 AI skill to
+            populate this local history.
+          </div>
+        )}
       </div>
 
       <div className="border-t border-slate-200 p-4">

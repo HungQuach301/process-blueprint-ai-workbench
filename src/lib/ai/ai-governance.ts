@@ -142,6 +142,13 @@ export function logAICallAudit({
   errorMessage,
   realAIEnabled,
   externalApiCalled,
+  provider,
+  model,
+  requestId,
+  latencyMs,
+  validationPassed,
+  tokenUsage,
+  warnings,
   extraMetadata
 }: {
   skillId: string;
@@ -149,10 +156,22 @@ export function logAICallAudit({
   errorMessage?: string;
   realAIEnabled: boolean;
   externalApiCalled?: boolean;
+  provider?: string;
+  model?: string;
+  requestId?: string;
+  latencyMs?: number;
+  validationPassed?: boolean;
+  tokenUsage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+  warnings?: string[];
   extraMetadata?: Record<string, string | number | boolean | null | undefined>;
 }) {
   const settings = readAIProviderSettings();
   const aiMode = realAIEnabled ? "Real AI" : "Mock AI";
+  const resolvedProvider = provider || settings.providerMode;
 
   saveAuditLogEntry({
     action: "ai_call",
@@ -160,7 +179,8 @@ export function logAICallAudit({
     summary: `${aiMode} call ${success ? "succeeded" : "failed"} for ${skillId}.`,
     metadata: {
       skillId,
-      provider: settings.providerMode,
+      provider: resolvedProvider,
+      providerId: resolvedProvider,
       providerMode: settings.providerMode,
       dataMode: settings.dataUsageMode,
       dataUsageMode: settings.dataUsageMode,
@@ -168,6 +188,12 @@ export function logAICallAudit({
       allowCloudAI: settings.allowCloudAI,
       requireApprovalForAIOutput: settings.requireApprovalForAIOutput,
       aiMode,
+      model,
+      requestId,
+      latencyMs,
+      validationPassed,
+      tokenUsage,
+      warnings,
       externalApiCalled: externalApiCalled === true,
       errorMessage,
       ...extraMetadata

@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added AI Run History and audit visibility for Module 2 and Module 3.
+- Extended local audit helpers to derive safe `AI Run History` records from `ai_call` entries.
+- Captured AI run metadata for route-backed Product Delivery and AI Coding Pack skill calls: skill id, provider, model, status, timestamp, latency, validation result, token usage, external API flag, warnings, and request id when available.
+- Added Export Center Local Audit Log / AI Run History panel with refresh and JSON export.
+- Kept audit storage metadata-only; full prompts and full AI outputs are not stored in browser local audit history.
+- Updated AI Implementation Matrix for AI Run History behavior and remaining durable server-audit gap.
 - Added Requirement QA and basic cross-artifact consistency checks for Module 3.
 - Added route-backed skill id `requirement-quality-check` through `/api/ai/run-skill`.
 - Added canonical `RequirementQAResponse` with findings, draft patch recommendations, coverage summary, assumptions, open questions, and warnings.
@@ -149,6 +155,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - `src/lib/ai/prompt-packs.ts`
 - `src/app/api/ai/run-skill/route.ts`
 - `src/lib/audit/audit-log.ts`
+- `src/lib/ai/ai-governance.ts`
 - `docs/AI_SKILL_REGISTRY.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/SESSION_HANDOFF.md`

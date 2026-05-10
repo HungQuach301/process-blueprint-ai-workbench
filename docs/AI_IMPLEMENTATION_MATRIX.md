@@ -101,6 +101,24 @@ The route path is unchanged, but request execution now goes through an orchestra
 
 Invalid AI output returns `422` with reviewable validation errors and is blocked before any preview/apply/export flow can use it.
 
+## AI Run History And Audit Visibility
+
+Updated on 2026-05-10.
+
+`src/lib/audit/audit-log.ts` now derives a local `AI Run History` view from `ai_call` audit entries. The record intentionally stores only safe run metadata:
+
+- `skillId`
+- provider and model
+- status and timestamp
+- latency
+- validation result
+- token usage when provider metadata includes it
+- `externalApiCalled`
+- warnings
+- request id
+
+The browser-local history does not store full prompts or full AI outputs. Export Center exposes a Local Audit Log / AI Run History panel with refresh and JSON export actions. `/api/ai/run-skill` continues to return server-safe metadata and write server log audit metadata without logging full sensitive payload/output content.
+
 ## Implementation Matrix
 
 | Skill id | Module | Input schema | Output schema | Mock support | Product AI support | OpenAI support | Claude support | Validation status | UI surface | Apply behavior | Audit behavior | Gaps |
@@ -129,7 +147,7 @@ Invalid AI output returns `422` with reviewable validation errors and is blocked
 | `requirement-quality-check` | Module 3 - Product Delivery Core | Product Delivery context: BRD, SRS, `UserStorySet`, `AcceptanceCriteriaSet`, and optional AI Coding Pack preview files | `RequirementQAResponse`: findings, draft patch recommendations, coverage summary, assumptions, open questions, and warnings | Yes. Route mock path runs deterministic Requirement QA over preview artifacts and AI Coding Pack files when available. | Yes. Server-side through `/api/ai/run-skill` with `ENABLE_REAL_AI=true`, `AI_PROVIDER=product-ai`, and Product AI env configured. | Yes. Server-side through `/api/ai/run-skill` with `ENABLE_REAL_AI=true`, `AI_PROVIDER=openai`, and OpenAI env configured. | Yes. Server-side through `/api/ai/run-skill` with `ENABLE_REAL_AI=true`, `AI_PROVIDER=claude`, and Claude env configured. | Strong. Input requires at least one Product Delivery artifact. Output validates `RequirementQAResponse`; deterministic checker reuses BRD/SRS/story/AC quality gates and checks AI Coding Pack constraints/test plan/non-goals plus BRD->SRS, SRS->Story, and Story->AC coverage. | Export Center Product Delivery section: Run Requirement QA. | Preview/recommendation only; draft patches are not applied or saved automatically. | Local audit records `generate_requirement_qa_preview`; server route records safe AI audit metadata without full payload/output. | Full Artifact Graph trace matrix and durable server-side audit are still future work. |
 | `ptr-to-ai-coding-pack` | Module 5 thin slice supporting MVP1-AI | `AICodingPackInput`: `ProcessTask[]`, selected D01/D02 templates, optional project context, assumptions, open questions, generatedAt | Deterministic `AICodingPackFiles` normalized to `AICodingPackResponse`: `AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`, `implementation-plan.md`, `acceptance-criteria.md`, `test-plan.md` | Yes. Deterministic generator. | Legacy deterministic export only; use `user-stories-to-ai-coding-pack` for route-backed Product Delivery AI pack. | Legacy deterministic export only. | Legacy deterministic export only. | Strong for deterministic file shape through `normalizeDeterministicCodingPack` and AI Coding Pack quality gate. | Export Center AI Coding Pack PTR preview. | Preview `spec.json`, then ZIP download. No apply. | `export_ai_coding_pack` local audit on ZIP download. | PTR-based pack remains deterministic; route-backed skill uses Product Delivery artifacts. |
 | `user-stories-to-ai-coding-pack` | Module 5 thin slice supporting MVP1-AI | BRD, SRS, `UserStorySet`, `AcceptanceCriteriaSet`, optional `ProcessTask[]`, project context, assumptions, open questions | `AICodingPackResponse`: `AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`, `implementation-plan.md`, `acceptance-criteria.md`, `test-plan.md`, assumptions, open questions, quality issues, trace links where available | Yes. Route mock path generates deterministic Product Delivery coding pack from reviewed artifacts. | Yes. Server-side through `/api/ai/run-skill` with `ENABLE_REAL_AI=true`, `AI_PROVIDER=product-ai`, and Product AI env configured. | Yes. Server-side through `/api/ai/run-skill` with `ENABLE_REAL_AI=true`, `AI_PROVIDER=openai`, and OpenAI env configured. | Yes. Server-side through `/api/ai/run-skill` with `ENABLE_REAL_AI=true`, `AI_PROVIDER=claude`, and Claude env configured. | Strong. Input requires Product Delivery artifacts or PTR context. Output validates `AICodingPackResponse` and runs quality gate for missing AC, missing non-goals, missing test expectations, and unresolved open questions. | Export Center Product Delivery Coding Pack preview and ZIP download. | Preview first; no save/apply. ZIP download only after preview or deterministic fallback build. | Local audit records `generate_product_delivery_ai_coding_pack` and `export_product_delivery_ai_coding_pack`; server route records safe AI audit metadata without full payload/output. | Full Artifact Graph persistence and story-to-code trace matrix are still future work. |
-| `audit-summary` | Cross-cutting governance | Local audit log entries from `src/lib/audit/audit-log.ts` | JSON export or UI-readable event list | Deterministic/local. | No. | No. | No. | Type-level only; localStorage parse fallback. | Export Center audit export. | Read/export only. | Local audit log records AI calls, draft generation, apply draft, exports, generated artifacts. | Audit is browser-local only. No server-side durable audit or tenant/user identity. |
+| `audit-summary` | Cross-cutting governance | Local audit log entries from `src/lib/audit/audit-log.ts` | JSON export or UI-readable event list | Deterministic/local. | No. | No. | No. | Type-level only; localStorage parse fallback. | Export Center audit export and AI Run History panel. | Read/export only. | Local audit log records AI calls, draft generation, apply draft, exports, generated artifacts, and derives safe AI run records from `ai_call` metadata. | Audit is browser-local only. No server-side durable audit or tenant/user identity. |
 
 ## Route Support Matrix
 
@@ -158,7 +176,7 @@ Invalid AI output returns `422` with reviewable validation errors and is blocked
 1. Product AI adapter is generic and expects the configured endpoint to return `rawText`, `rawJson`, `parsedJson`, `content`, `text`, `outputText`, or `output_text`; contract tests are still needed.
 2. Claude adapter is implemented through Anthropic Messages API using `fetch`; route-level malformed JSON repair exists, but provider-specific schema retry/repair and contract tests are still needed.
 3. The UI provider value for OpenAI is `openai-byok`, while the server env expects `AI_PROVIDER=openai`. This is acceptable for the current non-secret UI preferences, but should be clarified before wiring UI provider mode to server execution.
-4. Server route audit metadata is returned and logged server-side without full payload/output content, but it is not persisted to a durable server audit store; durable audit currently depends on browser-local UI logging.
+4. Server route audit metadata is returned and logged server-side without full payload/output content. Export Center now shows/export browser-local AI Run History derived from `ai_call` metadata, but there is still no durable server audit store; durable audit currently depends on browser-local UI logging.
 5. Product Delivery BRD, SRS, user story, acceptance criteria, product scope review, MVP slicing, Requirement QA, and AI Coding Pack generation are now route-backed for `notes-to-brd`, `ptr-to-brd`, `brd-to-srs`, `notes-to-srs`, `srs-to-user-stories`, `brd-to-user-stories`, `brd-or-notes-to-user-stories`, `user-stories-to-acceptance-criteria`, `product-scope-review`, `mvp-slicing`, `requirement-quality-check`, and `user-stories-to-ai-coding-pack`; Jira export still needs route wiring.
 6. Product Delivery now has canonical structured deterministic drafts and markdown derived from the same validated model; BRD/SRS/story/acceptance-criteria/scope/MVP/coding-pack real AI route wiring exists, while persistence remains preview/export only.
 

@@ -450,6 +450,7 @@ export function ProcessTaskRegister() {
   const [saveMessage, setSaveMessage] = useState("");
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ProcessTaskImportPreview | null>(null);
+  const [isRegisterMoreMenuOpen, setIsRegisterMoreMenuOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -735,6 +736,22 @@ export function ProcessTaskRegister() {
     setSaveMessage("Đã export Process Task Register hiện tại ra Excel.");
   }
 
+  function downloadJsonRegister() {
+    const blob = new Blob([JSON.stringify(tasks, null, 2)], {
+      type: "application/json;charset=utf-8"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `Process_Task_Register_${createTimestamp()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    setSaveMessage("Da export Process Task Register hien tai ra JSON.");
+  }
+
   async function downloadExcelTemplate() {
     try {
       const blob = await createProcessTaskRegisterTemplateWorkbook();
@@ -876,7 +893,105 @@ export function ProcessTaskRegister() {
 
       <SessionFrame
         actions={
-          <>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              onClick={saveTasks}
+              type="button"
+            >
+              Save changes
+            </button>
+            <input
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(event) => importExcelFile(event.target.files?.[0])}
+              ref={importInputRef}
+              type="file"
+            />
+            <div className="relative">
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => setIsRegisterMoreMenuOpen((isOpen) => !isOpen)}
+                type="button"
+              >
+                More
+              </button>
+              {isRegisterMoreMenuOpen ? (
+                <div className="absolute right-0 z-20 mt-2 w-60 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                  <button
+                    className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      addRow();
+                      setIsRegisterMoreMenuOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Add row
+                  </button>
+                  <button
+                    className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      resetTasks();
+                      setIsRegisterMoreMenuOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Reset sample
+                  </button>
+                  <button
+                    className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      downloadExcelRegister();
+                      setIsRegisterMoreMenuOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Export Excel
+                  </button>
+                  <button
+                    className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      importInputRef.current?.click();
+                      setIsRegisterMoreMenuOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Import Excel
+                  </button>
+                  <button
+                    className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      void downloadExcelTemplate();
+                      setIsRegisterMoreMenuOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Download Excel template
+                  </button>
+                  <button
+                    className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      downloadJsonRegister();
+                      setIsRegisterMoreMenuOpen(false);
+                    }}
+                    type="button"
+                  >
+                    Export JSON
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        }
+        bodyClassName="p-4"
+        description="Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau khi refresh trình duyệt."
+        title="Process Task Register"
+      >
+          <div className="mb-4">
+            <p className="text-sm font-medium uppercase text-slate-500">
+              Process Task Register
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                 Sample
                 <select
@@ -893,70 +1008,12 @@ export function ProcessTaskRegister() {
               </label>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={addRow}
-                type="button"
-              >
-                Thêm dòng
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={autoSuggestInteractionFields}
                 type="button"
               >
                 Auto-suggest interaction fields
               </button>
-              <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                onClick={saveTasks}
-                type="button"
-              >
-                Lưu
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={downloadExcelRegister}
-                type="button"
-              >
-                Export Excel
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={downloadExcelTemplate}
-                type="button"
-              >
-                Download Excel Template
-              </button>
-              <input
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                className="hidden"
-                onChange={(event) => importExcelFile(event.target.files?.[0])}
-                ref={importInputRef}
-                type="file"
-              />
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => importInputRef.current?.click()}
-                type="button"
-              >
-                Import Excel
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={resetTasks}
-                type="button"
-              >
-                Reset mẫu
-              </button>
-          </>
-        }
-        bodyClassName="p-4"
-        description="Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau khi refresh trình duyệt."
-        title={`Bảng công việc ${activeSampleProcess.label}`}
-      >
-          <div className="mb-4">
-            <p className="text-sm font-medium uppercase text-slate-500">
-              Process Task Register
-            </p>
+            </div>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
               <li>Một dòng = một task/gateway/event/data interaction.</li>
               <li>Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.</li>

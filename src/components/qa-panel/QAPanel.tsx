@@ -194,6 +194,7 @@ export function QAPanel({
   const [showOnlySafe, setShowOnlySafe] = useState(false);
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
   const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   useEffect(() => {
     setAiQaIssues([]);
     setAiQaMessage("");
@@ -555,55 +556,28 @@ export function QAPanel({
     <SessionFrame
       actions={
         <div className="flex flex-wrap gap-2">
-        <button
-          className="w-fit rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
-          disabled={isRunningAIQA}
-          onClick={runAiQa}
-          type="button"
-        >
-          {isRunningAIQA
-            ? "Running AI QA..."
-            : realAIQAEnabled
-              ? "Run real AI QA"
-              : "Run mock AI QA"}
-        </button>
-        <button
-          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={downloadFeedbackJson}
-          type="button"
-        >
-          Export Recommendation Feedback JSON
-        </button>
-        <button
-          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={clearLocalFeedback}
-          type="button"
-        >
-          Clear Local Feedback
-        </button>
-        <button
-          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={onDownloadReport}
-          type="button"
-        >
-          Download QA Report
-        </button>
+          <button
+            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={onDownloadReport}
+            type="button"
+          >
+            Download QA Report
+          </button>
         </div>
       }
       bodyClassName="p-4"
       description="QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue để nhảy tới dòng liên quan nếu còn tồn tại."
-      title="Kiểm tra chất lượng Process Task Register"
+      title="QA Panel"
     >
       {hasRecommendations ? (
         <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold uppercase text-emerald-800">
-                Batch recommendations
+                Recommendation toolbar
               </p>
               <p className="mt-1 text-sm text-emerald-900">
-                {recommendationEntries.length} recommendations | {safeRecommendations.length} safe |{" "}
-                {selectedRecommendations.length} selected
+                {recommendationEntries.length} recommendations | {selectedRecommendations.length} selected
               </p>
               <p className="mt-1 text-xs text-emerald-800">
                 Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.
@@ -617,15 +591,7 @@ export function QAPanel({
                 onClick={selectSafeRecommendations}
                 type="button"
               >
-                Select safe recommendations
-              </button>
-              <button
-                className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={selectedRecommendations.length === 0}
-                onClick={clearSelection}
-                type="button"
-              >
-                Clear selection
+                Select safe
               </button>
               <button
                 className="rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
@@ -635,18 +601,77 @@ export function QAPanel({
               >
                 Apply selected ({selectedRecommendations.length})
               </button>
-              <button
-                className="rounded bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                disabled={safeRecommendations.length === 0}
-                onClick={applyAllSafeRecommendations}
-                type="button"
-              >
-                Apply all safe recommendations
-              </button>
+              <div className="relative">
+                <button
+                  className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                  onClick={() => setIsMoreMenuOpen((isOpen) => !isOpen)}
+                  type="button"
+                >
+                  More
+                </button>
+                {isMoreMenuOpen ? (
+                  <div className="absolute right-0 z-20 mt-2 w-64 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={selectedRecommendations.length === 0}
+                      onClick={() => {
+                        clearSelection();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      Clear selection
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={safeRecommendations.length === 0}
+                      onClick={() => {
+                        applyAllSafeRecommendations();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      Apply all safe recommendations
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        downloadFeedbackJson();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      Export feedback JSON
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        clearLocalFeedback();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      Clear local feedback
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-4 text-xs text-emerald-900">
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-emerald-900">
+            <button
+              className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isRunningAIQA}
+              onClick={runAiQa}
+              type="button"
+            >
+              {isRunningAIQA
+                ? "Running AI QA..."
+                : realAIQAEnabled
+                  ? "Run real AI QA"
+                  : "Run mock AI QA"}
+            </button>
             <label className="flex items-center gap-2">
               <input
                 checked={showOnlySafe}

@@ -14,23 +14,21 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- Redesigned Template Library into Template Hub / Trung tâm template.
-- Added selected D01 BPMN and D02 Service Blueprint template summary in the header.
-- Added clear actions for Change template, Preview template, and Run Template QA.
-- Added filters for output type, business domain, process type, scope, and status.
-- Moved JSON/rule editing into an Advanced mode accordion; template cards no longer show raw JSON.
-- Added Banking Starter Pack templates for SME loan origination, credit approval, account opening/onboarding, KYC refresh, and payment operations.
-- Kept Template QA recommendations review-only with no auto-apply behavior.
+- Simplified QA Panel actions: header now keeps `Download QA Report`, recommendation toolbar keeps counts plus `Select safe`, `Apply selected`, and a `More` menu.
+- Moved QA recommendation secondary actions into `More`: clear selection, apply all safe recommendations, export feedback JSON, and clear local feedback.
+- Simplified Process Task Register header actions to `Save changes` plus a `More` menu.
+- Moved Process Task Register secondary actions into `More`: add row, reset sample, export Excel, import Excel, download Excel template, and export JSON.
+- Kept recommendation apply behavior, safe recommendation selection rules, Process Task Register data model, and save logic unchanged.
 
 ## Files changed
 
-- `src/components/template-library/TemplateLibraryEditor.tsx`
-- `src/lib/sample-data/sme-online-loan.ts`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/components/task-register/ProcessTaskRegister.tsx`
 - `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- No new product or architecture decision was made. This session applied a scoped Template Hub UI redesign and MVP1 Banking Starter Pack seed only.
+- No new product or architecture decision was made. This session applied a scoped UI action simplification only.
 
 ## Current blockers
 
@@ -38,7 +36,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-Manually verify Template Hub: D01/D02 template selection still works, Template QA returns recommendations without auto-apply, filters narrow cards, Preview does not show raw JSON, and JSON/rules appear only in Advanced mode.
+Manually verify QA Panel and Process Task Register actions: save, add row, duplicate/delete row, import/export, select safe recommendations, apply selected with confirmation, and feedback JSON export.
 
 ## Exact prompt for next ChatGPT session
 

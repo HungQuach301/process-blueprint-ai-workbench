@@ -224,6 +224,7 @@ export function validateDraftProcessTaskRegister(
 
   validateStringArray(value.assumptions, "assumptions", errors);
   validateStringArray(value.openQuestions, "openQuestions", errors);
+  validateStringArray(value.qualityIssues, "qualityIssues", errors);
 
   if (!isString(value.sourceSummary)) {
     errors.push("sourceSummary must be a string.");

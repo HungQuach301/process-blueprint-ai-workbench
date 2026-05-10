@@ -66,10 +66,10 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "process-modeling-input-brief-to-ptr-v1"
   },
   {
-    skillId: "file-to-draft-ptr",
+    skillId: "file-to-ptr-draft",
     version: "1.0.0",
     module: "module-2-process-modeling",
-    status: "mock",
+    status: "real-ai-ready",
     description:
       "Generate Draft Process Task Register from extracted file content.",
     inputSchema: {
@@ -88,17 +88,17 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "process-modeling-file-to-draft-ptr-v1"
   },
   {
-    skillId: "chat-to-draft-ptr",
+    skillId: "chat-to-ptr-draft",
     version: "1.0.0",
     module: "module-2-process-modeling",
-    status: "planned",
+    status: "real-ai-ready",
     description:
-      "Convert guided conversation answers into a Draft Process Task Register.",
+      "Convert pasted chat, notes, or manual text into a Draft Process Task Register.",
     inputSchema: {
-      id: "StructuredProcessBrief",
+      id: "ChatNotesContext",
       description:
-        "Normalized chat transcript or follow-up answers mapped to StructuredProcessBrief.",
-      validatorId: "validateStructuredProcessBrief"
+        "Pasted chat transcript, notes, or manual text with optional user context.",
+      validatorId: "validateAISkillInput"
     },
     outputSchema: {
       id: "DraftProcessTaskRegister",
@@ -108,7 +108,7 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     allowedProviders: allProviders,
     requiresApproval: true,
     dataSensitivity: "confidential",
-    promptPackId: "process-modeling-input-brief-to-ptr-v1"
+    promptPackId: "process-modeling-chat-to-ptr-v1"
   },
   {
     skillId: "ai-process-qa",

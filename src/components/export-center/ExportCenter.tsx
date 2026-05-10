@@ -154,6 +154,8 @@ export function ExportCenter() {
     useState(false);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
+  const [exportPackageStatus, setExportPackageStatus] =
+    useState<ArtifactStatus>("not_generated");
 
   function readArtifactStatus(key: string): ArtifactStatus {
     const status = window.localStorage.getItem(key);
@@ -167,25 +169,35 @@ export function ExportCenter() {
   }
 
   useEffect(() => {
+    function handleArtifactStatusChange() {
+      refreshArtifactStatuses();
+
+      if (artifacts) {
+        setExportPackageStatus("stale");
+      }
+    }
+
     refreshArtifactStatuses();
-    window.addEventListener(ARTIFACT_STATUS_EVENT, refreshArtifactStatuses);
+    window.addEventListener(ARTIFACT_STATUS_EVENT, handleArtifactStatusChange);
 
     return () => {
-      window.removeEventListener(ARTIFACT_STATUS_EVENT, refreshArtifactStatuses);
+      window.removeEventListener(ARTIFACT_STATUS_EVENT, handleArtifactStatusChange);
     };
-  }, []);
+  }, [artifacts]);
 
   const readiness = useMemo(
     () => ({
       d01Bpmn: d01Status,
       d02ServiceBlueprint: d02Status,
-      qaReport: artifacts?.qaReportMarkdown ? "fresh" : "not_generated",
+      qaReport: artifacts?.qaReportMarkdown ? exportPackageStatus : "not_generated",
       processTaskRegister: artifacts?.processTaskRegisterJson
-        ? "fresh"
+        ? exportPackageStatus
         : "not_generated",
-      templateProfile: artifacts?.templateProfileJson ? "fresh" : "not_generated"
+      templateProfile: artifacts?.templateProfileJson
+        ? exportPackageStatus
+        : "not_generated"
     }),
-    [artifacts, d01Status, d02Status]
+    [artifacts, d01Status, d02Status, exportPackageStatus]
   );
 
   function buildArtifacts() {
@@ -258,10 +270,12 @@ export function ExportCenter() {
       const nextArtifacts = buildArtifacts();
 
       setArtifacts(nextArtifacts);
+      setExportPackageStatus("fresh");
       refreshArtifactStatuses();
       setMessage("Đã generate fresh đủ 5 artifacts cho output package.");
     } catch (error) {
       setArtifacts(null);
+      setExportPackageStatus("not_generated");
       setMessage(
         error instanceof Error
           ? `Không thể generate output package: ${error.message}`
@@ -366,6 +380,7 @@ export function ExportCenter() {
         }
       });
       setArtifacts(currentArtifacts);
+      setExportPackageStatus("fresh");
       refreshArtifactStatuses();
       setMessage("Đã tạo ZIP output package.");
     } catch (error) {

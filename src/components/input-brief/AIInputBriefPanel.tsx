@@ -44,6 +44,8 @@ const D02_GENERATED_STATUS_KEY =
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
+const FILE_TO_PTR_DRAFT_SKILL_ID = "file-to-ptr-draft";
+const CHAT_TO_PTR_DRAFT_SKILL_ID = "chat-to-ptr-draft";
 
 const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
   selected: "border-slate-200 bg-slate-50 text-slate-700",
@@ -60,6 +62,7 @@ const previewLabels = {
     assumptions: "Giả định",
     openQuestions: "Câu hỏi cần làm rõ",
     qualityGateWarnings: "Canh bao Quality Gate",
+    qualityIssues: "Van de chat luong",
     replaceCurrentPtr: "Thay PTR hiện tại",
     appendToCurrentPtr: "Thêm vào PTR hiện tại",
     cancelDraft: "Hủy draft",
@@ -79,6 +82,7 @@ const previewLabels = {
     assumptions: "Assumptions",
     openQuestions: "Open questions",
     qualityGateWarnings: "Quality Gate warnings",
+    qualityIssues: "Quality issues",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -152,6 +156,10 @@ const inputBriefUiText = {
     action: "Action",
     extract: "Extract",
     generateDraftPtr: "Generate Draft PTR",
+    chatNotes: "Chat / notes",
+    chatNotesHelper: "Paste chat, workshop notes, or manual text to generate a Draft PTR preview.",
+    chatNotesPlaceholder: "Example: Customer submits account opening request. RM checks documents. Ops creates CIF...",
+    generateFromChatNotes: "Generate Draft PTR from notes",
     unsupportedImage: "OCR/Image unsupported in MVP1",
     unsupportedFile: "Unsupported file type",
     remove: "Remove",
@@ -535,6 +543,7 @@ function isImageIntakeFile(file: Pick<IntakeFileMetadata, "fileName" | "fileType
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [briefMode, setBriefMode] = useState<BriefMode>("manual");
+  const [chatNotes, setChatNotes] = useState("");
   const [intakeFiles, setIntakeFiles] = useState<IntakeFileMetadata[]>([]);
   const [selectedFileObjects, setSelectedFileObjects] = useState<File[]>([]);
   const [excelPreview, setExcelPreview] = useState<ExcelExtractionPreview | null>(
@@ -586,6 +595,10 @@ export function AIInputBriefPanel() {
   useEffect(() => {
     window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
   }, [brief]);
+
+  useEffect(() => {
+    clearDraftPreview();
+  }, [brief, chatNotes]);
 
   useEffect(() => {
     const savedFileMetadata = window.localStorage.getItem(
@@ -858,6 +871,7 @@ export function AIInputBriefPanel() {
           preview.warnings.length > 0
             ? preview.warnings
             : ["Review extracted rows before applying to PTR."],
+        qualityIssues: preview.warnings,
         qualityGateWarnings: preview.warnings,
         sourceSummary: `Excel extraction from ${file.name}, sheet ${preview.detectedSheet}.`,
         confidence: preview.warnings.length > 0 ? "medium" : "high",
@@ -929,6 +943,219 @@ export function AIInputBriefPanel() {
     }
   }
 
+  async function generateDraftPtrViaSkill({
+    skillId,
+    payload,
+    sourceLabel
+  }: {
+    skillId: string;
+    payload: unknown;
+    sourceLabel: string;
+  }) {
+    const generationMode = realAIEnabled ? "real-ai" : "mock";
+
+    if (realAIEnabled && !confirmRealAICallIfNeeded(true)) {
+      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      return null;
+    }
+
+    setIsGeneratingWithAI(true);
+    setMessage(
+      realAIEnabled
+        ? `Real AI mode: dang goi server-side skill ${skillId}...`
+        : `Mock mode: dang goi server-side skill ${skillId}...`
+    );
+    saveAuditLogEntry({
+      action: "generate_ai_draft",
+      status: "success",
+      summary: `Started ${generationMode} draft generation from ${sourceLabel}.`,
+      metadata: {
+        mode: generationMode,
+        skillId,
+        realAIEnabled
+      }
+    });
+
+    try {
+      const routeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId,
+          payload
+        })
+      });
+      const data = (await routeResponse.json()) as {
+        ok?: boolean;
+        result?: unknown;
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+          validationPassed?: boolean;
+        };
+      };
+
+      if (!routeResponse.ok || !data.ok) {
+        const errorMessage = [
+          data.error || "AI draft generation failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: generationMode,
+            skillId,
+            externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+            validationPassed: data.meta?.validationPassed ?? false
+          }
+        });
+        logAICallAudit({
+          skillId,
+          success: false,
+          errorMessage,
+          realAIEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(data.validationErrors ?? [errorMessage]);
+        setMessage(errorMessage);
+        return null;
+      }
+
+      const validation = validateDraftProcessTaskRegister(data.result);
+
+      if (!validation.ok) {
+        const errorMessage = `AI output rejected: ${validation.errors.join(" ")}`;
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: generationMode,
+            skillId,
+            externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+            validationPassed: false
+          }
+        });
+        logAICallAudit({
+          skillId,
+          success: false,
+          errorMessage,
+          realAIEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(validation.errors);
+        setMessage(errorMessage);
+        return null;
+      }
+
+      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(validation.value);
+
+      if (!draftQualityGate.canPreview) {
+        const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: "Draft PTR khong dat Quality Gate.",
+          metadata: {
+            mode: generationMode,
+            skillId,
+            externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+            validationPassed: true
+          }
+        });
+        logAICallAudit({
+          skillId,
+          success: false,
+          errorMessage: "Draft PTR khong dat Quality Gate.",
+          realAIEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(errors);
+        setMessage("Draft PTR khong dat Quality Gate.");
+        return null;
+      }
+
+      const qualityGateWarnings = formatQualityGateWarningsVi(draftQualityGate);
+      const nextDraftMeta = {
+        ...validation.value,
+        qualityIssues: [
+          ...validation.value.qualityIssues,
+          ...qualityGateWarnings
+        ],
+        qualityGateWarnings: [
+          ...(validation.value.qualityGateWarnings ?? []),
+          ...qualityGateWarnings
+        ]
+      };
+
+      setBlockingErrors([]);
+      setDraftTasks(nextDraftMeta.draftProcessTasks);
+      setDraftMeta(nextDraftMeta);
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "success",
+        summary: `Generated schema-valid draft PTR from ${sourceLabel}.`,
+        metadata: {
+          mode: generationMode,
+          skillId,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+          validationPassed: true,
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
+      logAICallAudit({
+        skillId,
+        success: true,
+        realAIEnabled,
+        externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+        extraMetadata: {
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
+      setMessage(
+        `${generationMode}: da tao draft PTR ${validation.value.draftProcessTasks.length} dong tu ${sourceLabel}. Hay review truoc khi Apply.`
+      );
+      return nextDraftMeta;
+    } catch {
+      logAICallAudit({
+        skillId,
+        success: false,
+        errorMessage: "AI draft generation request failed.",
+        realAIEnabled,
+        externalApiCalled: false
+      });
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "failure",
+        summary: "AI draft generation request failed.",
+        metadata: {
+          mode: generationMode,
+          skillId,
+          externalApiCalled: false,
+          validationPassed: false
+        }
+      });
+      setMessage("AI draft generation request failed. Draft was not applied.");
+      return null;
+    } finally {
+      setIsGeneratingWithAI(false);
+    }
+  }
+
   async function generateDraftPtrFromPdfFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
@@ -937,6 +1164,21 @@ export function AIInputBriefPanel() {
 
     try {
       const result = await extractTextFromPdf(file);
+      setPdfExtraction(result);
+      updateIntakeFileStatus(file, "extracted");
+      await generateDraftPtrViaSkill({
+        skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+        payload: {
+          fileName: file.name,
+          fileType: file.type || "application/pdf",
+          extractedText: result.rawText,
+          extractionWarnings: result.warnings,
+          inputLanguage: locale,
+          outputLanguage: locale
+        },
+        sourceLabel: `PDF ${file.name}`
+      });
+      return;
       const pdfLines = result.rawText
         .split(/\r?\n/)
         .map((line) => line.trim())
@@ -1014,53 +1256,27 @@ export function AIInputBriefPanel() {
       return;
     }
 
-    const structuredBrief = parseStructuredProcessBriefFromForm({
-      processInfo:
-        docxExtraction.detectedSteps[0] ||
-        docxExtraction.rawText.split(/\r?\n/).find(Boolean) ||
-        "DOCX extracted process",
-      businessObjective: docxExtraction.rawText.slice(0, 1200),
-      scope: docxExtraction.rawText.slice(0, 1200),
-      startEnd: [
-        docxExtraction.detectedSteps[0] || "Request received",
-        docxExtraction.detectedSteps[docxExtraction.detectedSteps.length - 1] ||
-          "Process completed"
-      ].join("\n"),
-      actors: docxExtraction.detectedActors.join("\n"),
-      relatedSystems: docxExtraction.detectedSystems.join("\n"),
-      dataDocuments: docxExtraction.detectedDataObjects.join("\n"),
-      inputLanguage: locale,
-      outputLanguage: locale
+    void generateDraftPtrViaSkill({
+      skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+      payload: {
+        fileName: "DOCX extraction",
+        fileType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        extractedText: docxExtraction.rawText,
+        extractionWarnings: [
+          ...docxExtraction.assumptions,
+          ...docxExtraction.openQuestions
+        ],
+        detectedActors: docxExtraction.detectedActors,
+        detectedSystems: docxExtraction.detectedSystems,
+        detectedDataObjects: docxExtraction.detectedDataObjects,
+        detectedSteps: docxExtraction.detectedSteps,
+        inputLanguage: locale,
+        outputLanguage: locale
+      },
+      sourceLabel: "DOCX extraction"
     });
-    const response = generateDraftProcessTaskRegister({
-      brief: structuredBrief,
-      currentLocale: locale
-    });
-    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
-    const nextResponse = {
-      ...response,
-      assumptions: [...response.assumptions, ...docxExtraction.assumptions],
-      openQuestions: docxExtraction.openQuestions,
-      qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
-      sourceSummary: "Draft generated locally from DOCX extracted text."
-    };
+    return;
 
-    if (!draftQualityGate.canPreview) {
-      const errors = formatQualityGateErrorsVi(draftQualityGate);
-
-      setDraftTasks([]);
-      setDraftMeta(null);
-      setBlockingErrors(errors);
-      setMessage("Draft PTR tu DOCX khong dat Quality Gate.");
-      return;
-    }
-
-    setBlockingErrors([]);
-    setDraftTasks(nextResponse.draftProcessTasks);
-    setDraftMeta(nextResponse);
-    setMessage(
-      `Da tao draft PTR tu DOCX extraction: ${nextResponse.draftProcessTasks.length} dong. Hay review truoc khi Apply.`
-    );
   }
 
   function generateDraftPtrFromPdfExtraction() {
@@ -1069,14 +1285,30 @@ export function AIInputBriefPanel() {
       return;
     }
 
-    const pdfLines = pdfExtraction.rawText
+    const activePdfExtraction = pdfExtraction;
+
+    void generateDraftPtrViaSkill({
+      skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+      payload: {
+        fileName: "PDF extraction",
+        fileType: "application/pdf",
+        extractedText: activePdfExtraction.rawText,
+        extractionWarnings: activePdfExtraction.warnings,
+        inputLanguage: locale,
+        outputLanguage: locale
+      },
+      sourceLabel: "PDF extraction"
+    });
+    return;
+
+    const pdfLines = activePdfExtraction.rawText
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
     const structuredBrief = parseStructuredProcessBriefFromForm({
       processInfo: pdfLines[0] || "PDF extracted process",
-      businessObjective: pdfExtraction.rawText.slice(0, 1200),
-      scope: pdfExtraction.rawText.slice(0, 1200),
+      businessObjective: activePdfExtraction.rawText.slice(0, 1200),
+      scope: activePdfExtraction.rawText.slice(0, 1200),
       startEnd: [
         pdfLines[0] || "Request received",
         pdfLines[pdfLines.length - 1] || "Process completed"
@@ -1100,8 +1332,8 @@ export function AIInputBriefPanel() {
         "Generated Draft PTR must be reviewed before Apply."
       ],
       openQuestions:
-        pdfExtraction.warnings.length > 0
-          ? pdfExtraction.warnings
+        activePdfExtraction.warnings.length > 0
+          ? activePdfExtraction.warnings
           : ["Review extracted PDF text before applying to PTR."],
       qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
       sourceSummary: "Draft generated locally from PDF extracted text."
@@ -1123,6 +1355,33 @@ export function AIInputBriefPanel() {
     setMessage(
       `Đã tạo draft PTR từ PDF extraction: ${nextResponse.draftProcessTasks.length} dòng. Hãy review trước khi Apply.`
     );
+  }
+
+  async function generateDraftPtrFromChatNotes() {
+    if (chatNotes.trim().length < 20) {
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(["Notes must contain enough text to generate a Draft PTR."]);
+      setMessage("Chat/notes text is too short to generate Draft PTR.");
+      return;
+    }
+
+    await generateDraftPtrViaSkill({
+      skillId: CHAT_TO_PTR_DRAFT_SKILL_ID,
+      payload: {
+        notes: chatNotes,
+        userContext: [
+          brief.processInfo,
+          brief.businessObjective,
+          brief.scopeBoundary
+        ]
+          .filter((value) => value.trim())
+          .join("\n"),
+        inputLanguage: locale,
+        outputLanguage: locale
+      },
+      sourceLabel: "chat/notes"
+    });
   }
 
   function generateDraftPtr() {
@@ -1659,6 +1918,40 @@ export function AIInputBriefPanel() {
               {dataDocumentBriefFields.map(renderBriefField)}
             </div>
           </div>
+          <div className="w-full min-w-0 rounded border border-slate-200 bg-white p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">
+                  {locale === "vi" ? "Chat / ghi chu" : "Chat / notes"}
+                </h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  {locale === "vi"
+                    ? "Paste noi dung trao doi, ghi chu workshop hoac manual text de tao Draft PTR preview."
+                    : "Paste chat, workshop notes, or manual text to generate a Draft PTR preview."}
+                </p>
+              </div>
+              <button
+                className="w-fit rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isGeneratingWithAI || chatNotes.trim().length < 20}
+                onClick={() => void generateDraftPtrFromChatNotes()}
+                type="button"
+              >
+                {locale === "vi"
+                  ? "Tao Draft PTR tu ghi chu"
+                  : "Generate Draft PTR from notes"}
+              </button>
+            </div>
+            <textarea
+              className="mt-3 min-h-32 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+              onChange={(event) => setChatNotes(event.target.value)}
+              placeholder={
+                locale === "vi"
+                  ? "Vi du: Khach hang gui yeu cau mo tai khoan. RM kiem tra ho so. Ops tao CIF..."
+                  : "Example: Customer submits account opening request. RM checks documents. Ops creates CIF..."
+              }
+              value={chatNotes}
+            />
+          </div>
         </div>
       ) : null}
 
@@ -1870,7 +2163,7 @@ export function AIInputBriefPanel() {
               </div>
               <button
                 className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
-                onClick={generateDraftPtrFromDocxExtraction}
+                onClick={() => void generateDraftPtrFromDocxExtraction()}
                 type="button"
               >
                 {uiText.generateDraftPtr}
@@ -1938,7 +2231,7 @@ export function AIInputBriefPanel() {
               </div>
               <button
                 className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
-                onClick={generateDraftPtrFromPdfExtraction}
+                onClick={() => void generateDraftPtrFromPdfExtraction()}
                 type="button"
               >
                 {uiText.generateDraftPtr}
@@ -2052,6 +2345,18 @@ export function AIInputBriefPanel() {
                     ))}
                   </ul>
                 </div>
+                {draftMeta.qualityIssues.length > 0 ? (
+                  <div className="rounded border border-amber-200 bg-amber-50 p-3">
+                    <p className="font-semibold text-amber-900">
+                      {labels.qualityIssues}
+                    </p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5 text-amber-800">
+                      {draftMeta.qualityIssues.map((issue) => (
+                        <li key={issue}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 {draftMeta.qualityGateWarnings &&
                 draftMeta.qualityGateWarnings.length > 0 ? (
                   <div className="rounded border border-amber-200 bg-amber-50 p-3">

@@ -15,6 +15,7 @@ import { validateTemplateReviewOutput } from "@/lib/template-recommendation-engi
 export type AISkillSchemaId =
   | "StructuredProcessBrief"
   | "FileIntakeContext"
+  | "ChatNotesContext"
   | "ProcessTaskRegisterContext"
   | "ProductDeliveryContext"
   | "DraftProcessTaskRegister"
@@ -169,6 +170,86 @@ function validateProcessTaskArrayInput(
   return {
     ok: true,
     value: value as { processTasks: ProcessTask[] },
+    errors: []
+  };
+}
+
+function validateFileIntakeContext(value: unknown): SchemaValidationResult<unknown> {
+  const errors: string[] = [];
+
+  if (!isObject(value)) {
+    return {
+      ok: false,
+      errors: ["FileIntakeContext must be an object."]
+    };
+  }
+
+  ["fileName", "fileType", "extractedText"].forEach((field) => {
+    if (!isString(value[field])) {
+      errors.push(`${field} must be a string.`);
+    }
+  });
+
+  if (isString(value.extractedText) && value.extractedText.trim().length < 20) {
+    errors.push("extractedText must contain enough text to draft a process.");
+  }
+
+  [
+    "extractionWarnings",
+    "detectedActors",
+    "detectedSystems",
+    "detectedDataObjects",
+    "detectedSteps"
+  ].forEach((field) => {
+    if (value[field] !== undefined) {
+      validateStringArray(value[field], field, errors);
+    }
+  });
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors
+    };
+  }
+
+  return {
+    ok: true,
+    value,
+    errors: []
+  };
+}
+
+function validateChatNotesContext(value: unknown): SchemaValidationResult<unknown> {
+  const errors: string[] = [];
+
+  if (!isObject(value)) {
+    return {
+      ok: false,
+      errors: ["ChatNotesContext must be an object."]
+    };
+  }
+
+  if (!isString(value.notes)) {
+    errors.push("notes must be a string.");
+  } else if (value.notes.trim().length < 20) {
+    errors.push("notes must contain enough text to draft a process.");
+  }
+
+  if (value.userContext !== undefined && !isString(value.userContext)) {
+    errors.push("userContext must be a string when provided.");
+  }
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors
+    };
+  }
+
+  return {
+    ok: true,
+    value,
     errors: []
   };
 }
@@ -483,8 +564,16 @@ export function validateAISkillInput(
   skillId: string,
   value: unknown
 ): SchemaValidationResult<unknown> {
-  if (skillId === "input-brief-to-ptr" || skillId === "chat-to-draft-ptr") {
+  if (skillId === "input-brief-to-ptr") {
     return validateStructuredProcessBrief(value);
+  }
+
+  if (skillId === "file-to-ptr-draft" || skillId === "file-to-draft-ptr") {
+    return validateFileIntakeContext(value);
+  }
+
+  if (skillId === "chat-to-ptr-draft" || skillId === "chat-to-draft-ptr") {
+    return validateChatNotesContext(value);
   }
 
   if (
@@ -519,7 +608,9 @@ export function validateAISkillOutput(
 ): SchemaValidationResult<unknown> {
   if (
     skillId === "input-brief-to-ptr" ||
+    skillId === "file-to-ptr-draft" ||
     skillId === "file-to-draft-ptr" ||
+    skillId === "chat-to-ptr-draft" ||
     skillId === "chat-to-draft-ptr"
   ) {
     return validateDraftProcessTaskRegister(value);

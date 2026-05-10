@@ -75,8 +75,8 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 | Skill | Status | Purpose | Primary input | Output | Apply behavior |
 | --- | --- | --- | --- | --- | --- |
 | `input-brief-to-ptr` | `real-ai-ready` | Generate Draft Process Task Register from structured AI Input Brief. | `StructuredProcessBrief`, optional source metadata | Draft `ProcessTask[]`, assumptions, open questions, source summary, confidence, quality issues | Preview and explicit apply only |
-| `file-to-draft-ptr` | `mock` | Generate Draft Process Task Register from uploaded document text or parsed file content. | File-derived text/metadata, optional user context | Draft `ProcessTask[]`, source summary, warnings | Preview and explicit apply only |
-| `chat-to-draft-ptr` | `planned` | Convert a guided conversation into Draft Process Task Register. | Chat transcript, structured follow-up answers | Draft `ProcessTask[]`, assumptions, open questions | Preview and explicit apply only |
+| `file-to-ptr-draft` | `real-ai-ready` | Generate Draft Process Task Register from uploaded PDF/DOCX text extraction or parsed file content. | File-derived text/metadata, extraction warnings, optional user context | Draft `ProcessTask[]`, assumptions, open questions, source summary, confidence, quality issues | Preview and explicit apply only |
+| `chat-to-ptr-draft` | `real-ai-ready` | Convert pasted chat, notes, or manual text into Draft Process Task Register. | Chat transcript, workshop notes, manual pasted text, optional brief context | Draft `ProcessTask[]`, assumptions, open questions, source summary, confidence, quality issues | Preview and explicit apply only |
 | `ai-process-qa` | `real-ai-ready` | Generate QA recommendations for Process Task Register. | `ProcessTask[]`, rule QA issues, selected templates | `QARecommendation[]`, meta | Existing recommendation preview/apply workflow |
 | `process-improvement-recommendation` | `planned` | Suggest semantic process improvements beyond deterministic QA. | `ProcessTask[]`, issue context, domain metadata | `QARecommendation[]`, warnings | Preview, select, confirm, then apply |
 | `template-review` | `real-ai-ready` | Review D01/D02 template fit and quality. | `TemplateProfile`, optional `ProcessTask[]`, selected artifact context | `TemplateRecommendation[]`, quality score, warnings | User accepts/edits recommendation before save |
@@ -120,6 +120,48 @@ Output:
 
 Apply behavior:
 User preview and explicit apply only.
+
+### file-to-ptr-draft
+
+Purpose:
+Generate Draft Process Task Register from locally extracted file text.
+
+Input:
+- File name and file type
+- Extracted PDF/DOCX text
+- Extraction warnings and detected actors/systems/data/steps when available
+- Optional user context
+
+Output:
+- Draft `ProcessTask[]`
+- assumptions
+- openQuestions
+- sourceSummary
+- confidence
+- qualityIssues
+
+Apply behavior:
+User preview and explicit Replace/Append only. Image/OCR remains unsupported for MVP1-AI.
+
+### chat-to-ptr-draft
+
+Purpose:
+Generate Draft Process Task Register from pasted chat, notes, or manual text.
+
+Input:
+- `notes`
+- Optional user context from the current Manual Input brief
+
+Output:
+- Draft `ProcessTask[]`
+- assumptions
+- openQuestions
+- sourceSummary
+- confidence
+- qualityIssues
+
+Apply behavior:
+User preview and explicit Replace/Append only.
 
 ### ai-process-qa
 

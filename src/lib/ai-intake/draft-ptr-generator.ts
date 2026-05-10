@@ -17,6 +17,7 @@ export type DraftPTRGenerationResult = {
   draftProcessTasks: ProcessTask[];
   assumptions: string[];
   openQuestions: string[];
+  qualityIssues: string[];
   qualityGateWarnings?: string[];
   sourceSummary: string;
   confidence: DraftPTRConfidence;
@@ -694,6 +695,7 @@ export function generateDraftProcessTaskRegister(
     draftProcessTasks,
     assumptions: buildAssumptions(brief),
     openQuestions: buildOpenQuestions(brief),
+    qualityIssues: [],
     sourceSummary: buildSourceSummary(brief),
     confidence: inferConfidence(brief),
     inputLanguage,

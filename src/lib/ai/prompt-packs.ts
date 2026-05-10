@@ -47,7 +47,7 @@ export const processModelingPromptPacks: AIPromptPack[] = [
     description:
       "Convert a StructuredProcessBrief into a DraftProcessTaskRegister preview.",
     outputContract:
-      "DraftProcessTaskRegister with draftProcessTasks, assumptions, openQuestions, sourceSummary, confidence, inputLanguage, and outputLanguage.",
+      "DraftProcessTaskRegister with draftProcessTasks, assumptions, openQuestions, sourceSummary, confidence, qualityIssues, inputLanguage, and outputLanguage.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
@@ -64,13 +64,30 @@ export const processModelingPromptPacks: AIPromptPack[] = [
     description:
       "Convert extracted document text and metadata into a DraftProcessTaskRegister preview.",
     outputContract:
-      "DraftProcessTaskRegister with file-derived sourceSummary and explicit warnings for missing context.",
+      "DraftProcessTaskRegister with file-derived sourceSummary, qualityIssues, and explicit warnings for missing context.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
           "Use extracted document content as source evidence. Do not claim OCR support when image text is unavailable."
+      }
+    ]
+  },
+  {
+    id: "process-modeling-chat-to-ptr-v1",
+    version: "1.0.0",
+    domain: "process-modeling",
+    description:
+      "Convert pasted chat, notes, or manual text into a DraftProcessTaskRegister preview.",
+    outputContract:
+      "DraftProcessTaskRegister with draftProcessTasks, assumptions, openQuestions, sourceSummary, confidence, qualityIssues, inputLanguage, and outputLanguage.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Infer a draft process from pasted notes or chat transcript. Separate facts from assumptions, list unclear items as openQuestions, and keep all generated rows marked for review."
       }
     ]
   },

@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed Module 2 route-backed Draft PTR generation from three sources: structured Manual Input, File Intake extracted text, and pasted Chat/Notes.
+- Added route/registry support for `file-to-ptr-draft` and `chat-to-ptr-draft`, with legacy route aliases for `file-to-draft-ptr` and `chat-to-draft-ptr`.
+- Added `qualityIssues` to the Draft PTR contract and validation path.
+- Wired File Intake PDF/DOCX extracted text through `/api/ai/run-skill` for Product AI/OpenAI/Claude/Mock support; image/OCR remains unsupported.
+- Added a Manual Input Chat/Notes card that generates a Draft PTR preview through `/api/ai/run-skill`.
+- Kept Apply as explicit Replace/Append only and preserved artifact stale marking after apply.
+- Updated `docs/AI_SKILL_REGISTRY.md` and `docs/AI_IMPLEMENTATION_MATRIX.md` for Module 2 draft PTR skills.
 - Completed the AI Connection Center provider surface for Product AI, OpenAI, Claude, and Local/Mock.
 - Added provider cards with server-derived statuses: `configured`, `missing env`, `disabled`, and `available`.
 - Added a Test Connection action that calls `/api/ai/run-skill` server-side and never calls provider APIs directly from the browser.
@@ -52,6 +59,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/components/input-brief/AIInputBriefPanel.tsx`
+- `src/lib/ai-intake/draft-ptr-generator.ts`
+- `src/lib/ai-intake/draft-ptr-schema.ts`
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `src/lib/ai/skill-schemas.ts`
 - `src/lib/ai/prompt-packs.ts`
 - `src/lib/ai/skill-registry-v2.ts`
@@ -73,6 +84,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- Module 2 Draft PTR source skills now use canonical route ids `input-brief-to-ptr`, `file-to-ptr-draft`, and `chat-to-ptr-draft`.
+- `qualityIssues` is now part of the Draft PTR AI output contract alongside assumptions, open questions, source summary, confidence, and quality gate warnings.
+- File Intake real AI support uses locally extracted text only; OCR/image extraction remains explicitly unsupported.
 - AI Connection Center remains a non-secret browser preference UI; provider secrets stay in server env only.
 - Test Connection reports server-side readiness and does not perform direct browser provider calls.
 - Per-skill provider overrides are stored as local UI preferences in this slice; server execution remains governed by env/config and AI Orchestration V2.
@@ -97,6 +111,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Current blockers
 
+- Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
+- Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
 - The branch may still need to be created or switched in git if it does not already exist.
 - Module 3 real AI UI flows and deterministic structured adapters still need scoped task breakdown using Registry V2.
 - Product Delivery deterministic markdown output still needs structured adapters or route support for the new BRD/SRS/story/criteria schemas.
@@ -107,7 +123,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Next recommended task
 
-Verify AI Connection Center Test Connection and active skills against each provider mode with feature flags and `AI_DATA_USAGE_MODE` on/off, then add structured Module 3 adapters or route skills for BRD/SRS/user stories/acceptance criteria.
+Verify Module 2 Draft PTR generation across Manual Input, PDF/DOCX File Intake, and Chat/Notes with Mock/Product AI/OpenAI/Claude provider modes, then add structured Module 3 adapters or route skills for BRD/SRS/user stories/acceptance criteria.
 
 ## Exact prompt for next ChatGPT session
 

@@ -35,6 +35,16 @@ const operationKinds = new Set<QARecommendationOperation["kind"]>([
   "SetInteractionType",
   "MarkReviewStatus"
 ]);
+const graphChangingOperationKinds = new Set<QARecommendationOperation["kind"]>([
+  "CreateTaskAfter",
+  "CreateTaskBefore",
+  "InsertTaskBetween",
+  "SplitTask",
+  "CreateGateway",
+  "AddGatewayBranch",
+  "UpdateConnection",
+  "CreateLane"
+]);
 
 export type QARecommendationValidationResult =
   | {
@@ -55,10 +65,41 @@ function isString(value: unknown) {
   return typeof value === "string";
 }
 
+function getOperationStepReferences(operation: Record<string, unknown>) {
+  const stepIds: string[] = [];
+
+  [
+    "stepId",
+    "targetStepId",
+    "sourceStepId",
+    "anchorStepId",
+    "gatewayStepId",
+    "afterStepId",
+    "beforeStepId"
+  ].forEach((field) => {
+    const value = operation[field];
+
+    if (typeof value === "string" && value.trim()) {
+      stepIds.push(value);
+    }
+  });
+
+  if (Array.isArray(operation.targetStepIds)) {
+    operation.targetStepIds.forEach((value) => {
+      if (typeof value === "string" && value.trim()) {
+        stepIds.push(value);
+      }
+    });
+  }
+
+  return stepIds;
+}
+
 function validateOperation(
   operation: unknown,
   index: number,
   operationIndex: number,
+  validStepIds: Set<string>,
   errors: string[]
 ) {
   if (!isObject(operation)) {
@@ -69,6 +110,14 @@ function validateOperation(
   if (!operationKinds.has(operation.kind as QARecommendationOperation["kind"])) {
     errors.push(`recommendations[${index}].operations[${operationIndex}].kind is invalid.`);
   }
+
+  getOperationStepReferences(operation).forEach((stepId) => {
+    if (!validStepIds.has(stepId)) {
+      errors.push(
+        `recommendations[${index}].operations[${operationIndex}] references missing stepId ${stepId}.`
+      );
+    }
+  });
 }
 
 function validateRecommendation(
@@ -88,8 +137,12 @@ function validateRecommendation(
     }
   });
 
-  if (recommendation.source !== undefined && recommendation.source !== "ai") {
-    errors.push(`recommendations[${index}].source must be ai.`);
+  if (
+    recommendation.source !== undefined &&
+    recommendation.source !== "ai" &&
+    recommendation.source !== "hybrid"
+  ) {
+    errors.push(`recommendations[${index}].source must be ai or hybrid.`);
   }
 
   if (!confidenceValues.has(String(recommendation.confidence))) {
@@ -100,10 +153,7 @@ function validateRecommendation(
     errors.push(`recommendations[${index}].impact is invalid.`);
   }
 
-  if (
-    recommendation.riskLevel !== undefined &&
-    !riskValues.has(String(recommendation.riskLevel))
-  ) {
+  if (!riskValues.has(String(recommendation.riskLevel))) {
     errors.push(`recommendations[${index}].riskLevel is invalid.`);
   }
 
@@ -135,10 +185,39 @@ function validateRecommendation(
       errors.push(`recommendations[${index}].operations must be an array.`);
     } else {
       recommendation.operations.forEach((operation, operationIndex) =>
-        validateOperation(operation, index, operationIndex, errors)
+        validateOperation(operation, index, operationIndex, validStepIds, errors)
       );
     }
   }
+}
+
+function isGraphChangingRecommendation(recommendation: QARecommendation) {
+  return (recommendation.operations ?? []).some((operation) =>
+    graphChangingOperationKinds.has(operation.kind)
+  );
+}
+
+function normalizeAIRecommendation(recommendation: QARecommendation) {
+  const normalized = normalizeRecommendation({
+    ...recommendation,
+    source: recommendation.source === "hybrid" ? "hybrid" : "ai",
+    requiresConfirmation: true
+  });
+
+  if (!isGraphChangingRecommendation(normalized)) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    impact: "high" as const,
+    riskLevel: "high" as const,
+    requiresConfirmation: true,
+    warnings: [
+      ...(normalized.warnings ?? []),
+      "Graph-changing AI recommendation requires explicit human confirmation."
+    ]
+  };
 }
 
 export function validateAIQARecommendations(
@@ -169,11 +248,7 @@ export function validateAIQARecommendations(
   return {
     ok: true,
     recommendations: value.map((recommendation) =>
-      normalizeRecommendation({
-        ...(recommendation as QARecommendation),
-        source: "ai",
-        requiresConfirmation: true
-      })
+      normalizeAIRecommendation(recommendation as QARecommendation)
     ),
     errors: []
   };

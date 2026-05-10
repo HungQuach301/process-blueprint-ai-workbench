@@ -801,6 +801,10 @@ function createMockAIQAResponse({
     },
     processTasks: payload.processTasks,
     templateProfiles: payload.templateProfiles,
+    qaIssues: payload.qaIssues,
+    existingRecommendations: payload.existingRecommendations,
+    targetStepIds: payload.targetStepIds,
+    metadata: payload.metadata,
     issueCodes: payload.issueCodes
   });
   const validation = validateAIQARecommendations(

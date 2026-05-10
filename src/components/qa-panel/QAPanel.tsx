@@ -344,6 +344,10 @@ export function QAPanel({
     isSafeRecommendation(entry.recommendation)
   );
   const safeRecommendations = safeRecommendationEntries.map((entry) => entry.recommendation);
+  const existingRuleRecommendations = useMemo(
+    () => issues.flatMap((issue) => issue.recommendations ?? []),
+    [issues]
+  );
   const hasRecommendations = recommendationEntries.length > 0;
   const groupedIssues = severityOrder.map((severity) => ({
     severity,
@@ -442,6 +446,7 @@ export function QAPanel({
           payload: {
             processTasks,
             qaIssues: issues,
+            existingRecommendations: existingRuleRecommendations,
             templateProfiles: readSelectedTemplateProfiles()
           }
         })
@@ -481,7 +486,7 @@ export function QAPanel({
       const recommendations = (data.result?.recommendations ?? []).map(
         (recommendation) => ({
           ...recommendation,
-          source: "ai" as const,
+          source: recommendation.source === "hybrid" ? ("hybrid" as const) : ("ai" as const),
           requiresConfirmation: true
         })
       );
@@ -521,7 +526,9 @@ export function QAPanel({
         realAIEnabled: data.mode === "provider-backed",
         externalApiCalled: data.meta?.externalApiCalled === true,
         extraMetadata: {
-          recommendationCount: recommendations.length
+          recommendationCount: recommendations.length,
+          ruleIssueCount: issues.length,
+          existingRecommendationCount: existingRuleRecommendations.length
         }
       });
     } catch {

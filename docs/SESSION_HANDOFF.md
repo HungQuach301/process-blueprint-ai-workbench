@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed AI QA and AI Recommendation V2 hardening for Process Modeling Core.
+- Updated QA Panel so AI QA receives `ProcessTask[]`, rule-based QA issues, existing rule recommendations, and selected D01/D02 template metadata.
+- Hardened `QARecommendation[]` validation for AI output: source `ai`/`hybrid`, confidence/impact/risk, target step ids, operation kinds, operation step references, and graph-changing safety.
+- Normalized graph-changing AI recommendations to high impact/high risk with explicit confirmation required.
+- Updated mock AI QA to use rule issue/recommendation context and return hybrid recommendations when extending rule recommendations instead of duplicating them blindly.
+- Preserved existing Select safe, Apply selected confirmation, and local feedback logging behavior.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for AI QA/Recommendation V2 behavior.
 - Added PTR AI Assistant selected-row actions in Process Task Register.
 - Added row selection checkboxes and an AI Assistant menu for normalize, infer actor/system/lane, improve wording, split complex task, generate input/output, and suggest interaction/channel.
 - Wired PTR AI Assistant actions to `/api/ai/run-skill` with skill id `process-improvement-recommendation`.
@@ -68,9 +75,13 @@ Complete Module 2 + Module 3 with full real AI support.
 ## Files changed
 
 - `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/components/qa-panel/QAPanel.tsx`
 - `src/app/api/ai/run-skill/route.ts`
+- `src/lib/ai/ai-qa-types.ts`
+- `src/lib/ai/ai-qa-service.ts`
 - `src/lib/ai/skill-registry-v2.ts`
 - `src/lib/ai/prompt-packs.ts`
+- `src/lib/recommendation-engine/qa-recommendation-schema.ts`
 - `docs/AI_SKILL_REGISTRY.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/SESSION_HANDOFF.md`
@@ -99,6 +110,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- AI QA V2 treats rule QA as the first-pass source of deterministic issues and recommendations.
+- AI QA may return `source=hybrid` when it extends a rule recommendation with extra rationale/context.
+- Graph-changing AI recommendations are always high risk/high impact and require explicit confirmation, regardless of provider output.
 - PTR AI Assistant uses `process-improvement-recommendation` rather than adding six separate skill ids for this slice; the selected action is carried in `metadata.ptrAiAction`.
 - PTR AI Assistant outputs `QARecommendation[]` so it can reuse existing QA Panel preview/apply/feedback behavior.
 - PTR AI Assistant does not mutate `ProcessTask[]` directly.

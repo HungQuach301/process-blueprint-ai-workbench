@@ -124,6 +124,164 @@ export const sampleServiceBlueprintTemplateProfile: TemplateProfile = {
   mandatoryFields: ["id", "stepId", "actorLane", "taskName", "input", "output"]
 };
 
+function createBankingStarterTemplate({
+  id,
+  name,
+  type,
+  outputType,
+  processType,
+  tags,
+  lanes,
+  serviceRows
+}: {
+  id: string;
+  name: string;
+  type: TemplateProfile["type"];
+  outputType: TemplateProfile["outputType"];
+  processType: TemplateProfile["processType"];
+  tags: string[];
+  lanes: string[];
+  serviceRows?: string[];
+}): TemplateProfile {
+  return {
+    id,
+    name,
+    type,
+    version: "1.0.0",
+    status: "active",
+    outputType,
+    processType,
+    journeyType:
+      type === "serviceBlueprint" ? "Customer Journey" : "Internal Workflow",
+    scopeType: "End-to-end",
+    businessDomain: "Banking",
+    notationStandard:
+      type === "serviceBlueprint" ? "Service Blueprint" : "BPMN 2.0",
+    organizationType: "Bank",
+    tags,
+    laneRules:
+      type === "serviceBlueprint"
+        ? {
+            customerLane: lanes[0] ?? "Customer",
+            frontstageLanes: lanes.slice(1, 3),
+            backstageLanes: lanes.slice(3, 5),
+            supportLanes: lanes.slice(5)
+          }
+        : {
+            lanes
+          },
+    rowRules:
+      type === "serviceBlueprint"
+        ? {
+            preserveJourneyOrder: true,
+            allowSupportDataRows: true,
+            rows:
+              serviceRows ?? [
+                "STEPS",
+                "PHASE",
+                "TIME",
+                "EVIDENCE",
+                "CUSTOMER ACTIONS",
+                "FRONT-STAGE INTERACTIONS — PEOPLE",
+                "FRONT-STAGE INTERACTIONS — SYSTEM / CHANNEL",
+                "BACK-STAGE INTERACTIONS — PEOPLE",
+                "BACK-STAGE INTERACTIONS — SYSTEM / TOOLS",
+                "SUPPORT PROCESSES",
+                "DATA / CONTROL",
+                "OUTCOME / END STATE"
+              ]
+          }
+        : {
+            allowedRowTypes: ["event", "task", "gateway", "data"]
+          },
+    taskCardRules:
+      type === "serviceBlueprint"
+        ? {
+            header: "actor",
+            middle: ["taskName", "bpmnType", "taskNature"],
+            footer: "system",
+            showInputOutput: true
+          }
+        : {
+            showActor: true,
+            showSystem: true,
+            showSla: true,
+            showRiskControl: true
+          },
+    connectorRules: {
+      defaultNextStep: "solid",
+      conditionalNextStep: "labeled",
+      showExceptions: true
+    },
+    colorRules: {
+      customer: "teal",
+      frontstage: "blue",
+      backstage: "violet",
+      support: "slate",
+      risk: "amber"
+    },
+    layoutRules: {
+      direction: type === "serviceBlueprint" ? "top-to-bottom" : "left-to-right",
+      avoidOverlap: true,
+      dynamicRowHeight: type === "serviceBlueprint"
+    },
+    mandatoryFields:
+      type === "serviceBlueprint"
+        ? ["id", "stepId", "actor", "system", "taskName", "input", "output"]
+        : ["id", "stepId", "rowType", "bpmnType", "taskName", "reviewStatus"]
+  };
+}
+
+export const bankingStarterTemplateProfiles: TemplateProfile[] = [
+  sampleBpmnTemplateProfile,
+  sampleServiceBlueprintTemplateProfile,
+  createBankingStarterTemplate({
+    id: "template-banking-credit-approval",
+    name: "Banking Starter - Credit Approval",
+    type: "bpmn",
+    outputType: "BPMN",
+    processType: "Approval",
+    tags: ["banking starter", "credit approval", "risk control"],
+    lanes: ["RM", "Credit Analyst", "Credit Approver", "Risk", "Core Banking"]
+  }),
+  createBankingStarterTemplate({
+    id: "template-banking-account-opening-onboarding",
+    name: "Banking Starter - Account Opening / Onboarding",
+    type: "serviceBlueprint",
+    outputType: "Service Blueprint",
+    processType: "Onboarding",
+    tags: ["banking starter", "account opening", "onboarding", "KYC"],
+    lanes: ["Customer", "Branch/RM", "Digital Channel", "Operations", "Core Banking", "eKYC Provider"]
+  }),
+  createBankingStarterTemplate({
+    id: "template-banking-kyc-refresh",
+    name: "Banking Starter - KYC Refresh",
+    type: "bpmn",
+    outputType: "BPMN",
+    processType: "Servicing",
+    tags: ["banking starter", "KYC refresh", "compliance"],
+    lanes: ["Customer", "Relationship Manager", "Compliance Ops", "Screening System", "Core Banking"]
+  }),
+  createBankingStarterTemplate({
+    id: "template-banking-payment-operations",
+    name: "Banking Starter - Payment Operations",
+    type: "serviceBlueprint",
+    outputType: "Service Blueprint",
+    processType: "Operation",
+    tags: ["banking starter", "payment operations", "reconciliation"],
+    lanes: ["Customer", "Payment Channel", "Payment Ops", "Core Banking", "Payment Gateway", "Reconciliation"]
+  }),
+  createBankingStarterTemplate({
+    id: "template-banking-sme-loan-origination",
+    name: "Banking Starter - SME Loan Origination",
+    type: "serviceBlueprint",
+    outputType: "Service Blueprint",
+    processType: "Lending",
+    tags: ["banking starter", "SME loan origination", "lending"],
+    lanes: ["Customer", "RM", "Loan Portal", "Credit Ops", "Credit Approver", "CIC"]
+  })
+];
+
 export const sampleProcessTasks: ProcessTask[] = [
   {
     id: "task-000",

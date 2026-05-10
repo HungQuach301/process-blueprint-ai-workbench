@@ -14,21 +14,23 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- Redesigned AI Provider Settings into AI Connection Center.
-- Added usage mode cards for Product AI, OpenAI, Claude, and Local / Enterprise AI.
-- Kept unsupported provider modes visibly disabled / coming soon while leaving existing OpenAI server-side path intact.
-- Reduced data safety copy to one warning alert.
-- Moved technical fields into an Advanced Settings accordion that is closed by default.
-- Kept API keys out of browser UI and localStorage; only non-secret preferences and server-reported status are shown.
+- Redesigned Template Library into Template Hub / Trung tâm template.
+- Added selected D01 BPMN and D02 Service Blueprint template summary in the header.
+- Added clear actions for Change template, Preview template, and Run Template QA.
+- Added filters for output type, business domain, process type, scope, and status.
+- Moved JSON/rule editing into an Advanced mode accordion; template cards no longer show raw JSON.
+- Added Banking Starter Pack templates for SME loan origination, credit approval, account opening/onboarding, KYC refresh, and payment operations.
+- Kept Template QA recommendations review-only with no auto-apply behavior.
 
 ## Files changed
 
-- `src/components/ai-settings/AIProviderSettingsPanel.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
+- `src/lib/sample-data/sme-online-loan.ts`
 - `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- No new product or architecture decision was made. This session applied a scoped AI Connection Center UI redesign only.
+- No new product or architecture decision was made. This session applied a scoped Template Hub UI redesign and MVP1 Banking Starter Pack seed only.
 
 ## Current blockers
 
@@ -36,7 +38,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-Manually verify AI Connection Center: usage cards are clear, only one data warning appears, Advanced Settings is closed by default, server env status shows without exposing secrets, and Save/Reset still persist only non-secret preferences.
+Manually verify Template Hub: D01/D02 template selection still works, Template QA returns recommendations without auto-apply, filters narrow cards, Preview does not show raw JSON, and JSON/rules appear only in Advanced mode.
 
 ## Exact prompt for next ChatGPT session
 

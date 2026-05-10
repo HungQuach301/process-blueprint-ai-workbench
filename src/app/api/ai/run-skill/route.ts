@@ -58,6 +58,14 @@ function extractJsonObject(value: string) {
   return trimmedValue;
 }
 
+function getProviderName() {
+  return process.env.AI_PROVIDER || "openai";
+}
+
+function isOpenAIProviderConfigured() {
+  return Boolean(process.env.OPENAI_API_KEY && process.env.AI_MODEL);
+}
+
 function createPromptForInputBriefToPtr(payload: unknown) {
   return [
     {
@@ -206,7 +214,7 @@ function createMockTemplateReviewResponse(payload: unknown) {
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: process.env.AI_PROVIDER || "openai",
+    provider: getProviderName(),
     model: process.env.AI_MODEL || "",
     skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
     result: {
@@ -270,7 +278,7 @@ function createMockAIQAResponse(payload: unknown) {
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: process.env.AI_PROVIDER || "openai",
+    provider: getProviderName(),
     model: process.env.AI_MODEL || "",
     skillId: AI_PROCESS_QA_SKILL_ID,
     result: {
@@ -354,7 +362,7 @@ function createMockResponse(skillId: string, payload: unknown) {
     return NextResponse.json({
       ok: true,
       mode: "mock",
-      provider: process.env.AI_PROVIDER || "openai",
+      provider: getProviderName(),
       model: process.env.AI_MODEL || "",
       skillId,
       result: {
@@ -373,7 +381,7 @@ function createMockResponse(skillId: string, payload: unknown) {
   return {
     ok: true,
     mode: "mock",
-    provider: process.env.AI_PROVIDER || "openai",
+    provider: getProviderName(),
     model: process.env.AI_MODEL || "",
     skillId,
     result: {
@@ -394,9 +402,10 @@ export function GET() {
     process.env.ENABLE_REAL_AI === "true" ||
     process.env.ENABLE_REAL_AI_QA === "true" ||
     process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
+  const providerName = getProviderName();
   const providerStatus = !realAIEnabled
     ? "mock-only"
-    : process.env.OPENAI_API_KEY
+    : providerName === "openai" && isOpenAIProviderConfigured()
       ? "configured"
       : "not configured";
 
@@ -407,7 +416,7 @@ export function GET() {
     realAITemplateReviewEnabled:
       process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
     providerStatus,
-    provider: process.env.AI_PROVIDER || "openai",
+    provider: providerName,
     model: process.env.AI_MODEL || ""
   });
 }
@@ -460,7 +469,7 @@ export async function POST(request: Request) {
     }
 
     const selectedTemplate = body.payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number];
-    const providerName = process.env.AI_PROVIDER || "openai";
+    const providerName = getProviderName();
 
     if (providerName !== "openai") {
       return NextResponse.json(
@@ -470,6 +479,10 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    if (!isOpenAIProviderConfigured()) {
+      return createMockTemplateReviewResponse(body.payload);
     }
 
     try {
@@ -568,7 +581,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const providerName = process.env.AI_PROVIDER || "openai";
+    const providerName = getProviderName();
 
     if (providerName !== "openai") {
       return NextResponse.json(
@@ -578,6 +591,10 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    if (!isOpenAIProviderConfigured()) {
+      return createMockAIQAResponse(body.payload);
     }
 
     try {
@@ -707,7 +724,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const providerName = process.env.AI_PROVIDER || "openai";
+  const providerName = getProviderName();
 
   if (providerName !== "openai") {
     return NextResponse.json(
@@ -717,6 +734,13 @@ export async function POST(request: Request) {
       },
       { status: 400 }
     );
+  }
+
+  if (!isOpenAIProviderConfigured()) {
+    const mockResponse = createMockResponse(skillId, body.payload);
+    return mockResponse instanceof NextResponse
+      ? mockResponse
+      : NextResponse.json(mockResponse);
   }
 
   try {

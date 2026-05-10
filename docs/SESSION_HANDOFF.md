@@ -14,24 +14,22 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- Removed default bilingual visible labels in AI Connection Center, AI Input Brief/File Intake, Template Hub, QA Panel, and Process Task Register helper/action text.
-- Added locale-aware component label maps where needed so VI shows Vietnamese-only text and EN shows English-only text.
-- Kept the main cloud/API key warning in AI Connection Center and removed the duplicate cloud warning from File Intake helper text.
-- Kept advanced placeholders and JSON/rule messaging inside Advanced Settings or Advanced mode areas.
-- Did not change internal keys, enums, ProcessTask schema, generator logic, save logic, or recommendation apply logic.
+- Hardened MVP1 real AI readiness around the existing server-side `/api/ai/run-skill` route.
+- Kept OpenAI as the only scaffolded provider adapter and documented server-side env vars in `.env.example`.
+- Added mock/local fallback when a real AI feature flag is enabled but required server-side provider env is incomplete.
+- Added `docs/AI_CONNECTION_SETUP.md` covering feature flags, provider options, data warning, no API key in browser, schema validation, and approval workflow.
+- Verified API key references are server-side only; client components still call the server route and do not read provider secrets.
 
 ## Files changed
 
-- `src/components/qa-panel/QAPanel.tsx`
-- `src/components/task-register/ProcessTaskRegister.tsx`
-- `src/components/ai-settings/AIProviderSettingsPanel.tsx`
-- `src/components/input-brief/AIInputBriefPanel.tsx`
-- `src/components/template-library/TemplateLibraryEditor.tsx`
+- `.env.example`
+- `src/app/api/ai/run-skill/route.ts`
+- `docs/AI_CONNECTION_SETUP.md`
 - `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- No new product or architecture decision was made. This session applied scoped MVP1 i18n/noise cleanup only.
+- No new provider decision was made. This session reinforced the existing MVP1 rule: real AI uses only server-side provider adapters and falls back to mock/local when not fully configured.
 
 ## Current blockers
 
@@ -39,7 +37,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-Manually switch between VI and EN in the app and verify audited panels do not show bilingual labels by default; verify File Intake no longer repeats the cloud/API warning and AI Connection Center still shows the single main data warning.
+Verify real AI setup manually: with flags false, mock/local outputs still work; with a flag true but missing `OPENAI_API_KEY` or `AI_MODEL`, the route falls back to mock/local; with server-side OpenAI env configured, output still passes schema validation before preview.
 
 ## Exact prompt for next ChatGPT session
 

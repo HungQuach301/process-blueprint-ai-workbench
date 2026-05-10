@@ -44,6 +44,7 @@ import { validateTemplateReviewOutput } from "@/lib/template-recommendation-engi
 export const runtime = "nodejs";
 
 type RunSkillRequestBody = {
+  action?: unknown;
   skillId?: unknown;
   payload?: unknown;
 };
@@ -60,6 +61,7 @@ const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const TEMPLATE_REVIEW_REGISTRY_SKILL_ID = "template-review";
 const ORCHESTRATION_VERSION = "2.0.0";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
+const SERVER_PROVIDER_IDS: AIProviderId[] = ["product-ai", "openai", "claude", "mock"];
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -84,6 +86,35 @@ function getRegistrySkillId(routeSkillId: string) {
 
 function getProviderName() {
   return getConfiguredAIProviderId();
+}
+
+function getAnyRealAIEnabled() {
+  return (
+    process.env.ENABLE_REAL_AI === "true" ||
+    process.env.ENABLE_REAL_AI_QA === "true" ||
+    process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true"
+  );
+}
+
+function getProviderDisplayStatus(providerId: AIProviderId) {
+  if (providerId === "mock") {
+    return "available";
+  }
+
+  if (!getAnyRealAIEnabled()) {
+    return "disabled";
+  }
+
+  return isAIProviderConfigured(providerId) ? "configured" : "missing env";
+}
+
+function getProviderStatusSummary() {
+  return SERVER_PROVIDER_IDS.map((providerId) => ({
+    providerId,
+    status: getProviderDisplayStatus(providerId),
+    selected: providerId === getProviderName(),
+    model: getConfiguredAIModel(providerId) || ""
+  }));
 }
 
 function getProviderTimeoutMs() {
@@ -800,10 +831,7 @@ function createRouteSpecificInputValidationError(
 }
 
 export function GET() {
-  const realAIEnabled =
-    process.env.ENABLE_REAL_AI === "true" ||
-    process.env.ENABLE_REAL_AI_QA === "true" ||
-    process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
+  const realAIEnabled = getAnyRealAIEnabled();
   const providerName = getProviderName();
   const dataUsageMode = getServerDataUsageMode(realAIEnabled, providerName);
   const providerStatus = getAIProviderStatus(realAIEnabled, providerName);
@@ -816,6 +844,7 @@ export function GET() {
     realAITemplateReviewEnabled:
       process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
     providerStatus,
+    providers: getProviderStatusSummary(),
     provider: providerName,
     dataUsageMode,
     model: getConfiguredAIModel(providerName)
@@ -835,6 +864,32 @@ export async function POST(request: Request) {
       },
       { status: 400 }
     );
+  }
+
+  if (isObject(body) && body.action === "test-connection") {
+    const realAIEnabled = getAnyRealAIEnabled();
+    const providerName = getProviderName();
+    const dataUsageMode = getServerDataUsageMode(realAIEnabled, providerName);
+    const selectedProviderStatus = getProviderDisplayStatus(providerName);
+
+    return NextResponse.json({
+      ok: selectedProviderStatus === "configured" || selectedProviderStatus === "available",
+      action: "test-connection",
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      provider: providerName,
+      providerStatus: getAIProviderStatus(realAIEnabled, providerName),
+      displayStatus: selectedProviderStatus,
+      providers: getProviderStatusSummary(),
+      dataUsageMode,
+      model: getConfiguredAIModel(providerName),
+      externalApiCalled: false,
+      message:
+        selectedProviderStatus === "missing env"
+          ? "Selected provider is missing required server environment variables."
+          : selectedProviderStatus === "disabled"
+            ? "Real AI feature flags are disabled; mock/local fallback is active."
+            : "Server-side AI connection configuration is available."
+    });
   }
 
   if (!isValidRunSkillRequest(body)) {

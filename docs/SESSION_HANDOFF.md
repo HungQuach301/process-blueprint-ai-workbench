@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the AI Connection Center provider surface for Product AI, OpenAI, Claude, and Local/Mock.
+- Added provider cards with server-derived statuses: `configured`, `missing env`, `disabled`, and `available`.
+- Added a Test Connection action that calls `/api/ai/run-skill` server-side and never calls provider APIs directly from the browser.
+- Added non-secret Advanced Settings for default provider, model/capability, allow cloud AI, require approval, data usage mode, and simple active-skill provider overrides.
+- Updated `.env.example`, `docs/AI_CONNECTION_SETUP.md`, and `docs/AI_IMPLEMENTATION_MATRIX.md` for the completed AI Connection Center behavior.
 - Upgraded `/api/ai/run-skill` to AI Orchestration V2 while keeping the same route path.
 - Wired route execution to AI Skill Registry V2 for skill validation, prompt pack selection, allowed provider checks, and schema validation dispatch.
 - Added route-level provider/data mode enforcement using feature flags, configured provider, allowed providers, provider config status, and optional server `AI_DATA_USAGE_MODE`.
@@ -68,6 +73,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- AI Connection Center remains a non-secret browser preference UI; provider secrets stay in server env only.
+- Test Connection reports server-side readiness and does not perform direct browser provider calls.
+- Per-skill provider overrides are stored as local UI preferences in this slice; server execution remains governed by env/config and AI Orchestration V2.
 - `/api/ai/run-skill` remains the controlled server-side AI entrypoint for MVP1-AI.
 - Orchestration V2 blocks malformed or schema-invalid AI output and returns reviewable validation errors.
 - `ai-template-review` remains the UI/route skill id, mapped internally to registry skill `template-review`.
@@ -94,11 +102,12 @@ Complete Module 2 + Module 3 with full real AI support.
 - Product Delivery deterministic markdown output still needs structured adapters or route support for the new BRD/SRS/story/criteria schemas.
 - Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
 - Provider-specific Claude/OpenAI schema repair and contract tests are not implemented yet; only route-level malformed JSON repair exists.
+- AI Connection Center per-skill override is not wired to server execution yet.
 - Full Artifact Graph is intentionally not part of MVP1-AI.
 
 ## Next recommended task
 
-Verify active skills against each provider mode with feature flags and `AI_DATA_USAGE_MODE` on/off, then add structured Module 3 adapters or route skills for BRD/SRS/user stories/acceptance criteria.
+Verify AI Connection Center Test Connection and active skills against each provider mode with feature flags and `AI_DATA_USAGE_MODE` on/off, then add structured Module 3 adapters or route skills for BRD/SRS/user stories/acceptance criteria.
 
 ## Exact prompt for next ChatGPT session
 

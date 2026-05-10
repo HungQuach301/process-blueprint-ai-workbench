@@ -62,6 +62,40 @@ If `AI_DATA_USAGE_MODE=local-only`, `/api/ai/run-skill` will not call an externa
 
 `AI_PROVIDER_TIMEOUT_MS` is optional and defaults to `45000`.
 
+## AI Connection Center
+
+The AI Connection Center is the browser UI for non-secret provider preferences.
+It shows four provider cards:
+
+- Product AI
+- OpenAI
+- Claude
+- Local / Mock
+
+Provider cards show one of these server-derived statuses:
+
+- `configured`: required server env is present and real AI flags are enabled.
+- `missing env`: real AI flags are enabled but the selected provider env is incomplete.
+- `disabled`: real AI flags are off.
+- `available`: local/mock mode is available without external provider calls.
+
+The Test Connection action calls `/api/ai/run-skill` with a server-side
+`test-connection` action. It does not call OpenAI, Claude, Product AI, or any
+other provider directly from the browser, and it does not expose API keys.
+
+Advanced Settings can store non-secret local preferences:
+
+- default provider
+- default model/capability
+- allow cloud AI
+- require approval
+- data usage mode
+- simple per-skill provider override for active skills
+
+Per-skill overrides are local preferences only in this slice. Server-side
+execution remains governed by env, feature flags, data mode, provider adapter
+configuration, and AI Skill Registry validation.
+
 ## Provider Options
 
 Current server-side provider adapters:

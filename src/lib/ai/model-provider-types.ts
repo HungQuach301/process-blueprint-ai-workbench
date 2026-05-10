@@ -18,12 +18,18 @@ export type DefaultModelCapability = "basic" | "advanced" | "reasoning";
 
 export type ProviderStatus = "configured" | "not configured" | "mock-only";
 
+export type AISkillOverrideId =
+  | "input-brief-to-ptr"
+  | "ai-process-qa"
+  | "ai-template-review";
+
 export type AIProviderSettings = {
   providerMode: ModelProviderMode;
   dataUsageMode: DataUsageMode;
   defaultModelCapability: DefaultModelCapability;
   allowCloudAI: boolean;
   requireApprovalForAIOutput: boolean;
+  perSkillProviderOverrides?: Partial<Record<AISkillOverrideId, ModelProviderMode>>;
   provider?: ModelProvider;
   modelName?: string;
   organizationId?: string;

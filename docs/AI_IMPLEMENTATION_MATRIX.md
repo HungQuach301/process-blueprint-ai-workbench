@@ -35,6 +35,30 @@ Important finding:
 - AI Connection Center stores only non-secret local preferences in browser `localStorage`.
 - The current server route selects normalized V2 adapters through `provider-factory.ts` and falls back to mock/local output when the selected provider is not configured.
 
+## AI Connection Center Matrix
+
+Updated on 2026-05-10.
+
+| UI card | Server provider | Status source | Test behavior | Secret exposure |
+| --- | --- | --- | --- | --- |
+| Product AI | `product-ai` | `/api/ai/run-skill` GET provider summary | Browser calls server-side `test-connection`; server reports env readiness. | No API key displayed. |
+| OpenAI | `openai` | `/api/ai/run-skill` GET provider summary | Browser calls server-side `test-connection`; no direct OpenAI browser call. | No API key displayed. |
+| Claude | `claude` | `/api/ai/run-skill` GET provider summary | Browser calls server-side `test-connection`; no direct Claude browser call. | No API key displayed. |
+| Local / Mock | `mock` | Always `available` | Server confirms local/mock fallback. | No secret required. |
+
+Provider card statuses are:
+
+- `configured`
+- `missing env`
+- `disabled`
+- `available`
+
+Advanced Settings now store non-secret local preferences for default provider,
+model/capability, allow cloud AI, require approval, data usage mode, and a
+small per-skill override map for active skills. These overrides are UI
+preferences only in this slice; server-side execution remains governed by env,
+feature flags, provider config, data mode, and Skill Registry V2.
+
 ## Skill Registry V2 Layer
 
 Added on 2026-05-10:

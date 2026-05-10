@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   AI_PROVIDER_SETTINGS_STORAGE_KEY,
@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai/ai-governance";
 import type {
   AIProviderSettings,
+  AISkillOverrideId,
   DataUsageMode,
   DefaultModelCapability,
   ModelProvider
@@ -17,29 +18,91 @@ import { getLocale, type Locale } from "@/lib/i18n";
 
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
-const modelProviderOptions: Array<{
-  value: ModelProvider;
-  label: string;
+type ProviderCardId = "product-ai" | "openai-byok" | "claude-byok" | "local-model";
+type ServerProviderId = "product-ai" | "openai" | "claude" | "mock";
+type ProviderDisplayStatus = "configured" | "missing env" | "disabled" | "available";
+
+type ProviderStatusItem = {
+  providerId: ServerProviderId;
+  status: ProviderDisplayStatus;
+  selected: boolean;
+  model: string;
+};
+
+type AIStatusResponse = {
+  realAIEnabled?: boolean;
+  realAIQAEnabled?: boolean;
+  realAITemplateReviewEnabled?: boolean;
+  providerStatus?: "configured" | "not configured" | "mock-only";
+  provider?: ServerProviderId;
+  providers?: ProviderStatusItem[];
+  dataUsageMode?: DataUsageMode;
+  model?: string;
+};
+
+type TestConnectionResponse = AIStatusResponse & {
+  ok?: boolean;
+  displayStatus?: ProviderDisplayStatus;
+  message?: string;
+};
+
+const providerCards: Array<{
+  id: ProviderCardId;
+  serverProviderId: ServerProviderId;
+  title: string;
+  description: Record<Locale, string>;
 }> = [
+  {
+    id: "product-ai",
+    serverProviderId: "product-ai",
+    title: "Product AI",
+    description: {
+      vi: "AI cua san pham, chay qua endpoint server-side cau hinh bang env.",
+      en: "Managed product AI through the server-side endpoint configured by env."
+    }
+  },
+  {
+    id: "openai-byok",
+    serverProviderId: "openai",
+    title: "OpenAI",
+    description: {
+      vi: "OpenAI qua route server-side. Khong nhap API key trong trinh duyet.",
+      en: "OpenAI through the server-side route. No browser API key entry."
+    }
+  },
+  {
+    id: "claude-byok",
+    serverProviderId: "claude",
+    title: "Claude",
+    description: {
+      vi: "Claude qua adapter server-side va bien moi truong rieng.",
+      en: "Claude through the server-side adapter and server env."
+    }
+  },
+  {
+    id: "local-model",
+    serverProviderId: "mock",
+    title: "Local / Mock",
+    description: {
+      vi: "Mock/local fallback, khong goi provider ben ngoai.",
+      en: "Mock/local fallback with no external provider call."
+    }
+  }
+];
+
+const modelProviderOptions: Array<{ value: ModelProvider; label: string }> = [
   { value: "product-ai", label: "Product AI" },
   { value: "openai-byok", label: "OpenAI" },
   { value: "claude-byok", label: "Claude" },
-  { value: "azure-openai", label: "Azure OpenAI" },
-  { value: "local-model", label: "Local / Enterprise AI" },
+  { value: "local-model", label: "Local / Mock" },
   { value: "no-ai", label: "No-AI" }
 ];
 
-const dataUsageModeOptions: Array<{
-  value: DataUsageMode;
-  label: string;
-}> = [
+const dataUsageModeOptions: Array<{ value: DataUsageMode; label: string }> = [
   { value: "local-only", label: "Local only" },
   { value: "cloud-processing", label: "Cloud processing" },
   { value: "no-training", label: "No training" },
-  {
-    value: "organization-private-learning",
-    label: "Organization-private learning"
-  }
+  { value: "organization-private-learning", label: "Organization-private learning" }
 ];
 
 const modelCapabilityOptions: Array<{
@@ -51,132 +114,123 @@ const modelCapabilityOptions: Array<{
   { value: "reasoning", label: "Reasoning" }
 ];
 
-const usageModeCards: Array<{
-  providerMode: ModelProvider;
-  title: string;
-  description: Record<Locale, string>;
-  status: "available" | "coming-soon";
-}> = [
-  {
-    providerMode: "product-ai",
-    title: "Product AI",
-    description: {
-      vi: "Chế độ AI do sản phẩm quản lý cho workflow hosted trong tương lai.",
-      en: "Managed product AI mode for future hosted workflows."
-    },
-    status: "coming-soon"
-  },
-  {
-    providerMode: "openai-byok",
-    title: "OpenAI",
-    description: {
-      vi: "Kết nối OpenAI qua server-side route, được kiểm soát bằng feature flag hiện có.",
-      en: "Server-side OpenAI provider path controlled by existing feature flags."
-    },
-    status: "available"
-  },
-  {
-    providerMode: "claude-byok",
-    title: "Claude",
-    description: {
-      vi: "Chế độ Claude BYOK được chuẩn bị cho provider adapter ở phase sau.",
-      en: "Claude BYOK mode is planned for a later provider adapter."
-    },
-    status: "coming-soon"
-  },
-  {
-    providerMode: "local-model",
-    title: "Local / Enterprise AI",
-    description: {
-      vi: "Chế độ model local hoặc endpoint doanh nghiệp cho triển khai có governance.",
-      en: "Local model or enterprise endpoint mode for future governed deployments."
-    },
-    status: "coming-soon"
-  }
+const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: string }> = [
+  { id: "input-brief-to-ptr", label: "Input Brief to PTR" },
+  { id: "ai-process-qa", label: "Process QA" },
+  { id: "ai-template-review", label: "Template Review" }
 ];
 
-const aiConnectionText = {
+const textByLocale = {
   vi: {
-    title: "Trung tâm kết nối AI",
-    description: "Chọn cách kết nối AI cho draft, QA và template review. UI chỉ lưu cấu hình không nhạy cảm.",
+    title: "Trung tam ket noi AI",
+    description:
+      "Chon provider, kiem tra ket noi va quan ly cau hinh AI khong nhay cam.",
+    save: "Luu thiet lap",
     reset: "Reset",
-    save: "Lưu thiết lập",
-    available: "Khả dụng",
-    comingSoon: "Sắp có",
-    dataWarning: "Cảnh báo dữ liệu",
-    dataWarningBody: "Dữ liệu có thể được gửi tới provider AI đã cấu hình khi bật xử lý cloud. Hãy kiểm tra chính sách dữ liệu trước khi tiếp tục.",
-    noBrowserKeys: "Không nhập hoặc lưu API key trong giao diện trình duyệt. Key thật phải nằm ở server-side.",
-    currentAiMode: "Chế độ AI hiện tại",
-    realAIFlagsEnabled: "Real AI đang bật",
-    mockLocalFallback: "Mock/local fallback",
-    environmentStatus: "Trạng thái môi trường",
-    serverProviderConfigured: "Provider server đã cấu hình",
-    serverProviderNotConfigured: "Provider server chưa cấu hình",
-    defaultModelCapability: "Năng lực model mặc định",
-    advancedSettings: "Thiết lập nâng cao",
-    hide: "Ẩn",
-    show: "Hiện",
-    providerMode: "Chế độ provider",
-    dataUsageMode: "Chế độ dùng dữ liệu",
-    status: "Trạng thái",
-    provider: "Provider",
-    model: "Model",
-    notSet: "Chưa thiết lập",
+    test: "Test connection",
+    testing: "Dang test...",
+    status: "Trang thai",
+    selected: "Dang chon",
+    configured: "Da cau hinh",
+    missingEnv: "Thieu env",
+    disabled: "Dang tat",
+    available: "Kha dung",
+    dataWarning: "Canh bao du lieu",
+    dataWarningBody:
+      "Cloud AI chi duoc goi qua server-side route. Khong nhap hoac hien thi API key trong browser.",
+    currentMode: "Che do hien tai",
     flags: "Feature flags",
-    allowCloudAI: "Cho phép Cloud AI",
-    allowCloudAIHelper: "Cho phép workflow AI đã bật gửi dữ liệu tới provider server-side đã cấu hình.",
-    requireApproval: "Bắt buộc phê duyệt",
-    requireApprovalHelper: "Output AI vẫn ở dạng draft, recommendation hoặc review trước khi Apply.",
-    organizationNote: "Ghi chú tổ chức",
-    organizationPlaceholder: "Ghi chú tổ chức hoặc tenant tùy chọn.",
-    changed: "Có thay đổi chưa lưu.",
-    saved: "Đã lưu cấu hình AI vào localStorage. Không lưu API key và không gọi external API.",
-    resetDone: "Đã reset Trung tâm kết nối AI về No-AI và Local only."
+    serverProvider: "Provider server",
+    dataMode: "Data mode server",
+    model: "Model",
+    advanced: "Advanced Settings",
+    show: "Hien",
+    hide: "An",
+    defaultProvider: "Default provider",
+    capability: "Default model/capability",
+    allowCloud: "Allow cloud AI",
+    requireApproval: "Require approval",
+    dataUsageMode: "Data usage mode",
+    organizationNote: "Organization note",
+    organizationPlaceholder: "Ghi chu tenant/to chuc tuy chon",
+    perSkillOverride: "Per-skill override",
+    inheritDefault: "Theo default provider",
+    saved: "Da luu preferences khong chua secret vao localStorage.",
+    resetDone: "Da reset ve local/mock va local-only.",
+    changed: "Co thay doi chua luu."
   },
   en: {
     title: "AI Connection Center",
-    description: "Choose how AI connects for draft, QA, and template review. This UI only stores non-secret preferences.",
-    reset: "Reset",
+    description:
+      "Choose providers, test connection, and manage non-secret AI preferences.",
     save: "Save settings",
-    available: "Available",
-    comingSoon: "Coming soon",
-    dataWarning: "Data warning",
-    dataWarningBody: "Data may be sent to the configured AI provider when cloud processing is enabled. Review your data policy before continuing.",
-    noBrowserKeys: "Do not enter or store API keys in this browser UI. Real provider keys must remain server-side.",
-    currentAiMode: "Current AI mode",
-    realAIFlagsEnabled: "Real AI flags enabled",
-    mockLocalFallback: "Mock/local fallback",
-    environmentStatus: "Environment status",
-    serverProviderConfigured: "Server provider configured",
-    serverProviderNotConfigured: "Server provider not configured",
-    defaultModelCapability: "Default model capability",
-    advancedSettings: "Advanced Settings",
-    hide: "Hide",
-    show: "Show",
-    providerMode: "Provider mode",
-    dataUsageMode: "Data usage mode",
+    reset: "Reset",
+    test: "Test connection",
+    testing: "Testing...",
     status: "Status",
-    provider: "Provider",
+    selected: "Selected",
+    configured: "Configured",
+    missingEnv: "Missing env",
+    disabled: "Disabled",
+    available: "Available",
+    dataWarning: "Data warning",
+    dataWarningBody:
+      "Cloud AI is only called through the server-side route. API keys are never entered or displayed in the browser.",
+    currentMode: "Current mode",
+    flags: "Feature flags",
+    serverProvider: "Server provider",
+    dataMode: "Server data mode",
     model: "Model",
-    notSet: "Not set",
-    flags: "Flags",
-    allowCloudAI: "Allow Cloud AI",
-    allowCloudAIHelper: "Allow enabled AI workflows to send data to the configured server-side provider.",
+    advanced: "Advanced Settings",
+    show: "Show",
+    hide: "Hide",
+    defaultProvider: "Default provider",
+    capability: "Default model/capability",
+    allowCloud: "Allow cloud AI",
     requireApproval: "Require approval",
-    requireApprovalHelper: "AI output stays in draft, recommendation, or review before Apply.",
+    dataUsageMode: "Data usage mode",
     organizationNote: "Organization note",
-    organizationPlaceholder: "Optional organization or tenant note.",
-    changed: "Unsaved changes.",
-    saved: "Saved AI connection preferences to localStorage. No API key is stored and no external API is called.",
-    resetDone: "Reset AI Connection Center to No-AI and Local only."
+    organizationPlaceholder: "Optional tenant or organization note",
+    perSkillOverride: "Per-skill override",
+    inheritDefault: "Use default provider",
+    saved: "Saved non-secret preferences to localStorage.",
+    resetDone: "Reset to local/mock and local-only.",
+    changed: "Unsaved changes."
   }
 } satisfies Record<Locale, Record<string, string>>;
 
-type FeatureFlagState = {
-  enableRealAI: boolean;
-  enableRealAIQA: boolean;
-  enableRealAITemplateReview: boolean;
-};
+function getCardStatus(
+  card: (typeof providerCards)[number],
+  providerStatuses: ProviderStatusItem[],
+  realAIEnabled: boolean
+): ProviderDisplayStatus {
+  if (card.serverProviderId === "mock") {
+    return "available";
+  }
+
+  return (
+    providerStatuses.find((item) => item.providerId === card.serverProviderId)?.status ??
+    (realAIEnabled ? "missing env" : "disabled")
+  );
+}
+
+function getStatusText(status: ProviderDisplayStatus, locale: Locale) {
+  const text = textByLocale[locale];
+
+  if (status === "configured") {
+    return text.configured;
+  }
+
+  if (status === "missing env") {
+    return text.missingEnv;
+  }
+
+  if (status === "disabled") {
+    return text.disabled;
+  }
+
+  return text.available;
+}
 
 export function AIProviderSettingsPanel() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
@@ -185,16 +239,9 @@ export function AIProviderSettingsPanel() {
   );
   const [message, setMessage] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [realAIEnabled, setRealAIEnabled] = useState(false);
-  const [providerStatus, setProviderStatus] =
-    useState<"configured" | "not configured" | "mock-only">("mock-only");
-  const [environmentProvider, setEnvironmentProvider] = useState("");
-  const [environmentModel, setEnvironmentModel] = useState("");
-  const [featureFlags, setFeatureFlags] = useState<FeatureFlagState>({
-    enableRealAI: false,
-    enableRealAIQA: false,
-    enableRealAITemplateReview: false
-  });
+  const [isTesting, setIsTesting] = useState(false);
+  const [serverStatus, setServerStatus] = useState<AIStatusResponse>({});
+  const text = textByLocale[locale];
 
   useEffect(() => {
     setSettings(readAIProviderSettings());
@@ -217,64 +264,34 @@ export function AIProviderSettingsPanel() {
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
+  async function loadAIMode() {
+    try {
+      const response = await fetch("/api/ai/run-skill", { method: "GET" });
+      const data = (await response.json()) as AIStatusResponse;
 
-    async function loadAIMode() {
-      try {
-        const response = await fetch("/api/ai/run-skill", {
-          method: "GET"
-        });
-        const data = (await response.json()) as {
-          realAIEnabled?: boolean;
-          realAIQAEnabled?: boolean;
-          realAITemplateReviewEnabled?: boolean;
-          providerStatus?: "configured" | "not configured" | "mock-only";
-          provider?: string;
-          model?: string;
-        };
-
-        if (active) {
-          setRealAIEnabled(
-            data.realAIEnabled === true ||
-              data.realAIQAEnabled === true ||
-              data.realAITemplateReviewEnabled === true
-          );
-          setProviderStatus(data.providerStatus ?? "mock-only");
-          setEnvironmentProvider(data.provider ?? "");
-          setEnvironmentModel(data.model ?? "");
-          setFeatureFlags({
-            enableRealAI: data.realAIEnabled === true,
-            enableRealAIQA: data.realAIQAEnabled === true,
-            enableRealAITemplateReview:
-              data.realAITemplateReviewEnabled === true
-          });
-        }
-      } catch {
-        if (active) {
-          setRealAIEnabled(false);
-          setProviderStatus("mock-only");
-          setEnvironmentProvider("");
-          setEnvironmentModel("");
-          setFeatureFlags({
-            enableRealAI: false,
-            enableRealAIQA: false,
-            enableRealAITemplateReview: false
-          });
-        }
-      }
+      setServerStatus(data);
+    } catch {
+      setServerStatus({});
     }
+  }
 
+  useEffect(() => {
     loadAIMode();
-
-    return () => {
-      active = false;
-    };
   }, []);
+
+  const realAIEnabled =
+    serverStatus.realAIEnabled === true ||
+    serverStatus.realAIQAEnabled === true ||
+    serverStatus.realAITemplateReviewEnabled === true;
+  const selectedServerProvider = serverStatus.provider ?? "mock";
+  const providerStatuses = useMemo(
+    () => serverStatus.providers ?? [],
+    [serverStatus.providers]
+  );
 
   function updateSettings(nextSettings: AIProviderSettings) {
     setSettings(nextSettings);
-    setMessage(aiConnectionText[locale].changed);
+    setMessage(text.changed);
   }
 
   function saveSettings() {
@@ -284,6 +301,7 @@ export function AIProviderSettingsPanel() {
       defaultModelCapability: settings.defaultModelCapability,
       allowCloudAI: settings.allowCloudAI,
       requireApprovalForAIOutput: settings.requireApprovalForAIOutput,
+      perSkillProviderOverrides: settings.perSkillProviderOverrides,
       modelName: settings.modelName,
       organizationId: settings.organizationId,
       tenantId: settings.tenantId
@@ -293,45 +311,84 @@ export function AIProviderSettingsPanel() {
       AI_PROVIDER_SETTINGS_STORAGE_KEY,
       JSON.stringify(nonSecretSettings)
     );
-    setMessage(aiConnectionText[locale].saved);
+    setMessage(text.saved);
   }
 
   function resetSettings() {
     setSettings(defaultAIProviderSettings);
     window.localStorage.removeItem(AI_PROVIDER_SETTINGS_STORAGE_KEY);
-    setMessage(aiConnectionText[locale].resetDone);
+    setMessage(text.resetDone);
   }
 
-  function selectUsageMode(providerMode: ModelProvider) {
-    setSettings((currentSettings) => ({
-      ...currentSettings,
+  function selectProvider(providerMode: ModelProvider) {
+    updateSettings({
+      ...settings,
       providerMode,
       dataUsageMode:
-        providerMode === "no-ai" || providerMode === "local-model"
+        providerMode === "local-model" || providerMode === "no-ai"
           ? "local-only"
-          : currentSettings.dataUsageMode,
-      allowCloudAI:
-        providerMode === "openai-byok" ? currentSettings.allowCloudAI : false
-    }));
-    setMessage(aiConnectionText[locale].changed);
+          : settings.dataUsageMode
+    });
   }
 
-  const text = aiConnectionText[locale];
-  const configuredModelLabel =
-    environmentModel ||
-    settings.modelName ||
-    (locale === "vi" ? "Theo năng lực / chưa thiết lập" : "Capability-based / not set");
-  const environmentStatusLabel =
-    providerStatus === "mock-only"
-      ? text.mockLocalFallback
-      : providerStatus === "configured"
-        ? text.serverProviderConfigured
-        : text.serverProviderNotConfigured;
+  async function testConnection() {
+    setIsTesting(true);
+
+    try {
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ action: "test-connection" })
+      });
+      const data = (await response.json()) as TestConnectionResponse;
+
+      setServerStatus((current) => ({
+        ...current,
+        ...data
+      }));
+      setMessage(data.message ?? (data.ok ? text.available : text.missingEnv));
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Connection test failed."
+      );
+    } finally {
+      setIsTesting(false);
+    }
+  }
+
+  function updateSkillOverride(
+    skillId: AISkillOverrideId,
+    providerMode: ModelProvider | ""
+  ) {
+    const nextOverrides = {
+      ...(settings.perSkillProviderOverrides ?? {})
+    };
+
+    if (!providerMode) {
+      delete nextOverrides[skillId];
+    } else {
+      nextOverrides[skillId] = providerMode;
+    }
+
+    updateSettings({
+      ...settings,
+      perSkillProviderOverrides: nextOverrides
+    });
+  }
 
   return (
     <SessionFrame
       actions={
         <>
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={testConnection}
+            type="button"
+          >
+            {isTesting ? text.testing : text.test}
+          </button>
           <button
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             onClick={resetSettings}
@@ -353,20 +410,20 @@ export function AIProviderSettingsPanel() {
       title={text.title}
     >
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {usageModeCards.map((card) => {
-          const isSelected = settings.providerMode === card.providerMode;
-          const isDisabled = card.status === "coming-soon";
+        {providerCards.map((card) => {
+          const status = getCardStatus(card, providerStatuses, realAIEnabled);
+          const isSelected = settings.providerMode === card.id;
+          const isServerSelected = selectedServerProvider === card.serverProviderId;
 
           return (
             <button
-              className={`min-h-40 rounded border p-4 text-left transition ${
+              className={`min-h-44 rounded border p-4 text-left transition ${
                 isSelected
                   ? "border-slate-950 bg-slate-950 text-white"
                   : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
-              } ${isDisabled ? "cursor-not-allowed opacity-60" : ""}`}
-              disabled={isDisabled}
-              key={card.providerMode}
-              onClick={() => selectUsageMode(card.providerMode)}
+              }`}
+              key={card.id}
+              onClick={() => selectProvider(card.id)}
               type="button"
             >
               <span className="block text-sm font-semibold">{card.title}</span>
@@ -374,13 +431,26 @@ export function AIProviderSettingsPanel() {
                 className={`mt-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
                   isSelected
                     ? "border-white/30 bg-white/10 text-white"
-                    : card.status === "available"
+                    : status === "configured" || status === "available"
                       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : "border-amber-200 bg-amber-50 text-amber-800"
+                      : status === "missing env"
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : "border-slate-200 bg-slate-100 text-slate-600"
                 }`}
               >
-                {card.status === "available" ? text.available : text.comingSoon}
+                {getStatusText(status, locale)}
               </span>
+              {isServerSelected ? (
+                <span
+                  className={`ml-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
+                    isSelected
+                      ? "border-white/30 bg-white/10 text-white"
+                      : "border-sky-200 bg-sky-50 text-sky-800"
+                  }`}
+                >
+                  {text.selected}
+                </span>
+              ) : null}
               <span
                 className={`mt-3 block text-sm leading-6 ${
                   isSelected ? "text-slate-200" : "text-slate-600"
@@ -396,36 +466,46 @@ export function AIProviderSettingsPanel() {
       <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <p className="font-semibold">{text.dataWarning}</p>
         <p className="mt-1">{text.dataWarningBody}</p>
-        <p className="mt-1">{text.noBrowserKeys}</p>
       </div>
 
       <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
-        <div className="grid gap-3 text-sm md:grid-cols-3">
+        <div className="grid gap-3 text-sm md:grid-cols-4">
           <div>
             <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.currentAiMode}
+              {text.currentMode}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {realAIEnabled ? text.realAIFlagsEnabled : text.mockLocalFallback}
+              {realAIEnabled ? "Real AI" : "Mock/local"}
             </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.environmentStatus}
+              {text.serverProvider}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {environmentStatusLabel}
+              {serverStatus.provider ?? "mock"}
             </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.defaultModelCapability}
+              {text.dataMode}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {settings.defaultModelCapability}
+              {serverStatus.dataUsageMode ?? "local-only"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              {text.model}
+            </p>
+            <p className="mt-1 font-semibold text-slate-950">
+              {serverStatus.model || settings.modelName || "-"}
             </p>
           </div>
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
+        </p>
       </div>
 
       <div className="mt-4 overflow-hidden rounded border border-slate-200 bg-white">
@@ -434,7 +514,7 @@ export function AIProviderSettingsPanel() {
           onClick={() => setAdvancedOpen((isOpen) => !isOpen)}
           type="button"
         >
-          <span>{text.advancedSettings}</span>
+          <span>{text.advanced}</span>
           <span className="text-xs text-slate-500">
             {advancedOpen ? text.hide : text.show}
           </span>
@@ -445,7 +525,7 @@ export function AIProviderSettingsPanel() {
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
-                  {text.providerMode}
+                  {text.defaultProvider}
                 </span>
                 <select
                   className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
@@ -459,7 +539,7 @@ export function AIProviderSettingsPanel() {
                 >
                   {modelProviderOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label} ({option.value})
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -481,7 +561,7 @@ export function AIProviderSettingsPanel() {
                 >
                   {dataUsageModeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label} ({option.value})
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -489,7 +569,7 @@ export function AIProviderSettingsPanel() {
 
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
-                  {text.defaultModelCapability}
+                  {text.capability}
                 </span>
                 <select
                   className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
@@ -504,29 +584,29 @@ export function AIProviderSettingsPanel() {
                 >
                   {modelCapabilityOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label} ({option.value})
+                      {option.label}
                     </option>
                   ))}
                 </select>
               </label>
 
-              <div className="rounded border border-slate-200 bg-slate-50 p-3 text-sm">
-                <p className="font-semibold text-slate-900">
-                  {text.environmentStatus}
-                </p>
-                <p className="mt-1 text-slate-600">
-                  {text.status}: {environmentStatusLabel}
-                </p>
-                <p className="mt-1 text-slate-600">
-                  {text.provider}: {environmentProvider || text.notSet}
-                </p>
-                <p className="mt-1 text-slate-600">
-                  {text.model}: {configuredModelLabel}
-                </p>
-                <p className="mt-1 text-slate-600">
-                  {text.flags}: ENABLE_REAL_AI={String(featureFlags.enableRealAI)}, ENABLE_REAL_AI_QA={String(featureFlags.enableRealAIQA)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(featureFlags.enableRealAITemplateReview)}
-                </p>
-              </div>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">
+                  {text.model}
+                </span>
+                <input
+                  className="mt-2 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                  onChange={(event) =>
+                    updateSettings({
+                      ...settings,
+                      modelName: event.target.value
+                    })
+                  }
+                  placeholder="optional display name only"
+                  type="text"
+                  value={settings.modelName ?? ""}
+                />
+              </label>
 
               <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
                 <input
@@ -540,14 +620,7 @@ export function AIProviderSettingsPanel() {
                   }
                   type="checkbox"
                 />
-                <span>
-                  <span className="block font-medium text-slate-900">
-                    {text.allowCloudAI}
-                  </span>
-                  <span className="mt-1 block text-slate-600">
-                    {text.allowCloudAIHelper}
-                  </span>
-                </span>
+                <span className="font-medium text-slate-900">{text.allowCloud}</span>
               </label>
 
               <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
@@ -562,13 +635,8 @@ export function AIProviderSettingsPanel() {
                   }
                   type="checkbox"
                 />
-                <span>
-                  <span className="block font-medium text-slate-900">
-                    {text.requireApproval}
-                  </span>
-                  <span className="mt-1 block text-slate-600">
-                    {text.requireApprovalHelper}
-                  </span>
+                <span className="font-medium text-slate-900">
+                  {text.requireApproval}
                 </span>
               </label>
 
@@ -589,14 +657,44 @@ export function AIProviderSettingsPanel() {
                   value={settings.organizationId ?? ""}
                 />
               </label>
+
+              <div className="lg:col-span-2 rounded border border-slate-200 bg-slate-50 p-3">
+                <p className="text-sm font-semibold text-slate-900">
+                  {text.perSkillOverride}
+                </p>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  {skillOverrideOptions.map((skill) => (
+                    <label className="block" key={skill.id}>
+                      <span className="text-xs font-semibold text-slate-600">
+                        {skill.label}
+                      </span>
+                      <select
+                        className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                        onChange={(event) =>
+                          updateSkillOverride(
+                            skill.id,
+                            event.target.value as ModelProvider | ""
+                          )
+                        }
+                        value={settings.perSkillProviderOverrides?.[skill.id] ?? ""}
+                      >
+                        <option value="">{text.inheritDefault}</option>
+                        {modelProviderOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
       </div>
 
-      {message ? (
-        <p className="mt-3 text-sm text-slate-600">{message}</p>
-      ) : null}
+      {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
     </SessionFrame>
   );
 }

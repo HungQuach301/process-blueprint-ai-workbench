@@ -107,6 +107,11 @@ export function readAIProviderSettings(): AIProviderSettings {
       )
         ? parsedSettings.requireApprovalForAIOutput
         : defaultAIProviderSettings.requireApprovalForAIOutput,
+      perSkillProviderOverrides:
+        typeof parsedSettings.perSkillProviderOverrides === "object" &&
+        parsedSettings.perSkillProviderOverrides !== null
+          ? parsedSettings.perSkillProviderOverrides
+          : undefined,
       provider: undefined
     };
   } catch {

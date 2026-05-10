@@ -14,21 +14,21 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- Fixed File Intake behavior for MVP1.
-- PDF file rows now expose a clear `Generate Draft PTR` action.
-- PDF draft generation extracts locally and shows Draft Preview without auto-applying to Process Task Register.
-- Uploading a new file clears stale extraction previews, stale draft preview, and validation/quality blocking state.
-- Clearing or removing files clears file-derived previews and draft state.
-- Image/OCR files are accepted for selection but shown as unsupported; no OCR implementation or external API call was added.
+- Redesigned AI Provider Settings into AI Connection Center.
+- Added usage mode cards for Product AI, OpenAI, Claude, and Local / Enterprise AI.
+- Kept unsupported provider modes visibly disabled / coming soon while leaving existing OpenAI server-side path intact.
+- Reduced data safety copy to one warning alert.
+- Moved technical fields into an Advanced Settings accordion that is closed by default.
+- Kept API keys out of browser UI and localStorage; only non-secret preferences and server-reported status are shown.
 
 ## Files changed
 
-- `src/components/input-brief/AIInputBriefPanel.tsx`
+- `src/components/ai-settings/AIProviderSettingsPanel.tsx`
 - `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- No new product or architecture decision was made. This session applied a scoped MVP1 File Intake fix only.
+- No new product or architecture decision was made. This session applied a scoped AI Connection Center UI redesign only.
 
 ## Current blockers
 
@@ -36,7 +36,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-Manually verify File Intake: PDF upload shows `Generate Draft PTR`, PDF generation shows draft preview without auto-apply, uploading another file clears the stale draft, image upload shows OCR unsupported, and remove/clear file clears file-derived state.
+Manually verify AI Connection Center: usage cards are clear, only one data warning appears, Advanced Settings is closed by default, server env status shows without exposing secrets, and Save/Reset still persist only non-secret preferences.
 
 ## Exact prompt for next ChatGPT session
 

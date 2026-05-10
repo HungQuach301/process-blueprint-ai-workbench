@@ -169,13 +169,13 @@ export const productDeliveryPromptPacks: AIPromptPack[] = [
     description:
       "Generate an SRS response from process, BRD, and constraint context.",
     outputContract:
-      "SRSResponse with functionalRequirements, nonFunctionalRequirements, assumptions, openQuestions, and traceLinks.",
+      "SRSResponse with stable requirement ids, actorsRoles, systemsComponents, functionalRequirements, nonFunctionalRequirements, dataRequirements, interfaceIntegrationRequirements, constraints, assumptions, openQuestions, qualityIssues, and traceLinks.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Draft software requirements from process context without inventing implementation details not supported by the source."
+          "Draft a structured SRS from BRD draft, notes/chat, and Process Task Register context. Include stable ids for functional requirements and non-functional requirements, actor/role references, system/component references, data requirements, interface/integration requirements, constraints, assumptions, open questions, and trace links where possible. Add qualityIssues for requirement-not-testable, missing-actor-system, missing-nfr, or unclear-dependency instead of hiding uncertainty. Do not invent implementation details not supported by the source."
       }
     ]
   },

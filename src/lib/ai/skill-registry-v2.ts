@@ -294,12 +294,60 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "product-delivery-brd-v1"
   },
   {
+    skillId: "brd-to-srs",
+    version: "1.0.0",
+    module: "module-3-product-delivery",
+    status: "real-ai-ready",
+    description:
+      "Generate a structured SRS draft from BRD draft, Process Task Register, and optional source context.",
+    inputSchema: {
+      id: "ProductDeliveryContext",
+      description:
+        "BRD draft plus optional ProcessTask[], notes/chat, project context, AI Input Brief source summary, and uploaded file text.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "SRSResponse",
+      description:
+        "Structured SRS with stable functional/non-functional requirement ids, actors/roles, systems/components, data requirements, interfaces, constraints, assumptions, open questions, quality issues, and trace links.",
+      validatorId: "validateSRSResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "product-delivery-srs-v1"
+  },
+  {
+    skillId: "notes-to-srs",
+    version: "1.0.0",
+    module: "module-3-product-delivery",
+    status: "real-ai-ready",
+    description:
+      "Generate a structured SRS draft from notes/chat and optional Product Delivery source context.",
+    inputSchema: {
+      id: "ProductDeliveryContext",
+      description:
+        "Notes/chat plus optional project context, ProcessTask[], AI Input Brief source summary, uploaded file text, and BRD draft.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "SRSResponse",
+      description:
+        "Structured SRS with functional and non-functional requirements, source references, assumptions, open questions, and quality issues.",
+      validatorId: "validateSRSResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "product-delivery-srs-v1"
+  },
+  {
     skillId: "ptr-to-srs-outline",
     version: "1.0.0",
     module: "module-3-product-delivery",
-    status: "planned",
+    status: "implemented",
     description:
-      "Generate SRS outline from process, BRD, and constraint context.",
+      "Legacy deterministic SRS outline from process, BRD, and constraint context.",
     inputSchema: {
       id: "ProductDeliveryContext",
       description: "ProcessTask[], BRD draft, constraints, and product context.",

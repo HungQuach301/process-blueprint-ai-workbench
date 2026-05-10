@@ -409,7 +409,7 @@ export function validateAISkillInput(
     return validateProcessTaskArrayInput(value);
   }
 
-  if (skillId === "notes-to-brd") {
+  if (skillId === "notes-to-brd" || skillId === "notes-to-srs") {
     if (!isObject(value)) {
       return {
         ok: false,
@@ -431,8 +431,34 @@ export function validateAISkillInput(
       return {
         ok: false,
         errors: [
-          "notes-to-brd requires notes, projectContext, sourceSummary, or uploadedFileText with enough content."
+          `${skillId} requires notes, projectContext, sourceSummary, or uploadedFileText with enough content.`
         ]
+      };
+    }
+
+    return {
+      ok: true,
+      value,
+      errors: []
+    };
+  }
+
+  if (skillId === "brd-to-srs") {
+    if (!isObject(value)) {
+      return {
+        ok: false,
+        errors: ["ProductDeliveryContext must be an object."]
+      };
+    }
+
+    if (
+      !isObject(value.brd) &&
+      !Array.isArray(value.processTasks) &&
+      !isString(value.notes)
+    ) {
+      return {
+        ok: false,
+        errors: ["brd-to-srs requires brd, processTasks, or notes."]
       };
     }
 
@@ -522,7 +548,11 @@ export function validateAISkillOutput(
     return validateBRDResponse(value);
   }
 
-  if (skillId === "ptr-to-srs-outline") {
+  if (
+    skillId === "brd-to-srs" ||
+    skillId === "notes-to-srs" ||
+    skillId === "ptr-to-srs-outline"
+  ) {
     return validateSRSResponse(value);
   }
 

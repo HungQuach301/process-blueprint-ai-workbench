@@ -92,7 +92,9 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 | `notes-to-brd` | `real-ai-ready` | Generate structured BRD from notes/chat and optional source context. | Notes/chat, project context, AI Input Brief summary, uploaded file text | Structured BRD with objective, context, scope, stakeholders, requirements, assumptions, open questions, risks/dependencies, and quality issues | Preview/export only |
 | `ptr-to-brd` | `real-ai-ready` | Generate structured BRD from Process Task Register and optional source context. | `ProcessTask[]`, notes/chat, AI Input Brief summary, uploaded file text | Structured BRD with process references to `ProcessTask.stepId` | Preview/export only |
 | `ptr-to-brd-outline` | `real-ai-ready` | Legacy route alias for PTR to structured BRD generation. | `ProcessTask[]`, AI Input Brief summary, manual project context | Structured BRD draft with trace references | Preview/export only |
-| `ptr-to-srs-outline` | `planned` | Generate SRS outline from process and product context. | `ProcessTask[]`, BRD draft, constraints | SRS outline draft, assumptions, open questions | Preview/save/export only |
+| `brd-to-srs` | `real-ai-ready` | Generate structured SRS from BRD draft, PTR, and optional source context. | BRD draft, optional `ProcessTask[]`, notes/chat, source summary, uploaded file text | Structured SRS with stable functional/non-functional requirement ids, actors/roles, systems/components, data requirements, interfaces, constraints, assumptions, open questions, quality issues, and trace links | Preview/export only |
+| `notes-to-srs` | `real-ai-ready` | Generate structured SRS from notes/chat and optional source context. | Notes/chat, project context, AI Input Brief summary, uploaded file text, optional BRD/PTR context | Structured SRS with stable ids, source references where possible, assumptions, open questions, and quality issues | Preview/export only |
+| `ptr-to-srs-outline` | `implemented` | Legacy deterministic SRS outline from process and product context. | `ProcessTask[]`, BRD draft, constraints | SRS outline draft, assumptions, open questions | Preview/export only |
 | `brd-or-notes-to-user-stories` | `planned` | Generate user stories and acceptance criteria from BRD, notes, or structured requirements. | BRD draft or notes, optional persona/module/scope | `UserStorySet` draft, acceptance criteria, assumptions, open questions, trace links | User review and save/export as draft artifact |
 | `ptr-to-user-stories` | `implemented` | Generate simple user stories from Process Task Register. | `ProcessTask[]`, optional project context | User stories with `ProcessTask.stepId` trace references | Preview/export only |
 | `user-stories-to-acceptance-criteria` | `implemented` | Generate acceptance criteria from PTR-derived user stories. | User stories or `ProcessTask[]` | Acceptance criteria draft | Preview/export only |
@@ -254,6 +256,36 @@ Output:
 
 Apply behavior:
 Preview/export only.
+
+### brd-to-srs / notes-to-srs
+
+Purpose:
+Generate a structured SRS draft from reviewed BRD preview, notes/chat, Process Task Register, and optional source context.
+
+Input:
+- BRD draft when available
+- notes/chat text
+- `ProcessTask[]` for source `stepId` traceability
+- optional project context
+- optional AI Input Brief source summary
+- optional uploaded file text
+
+Output:
+- structured SRS
+- stable functional requirement ids such as `FR-001`
+- stable non-functional requirement ids such as `NFR-001`
+- actors/roles
+- systems/components
+- data requirements
+- interface/integration requirements
+- constraints
+- assumptions
+- open questions
+- qualityIssues for not-testable requirements, missing actor/system, missing NFR, and unclear dependency
+- trace links and source references where possible
+
+Apply behavior:
+Preview/export only. No auto-save, no XML mutation, and no Artifact Graph persistence in this slice.
 
 ### ptr-to-ai-coding-pack
 

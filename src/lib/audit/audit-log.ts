@@ -12,7 +12,9 @@ export type AuditAction =
   | "export_ai_coding_pack"
   | "export_product_delivery_draft"
   | "generate_brd_preview"
-  | "export_brd_draft";
+  | "export_brd_draft"
+  | "generate_srs_preview"
+  | "export_srs_draft";
 
 export type AuditLogEntry = {
   id: string;

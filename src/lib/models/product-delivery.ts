@@ -9,7 +9,11 @@ export type ProductDeliveryQualityIssueCode =
   | "missing-objective"
   | "missing-scope"
   | "vague-requirement"
-  | "missing-stakeholder";
+  | "missing-stakeholder"
+  | "requirement-not-testable"
+  | "missing-actor-system"
+  | "missing-nfr"
+  | "unclear-dependency";
 
 export type ProductDeliveryQualityIssue = {
   code: ProductDeliveryQualityIssueCode;
@@ -88,17 +92,82 @@ export type FunctionalRequirement = {
   id: string;
   title: string;
   description: string;
-  sourceStepIds: string[];
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+  actorRoleIds?: string[];
+  systemComponentIds?: string[];
+  dataRequirementIds?: string[];
+};
+
+export type NonFunctionalRequirement = {
+  id: string;
+  category:
+    | "security"
+    | "performance"
+    | "audit"
+    | "usability"
+    | "reliability"
+    | "compliance"
+    | "other";
+  description: string;
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+};
+
+export type ActorRole = {
+  id: string;
+  name: string;
+  responsibilities: string[];
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+};
+
+export type SystemComponent = {
+  id: string;
+  name: string;
+  description: string;
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+};
+
+export type DataRequirement = {
+  id: string;
+  name: string;
+  description: string;
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+};
+
+export type InterfaceIntegrationRequirement = {
+  id: string;
+  name: string;
+  description: string;
+  systems?: string[];
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+};
+
+export type SRSConstraint = {
+  id: string;
+  description: string;
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
 };
 
 export type SRS = {
   id: string;
   title: string;
   overview: string;
+  actorsRoles: ActorRole[];
+  systemsComponents: SystemComponent[];
   functionalRequirements: FunctionalRequirement[];
-  nonFunctionalRequirements: string[];
+  nonFunctionalRequirements: NonFunctionalRequirement[];
+  dataRequirements: DataRequirement[];
+  interfaceIntegrationRequirements: InterfaceIntegrationRequirement[];
+  constraints: SRSConstraint[];
   assumptions: Assumption[];
   openQuestions: OpenQuestion[];
+  qualityIssues: ProductDeliveryQualityIssue[];
   traceLinks?: ProductDeliveryTraceLink[];
 };
 
@@ -176,6 +245,17 @@ export type BRDGenerationInput = {
   source: "process-task-register" | "notes-chat";
 };
 
+export type SRSGenerationInput = {
+  brd?: BRD;
+  processTasks?: ProcessTask[];
+  projectContext?: string;
+  notes?: string;
+  sourceSummary?: string;
+  uploadedFileText?: string;
+  generatedAt: string;
+  source: "brd-draft" | "notes-chat";
+};
+
 export type SchemaValidationResult<T> =
   | {
       ok: true;
@@ -214,6 +294,16 @@ function validateStringArray(
 
   if (requireNonEmpty && value.length === 0) {
     errors.push(`${fieldName} must contain at least one item.`);
+  }
+}
+
+function validateOptionalStringArray(
+  value: unknown,
+  fieldName: string,
+  errors: string[]
+) {
+  if (value !== undefined) {
+    validateStringArray(value, fieldName, errors);
   }
 }
 
@@ -314,7 +404,11 @@ function validateQualityIssues(value: unknown, errors: string[]) {
     "missing-objective",
     "missing-scope",
     "vague-requirement",
-    "missing-stakeholder"
+    "missing-stakeholder",
+    "requirement-not-testable",
+    "missing-actor-system",
+    "missing-nfr",
+    "unclear-dependency"
   ]);
   const validSeverities = new Set(["error", "warning"]);
 
@@ -341,6 +435,87 @@ function validateQualityIssues(value: unknown, errors: string[]) {
       validateString(issue.targetId, `brd.qualityIssues[${index}].targetId`, errors);
     }
   });
+}
+
+export function runSRSQualityGate(srs: SRS) {
+  const issues: ProductDeliveryQualityIssue[] = [...srs.qualityIssues];
+  const testableWords = [
+    "must",
+    "shall",
+    "should",
+    "allow",
+    "support",
+    "provide",
+    "validate",
+    "generate",
+    "record",
+    "display",
+    "export"
+  ];
+  const unclearWords = ["to be confirmed", "tbd", "n/a", "unknown", "unclear"];
+
+  if (srs.nonFunctionalRequirements.length === 0) {
+    issues.push({
+      code: "missing-nfr",
+      severity: "warning",
+      message: "SRS should include at least one non-functional requirement."
+    });
+  }
+
+  srs.functionalRequirements.forEach((requirement) => {
+    const description = requirement.description.trim().toLowerCase();
+    const hasTestableVerb = testableWords.some((word) =>
+      description.includes(word)
+    );
+
+    if (description.length < 24 || !hasTestableVerb) {
+      issues.push({
+        code: "requirement-not-testable",
+        severity: "warning",
+        message: `Functional requirement ${requirement.id} may not be testable enough.`,
+        targetId: requirement.id
+      });
+    }
+
+    if (
+      (requirement.actorRoleIds ?? []).length === 0 &&
+      (requirement.systemComponentIds ?? []).length === 0
+    ) {
+      issues.push({
+        code: "missing-actor-system",
+        severity: "warning",
+        message: `Functional requirement ${requirement.id} should reference an actor/role or system/component.`,
+        targetId: requirement.id
+      });
+    }
+  });
+
+  [...srs.interfaceIntegrationRequirements, ...srs.constraints].forEach((item) => {
+    const description = item.description.toLowerCase();
+
+    if (unclearWords.some((word) => description.includes(word))) {
+      issues.push({
+        code: "unclear-dependency",
+        severity: "warning",
+        message: `${item.id} includes an unclear dependency or constraint.`,
+        targetId: item.id
+      });
+    }
+  });
+
+  const dedupedIssues = Array.from(
+    new Map(
+      issues.map((issue) => [
+        `${issue.code}:${issue.targetId ?? ""}:${issue.message}`,
+        issue
+      ])
+    ).values()
+  );
+
+  return {
+    canPreview: !dedupedIssues.some((issue) => issue.severity === "error"),
+    issues: dedupedIssues
+  };
 }
 
 export function runBRDQualityGate(brd: BRD) {
@@ -572,6 +747,64 @@ export function validateSRS(value: unknown): SchemaValidationResult<SRS> {
     validateString(value[field], `srs.${field}`, errors)
   );
 
+  if (!Array.isArray(value.actorsRoles)) {
+    errors.push("srs.actorsRoles must be an array.");
+  } else {
+    value.actorsRoles.forEach((role, index) => {
+      if (!isObject(role)) {
+        errors.push(`srs.actorsRoles[${index}] must be an object.`);
+        return;
+      }
+
+      validateString(role.id, `srs.actorsRoles[${index}].id`, errors);
+      validateString(role.name, `srs.actorsRoles[${index}].name`, errors);
+      validateStringArray(
+        role.responsibilities,
+        `srs.actorsRoles[${index}].responsibilities`,
+        errors
+      );
+      validateOptionalStringArray(
+        role.sourceStepIds,
+        `srs.actorsRoles[${index}].sourceStepIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        role.sourceRequirementIds,
+        `srs.actorsRoles[${index}].sourceRequirementIds`,
+        errors
+      );
+    });
+  }
+
+  if (!Array.isArray(value.systemsComponents)) {
+    errors.push("srs.systemsComponents must be an array.");
+  } else {
+    value.systemsComponents.forEach((component, index) => {
+      if (!isObject(component)) {
+        errors.push(`srs.systemsComponents[${index}] must be an object.`);
+        return;
+      }
+
+      validateString(component.id, `srs.systemsComponents[${index}].id`, errors);
+      validateString(component.name, `srs.systemsComponents[${index}].name`, errors);
+      validateString(
+        component.description,
+        `srs.systemsComponents[${index}].description`,
+        errors
+      );
+      validateOptionalStringArray(
+        component.sourceStepIds,
+        `srs.systemsComponents[${index}].sourceStepIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        component.sourceRequirementIds,
+        `srs.systemsComponents[${index}].sourceRequirementIds`,
+        errors
+      );
+    });
+  }
+
   if (
     !Array.isArray(value.functionalRequirements) ||
     value.functionalRequirements.length === 0
@@ -591,22 +824,178 @@ export function validateSRS(value: unknown): SchemaValidationResult<SRS> {
           errors
         )
       );
-      validateStringArray(
+      validateOptionalStringArray(
         requirement.sourceStepIds,
         `srs.functionalRequirements[${index}].sourceStepIds`,
-        errors,
-        true
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.sourceRequirementIds,
+        `srs.functionalRequirements[${index}].sourceRequirementIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.actorRoleIds,
+        `srs.functionalRequirements[${index}].actorRoleIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.systemComponentIds,
+        `srs.functionalRequirements[${index}].systemComponentIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.dataRequirementIds,
+        `srs.functionalRequirements[${index}].dataRequirementIds`,
+        errors
       );
     });
   }
 
-  validateStringArray(
-    value.nonFunctionalRequirements,
-    "srs.nonFunctionalRequirements",
-    errors
-  );
+  if (!Array.isArray(value.nonFunctionalRequirements)) {
+    errors.push("srs.nonFunctionalRequirements must be an array.");
+  } else {
+    value.nonFunctionalRequirements.forEach((requirement, index) => {
+      if (!isObject(requirement)) {
+        errors.push(`srs.nonFunctionalRequirements[${index}] must be an object.`);
+        return;
+      }
+
+      validateString(requirement.id, `srs.nonFunctionalRequirements[${index}].id`, errors);
+      validateString(
+        requirement.category,
+        `srs.nonFunctionalRequirements[${index}].category`,
+        errors
+      );
+      validateString(
+        requirement.description,
+        `srs.nonFunctionalRequirements[${index}].description`,
+        errors
+      );
+
+      if (
+        isString(requirement.category) &&
+        ![
+          "security",
+          "performance",
+          "audit",
+          "usability",
+          "reliability",
+          "compliance",
+          "other"
+        ].includes(requirement.category)
+      ) {
+        errors.push(
+          `srs.nonFunctionalRequirements[${index}].category must be a valid category.`
+        );
+      }
+
+      validateOptionalStringArray(
+        requirement.sourceStepIds,
+        `srs.nonFunctionalRequirements[${index}].sourceStepIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.sourceRequirementIds,
+        `srs.nonFunctionalRequirements[${index}].sourceRequirementIds`,
+        errors
+      );
+    });
+  }
+
+  if (!Array.isArray(value.dataRequirements)) {
+    errors.push("srs.dataRequirements must be an array.");
+  } else {
+    value.dataRequirements.forEach((requirement, index) => {
+      if (!isObject(requirement)) {
+        errors.push(`srs.dataRequirements[${index}] must be an object.`);
+        return;
+      }
+
+      ["id", "name", "description"].forEach((field) =>
+        validateString(
+          requirement[field],
+          `srs.dataRequirements[${index}].${field}`,
+          errors
+        )
+      );
+      validateOptionalStringArray(
+        requirement.sourceStepIds,
+        `srs.dataRequirements[${index}].sourceStepIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.sourceRequirementIds,
+        `srs.dataRequirements[${index}].sourceRequirementIds`,
+        errors
+      );
+    });
+  }
+
+  if (!Array.isArray(value.interfaceIntegrationRequirements)) {
+    errors.push("srs.interfaceIntegrationRequirements must be an array.");
+  } else {
+    value.interfaceIntegrationRequirements.forEach((requirement, index) => {
+      if (!isObject(requirement)) {
+        errors.push(`srs.interfaceIntegrationRequirements[${index}] must be an object.`);
+        return;
+      }
+
+      ["id", "name", "description"].forEach((field) =>
+        validateString(
+          requirement[field],
+          `srs.interfaceIntegrationRequirements[${index}].${field}`,
+          errors
+        )
+      );
+      validateOptionalStringArray(
+        requirement.systems,
+        `srs.interfaceIntegrationRequirements[${index}].systems`,
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.sourceStepIds,
+        `srs.interfaceIntegrationRequirements[${index}].sourceStepIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        requirement.sourceRequirementIds,
+        `srs.interfaceIntegrationRequirements[${index}].sourceRequirementIds`,
+        errors
+      );
+    });
+  }
+
+  if (!Array.isArray(value.constraints)) {
+    errors.push("srs.constraints must be an array.");
+  } else {
+    value.constraints.forEach((constraint, index) => {
+      if (!isObject(constraint)) {
+        errors.push(`srs.constraints[${index}] must be an object.`);
+        return;
+      }
+
+      validateString(constraint.id, `srs.constraints[${index}].id`, errors);
+      validateString(
+        constraint.description,
+        `srs.constraints[${index}].description`,
+        errors
+      );
+      validateOptionalStringArray(
+        constraint.sourceStepIds,
+        `srs.constraints[${index}].sourceStepIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        constraint.sourceRequirementIds,
+        `srs.constraints[${index}].sourceRequirementIds`,
+        errors
+      );
+    });
+  }
   validateAssumptions(value.assumptions, errors);
   validateOpenQuestions(value.openQuestions, errors);
+  validateQualityIssues(value.qualityIssues, errors);
   validateTraceLinks(value.traceLinks, errors);
 
   if (errors.length > 0) {

@@ -1,26 +1,42 @@
 import type { ProcessTask } from "@/lib/models/process-task";
 import type {
   AcceptanceCriteriaSet,
+  ActorRole,
   Assumption,
   BRD,
   BRDGenerationInput,
   BusinessRequirement,
+  DataRequirement,
+  InterfaceIntegrationRequirement,
+  NonFunctionalRequirement,
   OpenQuestion,
   ProductDeliveryDraft,
   ProductDeliveryInput,
   ProductScope,
   RiskDependency,
   SRS,
+  SRSConstraint,
+  SRSGenerationInput,
+  SystemComponent,
   UserStory,
   UserStorySet
 } from "@/lib/models/product-delivery";
 import {
   runBRDQualityGate,
+  runSRSQualityGate,
   validateBRD,
-  validateProductDeliveryDraft
+  validateProductDeliveryDraft,
+  validateSRS
 } from "@/lib/models/product-delivery";
 
-export type { BRD, BRDGenerationInput, ProductDeliveryDraft, ProductDeliveryInput };
+export type {
+  BRD,
+  BRDGenerationInput,
+  ProductDeliveryDraft,
+  ProductDeliveryInput,
+  SRS,
+  SRSGenerationInput
+};
 
 function nonEmpty(value: string | null | undefined) {
   return value?.trim() || "";
@@ -318,36 +334,340 @@ export function generateBRD(input: BRDGenerationInput): BRD {
   return validation.value;
 }
 
-function buildSRS(input: ProductDeliveryInput): SRS {
-  const rows = getDeliveryRows(input.processTasks);
-
+function createSRSInputFromProductDraft(
+  input: ProductDeliveryInput,
+  brd?: BRD
+): SRSGenerationInput {
   return {
+    ...input,
+    brd,
+    source: "brd-draft"
+  };
+}
+
+function buildActorRoles(input: SRSGenerationInput): ActorRole[] {
+  const processTasks = input.processTasks ?? [];
+  const roles = new Map<string, ActorRole>();
+
+  processTasks.forEach((task) => {
+    const actor = nonEmpty(task.actor);
+
+    if (!actor) {
+      return;
+    }
+
+    const existing = roles.get(actor);
+    const sourceStepIds = Array.from(
+      new Set([...(existing?.sourceStepIds ?? []), task.stepId])
+    );
+
+    roles.set(actor, {
+      id: existing?.id ?? `ROLE-${String(roles.size + 1).padStart(3, "0")}`,
+      name: actor,
+      responsibilities: Array.from(
+        new Set([...(existing?.responsibilities ?? []), task.taskName])
+      ),
+      sourceStepIds
+    });
+  });
+
+  input.brd?.stakeholders.forEach((stakeholder) => {
+    const name = stakeholder.trim();
+
+    if (!name || roles.has(name)) {
+      return;
+    }
+
+    roles.set(name, {
+      id: `ROLE-${String(roles.size + 1).padStart(3, "0")}`,
+      name,
+      responsibilities: ["Review and validate relevant software requirements."],
+      sourceRequirementIds: input.brd?.businessRequirements.map(
+        (requirement) => requirement.id
+      )
+    });
+  });
+
+  return Array.from(roles.values());
+}
+
+function buildSystemComponents(input: SRSGenerationInput): SystemComponent[] {
+  const processTasks = input.processTasks ?? [];
+  const components = new Map<string, SystemComponent>();
+
+  processTasks.forEach((task) => {
+    const system = nonEmpty(task.system);
+
+    if (!system) {
+      return;
+    }
+
+    const existing = components.get(system);
+
+    components.set(system, {
+      id: existing?.id ?? `SYS-${String(components.size + 1).padStart(3, "0")}`,
+      name: system,
+      description: `System or component supporting PTR step ${task.stepId}: ${task.taskName}.`,
+      sourceStepIds: Array.from(
+        new Set([...(existing?.sourceStepIds ?? []), task.stepId])
+      )
+    });
+  });
+
+  return Array.from(components.values());
+}
+
+function buildDataRequirements(input: SRSGenerationInput): DataRequirement[] {
+  const processTasks = input.processTasks ?? [];
+  const requirements = new Map<string, DataRequirement>();
+
+  processTasks.forEach((task) => {
+    [task.dataObject, task.input, task.output].forEach((candidate) => {
+      const name = nonEmpty(candidate);
+
+      if (!name) {
+        return;
+      }
+
+      const existing = requirements.get(name);
+
+      requirements.set(name, {
+        id: existing?.id ?? `DATA-${String(requirements.size + 1).padStart(3, "0")}`,
+        name,
+        description: `Data required or produced by PTR step ${task.stepId}: ${task.taskName}.`,
+        sourceStepIds: Array.from(
+          new Set([...(existing?.sourceStepIds ?? []), task.stepId])
+        )
+      });
+    });
+  });
+
+  return Array.from(requirements.values());
+}
+
+function buildInterfaceRequirements(
+  input: SRSGenerationInput,
+  systemsComponents: SystemComponent[]
+): InterfaceIntegrationRequirement[] {
+  return systemsComponents.map((component, index) => ({
+    id: `INT-${String(index + 1).padStart(3, "0")}`,
+    name: `${component.name} integration`,
+    description: `The solution should integrate with ${component.name} for the traced process steps.`,
+    systems: [component.name],
+    sourceStepIds: component.sourceStepIds
+  }));
+}
+
+function buildSRSConstraints(input: SRSGenerationInput): SRSConstraint[] {
+  const risksDependencies = input.brd?.risksDependencies ?? [];
+  const constraints = risksDependencies.map((item, index) => ({
+    id: `CON-${String(index + 1).padStart(3, "0")}`,
+    description: item.description,
+    sourceStepIds: item.sourceStepIds,
+    sourceRequirementIds: input.brd?.businessRequirements
+      .filter((requirement) =>
+        requirement.sourceStepIds?.some((stepId) =>
+          item.sourceStepIds?.includes(stepId)
+        )
+      )
+      .map((requirement) => requirement.id)
+  }));
+
+  return constraints.length > 0
+    ? constraints
+    : [
+        {
+          id: "CON-001",
+          description:
+            "Security, audit, retention, and release constraints require stakeholder confirmation."
+        }
+      ];
+}
+
+function buildFunctionalRequirements(
+  input: SRSGenerationInput,
+  actorsRoles: ActorRole[],
+  systemsComponents: SystemComponent[],
+  dataRequirements: DataRequirement[]
+) {
+  if (input.brd?.businessRequirements.length) {
+    return input.brd.businessRequirements.map((requirement, index) => {
+      const sourceStepIds = requirement.sourceStepIds ?? [];
+      const actorRoleIds = actorsRoles
+        .filter((role) =>
+          role.sourceStepIds?.some((stepId) => sourceStepIds.includes(stepId))
+        )
+        .map((role) => role.id);
+      const systemComponentIds = systemsComponents
+        .filter((component) =>
+          component.sourceStepIds?.some((stepId) => sourceStepIds.includes(stepId))
+        )
+        .map((component) => component.id);
+      const dataRequirementIds = dataRequirements
+        .filter((dataRequirement) =>
+          dataRequirement.sourceStepIds?.some((stepId) =>
+            sourceStepIds.includes(stepId)
+          )
+        )
+        .map((dataRequirement) => dataRequirement.id);
+
+      return {
+        id: `FR-${String(index + 1).padStart(3, "0")}`,
+        title: requirement.title,
+        description: `The solution must support business requirement ${requirement.id}: ${requirement.description}`,
+        sourceStepIds,
+        sourceRequirementIds: [requirement.id],
+        actorRoleIds,
+        systemComponentIds,
+        dataRequirementIds
+      };
+    });
+  }
+
+  const rows = getDeliveryRows(input.processTasks ?? []);
+  const rowRequirements = rows.map((task, index) => ({
+    id: `FR-${String(index + 1).padStart(3, "0")}`,
+    title: task.taskName,
+    description: [
+      `The solution should support process step ${task.stepId}: ${task.taskName}.`,
+      nonEmpty(task.system) ? `Primary system: ${task.system}.` : "Primary system: to be confirmed.",
+      nonEmpty(task.input) ? `Input: ${task.input}.` : "Input: to be confirmed.",
+      nonEmpty(task.output) ? `Output: ${task.output}.` : "Output: to be confirmed."
+    ].join(" "),
+    sourceStepIds: [task.stepId],
+    actorRoleIds: actorsRoles
+      .filter((role) => role.sourceStepIds?.includes(task.stepId))
+      .map((role) => role.id),
+    systemComponentIds: systemsComponents
+      .filter((component) => component.sourceStepIds?.includes(task.stepId))
+      .map((component) => component.id),
+    dataRequirementIds: dataRequirements
+      .filter((dataRequirement) => dataRequirement.sourceStepIds?.includes(task.stepId))
+      .map((dataRequirement) => dataRequirement.id)
+  }));
+
+  if (rowRequirements.length > 0) {
+    return rowRequirements;
+  }
+
+  const notes = [input.notes, input.projectContext, input.sourceSummary, input.uploadedFileText]
+    .filter(Boolean)
+    .join("\n")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 12)
+    .slice(0, 6);
+
+  return notes.map((line, index) => ({
+    id: `FR-${String(index + 1).padStart(3, "0")}`,
+    title: line.slice(0, 80),
+    description: `The solution should support this requirement candidate: ${line}`,
+    sourceRequirementIds: input.brd?.businessRequirements.map(
+      (requirement) => requirement.id
+    )
+  }));
+}
+
+function buildNonFunctionalRequirements(
+  input: SRSGenerationInput
+): NonFunctionalRequirement[] {
+  const sourceRequirementIds = input.brd?.businessRequirements.map(
+    (requirement) => requirement.id
+  );
+
+  return [
+    {
+      id: "NFR-001",
+      category: "security",
+      description:
+        "The solution must protect sensitive business data with role-based access and secure processing controls.",
+      sourceRequirementIds
+    },
+    {
+      id: "NFR-002",
+      category: "audit",
+      description:
+        "The solution should record review, approval, export, and AI generation events for auditability.",
+      sourceRequirementIds
+    },
+    {
+      id: "NFR-003",
+      category: "performance",
+      description:
+        "The solution should meet agreed response-time and export-generation targets under expected MVP usage.",
+      sourceRequirementIds
+    }
+  ];
+}
+
+function buildSRS(input: SRSGenerationInput): SRS {
+  const processTasks = input.processTasks ?? [];
+  const rows = getDeliveryRows(processTasks);
+  const actorsRoles = buildActorRoles(input);
+  const systemsComponents = buildSystemComponents(input);
+  const dataRequirements = buildDataRequirements(input);
+  const interfaceIntegrationRequirements = buildInterfaceRequirements(
+    input,
+    systemsComponents
+  );
+  const srs: SRS = {
     id: "SRS-PD-001",
-    title: "SRS Outline",
+    title: "SRS Draft",
     overview:
-      "Draft SRS outline derived from Process Task Register steps and system/data fields.",
-    functionalRequirements: rows.map((task, index) => ({
-      id: `FR-${String(index + 1).padStart(3, "0")}`,
-      title: task.taskName,
-      description: [
-        `The solution should support process step ${task.stepId}: ${task.taskName}.`,
-        nonEmpty(task.system) ? `Primary system: ${task.system}.` : "Primary system: to be confirmed.",
-        nonEmpty(task.input) ? `Input: ${task.input}.` : "Input: to be confirmed.",
-        nonEmpty(task.output) ? `Output: ${task.output}.` : "Output: to be confirmed."
-      ].join(" "),
-      sourceStepIds: [task.stepId]
-    })),
-    nonFunctionalRequirements: [
-      "Security, audit logging, retention, and performance requirements must be confirmed.",
-      "Role-based access and approval controls must be confirmed for enterprise/banking deployment."
-    ],
-    assumptions: buildAssumptions(input),
-    openQuestions: buildOpenQuestions(input),
+      "Draft SRS generated from BRD, notes/chat, and Process Task Register context where available.",
+    actorsRoles,
+    systemsComponents,
+    functionalRequirements: buildFunctionalRequirements(
+      input,
+      actorsRoles,
+      systemsComponents,
+      dataRequirements
+    ),
+    nonFunctionalRequirements: buildNonFunctionalRequirements(input),
+    dataRequirements,
+    interfaceIntegrationRequirements,
+    constraints: buildSRSConstraints(input),
+    assumptions: buildAssumptions({
+      processTasks,
+      projectContext: input.projectContext,
+      notes: input.notes,
+      sourceSummary: input.sourceSummary,
+      uploadedFileText: input.uploadedFileText,
+      generatedAt: input.generatedAt,
+      source: input.source === "notes-chat" ? "notes-chat" : "process-task-register"
+    }),
+    openQuestions: buildOpenQuestions({
+      processTasks,
+      projectContext: input.projectContext,
+      notes: input.notes,
+      sourceSummary: input.sourceSummary,
+      uploadedFileText: input.uploadedFileText,
+      generatedAt: input.generatedAt,
+      source: input.source === "notes-chat" ? "notes-chat" : "process-task-register"
+    }),
+    qualityIssues: [],
     traceLinks: rows.map((task) => ({
       sourceStepIds: [task.stepId],
       targetId: "SRS-PD-001"
     }))
   };
+  const qualityGate = runSRSQualityGate(srs);
+
+  return {
+    ...srs,
+    qualityIssues: qualityGate.issues
+  };
+}
+
+export function generateSRS(input: SRSGenerationInput): SRS {
+  const srs = buildSRS(input);
+  const validation = validateSRS(srs);
+
+  if (!validation.ok) {
+    throw new Error(`SRS failed schema validation: ${validation.errors.join(" ")}`);
+  }
+
+  return validation.value;
 }
 
 function buildUserStory(task: ProcessTask): UserStory {
@@ -548,13 +868,68 @@ function renderSrsOutline(srs: SRS) {
     srs.functionalRequirements
       .map(
         (requirement) =>
-          `### ${requirement.id} - ${requirement.title}\n\n${requirement.description}\n\nSource steps: ${requirement.sourceStepIds.join(", ")}`
+          `### ${requirement.id} - ${requirement.title}\n\n${requirement.description}\n\nSource steps: ${(requirement.sourceStepIds ?? []).join(", ") || "not available"}`
       )
       .join("\n\n"),
     "",
+    "## Actors / Roles",
+    "",
+    renderList(
+      srs.actorsRoles.map(
+        (role) => `${role.id} - ${role.name}: ${role.responsibilities.join("; ")}`
+      )
+    ),
+    "",
+    "## Systems / Components",
+    "",
+    renderList(
+      srs.systemsComponents.map(
+        (component) => `${component.id} - ${component.name}: ${component.description}`
+      )
+    ),
+    "",
     "## Non-Functional Requirements",
     "",
-    renderList(srs.nonFunctionalRequirements),
+    renderList(
+      srs.nonFunctionalRequirements.map(
+        (requirement) =>
+          `${requirement.id} (${requirement.category}): ${requirement.description}`
+      )
+    ),
+    "",
+    "## Data Requirements",
+    "",
+    renderList(
+      srs.dataRequirements.map(
+        (requirement) =>
+          `${requirement.id} - ${requirement.name}: ${requirement.description}`
+      )
+    ),
+    "",
+    "## Interface / Integration Requirements",
+    "",
+    renderList(
+      srs.interfaceIntegrationRequirements.map(
+        (requirement) =>
+          `${requirement.id} - ${requirement.name}: ${requirement.description}`
+      )
+    ),
+    "",
+    "## Constraints",
+    "",
+    renderList(
+      srs.constraints.map(
+        (constraint) => `${constraint.id}: ${constraint.description}`
+      )
+    ),
+    "",
+    "## Quality Issues",
+    "",
+    renderList(
+      srs.qualityIssues.map(
+        (issue) => `${issue.severity.toUpperCase()} ${issue.code}: ${issue.message}`
+      )
+    ),
     "",
     "## Assumptions",
     "",
@@ -631,7 +1006,7 @@ export function generateProductDeliveryDraft(
     },
     scope
   );
-  const srs = buildSRS(input);
+  const srs = buildSRS(createSRSInputFromProductDraft(input, brd));
   const userStorySet = buildUserStorySet(input);
   const acceptanceCriteria = buildAcceptanceCriteriaSet(input, userStorySet);
   const brdOutlineMarkdown = renderBrdOutline(brd);

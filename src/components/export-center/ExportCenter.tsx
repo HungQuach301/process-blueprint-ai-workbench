@@ -17,7 +17,7 @@ import {
   type ProductDeliveryDraft
 } from "@/lib/generators/product-delivery-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
-import type { BRD } from "@/lib/models/product-delivery";
+import type { BRD, SRS } from "@/lib/models/product-delivery";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import { validateProcessTasks } from "@/lib/qa/task-register-rules";
@@ -69,6 +69,12 @@ type BRDPreview = {
   timestamp: string;
   sourceSkillId: "ptr-to-brd" | "notes-to-brd";
   brd: BRD;
+};
+
+type SRSPreview = {
+  timestamp: string;
+  sourceSkillId: "brd-to-srs" | "notes-to-srs";
+  srs: SRS;
 };
 
 function createTimestamp() {
@@ -157,11 +163,13 @@ export function ExportCenter() {
   const [productDeliveryNotes, setProductDeliveryNotes] = useState("");
   const [productDeliveryFileText, setProductDeliveryFileText] = useState("");
   const [brdPreview, setBRDPreview] = useState<BRDPreview | null>(null);
+  const [srsPreview, setSRSPreview] = useState<SRSPreview | null>(null);
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingAICodingPack, setIsDownloadingAICodingPack] =
     useState(false);
   const [isGeneratingBRD, setIsGeneratingBRD] = useState(false);
+  const [isGeneratingSRS, setIsGeneratingSRS] = useState(false);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
   const [exportPackageStatus, setExportPackageStatus] =
@@ -197,6 +205,7 @@ export function ExportCenter() {
 
   useEffect(() => {
     setBRDPreview(null);
+    setSRSPreview(null);
   }, [productDeliveryContext, productDeliveryNotes, productDeliveryFileText]);
 
   const readiness = useMemo(
@@ -415,6 +424,7 @@ export function ExportCenter() {
         sourceSkillId: skillId,
         brd: data.result
       });
+      setSRSPreview(null);
       saveAuditLogEntry({
         action: "generate_brd_preview",
         status: "success",
@@ -437,6 +447,99 @@ export function ExportCenter() {
       );
     } finally {
       setIsGeneratingBRD(false);
+    }
+  }
+
+  async function generateSRSPreview(skillId: "brd-to-srs" | "notes-to-srs") {
+    const timestamp = createTimestamp();
+    const sourceSummary = readInputBriefSourceSummary();
+    const processTasks = readProcessTasks();
+    const sourceText = [
+      productDeliveryContext,
+      productDeliveryNotes,
+      sourceSummary,
+      productDeliveryFileText
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+
+    if (skillId === "brd-to-srs" && !brdPreview && processTasks.length === 0) {
+      setMessage("Generate BRD preview or ensure PTR has rows before generating SRS.");
+      return;
+    }
+
+    if (skillId === "notes-to-srs" && sourceText.length < 20 && !brdPreview) {
+      setMessage("Add notes, context, source summary, uploaded file text, or BRD preview before generating SRS from notes.");
+      return;
+    }
+
+    try {
+      setIsGeneratingSRS(true);
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId,
+          payload: {
+            brd: brdPreview?.brd,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        result?: SRS;
+        error?: string;
+        validationErrors?: string[];
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        setSRSPreview(null);
+        setMessage(
+          data.validationErrors?.length
+            ? data.validationErrors.join(" ")
+            : data.error || "Could not generate SRS preview."
+        );
+        return;
+      }
+
+      setSRSPreview({
+        timestamp,
+        sourceSkillId: skillId,
+        srs: data.result
+      });
+      saveAuditLogEntry({
+        action: "generate_srs_preview",
+        status: "success",
+        summary: "Generated structured SRS preview through AI skill route.",
+        metadata: {
+          timestamp,
+          skillId,
+          externalRoute: "/api/ai/run-skill",
+          functionalRequirementCount: data.result.functionalRequirements.length,
+          nonFunctionalRequirementCount:
+            data.result.nonFunctionalRequirements.length,
+          qualityIssueCount: data.result.qualityIssues.length
+        }
+      });
+      setMessage("Da tao preview SRS structured. Chua save/apply.");
+    } catch (error) {
+      setSRSPreview(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao SRS preview: ${error.message}`
+          : "Khong the tao SRS preview. Vui long thu lai."
+      );
+    } finally {
+      setIsGeneratingSRS(false);
     }
   }
 
@@ -593,6 +696,34 @@ export function ExportCenter() {
       }
     });
     setMessage("Da export BRD draft JSON.");
+  }
+
+  function downloadSRSJson() {
+    if (!srsPreview) {
+      setMessage("Generate SRS preview before downloading.");
+      return;
+    }
+
+    downloadBlob(
+      JSON.stringify(srsPreview.srs, null, 2),
+      `SRS_Draft_${srsPreview.timestamp}.json`,
+      "application/json;charset=utf-8"
+    );
+    saveAuditLogEntry({
+      action: "export_srs_draft",
+      status: "success",
+      summary: "Exported structured SRS draft JSON.",
+      metadata: {
+        timestamp: srsPreview.timestamp,
+        skillId: srsPreview.sourceSkillId,
+        functionalRequirementCount:
+          srsPreview.srs.functionalRequirements.length,
+        nonFunctionalRequirementCount:
+          srsPreview.srs.nonFunctionalRequirements.length,
+        qualityIssueCount: srsPreview.srs.qualityIssues.length
+      }
+    });
+    setMessage("Da export SRS draft JSON.");
   }
 
   async function downloadAICodingPackZip() {
@@ -790,6 +921,30 @@ export function ExportCenter() {
                 Download BRD JSON
               </button>
               <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingSRS}
+                onClick={() => void generateSRSPreview("brd-to-srs")}
+                type="button"
+              >
+                {isGeneratingSRS ? "Generating SRS..." : "Generate SRS from BRD/PTR"}
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingSRS}
+                onClick={() => void generateSRSPreview("notes-to-srs")}
+                type="button"
+              >
+                Generate SRS from Notes
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={!srsPreview}
+                onClick={downloadSRSJson}
+                type="button"
+              >
+                Download SRS JSON
+              </button>
+              <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={previewProductDeliveryDraft}
                 type="button"
@@ -931,6 +1086,49 @@ export function ExportCenter() {
             </div>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
               {JSON.stringify(brdPreview.brd, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+
+        {srsPreview ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: Structured SRS draft
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {srsPreview.timestamp} via {srsPreview.sourceSkillId}.
+                Preview only; not saved to an Artifact Graph.
+              </p>
+            </div>
+            <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
+              <div>
+                <p className="font-medium text-slate-950">Functional reqs</p>
+                <p className="mt-1 text-slate-600">
+                  {srsPreview.srs.functionalRequirements.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">NFRs</p>
+                <p className="mt-1 text-slate-600">
+                  {srsPreview.srs.nonFunctionalRequirements.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Systems</p>
+                <p className="mt-1 text-slate-600">
+                  {srsPreview.srs.systemsComponents.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="mt-1 text-slate-600">
+                  {srsPreview.srs.qualityIssues.length}
+                </p>
+              </div>
+            </div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
+              {JSON.stringify(srsPreview.srs, null, 2)}
             </pre>
           </div>
         ) : null}

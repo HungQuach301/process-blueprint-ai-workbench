@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed AI Coding Pack generation from Product Delivery artifacts.
+- Added route-backed skill id `user-stories-to-ai-coding-pack` through `/api/ai/run-skill`.
+- Extended AI Coding Pack generation to use BRD, SRS, user stories, acceptance criteria, and optional Process Task Register context.
+- Generated `AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`, `implementation-plan.md`, `acceptance-criteria.md`, and `test-plan.md` with project goal, non-goals, requirements, user stories, AC, architecture constraints, data/privacy constraints, testing expectations, and traceability refs.
+- Added AI Coding Pack quality gate checks for missing acceptance criteria, missing non-goals, missing test expectations, and unresolved open questions.
+- Added Export Center action to preview Product Delivery AI Coding Pack before ZIP download.
+- Added local audit actions for `generate_product_delivery_ai_coding_pack` and `export_product_delivery_ai_coding_pack`.
+- Updated AI Skill Registry and AI Implementation Matrix for Product Delivery AI Coding Pack support.
 - Added Product Scope Review and MVP Slicing AI for Product Delivery Core.
 - Added route-backed skill ids `product-scope-review` and `mvp-slicing` through `/api/ai/run-skill`.
 - Added canonical `ProductScopeReview` output with in-scope items, out-of-scope items, assumptions, open questions, MVP slice, later phases, dependencies, risks, quality issues, and trace links.
@@ -210,11 +218,11 @@ Complete Module 2 + Module 3 with full real AI support.
 - Server data mode can force local/mock behavior with `AI_DATA_USAGE_MODE=local-only`.
 - AI Skill Registry V2 is now the contract layer for Module 2 and Module 3 real AI work.
 - Prompt packs are provider-neutral and do not expose API keys or browser-only provider behavior.
-- Module 3 and AI Coding Pack now have target structured response schemas, but route/UI wiring remains a later implementation slice.
+- Module 3 and AI Coding Pack now have structured response schemas with route/UI wiring for the active MVP1-AI Product Delivery flows.
 - AI Provider Adapter V2 is now the server-side provider abstraction for active AI skill routes.
 - Product AI, OpenAI, Claude, and Mock share the same normalized response shape.
 - Product AI and Claude are now implemented as server-side adapters, but still require real environment configuration and provider contract testing before production use.
-- Product Delivery BRD generation is now route-backed real-ai-ready; Product Delivery SRS/story/criteria flows and AI Coding Pack are not fully route-backed real AI skills yet.
+- Product Delivery BRD, SRS, story, criteria, scope/MVP, and AI Coding Pack flows are now route-backed real-ai-ready, preview/export only.
 - MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
 - The active planning branch is now `feature/m2-m3-full-ai`.
 - The release target is now `v0.8.0-mvp1-ai`.

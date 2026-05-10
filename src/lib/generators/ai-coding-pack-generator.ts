@@ -1,10 +1,20 @@
 import type { ProcessTask } from "@/lib/models/process-task";
+import type {
+  AcceptanceCriteriaSet,
+  BRD,
+  SRS,
+  UserStorySet
+} from "@/lib/models/product-delivery";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 
 export type AICodingPackInput = {
   processTasks: ProcessTask[];
-  selectedD01Template: TemplateProfile;
-  selectedD02Template: TemplateProfile;
+  selectedD01Template?: TemplateProfile;
+  selectedD02Template?: TemplateProfile;
+  brd?: BRD;
+  srs?: SRS;
+  userStorySet?: UserStorySet;
+  acceptanceCriteria?: AcceptanceCriteriaSet;
   projectContext?: string;
   assumptions?: string[];
   openQuestions?: string[];
@@ -47,6 +57,10 @@ function renderTaskLine(task: ProcessTask) {
 }
 
 function renderTraceability(processTasks: ProcessTask[]) {
+  if (processTasks.length === 0) {
+    return "No Process Task Register rows were provided.";
+  }
+
   const phases = groupByPhase(processTasks);
 
   return Object.entries(phases)
@@ -58,19 +72,123 @@ function renderScope(input: AICodingPackInput) {
   const actors = unique(input.processTasks.map((task) => task.actor));
   const systems = unique(input.processTasks.map((task) => task.system));
   const dataObjects = unique(input.processTasks.map((task) => task.dataObject));
+  const requirements = [
+    ...(input.brd?.businessRequirements.map((requirement) => requirement.id) ?? []),
+    ...(input.srs?.functionalRequirements.map((requirement) => requirement.id) ?? []),
+    ...(input.srs?.nonFunctionalRequirements.map((requirement) => requirement.id) ?? [])
+  ];
 
   return [
     `Generated at: ${input.generatedAt}`,
     "",
     input.projectContext ? `Project context:\n${input.projectContext}` : "Project context: not provided.",
+    input.brd?.businessObjective
+      ? `Project goal:\n${input.brd.businessObjective}`
+      : "Project goal: derive from Product Delivery artifacts.",
     "",
     `Process task count: ${input.processTasks.length}`,
+    `BRD requirements: ${input.brd?.businessRequirements.length ?? 0}`,
+    `SRS requirements: ${(input.srs?.functionalRequirements.length ?? 0) + (input.srs?.nonFunctionalRequirements.length ?? 0)}`,
+    `User stories: ${input.userStorySet?.stories.length ?? 0}`,
+    `Acceptance criteria: ${input.acceptanceCriteria?.criteria.length ?? 0}`,
+    `Traceable requirement ids: ${requirements.join(", ") || "Not specified"}`,
     `Actors: ${actors.join(", ") || "Not specified"}`,
     `Systems: ${systems.join(", ") || "Not specified"}`,
     `Data objects: ${dataObjects.join(", ") || "Not specified"}`,
     "",
-    `Selected D01 template: ${input.selectedD01Template.name} (${input.selectedD01Template.id})`,
-    `Selected D02 template: ${input.selectedD02Template.name} (${input.selectedD02Template.id})`
+    `Selected D01 template: ${input.selectedD01Template ? `${input.selectedD01Template.name} (${input.selectedD01Template.id})` : "Not provided"}`,
+    `Selected D02 template: ${input.selectedD02Template ? `${input.selectedD02Template.name} (${input.selectedD02Template.id})` : "Not provided"}`
+  ].join("\n");
+}
+
+function renderRequirements(input: AICodingPackInput) {
+  const brdRequirements =
+    input.brd?.businessRequirements.map(
+      (requirement) =>
+        `- ${requirement.id}: ${requirement.title} (${requirement.priority}) - ${requirement.description}`
+    ) ?? [];
+  const functionalRequirements =
+    input.srs?.functionalRequirements.map(
+      (requirement) =>
+        `- ${requirement.id}: ${requirement.title} - ${requirement.description}`
+    ) ?? [];
+  const nonFunctionalRequirements =
+    input.srs?.nonFunctionalRequirements.map(
+      (requirement) =>
+        `- ${requirement.id}: [${requirement.category}] ${requirement.description}`
+    ) ?? [];
+
+  return [
+    "### Business Requirements",
+    brdRequirements.length ? brdRequirements.join("\n") : "- None provided.",
+    "",
+    "### Functional Requirements",
+    functionalRequirements.length ? functionalRequirements.join("\n") : "- None provided.",
+    "",
+    "### Non-Functional Requirements",
+    nonFunctionalRequirements.length ? nonFunctionalRequirements.join("\n") : "- None provided."
+  ].join("\n");
+}
+
+function renderUserStories(input: AICodingPackInput) {
+  const stories = input.userStorySet?.stories ?? [];
+
+  if (stories.length === 0) {
+    return "- No user stories provided.";
+  }
+
+  return stories
+    .map((story) =>
+      [
+        `- ${story.id}: ${story.title}`,
+        `  - Role: ${story.role}`,
+        `  - Goal: ${story.goal}`,
+        `  - Value: ${story.businessValue}`,
+        `  - Priority: ${story.priority ?? "not specified"}`,
+        `  - Complexity: ${story.complexity ?? "not specified"}`,
+        `  - Source refs: ${(story.sourceRequirementIds ?? []).join(", ") || "none"} ${(story.sourceStepIds ?? []).join(", ") || ""}`.trim()
+      ].join("\n")
+    )
+    .join("\n");
+}
+
+function renderArchitectureConstraints(input: AICodingPackInput) {
+  const systems = unique([
+    ...input.processTasks.map((task) => task.system),
+    ...(input.srs?.systemsComponents.map((system) => system.name) ?? [])
+  ]);
+  const integrations =
+    input.srs?.interfaceIntegrationRequirements.map(
+      (item) => `- ${item.id}: ${item.name} - ${item.description}`
+    ) ?? [];
+
+  return [
+    "## Architecture Constraints",
+    "",
+    systems.length
+      ? systems.map((system) => `- Preserve integration boundary for ${system}.`).join("\n")
+      : "- Confirm target architecture and integration boundaries before implementation.",
+    "",
+    "## Interface And Integration Requirements",
+    "",
+    integrations.length ? integrations.join("\n") : "- None provided."
+  ].join("\n");
+}
+
+function renderDataPrivacyConstraints(input: AICodingPackInput) {
+  const dataRequirements =
+    input.srs?.dataRequirements.map(
+      (item) => `- ${item.id}: ${item.name} - ${item.description}`
+    ) ?? [];
+  const dataObjects = unique(input.processTasks.map((task) => task.dataObject));
+
+  return [
+    "## Data And Privacy Constraints",
+    "",
+    dataRequirements.length ? dataRequirements.join("\n") : "- No explicit SRS data requirements provided.",
+    dataObjects.length ? `- Process data objects: ${dataObjects.join(", ")}` : "- Process data objects: not specified.",
+    "- Do not log customer, banking, or internal process data unnecessarily.",
+    "- Keep provider/API keys server-side only."
   ].join("\n");
 }
 
@@ -96,6 +214,18 @@ function renderAgentsMd(input: AICodingPackInput) {
     "",
     renderTraceability(input.processTasks),
     "",
+    "## Requirements",
+    "",
+    renderRequirements(input),
+    "",
+    "## User Stories",
+    "",
+    renderUserStories(input),
+    "",
+    renderArchitectureConstraints(input),
+    "",
+    renderDataPrivacyConstraints(input),
+    "",
     "## Working Rules",
     "",
     "- Ask for clarification when acceptance criteria conflict with the process trace.",
@@ -114,7 +244,13 @@ function renderClaudeMd(input: AICodingPackInput) {
     "",
     "## Implementation Intent",
     "",
-    input.projectContext || "No additional project context was provided.",
+    input.brd?.businessObjective || input.projectContext || "No additional project context was provided.",
+    "",
+    "## Non-Goals",
+    "",
+    input.brd?.scope.outOfScope.length
+      ? input.brd.scope.outOfScope.map((item) => `- ${item}`).join("\n")
+      : "- Confirm non-goals before implementation.",
     "",
     "## Process Steps To Preserve",
     "",
@@ -140,18 +276,24 @@ function renderCursorRules(input: AICodingPackInput) {
     "",
     "## Key Templates",
     "",
-    `- D01 BPMN: ${input.selectedD01Template.name}`,
-    `- D02 Service Blueprint: ${input.selectedD02Template.name}`
+    `- D01 BPMN: ${input.selectedD01Template?.name ?? "Not provided"}`,
+    `- D02 Service Blueprint: ${input.selectedD02Template?.name ?? "Not provided"}`
   ].join("\n");
 }
 
 function renderAcceptanceCriteria(input: AICodingPackInput) {
-  const criteria = input.processTasks
+  const productCriteria =
+    input.acceptanceCriteria?.criteria.map(
+      (criterion) =>
+        `- [ ] ${criterion.id}${criterion.storyId ? ` (${criterion.storyId})` : ""}: Given ${criterion.given}, when ${criterion.when}, then ${criterion.then}.`
+    ) ?? [];
+  const processCriteria = input.processTasks
     .filter((task) => task.rowType === "task" || task.rowType === "gateway")
     .map((task) => {
       const outcome = nonEmpty(task.output) || "expected output is produced";
       return `- [ ] ${task.stepId}: Given ${nonEmpty(task.input) || "valid input"}, when ${task.taskName}, then ${outcome}.`;
     });
+  const criteria = productCriteria.length > 0 ? productCriteria : processCriteria;
 
   return [
     "# Acceptance Criteria",
@@ -183,22 +325,30 @@ function renderImplementationPlan(input: AICodingPackInput) {
     "",
     "## Phase Breakdown",
     "",
-    Object.entries(groupByPhase(input.processTasks))
-      .map(([phase, tasks]) => [
-        `### ${phase}`,
-        ...tasks.map((task) => `- ${task.stepId}: Implement support for ${task.taskName}.`)
-      ].join("\n"))
-      .join("\n\n")
+    input.userStorySet?.stories.length
+      ? input.userStorySet.stories
+          .map((story) => `- ${story.id}: Implement ${story.title}.`)
+          .join("\n")
+      : Object.entries(groupByPhase(input.processTasks))
+          .map(([phase, tasks]) => [
+            `### ${phase}`,
+            ...tasks.map((task) => `- ${task.stepId}: Implement support for ${task.taskName}.`)
+          ].join("\n"))
+          .join("\n\n")
   ].join("\n");
 }
 
 function renderTestPlan(input: AICodingPackInput) {
+  const storyTests =
+    input.userStorySet?.stories.map((story) => `- [ ] ${story.id}: Verify ${story.title}.`) ?? [];
+  const processTests = input.processTasks.map((task) => `- [ ] ${task.stepId}: Verify ${task.taskName}.`);
+
   return [
     "# Test Plan",
     "",
     "## Functional Tests",
     "",
-    ...input.processTasks.map((task) => `- [ ] ${task.stepId}: Verify ${task.taskName}.`),
+    ...(storyTests.length ? storyTests : processTests),
     "",
     "## Regression Tests",
     "",
@@ -217,6 +367,8 @@ function renderSpecJson(input: AICodingPackInput) {
       version: "mvp1-deterministic",
       generatedAt: input.generatedAt,
       projectContext: input.projectContext ?? "",
+      projectGoal: input.brd?.businessObjective ?? "",
+      nonGoals: input.brd?.scope.outOfScope ?? [],
       source: {
         processTaskRegister: {
           taskCount: input.processTasks.length,
@@ -224,18 +376,33 @@ function renderSpecJson(input: AICodingPackInput) {
         },
         templates: {
           d01: {
-            id: input.selectedD01Template.id,
-            name: input.selectedD01Template.name,
-            type: input.selectedD01Template.type,
-            version: input.selectedD01Template.version
+            id: input.selectedD01Template?.id ?? "",
+            name: input.selectedD01Template?.name ?? "",
+            type: input.selectedD01Template?.type ?? "",
+            version: input.selectedD01Template?.version ?? ""
           },
           d02: {
-            id: input.selectedD02Template.id,
-            name: input.selectedD02Template.name,
-            type: input.selectedD02Template.type,
-            version: input.selectedD02Template.version
+            id: input.selectedD02Template?.id ?? "",
+            name: input.selectedD02Template?.name ?? "",
+            type: input.selectedD02Template?.type ?? "",
+            version: input.selectedD02Template?.version ?? ""
           }
         }
+      },
+      requirements: {
+        business: input.brd?.businessRequirements ?? [],
+        functional: input.srs?.functionalRequirements ?? [],
+        nonFunctional: input.srs?.nonFunctionalRequirements ?? []
+      },
+      userStories: input.userStorySet?.stories ?? [],
+      acceptanceCriteria: input.acceptanceCriteria?.criteria ?? [],
+      architectureConstraints: {
+        systems: input.srs?.systemsComponents ?? [],
+        interfaces: input.srs?.interfaceIntegrationRequirements ?? []
+      },
+      dataPrivacyConstraints: {
+        dataRequirements: input.srs?.dataRequirements ?? [],
+        processDataObjects: unique(input.processTasks.map((task) => task.dataObject))
       },
       processTasks: input.processTasks.map((task) => ({
         stepId: task.stepId,

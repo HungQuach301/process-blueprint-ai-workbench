@@ -615,7 +615,7 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     skillId: "user-stories-to-ai-coding-pack",
     version: "1.0.0",
     module: "module-5-ai-coding-pack",
-    status: "planned",
+    status: "real-ai-ready",
     description:
       "Generate AI Coding Pack from reviewed stories, criteria, architecture constraints, and test expectations.",
     inputSchema: {

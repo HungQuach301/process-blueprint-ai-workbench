@@ -20,7 +20,9 @@ export type AuditAction =
   | "generate_acceptance_criteria_preview"
   | "export_acceptance_criteria_draft"
   | "generate_product_scope_review_preview"
-  | "export_product_scope_review_draft";
+  | "export_product_scope_review_draft"
+  | "generate_product_delivery_ai_coding_pack"
+  | "export_product_delivery_ai_coding_pack";
 
 export type AuditLogEntry = {
   id: string;

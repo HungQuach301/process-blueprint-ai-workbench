@@ -106,7 +106,7 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 | `mvp-slicing` | `real-ai-ready` | Propose MVP, later, and out-of-scope slices. | BRD/SRS/user stories, optional business objective, PTR/source context | MVP slice, later phases, dependencies, risks, assumptions, open questions, scope boundaries | Preview/export only |
 | `scope-nonscope-definition` | `planned` | Draft scope and non-scope from process and product notes. | PTR, notes, BRD/SRS context | Scope/non-scope draft, open questions | Preview/save/export only |
 | `requirement-quality-check` | `planned` | Review BRD/SRS/user stories for ambiguity, missing criteria, and trace gaps. | Product delivery artifacts, trace links | Requirement QA findings and recommendations | Recommendation only |
-| `user-stories-to-ai-coding-pack` | `planned` | Generate AI-ready coding context for Codex, Claude Code, Cursor, and similar tools from reviewed stories. | User stories, acceptance criteria, architecture constraints, test expectations | `AGENTS.md` draft, `CLAUDE.md` draft, cursor rules draft, `spec.json`, implementation plan, test plan | Export only after user review |
+| `user-stories-to-ai-coding-pack` | `real-ai-ready` | Generate AI-ready coding context for Codex, Claude Code, Cursor, and similar tools from reviewed Product Delivery artifacts. | BRD, SRS, user stories, acceptance criteria, optional `ProcessTask[]` | `AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`, implementation plan, acceptance criteria, test plan, quality issues | Preview/export only |
 
 ## Current implemented MVP skills
 
@@ -389,3 +389,29 @@ Output:
 
 Apply behavior:
 Export only after preview.
+
+### user-stories-to-ai-coding-pack
+
+Purpose:
+Generate AI-ready coding context from reviewed Product Delivery artifacts.
+
+Input:
+- BRD draft
+- SRS draft
+- `UserStorySet`
+- `AcceptanceCriteriaSet`
+- optional `ProcessTask[]`
+- optional project context, assumptions, and open questions
+
+Output:
+- `AGENTS.md`
+- `CLAUDE.md`
+- `cursor-rules.md`
+- `spec.json`
+- `implementation-plan.md`
+- `acceptance-criteria.md`
+- `test-plan.md`
+- qualityIssues for missing acceptance criteria, missing non-goals, missing test expectations, and unresolved open questions
+
+Apply behavior:
+Preview/export only. No generated code is applied and no Artifact Graph persistence is created in this slice.

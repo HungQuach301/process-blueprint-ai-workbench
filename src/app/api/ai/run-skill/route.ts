@@ -8,6 +8,10 @@ import {
 import type { IntakeLanguage } from "@/lib/ai-intake";
 import type { ProcessTask } from "@/lib/models/process-task";
 import {
+  generateAICodingPack,
+  type AICodingPackFiles
+} from "@/lib/generators/ai-coding-pack-generator";
+import {
   generateAcceptanceCriteriaSet,
   generateBRD,
   generateProductScopeReview,
@@ -53,8 +57,11 @@ import {
   type AISkillDefinitionV2
 } from "@/lib/ai/skill-registry-v2";
 import {
+  normalizeDeterministicCodingPack,
+  runAICodingPackQualityGate,
   validateAISkillInput,
   validateAISkillOutput,
+  type AICodingPackResponse,
   type AISkillValidationContext
 } from "@/lib/ai/skill-schemas";
 import {
@@ -105,6 +112,8 @@ const USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID =
   "user-stories-to-acceptance-criteria";
 const PRODUCT_SCOPE_REVIEW_SKILL_ID = "product-scope-review";
 const MVP_SLICING_SKILL_ID = "mvp-slicing";
+const USER_STORIES_TO_AI_CODING_PACK_SKILL_ID =
+  "user-stories-to-ai-coding-pack";
 const ORCHESTRATION_VERSION = "2.0.0";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
 const SERVER_PROVIDER_IDS: AIProviderId[] = ["product-ai", "openai", "claude", "mock"];
@@ -241,7 +250,8 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     LEGACY_BRD_OR_NOTES_TO_USER_STORIES_SKILL_ID,
     USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID,
     PRODUCT_SCOPE_REVIEW_SKILL_ID,
-    MVP_SLICING_SKILL_ID
+    MVP_SLICING_SKILL_ID,
+    USER_STORIES_TO_AI_CODING_PACK_SKILL_ID
   ].includes(routeSkillId);
 }
 
@@ -274,6 +284,10 @@ function isProductScopeReviewSkill(routeSkillId: string) {
     PRODUCT_SCOPE_REVIEW_SKILL_ID,
     MVP_SLICING_SKILL_ID
   ].includes(routeSkillId);
+}
+
+function isAICodingPackGenerationSkill(routeSkillId: string) {
+  return routeSkillId === USER_STORIES_TO_AI_CODING_PACK_SKILL_ID;
 }
 
 function isDraftPtrGenerationSkill(routeSkillId: string) {
@@ -709,6 +723,12 @@ type ProductScopeReviewPayload = UserStoryGenerationPayload & {
   businessObjective?: string;
 };
 
+type AICodingPackGenerationPayload = ProductScopeReviewPayload & {
+  acceptanceCriteria?: AcceptanceCriteriaSet;
+  assumptions?: string[];
+  openQuestions?: string[];
+};
+
 function isTemplateReviewPayload(
   value: unknown
 ): value is TemplateReviewPayload {
@@ -755,6 +775,12 @@ function isProductScopeReviewPayload(
   return isObject(value);
 }
 
+function isAICodingPackGenerationPayload(
+  value: unknown
+): value is AICodingPackGenerationPayload {
+  return isObject(value);
+}
+
 function hasEnoughBRDText(payload: BRDGenerationPayload) {
   return [
     payload.projectContext,
@@ -783,6 +809,16 @@ function hasScopeReviewContext(payload: ProductScopeReviewPayload) {
     isObject(payload.userStorySet) ||
     hasEnoughBRDText(payload) ||
     typeof payload.businessObjective === "string"
+  );
+}
+
+function hasAICodingPackContext(payload: AICodingPackGenerationPayload) {
+  return (
+    isObject(payload.userStorySet) ||
+    isObject(payload.acceptanceCriteria) ||
+    isObject(payload.brd) ||
+    isObject(payload.srs) ||
+    Array.isArray(payload.processTasks)
   );
 }
 
@@ -2403,6 +2439,110 @@ function createMockProductScopeReviewResponse({
   });
 }
 
+function createMockAICodingPackResponse({
+  routeSkillId,
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  routeSkillId: string;
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isAICodingPackGenerationPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "AI Coding Pack request must include ProductDeliveryContext."
+      },
+      { status: 400 }
+    );
+  }
+
+  const assumptions =
+    Array.isArray(payload.assumptions) &&
+    payload.assumptions.every((item) => typeof item === "string")
+      ? payload.assumptions
+      : [
+          "AI Coding Pack is generated from reviewed Product Delivery artifacts."
+        ];
+  const openQuestions =
+    Array.isArray(payload.openQuestions) &&
+    payload.openQuestions.every((item) => typeof item === "string")
+      ? payload.openQuestions
+      : [
+          "Confirm target repository architecture and implementation constraints before coding."
+        ];
+  const files: AICodingPackFiles = generateAICodingPack({
+    brd: payload.brd,
+    srs: payload.srs,
+    userStorySet: payload.userStorySet,
+    acceptanceCriteria: payload.acceptanceCriteria,
+    processTasks: Array.isArray(payload.processTasks) ? payload.processTasks : [],
+    projectContext: payload.projectContext,
+    assumptions,
+    openQuestions,
+    generatedAt: payload.generatedAt ?? new Date().toISOString()
+  });
+  const qualityGate = runAICodingPackQualityGate({
+    files,
+    assumptions,
+    openQuestions
+  });
+
+  if (!qualityGate.canPreview) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "AI Coding Pack failed quality gate.",
+        validationErrors: qualityGate.issues,
+        qualityGate
+      },
+      { status: 422 }
+    );
+  }
+
+  const result = normalizeDeterministicCodingPack(
+    files,
+    assumptions,
+    openQuestions
+  );
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: routeSkillId,
+    registrySkillId: getRegistrySkillId(routeSkillId),
+    result: {
+      ...result,
+      qualityIssues: qualityGate.issues
+    },
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      realAIEnabled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      qualityGate,
+      audit
+    }
+  });
+}
+
 function createMockResponse({
   routeSkillId,
   skill,
@@ -2496,6 +2636,15 @@ function createMockResponse({
 
   if (isProductScopeReviewSkill(routeSkillId)) {
     return createMockProductScopeReviewResponse({
+      routeSkillId,
+      skill,
+      payload,
+      dataUsageMode
+    });
+  }
+
+  if (isAICodingPackGenerationSkill(routeSkillId)) {
+    return createMockAICodingPackResponse({
       routeSkillId,
       skill,
       payload,
@@ -2608,6 +2757,13 @@ function createRouteSpecificInputValidationError(
     (!isProductScopeReviewPayload(payload) || !hasScopeReviewContext(payload))
   ) {
     return "Product Scope Review request must include BRD, SRS, userStorySet, PTR, notes, sourceSummary, projectContext, uploadedFileText, or businessObjective.";
+  }
+
+  if (
+    isAICodingPackGenerationSkill(routeSkillId) &&
+    (!isAICodingPackGenerationPayload(payload) || !hasAICodingPackContext(payload))
+  ) {
+    return "AI Coding Pack request must include BRD, SRS, userStorySet, acceptanceCriteria, or Process Task Register context.";
   }
 
   return "";
@@ -3103,6 +3259,63 @@ export async function POST(request: Request) {
       };
       additionalMeta = {
         qualityGate: scopeQualityGate
+      };
+    }
+
+    if (isAICodingPackGenerationSkill(routeSkillId)) {
+      const codingPack = outputValidation.value as AICodingPackResponse;
+      const filesByPath = new Map(
+        codingPack.files.map((file) => [file.path, file.content])
+      );
+      const files: AICodingPackFiles = {
+        agentsMd: filesByPath.get("AGENTS.md") ?? "",
+        claudeMd: filesByPath.get("CLAUDE.md") ?? "",
+        cursorRulesMd:
+          filesByPath.get("cursor-rules.md") ??
+          filesByPath.get(".cursorrules") ??
+          "",
+        specJson:
+          typeof codingPack.specJson === "string"
+            ? codingPack.specJson
+            : filesByPath.get("spec.json") ?? "",
+        acceptanceCriteriaMd:
+          filesByPath.get("acceptance-criteria.md") ?? "",
+        implementationPlanMd:
+          filesByPath.get("implementation-plan.md") ?? "",
+        testPlanMd: filesByPath.get("test-plan.md") ?? ""
+      };
+      const codingPackQualityGate = runAICodingPackQualityGate({
+        files,
+        assumptions: codingPack.assumptions,
+        openQuestions: codingPack.openQuestions
+      });
+
+      if (!codingPackQualityGate.canPreview) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "AI Coding Pack failed quality gate.",
+            validationErrors: codingPackQualityGate.issues,
+            qualityGate: codingPackQualityGate,
+            meta: createProviderMeta(parseResult.providerResult, {
+              skillId: routeSkillId,
+              registrySkillId,
+              promptPackId: skill.promptPackId,
+              dataUsageMode,
+              outputRepairAttempted: parseResult.repairAttempted,
+              validationPassed: true
+            })
+          },
+          { status: 422 }
+        );
+      }
+
+      normalizedResult = {
+        ...codingPack,
+        qualityIssues: codingPackQualityGate.issues
+      };
+      additionalMeta = {
+        qualityGate: codingPackQualityGate
       };
     }
 

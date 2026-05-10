@@ -64,6 +64,8 @@ type OutputArtifacts = {
 type AICodingPackPreview = {
   timestamp: string;
   files: AICodingPackFiles;
+  sourceSkillId?: "ptr-to-ai-coding-pack" | "user-stories-to-ai-coding-pack";
+  qualityIssues?: string[];
 };
 
 type ProductDeliveryPreview = {
@@ -99,6 +101,17 @@ type ProductScopeReviewPreview = {
   timestamp: string;
   sourceSkillId: "product-scope-review" | "mvp-slicing";
   scopeReview: ProductScopeReview;
+};
+
+type AICodingPackRouteResponse = {
+  files: Array<{
+    path: string;
+    content: string;
+  }>;
+  specJson?: unknown;
+  assumptions: string[];
+  openQuestions: string[];
+  qualityIssues?: string[];
 };
 
 function createTimestamp() {
@@ -173,6 +186,38 @@ function downloadBlob(content: BlobPart, fileName: string, type: string) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function getRouteFileContent(
+  files: AICodingPackRouteResponse["files"],
+  path: string
+) {
+  return files.find((file) => file.path === path)?.content ?? "";
+}
+
+function mapRouteCodingPackFiles(
+  response: AICodingPackRouteResponse
+): AICodingPackFiles {
+  return {
+    agentsMd: getRouteFileContent(response.files, "AGENTS.md"),
+    claudeMd: getRouteFileContent(response.files, "CLAUDE.md"),
+    cursorRulesMd:
+      getRouteFileContent(response.files, "cursor-rules.md") ||
+      getRouteFileContent(response.files, ".cursorrules"),
+    specJson:
+      typeof response.specJson === "string"
+        ? response.specJson
+        : getRouteFileContent(response.files, "spec.json"),
+    acceptanceCriteriaMd: getRouteFileContent(
+      response.files,
+      "acceptance-criteria.md"
+    ),
+    implementationPlanMd: getRouteFileContent(
+      response.files,
+      "implementation-plan.md"
+    ),
+    testPlanMd: getRouteFileContent(response.files, "test-plan.md")
+  };
 }
 
 export function ExportCenter() {
@@ -912,7 +957,10 @@ export function ExportCenter() {
     try {
       const nextPack = buildAICodingPack();
 
-      setAICodingPack(nextPack);
+      setAICodingPack({
+        ...nextPack,
+        sourceSkillId: "ptr-to-ai-coding-pack"
+      });
       setMessage("Da tao preview AI Coding Pack deterministic.");
     } catch (error) {
       setAICodingPack(null);
@@ -972,6 +1020,98 @@ export function ExportCenter() {
         error instanceof Error
           ? `Khong the export Product Delivery draft: ${error.message}`
           : "Khong the export Product Delivery draft. Vui long thu lai."
+      );
+    }
+  }
+
+  async function previewProductDeliveryAICodingPack() {
+    const timestamp = createTimestamp();
+    const processTasks = readProcessTasks();
+    const sourceSummary = readInputBriefSourceSummary();
+
+    if (
+      !brdPreview &&
+      !srsPreview &&
+      !userStoryPreview &&
+      !acceptanceCriteriaPreview &&
+      processTasks.length === 0
+    ) {
+      setMessage("Generate BRD/SRS/User Stories/AC preview or ensure PTR has rows before AI Coding Pack.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "user-stories-to-ai-coding-pack",
+          payload: {
+            brd: brdPreview?.brd,
+            srs: srsPreview?.srs,
+            userStorySet: userStoryPreview?.userStorySet,
+            acceptanceCriteria: acceptanceCriteriaPreview?.acceptanceCriteria,
+            processTasks,
+            projectContext: productDeliveryContext || projectContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            assumptions: [
+              "AI Coding Pack is generated from reviewed Product Delivery artifacts."
+            ],
+            openQuestions: [
+              "Confirm target repository architecture before implementation."
+            ],
+            generatedAt: timestamp
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        result?: AICodingPackRouteResponse;
+        error?: string;
+        validationErrors?: string[];
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        setAICodingPack(null);
+        setMessage(
+          data.validationErrors?.length
+            ? data.validationErrors.join(" ")
+            : data.error || "Could not generate Product Delivery AI Coding Pack."
+        );
+        return;
+      }
+
+      const files = mapRouteCodingPackFiles(data.result);
+
+      setAICodingPack({
+        timestamp,
+        files,
+        sourceSkillId: "user-stories-to-ai-coding-pack",
+        qualityIssues: data.result.qualityIssues
+      });
+      saveAuditLogEntry({
+        action: "generate_product_delivery_ai_coding_pack",
+        status: "success",
+        summary:
+          "Generated AI Coding Pack preview from Product Delivery artifacts.",
+        metadata: {
+          timestamp,
+          skillId: "user-stories-to-ai-coding-pack",
+          fileCount: data.result.files.length,
+          qualityIssueCount: data.result.qualityIssues?.length ?? 0
+        }
+      });
+      setMessage("Da tao preview AI Coding Pack tu Product Delivery artifacts.");
+    } catch (error) {
+      setAICodingPack(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao Product Delivery AI Coding Pack: ${error.message}`
+          : "Khong the tao Product Delivery AI Coding Pack. Vui long thu lai."
       );
     }
   }
@@ -1114,7 +1254,11 @@ export function ExportCenter() {
   async function downloadAICodingPackZip() {
     try {
       setIsDownloadingAICodingPack(true);
-      const currentPack = aiCodingPack ?? buildAICodingPack();
+      const currentPack: AICodingPackPreview =
+        aiCodingPack ?? {
+          ...buildAICodingPack(),
+          sourceSkillId: "ptr-to-ai-coding-pack"
+        };
       const zip = new JSZip();
       const { files, timestamp } = currentPack;
 
@@ -1134,12 +1278,20 @@ export function ExportCenter() {
         "application/zip"
       );
       saveAuditLogEntry({
-        action: "export_ai_coding_pack",
+        action:
+          currentPack.sourceSkillId === "user-stories-to-ai-coding-pack"
+            ? "export_product_delivery_ai_coding_pack"
+            : "export_ai_coding_pack",
         status: "success",
-        summary: "Exported deterministic AI Coding Pack ZIP.",
+        summary:
+          currentPack.sourceSkillId === "user-stories-to-ai-coding-pack"
+            ? "Exported Product Delivery AI Coding Pack ZIP."
+            : "Exported deterministic AI Coding Pack ZIP.",
         metadata: {
           timestamp,
-          fileCount: 7
+          fileCount: 7,
+          skillId: currentPack.sourceSkillId ?? "ptr-to-ai-coding-pack",
+          qualityIssueCount: currentPack.qualityIssues?.length ?? 0
         }
       });
       setAICodingPack(currentPack);
@@ -1758,10 +1910,10 @@ export function ExportCenter() {
               Export AI-ready coding context
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Deterministic MVP1 export for Codex, Claude Code, Cursor, or
-              similar coding tools. Source data comes from Process Task
-              Register and selected template metadata. No browser AI call is
-              made.
+              Export for Codex, Claude Code, Cursor, or similar coding tools.
+              Source data can come from Process Task Register or reviewed
+              Product Delivery artifacts. Provider calls go through the
+              server-side AI skill route only.
             </p>
             <label className="mt-4 block">
               <span className="text-sm font-medium text-slate-700">
@@ -1780,7 +1932,14 @@ export function ExportCenter() {
                 onClick={previewAICodingPack}
                 type="button"
               >
-                Preview AI Coding Pack
+                Preview PTR Coding Pack
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={() => void previewProductDeliveryAICodingPack()}
+                type="button"
+              >
+                Preview Product Delivery Coding Pack
               </button>
               <button
                 className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
@@ -1809,9 +1968,9 @@ export function ExportCenter() {
               <li>test-plan.md</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              AI enhancement is planned as future skill
-              `user-stories-to-ai-coding-pack`; MVP1 uses deterministic export
-              first.
+              Product Delivery pack uses `user-stories-to-ai-coding-pack`
+              through `/api/ai/run-skill`, with mock/local fallback and schema
+              validation.
             </p>
           </div>
         </div>
@@ -1823,10 +1982,18 @@ export function ExportCenter() {
                 Preview: spec.json
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {aiCodingPack.timestamp}. Step IDs are preserved
-                for traceability.
+                Generated at {aiCodingPack.timestamp}
+                {aiCodingPack.sourceSkillId ? ` via ${aiCodingPack.sourceSkillId}` : ""}.
+                Step, story, and requirement refs are preserved where available.
               </p>
             </div>
+            {aiCodingPack.qualityIssues?.length ? (
+              <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                {aiCodingPack.qualityIssues.map((issue) => (
+                  <p key={issue}>{issue}</p>
+                ))}
+              </div>
+            ) : null}
             <pre className="max-h-96 overflow-auto p-4 text-xs leading-5 text-slate-700">
               {aiCodingPack.files.specJson}
             </pre>

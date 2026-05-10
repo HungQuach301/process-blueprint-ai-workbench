@@ -69,6 +69,7 @@ export type AICodingPackResponse = {
   specJson?: unknown;
   assumptions: string[];
   openQuestions: string[];
+  qualityIssues?: string[];
   traceLinks?: TraceLink[];
 };
 
@@ -278,6 +279,9 @@ export function validateAICodingPackResponse(
 
   validateStringArray(value.assumptions, "assumptions", errors);
   validateStringArray(value.openQuestions, "openQuestions", errors);
+  if (value.qualityIssues !== undefined) {
+    validateStringArray(value.qualityIssues, "qualityIssues", errors);
+  }
   validateOptionalTraceLinks(value.traceLinks, errors);
 
   if (errors.length > 0) {
@@ -311,7 +315,53 @@ export function normalizeDeterministicCodingPack(
     ],
     specJson: files.specJson,
     assumptions,
-    openQuestions
+    openQuestions,
+    qualityIssues: runAICodingPackQualityGate({
+      files,
+      assumptions,
+      openQuestions
+    }).issues
+  };
+}
+
+export function runAICodingPackQualityGate({
+  files,
+  assumptions,
+  openQuestions
+}: {
+  files: AICodingPackFiles;
+  assumptions?: string[];
+  openQuestions?: string[];
+}) {
+  const issues: string[] = [];
+  const acceptanceCriteria = files.acceptanceCriteriaMd.toLowerCase();
+  const claudeMd = files.claudeMd.toLowerCase();
+  const testPlan = files.testPlanMd.toLowerCase();
+
+  if (!acceptanceCriteria.includes("- [ ]")) {
+    issues.push("missing AC: acceptance-criteria.md must include checklist criteria.");
+  }
+
+  if (!claudeMd.includes("non-goals")) {
+    issues.push("missing non-goals: CLAUDE.md must include a non-goals section.");
+  }
+
+  if (!testPlan.includes("functional tests") || !testPlan.includes("- [ ]")) {
+    issues.push("missing test expectations: test-plan.md must include test checklist items.");
+  }
+
+  if ((openQuestions ?? []).length > 0) {
+    issues.push("unresolved open questions: review open questions before implementation.");
+  }
+
+  if ((assumptions ?? []).length === 0) {
+    issues.push("missing assumptions: include assumptions for reviewer context.");
+  }
+
+  return {
+    canPreview: issues.length < 5,
+    canExport: !issues.some((issue) => issue.startsWith("missing AC")),
+    issues
   };
 }
 
@@ -411,9 +461,40 @@ export function validateAISkillInput(
       "ptr-to-srs-outline",
       "ptr-to-user-stories",
       "requirement-quality-check",
-      "ptr-to-ai-coding-pack"
+      "ptr-to-ai-coding-pack",
+      "user-stories-to-ai-coding-pack"
     ].includes(skillId)
   ) {
+    if (skillId === "user-stories-to-ai-coding-pack") {
+      if (!isObject(value)) {
+        return {
+          ok: false,
+          errors: ["ProductDeliveryContext must be an object."]
+        };
+      }
+
+      if (
+        !isObject(value.userStorySet) &&
+        !isObject(value.acceptanceCriteria) &&
+        !isObject(value.brd) &&
+        !isObject(value.srs) &&
+        !Array.isArray(value.processTasks)
+      ) {
+        return {
+          ok: false,
+          errors: [
+            "user-stories-to-ai-coding-pack requires userStorySet, acceptanceCriteria, BRD, SRS, or processTasks."
+          ]
+        };
+      }
+
+      return {
+        ok: true,
+        value,
+        errors: []
+      };
+    }
+
     return validateProcessTaskArrayInput(value);
   }
 

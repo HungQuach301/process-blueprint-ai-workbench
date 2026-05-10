@@ -237,13 +237,13 @@ export const productDeliveryPromptPacks: AIPromptPack[] = [
     description:
       "Generate AI Coding Pack files for Codex, Claude Code, Cursor, and similar tools.",
     outputContract:
-      "AICodingPackResponse with files[], specJson, assumptions, openQuestions, and optional traceLinks.",
+      "AICodingPackResponse with files[], specJson, assumptions, openQuestions, qualityIssues, and optional traceLinks.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Generate coding-context files only. Do not generate executable changes, do not call external tools, and keep source step traceability in spec.json."
+          "Generate coding-context files only from BRD, SRS, user stories, acceptance criteria, and Process Task Register context. Required files are AGENTS.md, CLAUDE.md, cursor-rules.md, spec.json, implementation-plan.md, acceptance-criteria.md, and test-plan.md. Include project goal, non-goals, requirements, user stories, acceptance criteria, architecture constraints, data/privacy constraints, testing expectations, and traceability refs. Add qualityIssues for missing AC, missing non-goals, missing test expectations, and unresolved open questions. Do not generate executable changes, do not call external tools, and keep source step/story/requirement traceability in spec.json."
       }
     ]
   }

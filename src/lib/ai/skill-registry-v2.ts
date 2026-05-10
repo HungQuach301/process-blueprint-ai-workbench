@@ -224,6 +224,54 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "process-modeling-template-review-v1"
   },
   {
+    skillId: "notes-to-brd",
+    version: "1.0.0",
+    module: "module-3-product-delivery",
+    status: "real-ai-ready",
+    description:
+      "Generate a structured BRD draft from notes/chat, AI Input Brief summary, and optional uploaded file text.",
+    inputSchema: {
+      id: "ProductDeliveryContext",
+      description:
+        "Notes/chat, optional project context, AI Input Brief source summary, and uploaded file text.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "BRDResponse",
+      description:
+        "Structured BRD with objective, context, scope, stakeholders, requirements, risks, assumptions, open questions, quality issues, and trace links where available.",
+      validatorId: "validateBRDResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "product-delivery-brd-v1"
+  },
+  {
+    skillId: "ptr-to-brd",
+    version: "1.0.0",
+    module: "module-3-product-delivery",
+    status: "real-ai-ready",
+    description:
+      "Generate a structured BRD draft from Process Task Register and optional source context.",
+    inputSchema: {
+      id: "ProductDeliveryContext",
+      description:
+        "ProcessTask[] plus optional notes/chat, project context, AI Input Brief summary, and uploaded file text.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "BRDResponse",
+      description:
+        "Structured BRD with objective, context, scope, stakeholders, business requirements, process references, risks/dependencies, assumptions, open questions, and quality issues.",
+      validatorId: "validateBRDResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "product-delivery-brd-v1"
+  },
+  {
     skillId: "ptr-to-brd-outline",
     version: "1.0.0",
     module: "module-3-product-delivery",

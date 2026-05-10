@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed AI BRD Generator for Product Delivery Core.
+- Added route-backed skill ids `notes-to-brd` and `ptr-to-brd`, with `ptr-to-brd-outline` treated as a legacy alias for PTR-based BRD generation.
+- Extended canonical BRD model with business objective, background/context, stakeholders, business requirements, process references, risks/dependencies, and quality issues.
+- Added BRD quality gate checks for missing objective, missing scope, vague requirement, and missing stakeholder.
+- Wired BRD generation through `/api/ai/run-skill` with Product AI/OpenAI/Claude/Mock support, schema validation, quality gate, preview-first behavior, and no auto-apply.
+- Added Export Center actions to generate BRD from PTR or notes/source context, preview structured BRD JSON, and download BRD JSON only after preview.
+- Added optional uploaded file text input for Product Delivery BRD generation; no persistent file artifact store or OCR was added.
+- Updated AI Skill Registry and AI Implementation Matrix for BRD route support and remaining gaps.
 - Stabilized Product Delivery Core canonical models for BRD, SRS, UserStory, AcceptanceCriteria, ProductScope, Assumptions, and OpenQuestions.
 - Added Product Delivery schema validation helpers and wired deterministic Product Delivery generation through the canonical validated draft model.
 - Updated Product Delivery preview in Export Center to show structured counts for source steps, BRD sections, SRS requirements, user stories, acceptance criteria, assumptions, and open questions.
@@ -100,6 +108,11 @@ Complete Module 2 + Module 3 with full real AI support.
 - `src/lib/models/product-delivery.ts`
 - `src/lib/generators/product-delivery-generator.ts`
 - `src/lib/ai/skill-schemas.ts`
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/app/api/ai/run-skill/route.ts`
+- `src/lib/audit/audit-log.ts`
+- `docs/AI_SKILL_REGISTRY.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/SESSION_HANDOFF.md`
 - `src/components/bpmn-output/D01BpmnOutput.tsx`
@@ -146,6 +159,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 - Template Hub AI Template Review remains display/review-only in this slice; even low-risk template recommendations are not applied automatically.
 - Product Delivery Core now has a canonical validated draft model, but it remains preview/export only until Artifact Graph persistence is intentionally added.
+- BRD generation is now real-ai-ready through the server-side skill route, but still preview/export only; it does not create or persist Artifact Graph nodes.
+- `notes-to-brd` supports notes/chat and optional uploaded file text by payload contract. The current UI provides a paste field for uploaded file text because raw File Intake extraction text is not yet persisted as a reusable source artifact.
 - Product Delivery markdown is derived from the validated structured draft, not maintained as a separate source of truth.
 - Product Delivery download requires an existing preview draft to preserve Draft -> Preview -> Export behavior.
 - Template Review output now includes warnings and assumptions as first-class review metadata.
@@ -174,7 +189,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - AI Provider Adapter V2 is now the server-side provider abstraction for active AI skill routes.
 - Product AI, OpenAI, Claude, and Mock share the same normalized response shape.
 - Product AI and Claude are now implemented as server-side adapters, but still require real environment configuration and provider contract testing before production use.
-- Product Delivery and AI Coding Pack are deterministic export workflows, not real AI skills yet.
+- Product Delivery BRD generation is now route-backed real-ai-ready; Product Delivery SRS/story/criteria flows and AI Coding Pack are not fully route-backed real AI skills yet.
 - MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
 - The active planning branch is now `feature/m2-m3-full-ai`.
 - The release target is now `v0.8.0-mvp1-ai`.
@@ -189,8 +204,8 @@ Complete Module 2 + Module 3 with full real AI support.
 - Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
 - Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
 - The branch may still need to be created or switched in git if it does not already exist.
-- Module 3 real AI UI flows and route-backed provider execution still need scoped task breakdown using Registry V2.
-- Product Delivery deterministic structured draft exists; real AI route support for BRD/SRS/story/criteria generation is still pending.
+- Module 3 SRS, user story, acceptance criteria, Jira export, MVP slicing, and requirement QA real AI flows still need scoped task breakdown using Registry V2.
+- Product Delivery BRD route support exists; full Artifact Graph persistence and durable server-side audit are still pending.
 - Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
 - Provider-specific Claude/OpenAI schema repair and contract tests are not implemented yet; only route-level malformed JSON repair exists.
 - AI Connection Center per-skill override is not wired to server execution yet.
@@ -198,7 +213,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Next recommended task
 
-Verify Module 2 Draft PTR generation across Manual Input, PDF/DOCX File Intake, and Chat/Notes with Mock/Product AI/OpenAI/Claude provider modes, then add structured Module 3 adapters or route skills for BRD/SRS/user stories/acceptance criteria.
+Verify Module 3 BRD generation with Mock/Product AI/OpenAI/Claude provider modes, then add structured route-backed SRS, user story, and acceptance criteria skills.
 
 ## Exact prompt for next ChatGPT session
 

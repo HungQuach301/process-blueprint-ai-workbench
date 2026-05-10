@@ -152,13 +152,13 @@ export const productDeliveryPromptPacks: AIPromptPack[] = [
     description:
       "Generate a traceable BRD response from ProcessTask rows and optional project context.",
     outputContract:
-      "BRDResponse with sections, assumptions, openQuestions, and optional traceLinks.",
+      "BRDResponse with businessObjective, backgroundContext, scope, stakeholders, businessRequirements, processReferences, risksDependencies, assumptions, openQuestions, qualityIssues, sections, and optional traceLinks.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Draft a BRD from the Process Task Register. Keep every process-derived statement traceable to sourceStepIds where possible."
+          "Draft a structured BRD from the Process Task Register, notes/chat, AI Input Brief summary, and uploaded file text when provided. Include business objective, background/context, scope, out of scope, stakeholders, assumptions, open questions, business requirements, process references when PTR rows are provided, and risks/dependencies. Keep every process-derived statement traceable to sourceStepIds where possible. Add qualityIssues for missing objective, missing scope, vague requirement, or missing stakeholder instead of hiding uncertainty."
       }
     ]
   },

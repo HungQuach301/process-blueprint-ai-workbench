@@ -7,6 +7,8 @@ import {
 } from "@/lib/ai-intake";
 import type { IntakeLanguage } from "@/lib/ai-intake";
 import type { ProcessTask } from "@/lib/models/process-task";
+import { generateBRD } from "@/lib/generators/product-delivery-generator";
+import { runBRDQualityGate, type BRD } from "@/lib/models/product-delivery";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
 import { runMockTemplateReview } from "@/lib/ai/ai-template-review-service";
@@ -73,6 +75,9 @@ const PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID =
 const ARTIFACT_REVIEW_SKILL_ID = "artifact-review";
 const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const TEMPLATE_REVIEW_REGISTRY_SKILL_ID = "template-review";
+const NOTES_TO_BRD_SKILL_ID = "notes-to-brd";
+const PTR_TO_BRD_SKILL_ID = "ptr-to-brd";
+const LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID = "ptr-to-brd-outline";
 const ORCHESTRATION_VERSION = "2.0.0";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
 const SERVER_PROVIDER_IDS: AIProviderId[] = ["product-ai", "openai", "claude", "mock"];
@@ -103,6 +108,10 @@ function getRegistrySkillId(routeSkillId: string) {
 
   if (routeSkillId === LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID) {
     return CHAT_TO_PTR_DRAFT_SKILL_ID;
+  }
+
+  if (routeSkillId === LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID) {
+    return PTR_TO_BRD_SKILL_ID;
   }
 
   return routeSkillId;
@@ -194,7 +203,18 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     AI_PROCESS_QA_SKILL_ID,
     PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
     ARTIFACT_REVIEW_SKILL_ID,
-    AI_TEMPLATE_REVIEW_SKILL_ID
+    AI_TEMPLATE_REVIEW_SKILL_ID,
+    NOTES_TO_BRD_SKILL_ID,
+    PTR_TO_BRD_SKILL_ID,
+    LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID
+  ].includes(routeSkillId);
+}
+
+function isBRDGenerationSkill(routeSkillId: string) {
+  return [
+    NOTES_TO_BRD_SKILL_ID,
+    PTR_TO_BRD_SKILL_ID,
+    LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID
   ].includes(routeSkillId);
 }
 
@@ -605,6 +625,15 @@ type ArtifactReviewPayload = {
   qaIssues?: unknown;
 };
 
+type BRDGenerationPayload = {
+  processTasks?: ProcessTask[];
+  projectContext?: string;
+  notes?: string;
+  sourceSummary?: string;
+  uploadedFileText?: string;
+  generatedAt?: string;
+};
+
 function isTemplateReviewPayload(
   value: unknown
 ): value is TemplateReviewPayload {
@@ -623,6 +652,22 @@ function isArtifactReviewPayload(
     Array.isArray(value.processTasks) &&
     isObject(value.selectedTemplate)
   );
+}
+
+function isBRDGenerationPayload(value: unknown): value is BRDGenerationPayload {
+  return isObject(value);
+}
+
+function hasEnoughBRDText(payload: BRDGenerationPayload) {
+  return [
+    payload.projectContext,
+    payload.notes,
+    payload.sourceSummary,
+    payload.uploadedFileText
+  ]
+    .filter((item): item is string => typeof item === "string")
+    .join("\n")
+    .trim().length >= 20;
 }
 
 function getValidationContext(
@@ -1821,6 +1866,89 @@ function createMockChatToPtrDraftResponse({
   });
 }
 
+function createMockBRDResponse({
+  routeSkillId,
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  routeSkillId: string;
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isBRDGenerationPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "BRD request must include ProductDeliveryContext."
+      },
+      { status: 400 }
+    );
+  }
+
+  const source =
+    routeSkillId === NOTES_TO_BRD_SKILL_ID ? "notes-chat" : "process-task-register";
+  const brd = generateBRD({
+    processTasks: Array.isArray(payload.processTasks) ? payload.processTasks : [],
+    projectContext: payload.projectContext,
+    notes: payload.notes,
+    sourceSummary: payload.sourceSummary,
+    uploadedFileText: payload.uploadedFileText,
+    generatedAt: payload.generatedAt ?? new Date().toISOString(),
+    source
+  });
+  const qualityGate = runBRDQualityGate(brd);
+
+  if (!qualityGate.canPreview) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "BRD draft failed quality gate.",
+        validationErrors: qualityGate.issues
+          .filter((issue) => issue.severity === "error")
+          .map((issue) => issue.message),
+        qualityGate
+      },
+      { status: 422 }
+    );
+  }
+
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: routeSkillId,
+    registrySkillId: getRegistrySkillId(routeSkillId),
+    result: {
+      ...brd,
+      qualityIssues: qualityGate.issues
+    },
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      realAIEnabled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      qualityGate,
+      audit
+    }
+  });
+}
+
 function createMockResponse({
   routeSkillId,
   skill,
@@ -1876,6 +2004,15 @@ function createMockResponse({
     return createMockTemplateReviewResponse({ skill, payload, dataUsageMode });
   }
 
+  if (isBRDGenerationSkill(routeSkillId)) {
+    return createMockBRDResponse({
+      routeSkillId,
+      skill,
+      payload,
+      dataUsageMode
+    });
+  }
+
   return NextResponse.json(
     {
       ok: false,
@@ -1913,6 +2050,21 @@ function createRouteSpecificInputValidationError(
     !isArtifactReviewPayload(payload)
   ) {
     return "Artifact review request must include artifactType, artifactXml, processTasks, and selectedTemplate.";
+  }
+
+  if (
+    (routeSkillId === PTR_TO_BRD_SKILL_ID ||
+      routeSkillId === LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID) &&
+    (!isObject(payload) || !Array.isArray(payload.processTasks))
+  ) {
+    return "PTR-to-BRD request must include processTasks.";
+  }
+
+  if (
+    routeSkillId === NOTES_TO_BRD_SKILL_ID &&
+    (!isBRDGenerationPayload(payload) || !hasEnoughBRDText(payload))
+  ) {
+    return "Notes-to-BRD request must include notes, sourceSummary, projectContext, or uploadedFileText with enough content.";
   }
 
   return "";
@@ -2234,6 +2386,41 @@ export async function POST(request: Request) {
       outputValidation.value
     );
     let additionalMeta: Record<string, unknown> = {};
+
+    if (isBRDGenerationSkill(routeSkillId)) {
+      const brd = outputValidation.value as BRD;
+      const brdQualityGate = runBRDQualityGate(brd);
+
+      if (!brdQualityGate.canPreview) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "BRD draft failed quality gate.",
+            validationErrors: brdQualityGate.issues
+              .filter((issue) => issue.severity === "error")
+              .map((issue) => issue.message),
+            qualityGate: brdQualityGate,
+            meta: createProviderMeta(parseResult.providerResult, {
+              skillId: routeSkillId,
+              registrySkillId,
+              promptPackId: skill.promptPackId,
+              dataUsageMode,
+              outputRepairAttempted: parseResult.repairAttempted,
+              validationPassed: true
+            })
+          },
+          { status: 422 }
+        );
+      }
+
+      normalizedResult = {
+        ...brd,
+        qualityIssues: brdQualityGate.issues
+      };
+      additionalMeta = {
+        qualityGate: brdQualityGate
+      };
+    }
 
     if (isDraftPtrGenerationSkill(routeSkillId)) {
       const draftValidation = validateDraftProcessTaskRegister(outputValidation.value);

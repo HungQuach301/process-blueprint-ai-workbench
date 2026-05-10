@@ -17,6 +17,7 @@ import {
   type ProductDeliveryDraft
 } from "@/lib/generators/product-delivery-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
+import type { BRD } from "@/lib/models/product-delivery";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import { validateProcessTasks } from "@/lib/qa/task-register-rules";
@@ -62,6 +63,12 @@ type AICodingPackPreview = {
 type ProductDeliveryPreview = {
   timestamp: string;
   draft: ProductDeliveryDraft;
+};
+
+type BRDPreview = {
+  timestamp: string;
+  sourceSkillId: "ptr-to-brd" | "notes-to-brd";
+  brd: BRD;
 };
 
 function createTimestamp() {
@@ -148,10 +155,13 @@ export function ExportCenter() {
   const [projectContext, setProjectContext] = useState("");
   const [productDeliveryContext, setProductDeliveryContext] = useState("");
   const [productDeliveryNotes, setProductDeliveryNotes] = useState("");
+  const [productDeliveryFileText, setProductDeliveryFileText] = useState("");
+  const [brdPreview, setBRDPreview] = useState<BRDPreview | null>(null);
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingAICodingPack, setIsDownloadingAICodingPack] =
     useState(false);
+  const [isGeneratingBRD, setIsGeneratingBRD] = useState(false);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
   const [exportPackageStatus, setExportPackageStatus] =
@@ -184,6 +194,10 @@ export function ExportCenter() {
       window.removeEventListener(ARTIFACT_STATUS_EVENT, handleArtifactStatusChange);
     };
   }, [artifacts]);
+
+  useEffect(() => {
+    setBRDPreview(null);
+  }, [productDeliveryContext, productDeliveryNotes, productDeliveryFileText]);
 
   const readiness = useMemo(
     () => ({
@@ -341,6 +355,91 @@ export function ExportCenter() {
     };
   }
 
+  async function generateBRDPreview(skillId: "ptr-to-brd" | "notes-to-brd") {
+    const timestamp = createTimestamp();
+    const sourceSummary = readInputBriefSourceSummary();
+    const processTasks = readProcessTasks();
+    const sourceText = [
+      productDeliveryContext,
+      productDeliveryNotes,
+      sourceSummary,
+      productDeliveryFileText
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+
+    if (skillId === "notes-to-brd" && sourceText.length < 20) {
+      setMessage("Add notes, context, source summary, or uploaded file text before generating BRD from notes.");
+      return;
+    }
+
+    try {
+      setIsGeneratingBRD(true);
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId,
+          payload: {
+            processTasks: skillId === "ptr-to-brd" ? processTasks : undefined,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        result?: BRD;
+        error?: string;
+        validationErrors?: string[];
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        setBRDPreview(null);
+        setMessage(
+          data.validationErrors?.length
+            ? data.validationErrors.join(" ")
+            : data.error || "Could not generate BRD preview."
+        );
+        return;
+      }
+
+      setBRDPreview({
+        timestamp,
+        sourceSkillId: skillId,
+        brd: data.result
+      });
+      saveAuditLogEntry({
+        action: "generate_brd_preview",
+        status: "success",
+        summary: "Generated structured BRD preview through AI skill route.",
+        metadata: {
+          timestamp,
+          skillId,
+          externalRoute: "/api/ai/run-skill",
+          businessRequirementCount: data.result.businessRequirements.length,
+          qualityIssueCount: data.result.qualityIssues.length
+        }
+      });
+      setMessage("Da tao preview BRD structured. Chua save/apply.");
+    } catch (error) {
+      setBRDPreview(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao BRD preview: ${error.message}`
+          : "Khong the tao BRD preview. Vui long thu lai."
+      );
+    } finally {
+      setIsGeneratingBRD(false);
+    }
+  }
+
   async function downloadZip() {
     try {
       setIsDownloading(true);
@@ -469,6 +568,31 @@ export function ExportCenter() {
           : "Khong the export Product Delivery draft. Vui long thu lai."
       );
     }
+  }
+
+  function downloadBRDJson() {
+    if (!brdPreview) {
+      setMessage("Generate BRD preview before downloading.");
+      return;
+    }
+
+    downloadBlob(
+      JSON.stringify(brdPreview.brd, null, 2),
+      `BRD_Draft_${brdPreview.timestamp}.json`,
+      "application/json;charset=utf-8"
+    );
+    saveAuditLogEntry({
+      action: "export_brd_draft",
+      status: "success",
+      summary: "Exported structured BRD draft JSON.",
+      metadata: {
+        timestamp: brdPreview.timestamp,
+        skillId: brdPreview.sourceSkillId,
+        businessRequirementCount: brdPreview.brd.businessRequirements.length,
+        qualityIssueCount: brdPreview.brd.qualityIssues.length
+      }
+    });
+    setMessage("Da export BRD draft JSON.");
   }
 
   async function downloadAICodingPackZip() {
@@ -628,8 +752,43 @@ export function ExportCenter() {
                   value={productDeliveryNotes}
                 />
               </label>
+              <label className="block md:col-span-2">
+                <span className="text-sm font-medium text-slate-700">
+                  Optional uploaded file text
+                </span>
+                <textarea
+                  className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                  onChange={(event) => setProductDeliveryFileText(event.target.value)}
+                  placeholder="Paste extracted PDF/DOCX text when available. Browser does not call external AI providers directly."
+                  value={productDeliveryFileText}
+                />
+              </label>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingBRD}
+                onClick={() => void generateBRDPreview("ptr-to-brd")}
+                type="button"
+              >
+                {isGeneratingBRD ? "Generating BRD..." : "Generate BRD from PTR"}
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingBRD}
+                onClick={() => void generateBRDPreview("notes-to-brd")}
+                type="button"
+              >
+                Generate BRD from Notes
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={!brdPreview}
+                onClick={downloadBRDJson}
+                type="button"
+              >
+                Download BRD JSON
+              </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={previewProductDeliveryDraft}
@@ -729,6 +888,49 @@ export function ExportCenter() {
             </div>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
               {productDeliveryDraft.draft.combinedMarkdown}
+            </pre>
+          </div>
+        ) : null}
+
+        {brdPreview ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: Structured BRD draft
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {brdPreview.timestamp} via {brdPreview.sourceSkillId}.
+                Preview only; not saved to an Artifact Graph.
+              </p>
+            </div>
+            <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
+              <div>
+                <p className="font-medium text-slate-950">Requirements</p>
+                <p className="mt-1 text-slate-600">
+                  {brdPreview.brd.businessRequirements.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Stakeholders</p>
+                <p className="mt-1 text-slate-600">
+                  {brdPreview.brd.stakeholders.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Process refs</p>
+                <p className="mt-1 text-slate-600">
+                  {brdPreview.brd.processReferences.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="mt-1 text-slate-600">
+                  {brdPreview.brd.qualityIssues.length}
+                </p>
+              </div>
+            </div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
+              {JSON.stringify(brdPreview.brd, null, 2)}
             </pre>
           </div>
         ) : null}

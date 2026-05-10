@@ -89,7 +89,9 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 
 | Skill | Status | Purpose | Primary input | Output | Apply behavior |
 | --- | --- | --- | --- | --- | --- |
-| `ptr-to-brd-outline` | `implemented` | Generate BRD outline from Process Task Register and optional context. | `ProcessTask[]`, AI Input Brief summary, manual project context | BRD outline draft with trace references | Preview/export only |
+| `notes-to-brd` | `real-ai-ready` | Generate structured BRD from notes/chat and optional source context. | Notes/chat, project context, AI Input Brief summary, uploaded file text | Structured BRD with objective, context, scope, stakeholders, requirements, assumptions, open questions, risks/dependencies, and quality issues | Preview/export only |
+| `ptr-to-brd` | `real-ai-ready` | Generate structured BRD from Process Task Register and optional source context. | `ProcessTask[]`, notes/chat, AI Input Brief summary, uploaded file text | Structured BRD with process references to `ProcessTask.stepId` | Preview/export only |
+| `ptr-to-brd-outline` | `real-ai-ready` | Legacy route alias for PTR to structured BRD generation. | `ProcessTask[]`, AI Input Brief summary, manual project context | Structured BRD draft with trace references | Preview/export only |
 | `ptr-to-srs-outline` | `planned` | Generate SRS outline from process and product context. | `ProcessTask[]`, BRD draft, constraints | SRS outline draft, assumptions, open questions | Preview/save/export only |
 | `brd-or-notes-to-user-stories` | `planned` | Generate user stories and acceptance criteria from BRD, notes, or structured requirements. | BRD draft or notes, optional persona/module/scope | `UserStorySet` draft, acceptance criteria, assumptions, open questions, trace links | User review and save/export as draft artifact |
 | `ptr-to-user-stories` | `implemented` | Generate simple user stories from Process Task Register. | `ProcessTask[]`, optional project context | User stories with `ProcessTask.stepId` trace references | Preview/export only |
@@ -200,20 +202,55 @@ Output:
 Apply behavior:
 No auto-apply. User reviews recommendation and saves template changes explicitly.
 
-### ptr-to-brd-outline
+### notes-to-brd
 
 Purpose:
-Generate a lightweight BRD outline from Process Task Register.
+Generate a structured BRD draft from notes/chat, AI Input Brief source summary, optional project context, and optional uploaded file text.
+
+Input:
+- notes/chat text
+- optional project context
+- optional AI Input Brief source summary
+- optional uploaded file text
+
+Output:
+- structured BRD
+- business objective
+- background/context
+- scope and out of scope
+- stakeholders
+- assumptions
+- open questions
+- business requirements
+- risks/dependencies
+- qualityIssues
+
+Apply behavior:
+Preview/export only. No auto-save and no Artifact Graph persistence in this slice.
+
+### ptr-to-brd / ptr-to-brd-outline
+
+Purpose:
+Generate a structured BRD draft from Process Task Register and optional source context.
 
 Input:
 - `ProcessTask[]`
 - AI Input Brief source summary when available
 - Optional manual project context
+- Optional notes/chat
+- Optional uploaded file text
 
 Output:
-- BRD outline draft
-- assumptions and open questions where available
-- trace references to `ProcessTask.stepId`
+- structured BRD
+- business objective
+- background/context
+- scope and out of scope
+- stakeholders
+- assumptions and open questions
+- business requirements
+- process references to `ProcessTask.stepId`
+- risks/dependencies
+- qualityIssues
 
 Apply behavior:
 Preview/export only.

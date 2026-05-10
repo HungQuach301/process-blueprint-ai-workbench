@@ -396,6 +396,7 @@ export function validateAISkillInput(
       "process-improvement-recommendation",
       "artifact-review",
       "template-recommendation",
+      "ptr-to-brd",
       "ptr-to-brd-outline",
       "ptr-to-srs-outline",
       "ptr-to-user-stories",
@@ -406,6 +407,40 @@ export function validateAISkillInput(
     ].includes(skillId)
   ) {
     return validateProcessTaskArrayInput(value);
+  }
+
+  if (skillId === "notes-to-brd") {
+    if (!isObject(value)) {
+      return {
+        ok: false,
+        errors: ["ProductDeliveryContext must be an object."]
+      };
+    }
+
+    const sourceText = [
+      value.notes,
+      value.projectContext,
+      value.sourceSummary,
+      value.uploadedFileText
+    ]
+      .filter((item): item is string => typeof item === "string")
+      .join("\n")
+      .trim();
+
+    if (sourceText.length < 20) {
+      return {
+        ok: false,
+        errors: [
+          "notes-to-brd requires notes, projectContext, sourceSummary, or uploadedFileText with enough content."
+        ]
+      };
+    }
+
+    return {
+      ok: true,
+      value,
+      errors: []
+    };
   }
 
   return {
@@ -479,7 +514,11 @@ export function validateAISkillOutput(
     };
   }
 
-  if (skillId === "ptr-to-brd-outline") {
+  if (
+    skillId === "notes-to-brd" ||
+    skillId === "ptr-to-brd" ||
+    skillId === "ptr-to-brd-outline"
+  ) {
     return validateBRDResponse(value);
   }
 

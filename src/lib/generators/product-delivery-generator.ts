@@ -3,17 +3,24 @@ import type {
   AcceptanceCriteriaSet,
   Assumption,
   BRD,
+  BRDGenerationInput,
+  BusinessRequirement,
   OpenQuestion,
   ProductDeliveryDraft,
   ProductDeliveryInput,
   ProductScope,
+  RiskDependency,
   SRS,
   UserStory,
   UserStorySet
 } from "@/lib/models/product-delivery";
-import { validateProductDeliveryDraft } from "@/lib/models/product-delivery";
+import {
+  runBRDQualityGate,
+  validateBRD,
+  validateProductDeliveryDraft
+} from "@/lib/models/product-delivery";
 
-export type { ProductDeliveryDraft, ProductDeliveryInput };
+export type { BRD, BRDGenerationInput, ProductDeliveryDraft, ProductDeliveryInput };
 
 function nonEmpty(value: string | null | undefined) {
   return value?.trim() || "";
@@ -34,13 +41,18 @@ function getDeliveryRows(processTasks: ProcessTask[]) {
   );
 }
 
-function buildAssumptions(input: ProductDeliveryInput): Assumption[] {
+function buildAssumptions(input: BRDGenerationInput | ProductDeliveryInput): Assumption[] {
+  const processTasks = input.processTasks ?? [];
+  const source = "source" in input ? input.source : "process-task-register";
+
   return [
     {
       id: "A-PD-001",
       text:
-        "Product Delivery draft is generated deterministically from the current Process Task Register preview source.",
-      sourceStepIds: input.processTasks.map((task) => task.stepId)
+        source === "process-task-register"
+          ? "BRD draft is generated from the current Process Task Register preview source."
+          : "BRD draft is generated from notes/chat and optional source context.",
+      sourceStepIds: processTasks.map((task) => task.stepId)
     },
     {
       id: "A-PD-002",
@@ -50,7 +62,9 @@ function buildAssumptions(input: ProductDeliveryInput): Assumption[] {
   ];
 }
 
-function buildOpenQuestions(input: ProductDeliveryInput): OpenQuestion[] {
+function buildOpenQuestions(
+  input: BRDGenerationInput | ProductDeliveryInput
+): OpenQuestion[] {
   const questions: OpenQuestion[] = [
     {
       id: "Q-PD-001",
@@ -74,15 +88,16 @@ function buildOpenQuestions(input: ProductDeliveryInput): OpenQuestion[] {
   return questions;
 }
 
-function buildScope(input: ProductDeliveryInput): ProductScope {
-  const sourceStepIds = input.processTasks.map((task) => task.stepId);
-  const phases = Object.keys(groupByPhase(input.processTasks));
+function buildScope(input: BRDGenerationInput): ProductScope {
+  const processTasks = input.processTasks ?? [];
+  const sourceStepIds = processTasks.map((task) => task.stepId);
+  const phases = Object.keys(groupByPhase(processTasks));
 
   return {
     id: "SCOPE-PD-001",
     title: "Product delivery scope",
     inScope: [
-      `Process steps from current PTR: ${input.processTasks.length}`,
+      `Process steps from current PTR: ${processTasks.length}`,
       `Covered phases: ${phases.join(", ") || "Unassigned"}`,
       "BRD outline, SRS outline, user stories, and acceptance criteria draft"
     ],
@@ -95,36 +110,149 @@ function buildScope(input: ProductDeliveryInput): ProductScope {
   };
 }
 
-function renderContext(input: ProductDeliveryInput) {
+function renderContext(input: BRDGenerationInput) {
   return [
     input.projectContext ? `Project context:\n${input.projectContext}` : "Project context: not provided.",
     input.notes ? `Notes:\n${input.notes}` : "Notes: not provided.",
-    input.sourceSummary ? `Source summary:\n${input.sourceSummary}` : "Source summary: derived from Process Task Register."
+    input.sourceSummary ? `Source summary:\n${input.sourceSummary}` : "Source summary: derived from available source context.",
+    input.uploadedFileText
+      ? `Uploaded file text:\n${input.uploadedFileText.slice(0, 4000)}`
+      : "Uploaded file text: not provided."
   ].join("\n\n");
 }
 
-function buildBRD(input: ProductDeliveryInput, scope: ProductScope): BRD {
-  const phases = groupByPhase(input.processTasks);
-  const sourceStepIds = input.processTasks.map((task) => task.stepId);
-  const controls = input.processTasks
+function extractStakeholders(input: BRDGenerationInput) {
+  const processTasks = input.processTasks ?? [];
+  const actors = processTasks
+    .map((task) => nonEmpty(task.actor))
+    .filter(Boolean);
+  const contextStakeholders = [
+    input.projectContext,
+    input.notes,
+    input.sourceSummary,
+    input.uploadedFileText
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .split(/\r?\n|,|;/)
+    .map((line) => line.trim())
+    .filter((line) => /stakeholder|owner|approver|actor|user|team/i.test(line))
+    .slice(0, 4);
+
+  return Array.from(new Set([...actors, ...contextStakeholders])).slice(0, 8);
+}
+
+function buildBusinessObjective(input: BRDGenerationInput) {
+  const candidate = [
+    input.projectContext,
+    input.sourceSummary,
+    input.notes,
+    input.uploadedFileText
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => /objective|goal|purpose|muc tieu|mục tiêu/i.test(line));
+
+  if (candidate) {
+    return candidate;
+  }
+
+  if ((input.processTasks ?? []).length > 0) {
+    return "Define business requirements for the current process scope in the Process Task Register.";
+  }
+
+  return "";
+}
+
+function buildBusinessRequirements(input: BRDGenerationInput): BusinessRequirement[] {
+  const processTasks = input.processTasks ?? [];
+  const rows = getDeliveryRows(processTasks);
+  const sourceRequirements = rows.map((task, index) => ({
+    id: `BR-${String(index + 1).padStart(3, "0")}`,
+    title: task.taskName,
+    description: [
+      `The business must support ${task.taskName}.`,
+      nonEmpty(task.actor) ? `Responsible stakeholder: ${task.actor}.` : "Responsible stakeholder requires confirmation.",
+      nonEmpty(task.output) ? `Expected outcome: ${task.output}.` : "Expected outcome requires confirmation."
+    ].join(" "),
+    priority: "must" as const,
+    sourceStepIds: [task.stepId]
+  }));
+
+  if (sourceRequirements.length > 0) {
+    return sourceRequirements;
+  }
+
+  const notes = [input.notes, input.sourceSummary, input.uploadedFileText]
+    .filter(Boolean)
+    .join("\n")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 12)
+    .slice(0, 5);
+
+  return notes.map((line, index) => ({
+    id: `BR-${String(index + 1).padStart(3, "0")}`,
+    title: line.slice(0, 80),
+    description: line,
+    priority: index === 0 ? "must" : "should"
+  }));
+}
+
+function buildRisksDependencies(input: BRDGenerationInput): RiskDependency[] {
+  const processTasks = input.processTasks ?? [];
+  const controls = processTasks
     .filter((task) => nonEmpty(task.conditionQuestion) || nonEmpty(task.riskControl))
     .map(
       (task) =>
-        `${task.stepId}: ${nonEmpty(task.conditionQuestion) || nonEmpty(task.riskControl)}`
+        ({
+          id: `RD-${task.stepId}`,
+          type: "risk" as const,
+          description: nonEmpty(task.conditionQuestion) || nonEmpty(task.riskControl),
+          sourceStepIds: [task.stepId]
+        })
     );
-  const integrations = input.processTasks
+
+  return [
+    ...controls,
+    {
+      id: "RD-PD-001",
+      type: "dependency",
+      description:
+        "Final BRD approval depends on stakeholder confirmation of scope, ownership, controls, and non-functional requirements."
+    }
+  ];
+}
+
+function buildBRD(input: BRDGenerationInput, scope: ProductScope): BRD {
+  const processTasks = input.processTasks ?? [];
+  const phases = groupByPhase(processTasks);
+  const sourceStepIds = processTasks.map((task) => task.stepId);
+  const integrations = processTasks
     .filter((task) => nonEmpty(task.system) || nonEmpty(task.dataObject))
     .map(
       (task) =>
         `${task.stepId}: system=${nonEmpty(task.system) || "N/A"}; data=${nonEmpty(task.dataObject) || "N/A"}`
     );
 
-  return {
+  const brd: BRD = {
     id: "BRD-PD-001",
     title: "BRD Outline",
     summary:
       "Draft BRD outline generated from Process Task Register and optional delivery context.",
+    businessObjective: buildBusinessObjective(input),
+    backgroundContext: renderContext(input),
     scope,
+    stakeholders: extractStakeholders(input),
+    businessRequirements: buildBusinessRequirements(input),
+    processReferences: processTasks.map((task) => ({
+      stepId: task.stepId,
+      taskName: task.taskName,
+      phase: nonEmpty(task.phase) || undefined
+    })),
+    risksDependencies: buildRisksDependencies(input),
     sections: [
       {
         id: "BRD-SEC-001",
@@ -149,7 +277,10 @@ function buildBRD(input: ProductDeliveryInput, scope: ProductScope): BRD {
       {
         id: "BRD-SEC-003",
         title: "Business Rules And Controls",
-        content: controls.join("\n") || "To be confirmed.",
+        content:
+          buildRisksDependencies(input)
+            .map((item) => `${item.id}: ${item.description}`)
+            .join("\n") || "To be confirmed.",
         sourceStepIds
       },
       {
@@ -161,11 +292,30 @@ function buildBRD(input: ProductDeliveryInput, scope: ProductScope): BRD {
     ],
     assumptions: buildAssumptions(input),
     openQuestions: buildOpenQuestions(input),
+    qualityIssues: [],
     traceLinks: sourceStepIds.map((stepId) => ({
       sourceStepIds: [stepId],
       targetId: "BRD-PD-001"
     }))
   };
+  const qualityGate = runBRDQualityGate(brd);
+
+  return {
+    ...brd,
+    qualityIssues: qualityGate.issues
+  };
+}
+
+export function generateBRD(input: BRDGenerationInput): BRD {
+  const scope = buildScope(input);
+  const brd = buildBRD(input, scope);
+  const validation = validateBRD(brd);
+
+  if (!validation.ok) {
+    throw new Error(`BRD failed schema validation: ${validation.errors.join(" ")}`);
+  }
+
+  return validation.value;
 }
 
 function buildSRS(input: ProductDeliveryInput): SRS {
@@ -280,6 +430,49 @@ function renderOpenQuestions(openQuestions: OpenQuestion[]) {
   return renderList(openQuestions.map((question) => question.question));
 }
 
+function renderBusinessRequirements(requirements: BusinessRequirement[]) {
+  return requirements
+    .map((requirement) =>
+      [
+        `### ${requirement.id} - ${requirement.title}`,
+        "",
+        requirement.description,
+        "",
+        `Priority: ${requirement.priority}`,
+        requirement.sourceStepIds?.length
+          ? `Source steps: ${requirement.sourceStepIds.join(", ")}`
+          : "Source steps: not available"
+      ].join("\n")
+    )
+    .join("\n\n");
+}
+
+function renderRisksDependencies(items: RiskDependency[]) {
+  return items
+    .map(
+      (item) =>
+        `- ${item.id} (${item.type}): ${item.description}${
+          item.sourceStepIds?.length
+            ? ` Source steps: ${item.sourceStepIds.join(", ")}.`
+            : ""
+        }`
+    )
+    .join("\n");
+}
+
+function renderProcessReferences(brd: BRD) {
+  return brd.processReferences.length > 0
+    ? brd.processReferences
+        .map(
+          (reference) =>
+            `- ${reference.stepId}: ${reference.taskName}${
+              reference.phase ? ` (${reference.phase})` : ""
+            }`
+        )
+        .join("\n")
+    : "- No Process Task Register references were provided.";
+}
+
 function renderBrdOutline(brd: BRD) {
   return [
     "# BRD Outline",
@@ -287,6 +480,14 @@ function renderBrdOutline(brd: BRD) {
     `## Summary`,
     "",
     brd.summary,
+    "",
+    "## Business Objective",
+    "",
+    brd.businessObjective || "To be confirmed.",
+    "",
+    "## Background / Context",
+    "",
+    brd.backgroundContext,
     "",
     "## Scope",
     "",
@@ -296,12 +497,36 @@ function renderBrdOutline(brd: BRD) {
     "### Out Of Scope",
     renderList(brd.scope.outOfScope),
     "",
+    "## Stakeholders",
+    "",
+    renderList(brd.stakeholders),
+    "",
+    "## Business Requirements",
+    "",
+    renderBusinessRequirements(brd.businessRequirements),
+    "",
+    "## Process References",
+    "",
+    renderProcessReferences(brd),
+    "",
+    "## Risks / Dependencies",
+    "",
+    renderRisksDependencies(brd.risksDependencies),
+    "",
     ...brd.sections.flatMap((section, index) => [
       `## ${index + 1}. ${section.title}`,
       "",
       section.content,
       ""
     ]),
+    "## Quality Issues",
+    "",
+    renderList(
+      brd.qualityIssues.map(
+        (issue) => `${issue.severity.toUpperCase()} ${issue.code}: ${issue.message}`
+      )
+    ),
+    "",
     "## Assumptions",
     "",
     renderAssumptions(brd.assumptions),
@@ -395,8 +620,17 @@ function renderAcceptanceCriteria(criteriaSet: AcceptanceCriteriaSet) {
 export function generateProductDeliveryDraft(
   input: ProductDeliveryInput
 ): ProductDeliveryDraft {
-  const scope = buildScope(input);
-  const brd = buildBRD(input, scope);
+  const scope = buildScope({
+    ...input,
+    source: "process-task-register"
+  });
+  const brd = buildBRD(
+    {
+      ...input,
+      source: "process-task-register"
+    },
+    scope
+  );
   const srs = buildSRS(input);
   const userStorySet = buildUserStorySet(input);
   const acceptanceCriteria = buildAcceptanceCriteriaSet(input, userStorySet);

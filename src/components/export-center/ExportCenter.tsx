@@ -437,11 +437,14 @@ export function ExportCenter() {
 
   function downloadProductDeliveryMarkdown() {
     try {
-      const currentDraft = productDeliveryDraft ?? buildProductDeliveryDraft();
+      if (!productDeliveryDraft) {
+        setMessage("Generate Product Delivery preview before downloading.");
+        return;
+      }
 
       downloadBlob(
-        currentDraft.draft.combinedMarkdown,
-        `Product_Delivery_Draft_${currentDraft.timestamp}.md`,
+        productDeliveryDraft.draft.combinedMarkdown,
+        `Product_Delivery_Draft_${productDeliveryDraft.timestamp}.md`,
         "text/markdown;charset=utf-8"
       );
       saveAuditLogEntry({
@@ -449,11 +452,15 @@ export function ExportCenter() {
         status: "success",
         summary: "Exported deterministic Product Delivery draft markdown.",
         metadata: {
-          timestamp: currentDraft.timestamp,
-          sectionCount: 3
+          timestamp: productDeliveryDraft.timestamp,
+          brdSectionCount: productDeliveryDraft.draft.brd.sections.length,
+          srsRequirementCount:
+            productDeliveryDraft.draft.srs.functionalRequirements.length,
+          userStoryCount: productDeliveryDraft.draft.userStorySet.stories.length,
+          acceptanceCriteriaCount:
+            productDeliveryDraft.draft.acceptanceCriteria.criteria.length
         }
       });
-      setProductDeliveryDraft(currentDraft);
       setMessage("Da export Product Delivery draft markdown.");
     } catch (error) {
       setMessage(
@@ -590,12 +597,13 @@ export function ExportCenter() {
               Product Delivery
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              Draft BRD outline and user stories
+              Draft BRD, SRS, user stories, and acceptance criteria
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Deterministic MVP1 draft generated from Process Task Register,
-              saved AI Input Brief summary when available, and optional notes.
-              Preview first, then export markdown when ready.
+              Deterministic MVP1 Product Delivery draft generated from Process
+              Task Register, saved AI Input Brief summary when available, and
+              optional notes. Structured output is schema-validated, previewed
+              first, then exported as markdown when ready.
             </p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="block">
@@ -630,7 +638,8 @@ export function ExportCenter() {
                 Generate Product Delivery Draft
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={!productDeliveryDraft}
                 onClick={downloadProductDeliveryMarkdown}
                 type="button"
               >
@@ -644,9 +653,12 @@ export function ExportCenter() {
               Draft includes
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+              <li>Product scope</li>
               <li>BRD outline</li>
+              <li>SRS outline</li>
               <li>User stories</li>
               <li>Acceptance criteria</li>
+              <li>Assumptions and open questions</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
               No Artifact Graph is created in MVP1. Future AI enhancement can
@@ -665,6 +677,55 @@ export function ExportCenter() {
                 Generated at {productDeliveryDraft.timestamp}. Step IDs are
                 preserved in stories and acceptance criteria.
               </p>
+            </div>
+            <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-3">
+              <div>
+                <p className="font-medium text-slate-950">Source steps</p>
+                <p className="mt-1 text-slate-600">
+                  {productDeliveryDraft.draft.sourceStepIds.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">BRD sections</p>
+                <p className="mt-1 text-slate-600">
+                  {productDeliveryDraft.draft.brd.sections.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">SRS requirements</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    productDeliveryDraft.draft.srs.functionalRequirements
+                      .length
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">User stories</p>
+                <p className="mt-1 text-slate-600">
+                  {productDeliveryDraft.draft.userStorySet.stories.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">
+                  Acceptance criteria
+                </p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    productDeliveryDraft.draft.acceptanceCriteria.criteria
+                      .length
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">
+                  Assumptions / Questions
+                </p>
+                <p className="mt-1 text-slate-600">
+                  {productDeliveryDraft.draft.assumptions.length} /{" "}
+                  {productDeliveryDraft.draft.openQuestions.length}
+                </p>
+              </div>
             </div>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
               {productDeliveryDraft.draft.combinedMarkdown}

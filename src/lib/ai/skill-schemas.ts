@@ -1,4 +1,19 @@
 import type { AICodingPackFiles } from "@/lib/generators/ai-coding-pack-generator";
+import {
+  validateAcceptanceCriteriaSet,
+  validateBRD,
+  validateSRS,
+  validateUserStorySet,
+  type AcceptanceCriteriaSet,
+  type AcceptanceCriterion,
+  type BRD,
+  type BRDSection,
+  type FunctionalRequirement,
+  type ProductDeliveryTraceLink,
+  type SRS,
+  type UserStory,
+  type UserStorySet
+} from "@/lib/models/product-delivery";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import type { QARecommendation } from "@/lib/recommendation-engine/types";
@@ -33,75 +48,12 @@ export type AISkillValidationContext = {
   selectedTemplate?: TemplateProfile;
 };
 
-export type TraceLink = {
-  sourceStepIds: string[];
-  targetId?: string;
-};
-
-export type BRDSection = {
-  id: string;
-  title: string;
-  content: string;
-  sourceStepIds?: string[];
-};
-
-export type BRDResponse = {
-  title: string;
-  summary: string;
-  sections: BRDSection[];
-  assumptions: string[];
-  openQuestions: string[];
-  traceLinks?: TraceLink[];
-};
-
-export type FunctionalRequirement = {
-  id: string;
-  title: string;
-  description: string;
-  sourceStepIds: string[];
-};
-
-export type SRSResponse = {
-  title: string;
-  overview: string;
-  functionalRequirements: FunctionalRequirement[];
-  nonFunctionalRequirements: string[];
-  assumptions: string[];
-  openQuestions: string[];
-  traceLinks?: TraceLink[];
-};
-
-export type UserStory = {
-  id: string;
-  title: string;
-  persona: string;
-  need: string;
-  benefit: string;
-  sourceStepIds: string[];
-  acceptanceCriteria?: string[];
-};
-
-export type UserStorySetResponse = {
-  stories: UserStory[];
-  assumptions: string[];
-  openQuestions: string[];
-  traceLinks?: TraceLink[];
-};
-
-export type AcceptanceCriterion = {
-  id: string;
-  storyId?: string;
-  sourceStepIds: string[];
-  given: string;
-  when: string;
-  then: string;
-};
-
-export type AcceptanceCriteriaResponse = {
-  criteria: AcceptanceCriterion[];
-  assumptions: string[];
-  openQuestions: string[];
-};
+export type TraceLink = ProductDeliveryTraceLink;
+export type { AcceptanceCriterion, BRDSection, FunctionalRequirement, UserStory };
+export type BRDResponse = BRD;
+export type SRSResponse = SRS;
+export type UserStorySetResponse = UserStorySet;
+export type AcceptanceCriteriaResponse = AcceptanceCriteriaSet;
 
 export type AICodingPackFile = {
   path: string;
@@ -264,239 +216,25 @@ function validateChatNotesContext(value: unknown): SchemaValidationResult<unknow
 export function validateBRDResponse(
   value: unknown
 ): SchemaValidationResult<BRDResponse> {
-  const errors: string[] = [];
-
-  if (!isObject(value)) {
-    return {
-      ok: false,
-      errors: ["BRDResponse must be an object."]
-    };
-  }
-
-  ["title", "summary"].forEach((field) => {
-    if (!isString(value[field])) {
-      errors.push(`${field} must be a string.`);
-    }
-  });
-
-  if (!Array.isArray(value.sections) || value.sections.length === 0) {
-    errors.push("sections must be a non-empty array.");
-  } else {
-    value.sections.forEach((section, index) => {
-      if (!isObject(section)) {
-        errors.push(`sections[${index}] must be an object.`);
-        return;
-      }
-
-      ["id", "title", "content"].forEach((field) => {
-        if (!isString(section[field])) {
-          errors.push(`sections[${index}].${field} must be a string.`);
-        }
-      });
-
-      if (section.sourceStepIds !== undefined) {
-        validateStringArray(
-          section.sourceStepIds,
-          `sections[${index}].sourceStepIds`,
-          errors
-        );
-      }
-    });
-  }
-
-  validateStringArray(value.assumptions, "assumptions", errors);
-  validateStringArray(value.openQuestions, "openQuestions", errors);
-  validateOptionalTraceLinks(value.traceLinks, errors);
-
-  if (errors.length > 0) {
-    return {
-      ok: false,
-      errors
-    };
-  }
-
-  return {
-    ok: true,
-    value: value as BRDResponse,
-    errors: []
-  };
+  return validateBRD(value);
 }
 
 export function validateSRSResponse(
   value: unknown
 ): SchemaValidationResult<SRSResponse> {
-  const errors: string[] = [];
-
-  if (!isObject(value)) {
-    return {
-      ok: false,
-      errors: ["SRSResponse must be an object."]
-    };
-  }
-
-  ["title", "overview"].forEach((field) => {
-    if (!isString(value[field])) {
-      errors.push(`${field} must be a string.`);
-    }
-  });
-
-  if (
-    !Array.isArray(value.functionalRequirements) ||
-    value.functionalRequirements.length === 0
-  ) {
-    errors.push("functionalRequirements must be a non-empty array.");
-  } else {
-    value.functionalRequirements.forEach((requirement, index) => {
-      if (!isObject(requirement)) {
-        errors.push(`functionalRequirements[${index}] must be an object.`);
-        return;
-      }
-
-      ["id", "title", "description"].forEach((field) => {
-        if (!isString(requirement[field])) {
-          errors.push(`functionalRequirements[${index}].${field} must be a string.`);
-        }
-      });
-      validateStringArray(
-        requirement.sourceStepIds,
-        `functionalRequirements[${index}].sourceStepIds`,
-        errors
-      );
-    });
-  }
-
-  validateStringArray(
-    value.nonFunctionalRequirements,
-    "nonFunctionalRequirements",
-    errors
-  );
-  validateStringArray(value.assumptions, "assumptions", errors);
-  validateStringArray(value.openQuestions, "openQuestions", errors);
-  validateOptionalTraceLinks(value.traceLinks, errors);
-
-  if (errors.length > 0) {
-    return {
-      ok: false,
-      errors
-    };
-  }
-
-  return {
-    ok: true,
-    value: value as SRSResponse,
-    errors: []
-  };
+  return validateSRS(value);
 }
 
 export function validateUserStorySetResponse(
   value: unknown
 ): SchemaValidationResult<UserStorySetResponse> {
-  const errors: string[] = [];
-
-  if (!isObject(value)) {
-    return {
-      ok: false,
-      errors: ["UserStorySetResponse must be an object."]
-    };
-  }
-
-  if (!Array.isArray(value.stories) || value.stories.length === 0) {
-    errors.push("stories must be a non-empty array.");
-  } else {
-    value.stories.forEach((story, index) => {
-      if (!isObject(story)) {
-        errors.push(`stories[${index}] must be an object.`);
-        return;
-      }
-
-      ["id", "title", "persona", "need", "benefit"].forEach((field) => {
-        if (!isString(story[field])) {
-          errors.push(`stories[${index}].${field} must be a string.`);
-        }
-      });
-      validateStringArray(story.sourceStepIds, `stories[${index}].sourceStepIds`, errors);
-
-      if (story.acceptanceCriteria !== undefined) {
-        validateStringArray(
-          story.acceptanceCriteria,
-          `stories[${index}].acceptanceCriteria`,
-          errors
-        );
-      }
-    });
-  }
-
-  validateStringArray(value.assumptions, "assumptions", errors);
-  validateStringArray(value.openQuestions, "openQuestions", errors);
-  validateOptionalTraceLinks(value.traceLinks, errors);
-
-  if (errors.length > 0) {
-    return {
-      ok: false,
-      errors
-    };
-  }
-
-  return {
-    ok: true,
-    value: value as UserStorySetResponse,
-    errors: []
-  };
+  return validateUserStorySet(value);
 }
 
 export function validateAcceptanceCriteriaResponse(
   value: unknown
 ): SchemaValidationResult<AcceptanceCriteriaResponse> {
-  const errors: string[] = [];
-
-  if (!isObject(value)) {
-    return {
-      ok: false,
-      errors: ["AcceptanceCriteriaResponse must be an object."]
-    };
-  }
-
-  if (!Array.isArray(value.criteria) || value.criteria.length === 0) {
-    errors.push("criteria must be a non-empty array.");
-  } else {
-    value.criteria.forEach((criterion, index) => {
-      if (!isObject(criterion)) {
-        errors.push(`criteria[${index}] must be an object.`);
-        return;
-      }
-
-      ["id", "given", "when", "then"].forEach((field) => {
-        if (!isString(criterion[field])) {
-          errors.push(`criteria[${index}].${field} must be a string.`);
-        }
-      });
-      validateStringArray(
-        criterion.sourceStepIds,
-        `criteria[${index}].sourceStepIds`,
-        errors
-      );
-
-      if (criterion.storyId !== undefined && !isString(criterion.storyId)) {
-        errors.push(`criteria[${index}].storyId must be a string when provided.`);
-      }
-    });
-  }
-
-  validateStringArray(value.assumptions, "assumptions", errors);
-  validateStringArray(value.openQuestions, "openQuestions", errors);
-
-  if (errors.length > 0) {
-    return {
-      ok: false,
-      errors
-    };
-  }
-
-  return {
-    ok: true,
-    value: value as AcceptanceCriteriaResponse,
-    errors: []
-  };
+  return validateAcceptanceCriteriaSet(value);
 }
 
 export function validateAICodingPackResponse(

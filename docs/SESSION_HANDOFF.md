@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Stabilized Product Delivery Core canonical models for BRD, SRS, UserStory, AcceptanceCriteria, ProductScope, Assumptions, and OpenQuestions.
+- Added Product Delivery schema validation helpers and wired deterministic Product Delivery generation through the canonical validated draft model.
+- Updated Product Delivery preview in Export Center to show structured counts for source steps, BRD sections, SRS requirements, user stories, acceptance criteria, assumptions, and open questions.
+- Enforced preview-first Product Delivery export by disabling/download-blocking markdown export until a draft preview exists.
+- Reused canonical Product Delivery validators from AI Skill schema helpers for BRD/SRS/UserStorySet/AcceptanceCriteria responses.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for the structured Product Delivery deterministic slice and remaining real AI route gaps.
+- Kept Product Delivery preview/export only; no full Artifact Graph, no auto-save/apply, no D01/D02 generator changes, and no browser AI provider calls were introduced.
 - Completed Template Hub AI Template Review output contract.
 - Expanded Template Review response validation to include `warnings` and `assumptions` alongside `TemplateRecommendation[]` and quality score.
 - Strengthened mock/local Template Review to check BPMN fit, Service Blueprint fit, mandatory fields, lane/row rules, connector/layout risks, and business domain/process type fit.
@@ -89,6 +96,12 @@ Complete Module 2 + Module 3 with full real AI support.
 ## Files changed
 
 - `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/components/export-center/ExportCenter.tsx`
+- `src/lib/models/product-delivery.ts`
+- `src/lib/generators/product-delivery-generator.ts`
+- `src/lib/ai/skill-schemas.ts`
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
+- `docs/SESSION_HANDOFF.md`
 - `src/components/bpmn-output/D01BpmnOutput.tsx`
 - `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
 - `src/components/template-library/TemplateLibraryEditor.tsx`
@@ -132,6 +145,9 @@ Complete Module 2 + Module 3 with full real AI support.
 ## Important decisions made
 
 - Template Hub AI Template Review remains display/review-only in this slice; even low-risk template recommendations are not applied automatically.
+- Product Delivery Core now has a canonical validated draft model, but it remains preview/export only until Artifact Graph persistence is intentionally added.
+- Product Delivery markdown is derived from the validated structured draft, not maintained as a separate source of truth.
+- Product Delivery download requires an existing preview draft to preserve Draft -> Preview -> Export behavior.
 - Template Review output now includes warnings and assumptions as first-class review metadata.
 - AI artifact review is read-only for generated BPMN/draw.io XML; any fix must be represented as a PTR QA recommendation or Template recommendation.
 - `artifact-review` uses general `ENABLE_REAL_AI` for provider-backed execution and mock/local fallback otherwise.
@@ -173,8 +189,8 @@ Complete Module 2 + Module 3 with full real AI support.
 - Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
 - Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
 - The branch may still need to be created or switched in git if it does not already exist.
-- Module 3 real AI UI flows and deterministic structured adapters still need scoped task breakdown using Registry V2.
-- Product Delivery deterministic markdown output still needs structured adapters or route support for the new BRD/SRS/story/criteria schemas.
+- Module 3 real AI UI flows and route-backed provider execution still need scoped task breakdown using Registry V2.
+- Product Delivery deterministic structured draft exists; real AI route support for BRD/SRS/story/criteria generation is still pending.
 - Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
 - Provider-specific Claude/OpenAI schema repair and contract tests are not implemented yet; only route-level malformed JSON repair exists.
 - AI Connection Center per-skill override is not wired to server execution yet.

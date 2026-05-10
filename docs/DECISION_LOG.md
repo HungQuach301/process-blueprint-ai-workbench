@@ -76,3 +76,30 @@ Need AI Skill Registry, server-side provider adapters, schema validation, previe
 
 Follow-up:
 Keep mock/local fallback and avoid exposing API keys in browser code.
+
+---
+
+## ADR-2026-05-10-003 - Delay MVP1 release until Module 2 and Module 3 full AI are complete
+
+Status:
+Accepted
+
+Context:
+The project had enough thin-slice functionality to prepare an immediate MVP1 release. However, the product strategy now requires the release to prove a stronger workflow: process modeling plus product delivery, both supported by controlled real AI.
+
+Decision:
+Delay the MVP1 release until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with full real AI support. The active planning branch is `feature/m2-m3-full-ai`, and the release target is `v0.8.0-mvp1-ai`.
+
+Rationale:
+The product moat depends on turning process knowledge into delivery artifacts with traceability, quality gates, human approval, and enterprise-safe AI. Shipping only the immediate thin MVP would underrepresent the intended value and create a second planning reset soon after release.
+
+Alternatives considered:
+- Release immediate MVP1 with current thin slices.
+- Release Module 2 only and postpone Product Delivery.
+- Delay until full Artifact Graph is complete.
+
+Impact:
+Roadmap, next implementation plan, AI Skill Registry, and session handoff now point to MVP1-AI. UI/Experience Generation, Business Architecture, and IT/Solution Architecture remain future phases. Application code is unchanged by this decision.
+
+Follow-up:
+Implement and verify Module 2 and Module 3 skills with server-side real AI, schema validation, mock/local fallback, no browser API key exposure, and preview/user approval before apply, save, or export.

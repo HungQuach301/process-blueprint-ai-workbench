@@ -6,47 +6,62 @@
 
 ## Current branch
 
-feature/real-ai-integration
+`feature/m2-m3-full-ai`
 
 ## Current product phase
 
-Phase 0 — Stabilize Process Modeling Core
+Complete Module 2 + Module 3 with full real AI support.
+
+## Release target
+
+`v0.8.0-mvp1-ai`
 
 ## What was done in the last session
 
-- Added a lightweight Product Delivery thin slice in Export Center.
-- Product Delivery can generate deterministic draft BRD outline, user stories, and acceptance criteria from Process Task Register, saved AI Input Brief summary when available, and optional manual context/notes.
-- Output is previewed first and can be exported as a single markdown draft.
-- Draft content preserves `ProcessTask.stepId` references where possible.
-- Did not create Artifact Graph, did not auto-save/apply, did not call external AI, and left D01/D02 generators unchanged.
+- Pivoted planning docs from an immediate MVP1 release to MVP1-AI after full Module 2 and Module 3 completion.
+- Updated the next implementation plan with the new phase, branch, release target, and priority order.
+- Updated the roadmap so MVP1-AI includes full Module 2 Process Modeling Core and Module 3 Product Delivery Core.
+- Kept UI/Experience Generation, Business Architecture, and IT/Solution Architecture as future phases.
+- Expanded the AI Skill Registry with MVP1-AI skills for Module 2 and Module 3, including status labels: `planned`, `implemented`, `mock`, and `real-ai-ready`.
+- Added an ADR to delay release until M2/M3 full AI are complete.
+- Did not change application code.
 
 ## Files changed
 
-- `src/components/export-center/ExportCenter.tsx`
-- `src/lib/generators/product-delivery-generator.ts`
-- `src/lib/audit/audit-log.ts`
+- `docs/NEXT_IMPLEMENTATION_PLAN.md`
+- `docs/ROADMAP.md`
+- `docs/AI_SKILL_REGISTRY.md`
+- `docs/DECISION_LOG.md`
 - `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- No new Artifact Graph or AI provider decision was made. MVP1 Product Delivery is deterministic draft first; AI enhancement remains a future server-side skill.
+- MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
+- The active planning branch is now `feature/m2-m3-full-ai`.
+- The release target is now `v0.8.0-mvp1-ai`.
+- Real AI must remain server-side only, feature-flagged, schema-validated, previewed, and user-approved before apply/save/export.
+- Mock/local fallback remains required.
+- No API keys should be exposed in browser code.
+- AI output must not be auto-applied.
 
 ## Current blockers
 
-- TBD
+- The branch may still need to be created or switched in git if it does not already exist.
+- Module 2 and Module 3 real AI implementation work still needs scoped task breakdown.
+- Full Artifact Graph is intentionally not part of MVP1-AI.
 
 ## Next recommended task
 
-Manually verify Export Center: generate Product Delivery draft, confirm BRD outline/user stories/acceptance criteria preview before download, confirm exported markdown contains PTR `stepId` traceability.
+Create the implementation breakdown for `feature/m2-m3-full-ai`, starting with Module 2 completion and real AI hardening, then Module 3 Product Delivery Core skills.
 
 ## Exact prompt for next ChatGPT session
 
 Paste this:
 
-"Đây là phiên tiếp theo của Process Blueprint AI Workbench. Hãy đọc context trong project/repo, đặc biệt PRODUCT_CONTEXT.md, CURRENT_STATE.md, NEXT_IMPLEMENTATION_PLAN.md, DECISION_LOG.md và SESSION_HANDOFF.md. Trước tiên hãy tóm tắt trạng thái hiện tại, quyết định đã chốt, việc cần làm tiếp theo, sau đó mới đề xuất plan."
+"Day la phien tiep theo cua Process Blueprint AI Workbench. Hay doc context trong project/repo, dac biet PRODUCT_CONTEXT.md, CURRENT_STATE.md, NEXT_IMPLEMENTATION_PLAN.md, ROADMAP.md, AI_SKILL_REGISTRY.md, DECISION_LOG.md va SESSION_HANDOFF.md. Truoc tien hay tom tat trang thai hien tai, quyet dinh da chot, viec can lam tiep theo, sau do moi de xuat plan."
 
 ## Exact prompt for next Codex session
 
 Paste this:
 
-"Bạn đang làm trong repo D:\AI_PRODUCTS\process-blueprint-ai-workbench. Hãy đọc AGENTS.md và các tài liệu docs/CURRENT_STATE.md, docs/PRODUCT_CONTEXT.md, docs/NEXT_IMPLEMENTATION_PLAN.md, docs/DECISION_LOG.md, docs/SESSION_HANDOFF.md trước khi code. Sau đó chạy git status --short. Nêu plan bằng tiếng Việt, liệt kê file dự kiến sửa, rồi mới triển khai thay đổi nhỏ nhất cần thiết."
+"Ban dang lam trong repo D:\AI_PRODUCTS\process-blueprint-ai-workbench. Hay doc AGENTS.md va cac tai lieu docs/CURRENT_STATE.md, docs/PRODUCT_CONTEXT.md, docs/NEXT_IMPLEMENTATION_PLAN.md, docs/ROADMAP.md, docs/AI_SKILL_REGISTRY.md, docs/DECISION_LOG.md, docs/SESSION_HANDOFF.md truoc khi code. Sau do chay git status --short. Neu can sua file, hay neu plan bang tieng Viet, liet ke file du kien sua, roi moi trien khai thay doi nho nhat can thiet. Current phase la Complete Module 2 + Module 3 with full real AI support, branch muc tieu la feature/m2-m3-full-ai, release target la v0.8.0-mvp1-ai."

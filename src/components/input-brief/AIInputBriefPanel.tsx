@@ -60,18 +60,18 @@ const previewLabels = {
     assumptions: "Giả định",
     openQuestions: "Câu hỏi cần làm rõ",
     qualityGateWarnings: "Canh bao Quality Gate",
-    replaceCurrentPtr: "Replace current PTR",
-    appendToCurrentPtr: "Append to current PTR",
-    cancelDraft: "Cancel Draft",
-    stepId: "Step ID",
-    bpmnType: "BPMN Type",
+    replaceCurrentPtr: "Thay PTR hiện tại",
+    appendToCurrentPtr: "Thêm vào PTR hiện tại",
+    cancelDraft: "Hủy draft",
+    stepId: "Mã bước",
+    bpmnType: "Loại BPMN",
     actor: "Actor",
-    system: "System",
-    taskName: "Task Name",
+    system: "Hệ thống",
+    taskName: "Tên task",
     input: "Input",
     output: "Output",
-    defaultNextStep: "Default Next Step",
-    reviewStatus: "Review Status"
+    defaultNextStep: "Bước tiếp theo",
+    reviewStatus: "Trạng thái review"
   },
   en: {
     sourceSummary: "Source summary",
@@ -91,6 +91,75 @@ const previewLabels = {
     output: "Output",
     defaultNextStep: "Default Next Step",
     reviewStatus: "Review Status"
+  }
+} satisfies Record<Locale, Record<string, string>>;
+
+const inputBriefUiText = {
+  vi: {
+    generateWithAI: "Tạo bằng AI",
+    generating: "Đang tạo...",
+    manualInput: "Nhập thủ công",
+    importFile: "Nhập file",
+    voiceInputComingSoon: "Nhập giọng nói - sắp có",
+    relatedSystems: "Hệ thống liên quan",
+    relatedSystemsHelper: "Kênh khách hàng, hệ thống nội bộ và bên thứ ba được nhập riêng.",
+    dataDocuments: "Dữ liệu và tài liệu",
+    dataDocumentsHelper: "Giữ dữ liệu, tài liệu, biểu mẫu và hồ sơ tách khỏi hệ thống.",
+    voiceComingSoon: "Tính năng nhập giọng nói sắp có. MVP1 chưa ghi âm, upload hoặc xử lý bên ngoài.",
+    fileIntake: "Nhập file",
+    fileIntakeHelper: "File được xử lý local để tạo draft PTR preview trước khi Apply.",
+    clearFiles: "Xóa file",
+    selectLocalFiles: "Chọn file local",
+    reselectAfterRefresh: "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất.",
+    fileName: "Tên file",
+    type: "Loại",
+    size: "Dung lượng",
+    lastModified: "Sửa lần cuối",
+    status: "Trạng thái",
+    action: "Thao tác",
+    extract: "Trích xuất",
+    generateDraftPtr: "Tạo Draft PTR",
+    unsupportedImage: "OCR/Image chưa hỗ trợ trong MVP1",
+    unsupportedFile: "Loại file chưa hỗ trợ",
+    remove: "Xóa",
+    unsupportedSummary: "Phát hiện file chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Voice/OCR/Image chưa được hỗ trợ.",
+    other: "Khác",
+    realAIMode: "Chế độ Real AI",
+    mockMode: "Chế độ mock",
+    checkingAIMode: "Đang kiểm tra AI mode..."
+  },
+  en: {
+    generateWithAI: "Generate with AI",
+    generating: "Generating...",
+    manualInput: "Manual Input",
+    importFile: "Import File",
+    voiceInputComingSoon: "Voice Input - Coming soon",
+    relatedSystems: "Related systems",
+    relatedSystemsHelper: "Customer-facing, internal, and third-party systems are captured separately.",
+    dataDocuments: "Data and documents",
+    dataDocumentsHelper: "Keep data, documents, forms, and records separate from systems.",
+    voiceComingSoon: "Voice Input is coming soon. No recording, upload, or external processing is implemented in this step.",
+    fileIntake: "File Intake",
+    fileIntakeHelper: "Files are processed locally for Draft PTR preview before Apply.",
+    clearFiles: "Clear files",
+    selectLocalFiles: "Select local files",
+    reselectAfterRefresh: "Please select the file again after browser refresh to run extraction.",
+    fileName: "File name",
+    type: "Type",
+    size: "Size",
+    lastModified: "Last modified",
+    status: "Status",
+    action: "Action",
+    extract: "Extract",
+    generateDraftPtr: "Generate Draft PTR",
+    unsupportedImage: "OCR/Image unsupported in MVP1",
+    unsupportedFile: "Unsupported file type",
+    remove: "Remove",
+    unsupportedSummary: "Unsupported file type detected. Supported formats are .xlsx, .docx, and .pdf. Voice/OCR/Image extraction is not supported yet.",
+    other: "Other",
+    realAIMode: "Real AI mode",
+    mockMode: "Mock mode",
+    checkingAIMode: "Checking AI mode..."
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -213,7 +282,7 @@ const briefFields: BriefField[] = [
   },
   {
     key: "actors",
-    label: { vi: "Người tham gia / Actor", en: "Participants / Actors" },
+    label: { vi: "Người tham gia", en: "Participants" },
     helper: {
       vi: "Chọn hoặc nhập các vai trò, phòng ban, hệ thống hoặc bên liên quan tham gia quy trình.",
       en: "Select or enter roles, departments, systems, or stakeholders in the process."
@@ -336,8 +405,8 @@ const briefFields: BriefField[] = [
 const primaryBriefFields = briefFields.slice(0, 4);
 const systemBriefFields = briefFields.slice(4, 7);
 const dataDocumentBriefFields = briefFields.slice(7);
-const OTHER_OPTION_LABEL = "Khác / Other";
-const otherOptionLabels = new Set(["Khác", "Other", OTHER_OPTION_LABEL]);
+const OTHER_OPTION_LABEL = "Other";
+const otherOptionLabels = new Set(["Khác", "Other", "Khác / Other"]);
 
 function markGeneratedArtifactsStale() {
   window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
@@ -602,6 +671,10 @@ export function AIInputBriefPanel() {
       ...field.suggestions.filter((suggestion) => !otherOptionLabels.has(suggestion)),
       OTHER_OPTION_LABEL
     ];
+  }
+
+  function getOptionDisplayLabel(option: string) {
+    return option === OTHER_OPTION_LABEL ? inputBriefUiText[locale].other : option;
   }
 
   function getFieldSelection(field: BriefField) {
@@ -1436,6 +1509,7 @@ export function AIInputBriefPanel() {
   }
 
   const labels = previewLabels[locale];
+  const uiText = inputBriefUiText[locale];
 
   function renderBriefField(field: BriefField) {
     const { options, otherText, selectedOptions } = getFieldSelection(field);
@@ -1474,7 +1548,7 @@ export function AIInputBriefPanel() {
                   }}
                   type="button"
                 >
-                  {suggestion}
+                  {getOptionDisplayLabel(suggestion)}
                 </button>
               );
             })}
@@ -1524,7 +1598,7 @@ export function AIInputBriefPanel() {
             onClick={generateDraftPtrWithAI}
             type="button"
           >
-            {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
+            {isGeneratingWithAI ? uiText.generating : uiText.generateWithAI}
           </button>
         </>
       }
@@ -1534,9 +1608,9 @@ export function AIInputBriefPanel() {
     >
       <div className="mb-4 flex flex-wrap gap-2">
         {[
-          { id: "manual" as const, label: "Manual Input", disabled: false },
-          { id: "import-file" as const, label: "Import File", disabled: false },
-          { id: "voice" as const, label: "Voice Input — Coming soon", disabled: false }
+          { id: "manual" as const, label: uiText.manualInput, disabled: false },
+          { id: "import-file" as const, label: uiText.importFile, disabled: false },
+          { id: "voice" as const, label: uiText.voiceInputComingSoon, disabled: false }
         ].map((mode) => (
           <button
             className={`rounded border px-3 py-2 text-sm font-semibold ${
@@ -1562,10 +1636,10 @@ export function AIInputBriefPanel() {
           <div className="w-full min-w-0 rounded border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-slate-950">
-                Related systems
+                {uiText.relatedSystems}
               </h3>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                Customer-facing, internal, and third-party systems are captured separately.
+                {uiText.relatedSystemsHelper}
               </p>
             </div>
             <div className="grid w-full min-w-0 gap-4">
@@ -1575,10 +1649,10 @@ export function AIInputBriefPanel() {
           <div className="w-full min-w-0 rounded border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-slate-950">
-                Data / Documents
+                {uiText.dataDocuments}
               </h3>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                Keep data, documents, forms, and records separate from systems.
+                {uiText.dataDocumentsHelper}
               </p>
             </div>
             <div className="grid w-full min-w-0 gap-4">
@@ -1590,7 +1664,7 @@ export function AIInputBriefPanel() {
 
       {briefMode === "voice" ? (
         <div className="rounded border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          Voice Input is coming soon. No recording, upload, or external processing is implemented in this step.
+          {uiText.voiceComingSoon}
         </div>
       ) : null}
 
@@ -1599,11 +1673,10 @@ export function AIInputBriefPanel() {
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-950">
-              File Intake
+              {uiText.fileIntake}
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Current MVP keeps selected files local unless real AI/cloud mode is explicitly enabled.
-              Supported files are parsed locally for Draft PTR preview before Apply.
+              {uiText.fileIntakeHelper}
             </p>
           </div>
           <button
@@ -1612,13 +1685,13 @@ export function AIInputBriefPanel() {
             onClick={clearSelectedFiles}
             type="button"
           >
-            Clear files
+            {uiText.clearFiles}
           </button>
         </div>
 
         <label className="mt-4 block">
           <span className="text-sm font-medium text-slate-700">
-            Select local files
+            {uiText.selectLocalFiles}
           </span>
           <input
             accept=".xlsx,.docx,.pdf,image/*"
@@ -1631,7 +1704,7 @@ export function AIInputBriefPanel() {
 
         {intakeFiles.length > 0 && selectedFileObjects.length === 0 ? (
           <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất.
+            {uiText.reselectAfterRefresh}
           </p>
         ) : null}
 
@@ -1640,12 +1713,12 @@ export function AIInputBriefPanel() {
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-3 py-2">File name</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Size</th>
-                  <th className="px-3 py-2">Last modified</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Action</th>
+                  <th className="px-3 py-2">{uiText.fileName}</th>
+                  <th className="px-3 py-2">{uiText.type}</th>
+                  <th className="px-3 py-2">{uiText.size}</th>
+                  <th className="px-3 py-2">{uiText.lastModified}</th>
+                  <th className="px-3 py-2">{uiText.status}</th>
+                  <th className="px-3 py-2">{uiText.action}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -1685,13 +1758,13 @@ export function AIInputBriefPanel() {
                               void extractExcelFile(selectedFile);
                             } else {
                               setMessage(
-                                "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất."
+                                uiText.reselectAfterRefresh
                               );
                             }
                           }}
                           type="button"
                         >
-                          Extract
+                          {uiText.extract}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".docx") &&
                         file.status !== "unsupported" ? (
@@ -1709,13 +1782,13 @@ export function AIInputBriefPanel() {
                               void extractDocxFile(selectedFile);
                             } else {
                               setMessage(
-                                "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất."
+                                uiText.reselectAfterRefresh
                               );
                             }
                           }}
                           type="button"
                         >
-                          Extract
+                          {uiText.extract}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".pdf") &&
                         file.status !== "unsupported" ? (
@@ -1733,19 +1806,19 @@ export function AIInputBriefPanel() {
                               void generateDraftPtrFromPdfFile(selectedFile);
                             } else {
                               setMessage(
-                                "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất."
+                                uiText.reselectAfterRefresh
                               );
                             }
                           }}
                           type="button"
                         >
-                          Generate Draft PTR
+                          {uiText.generateDraftPtr}
                         </button>
                       ) : file.status === "unsupported" ? (
                         <span className="text-xs font-semibold text-red-700">
                           {isImageIntakeFile(file)
-                            ? "OCR/Image unsupported in MVP1"
-                            : "Unsupported file type"}
+                            ? uiText.unsupportedImage
+                            : uiText.unsupportedFile}
                         </span>
                       ) : null}
                       <button
@@ -1753,7 +1826,7 @@ export function AIInputBriefPanel() {
                         onClick={() => removeSelectedFile(file)}
                         type="button"
                       >
-                        Remove
+                        {uiText.remove}
                       </button>
                     </td>
                   </tr>
@@ -1800,7 +1873,7 @@ export function AIInputBriefPanel() {
                 onClick={generateDraftPtrFromDocxExtraction}
                 type="button"
               >
-                Generate Draft PTR
+                {uiText.generateDraftPtr}
               </button>
             </div>
 
@@ -1858,7 +1931,9 @@ export function AIInputBriefPanel() {
               <div>
                 <p className="font-semibold">PDF extraction summary</p>
                 <p className="mt-1 text-emerald-900">
-                  Extracted {pdfExtraction.rawText.length} characters with local text parsing. OCR is not implemented in this phase.
+                  {locale === "vi"
+                    ? `Đã trích xuất ${pdfExtraction.rawText.length} ký tự bằng local text parsing. OCR chưa được hỗ trợ trong phase này.`
+                    : `Extracted ${pdfExtraction.rawText.length} characters with local text parsing. OCR is not implemented in this phase.`}
                 </p>
               </div>
               <button
@@ -1866,7 +1941,7 @@ export function AIInputBriefPanel() {
                 onClick={generateDraftPtrFromPdfExtraction}
                 type="button"
               >
-                Generate Draft PTR
+                {uiText.generateDraftPtr}
               </button>
             </div>
             {pdfExtraction.warnings.length > 0 ? (
@@ -1881,7 +1956,7 @@ export function AIInputBriefPanel() {
 
         {intakeFiles.some((file) => file.status === "unsupported") ? (
           <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            Unsupported file type detected. Supported formats are .xlsx, .docx, and .pdf. Voice/OCR/Image extraction is not supported yet.
+            {uiText.unsupportedSummary}
           </p>
         ) : null}
       </div>
@@ -1895,9 +1970,9 @@ export function AIInputBriefPanel() {
         <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
           {aiModeLoaded
             ? realAIEnabled
-              ? "Real AI mode"
-              : "Mock mode"
-            : "Checking AI mode..."}
+              ? uiText.realAIMode
+              : uiText.mockMode
+            : uiText.checkingAIMode}
         </span>
         {message ? <span>{message}</span> : null}
       </div>

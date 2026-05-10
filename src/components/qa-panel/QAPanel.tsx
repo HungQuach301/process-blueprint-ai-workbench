@@ -33,12 +33,61 @@ import type {
   QaIssue,
   QaSeverity
 } from "@/lib/qa/task-register-rules";
+import { getLocale, type Locale } from "@/lib/i18n";
 
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+const LOCALE_EVENT = "process-blueprint-locale-change";
+
+const qaPanelText = {
+  vi: {
+    title: "QA Panel",
+    description: "QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue để nhảy tới dòng liên quan nếu còn tồn tại.",
+    downloadReport: "Tải QA Report",
+    recommendationToolbar: "Thanh recommendation",
+    recommendations: "recommendation",
+    selected: "đã chọn",
+    safeHelper: "Safe = confidence cao, risk thấp và chỉ đổi field đơn giản. Recommendation đổi graph không được chọn mặc định.",
+    selectSafe: "Chọn safe",
+    applySelected: "Apply đã chọn",
+    more: "Thêm",
+    clearSelection: "Xóa lựa chọn",
+    applyAllSafe: "Apply tất cả safe recommendation",
+    exportFeedback: "Export feedback JSON",
+    clearLocalFeedback: "Xóa feedback local",
+    running: "Đang chạy AI QA...",
+    runReal: "Chạy real AI QA",
+    runMock: "Chạy mock AI QA",
+    showOnlySafe: "Chỉ hiện safe recommendation",
+    includeMedium: "Bao gồm medium confidence",
+    includeGraph: "Bao gồm recommendation đổi graph"
+  },
+  en: {
+    title: "QA Panel",
+    description: "QA reruns automatically when table data changes. Click an issue to jump to the related row when it still exists.",
+    downloadReport: "Download QA Report",
+    recommendationToolbar: "Recommendation toolbar",
+    recommendations: "recommendations",
+    selected: "selected",
+    safeHelper: "Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.",
+    selectSafe: "Select safe",
+    applySelected: "Apply selected",
+    more: "More",
+    clearSelection: "Clear selection",
+    applyAllSafe: "Apply all safe recommendations",
+    exportFeedback: "Export feedback JSON",
+    clearLocalFeedback: "Clear local feedback",
+    running: "Running AI QA...",
+    runReal: "Run real AI QA",
+    runMock: "Run mock AI QA",
+    showOnlySafe: "Show only safe recommendations",
+    includeMedium: "Include medium confidence",
+    includeGraph: "Include graph-changing recommendations"
+  }
+} satisfies Record<Locale, Record<string, string>>;
 
 type QAPanelProps = {
   issues: QaIssue[];
@@ -181,6 +230,7 @@ export function QAPanel({
   onApplyRecommendation,
   onApplyRecommendations
 }: QAPanelProps) {
+  const [locale, setActiveLocale] = useState<Locale>("vi");
   const [aiQaIssues, setAiQaIssues] = useState<QaIssue[]>([]);
   const [aiQaMessage, setAiQaMessage] = useState("");
   const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
@@ -196,9 +246,26 @@ export function QAPanel({
   const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   useEffect(() => {
+    setActiveLocale(getLocale());
     setAiQaIssues([]);
     setAiQaMessage("");
   }, [processTasks]);
+
+  useEffect(() => {
+    function handleLocaleChange(event: Event) {
+      const localeDetail = (event as CustomEvent<{ locale?: Locale }>).detail;
+
+      if (localeDetail?.locale) {
+        setActiveLocale(localeDetail.locale);
+      }
+    }
+
+    window.addEventListener(LOCALE_EVENT, handleLocaleChange);
+
+    return () => {
+      window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -288,6 +355,7 @@ export function QAPanel({
   const pendingBatchPreview = pendingBatchRecommendations
     ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
     : null;
+  const text = qaPanelText[locale];
 
   function toggleRecommendation(id: string) {
     setSelectedRecommendationIds((currentIds) => {
@@ -561,26 +629,26 @@ export function QAPanel({
             onClick={onDownloadReport}
             type="button"
           >
-            Download QA Report
+            {text.downloadReport}
           </button>
         </div>
       }
       bodyClassName="p-4"
-      description="QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue để nhảy tới dòng liên quan nếu còn tồn tại."
-      title="QA Panel"
+      description={text.description}
+      title={text.title}
     >
       {hasRecommendations ? (
         <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold uppercase text-emerald-800">
-                Recommendation toolbar
+                {text.recommendationToolbar}
               </p>
               <p className="mt-1 text-sm text-emerald-900">
-                {recommendationEntries.length} recommendations | {selectedRecommendations.length} selected
+                {recommendationEntries.length} {text.recommendations} | {selectedRecommendations.length} {text.selected}
               </p>
               <p className="mt-1 text-xs text-emerald-800">
-                Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.
+                {text.safeHelper}
               </p>
             </div>
 
@@ -591,7 +659,7 @@ export function QAPanel({
                 onClick={selectSafeRecommendations}
                 type="button"
               >
-                Select safe
+                {text.selectSafe}
               </button>
               <button
                 className="rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
@@ -599,7 +667,7 @@ export function QAPanel({
                 onClick={applySelectedRecommendations}
                 type="button"
               >
-                Apply selected ({selectedRecommendations.length})
+                {text.applySelected} ({selectedRecommendations.length})
               </button>
               <div className="relative">
                 <button
@@ -607,7 +675,7 @@ export function QAPanel({
                   onClick={() => setIsMoreMenuOpen((isOpen) => !isOpen)}
                   type="button"
                 >
-                  More
+                  {text.more}
                 </button>
                 {isMoreMenuOpen ? (
                   <div className="absolute right-0 z-20 mt-2 w-64 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
@@ -620,7 +688,7 @@ export function QAPanel({
                       }}
                       type="button"
                     >
-                      Clear selection
+                      {text.clearSelection}
                     </button>
                     <button
                       className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -631,7 +699,7 @@ export function QAPanel({
                       }}
                       type="button"
                     >
-                      Apply all safe recommendations
+                      {text.applyAllSafe}
                     </button>
                     <button
                       className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -641,7 +709,7 @@ export function QAPanel({
                       }}
                       type="button"
                     >
-                      Export feedback JSON
+                      {text.exportFeedback}
                     </button>
                     <button
                       className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -651,7 +719,7 @@ export function QAPanel({
                       }}
                       type="button"
                     >
-                      Clear local feedback
+                      {text.clearLocalFeedback}
                     </button>
                   </div>
                 ) : null}
@@ -667,10 +735,10 @@ export function QAPanel({
               type="button"
             >
               {isRunningAIQA
-                ? "Running AI QA..."
+                ? text.running
                 : realAIQAEnabled
-                  ? "Run real AI QA"
-                  : "Run mock AI QA"}
+                  ? text.runReal
+                  : text.runMock}
             </button>
             <label className="flex items-center gap-2">
               <input
@@ -678,7 +746,7 @@ export function QAPanel({
                 onChange={(event) => setShowOnlySafe(event.target.checked)}
                 type="checkbox"
               />
-              Show only safe recommendations
+              {text.showOnlySafe}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -686,7 +754,7 @@ export function QAPanel({
                 onChange={(event) => setIncludeMediumConfidence(event.target.checked)}
                 type="checkbox"
               />
-              Include medium confidence
+              {text.includeMedium}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -694,7 +762,7 @@ export function QAPanel({
                 onChange={(event) => setIncludeGraphChanging(event.target.checked)}
                 type="checkbox"
               />
-              Include graph-changing recommendations
+              {text.includeGraph}
             </label>
           </div>
         </div>

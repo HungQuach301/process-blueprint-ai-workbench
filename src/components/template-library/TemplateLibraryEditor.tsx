@@ -27,6 +27,7 @@ import {
   sampleBpmnTemplateProfile,
   sampleServiceBlueprintTemplateProfile
 } from "@/lib/sample-data/sme-online-loan";
+import { getLocale, type Locale } from "@/lib/i18n";
 
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
@@ -38,6 +39,84 @@ const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
+const LOCALE_EVENT = "process-blueprint-locale-change";
+
+const templateHubText = {
+  vi: {
+    title: "Trung tâm template",
+    description: "Quản lý template dùng lại cho D01 BPMN và D02 Service Blueprint. Template QA chỉ tạo recommendation, không auto-apply.",
+    changeTemplate: "Đổi template",
+    previewTemplate: "Xem template",
+    runTemplateQA: "Chạy Template QA",
+    running: "Đang chạy...",
+    save: "Lưu",
+    reset: "Reset",
+    recommendations: "Recommendation từ Template QA",
+    reviewRequired: "Cần người dùng review. Không có thay đổi template nào được auto-apply.",
+    starterPack: "Banking Starter Pack và template đã lưu",
+    outputType: "Loại output",
+    businessDomain: "Domain nghiệp vụ",
+    processType: "Loại quy trình",
+    scope: "Phạm vi",
+    status: "Trạng thái",
+    all: "Tất cả",
+    preview: "Xem trước",
+    useD01: "Dùng cho D01",
+    useD02: "Dùng cho D02",
+    editor: "Template editor",
+    editorHelper: "Basic mode chỉ hiển thị metadata. JSON rules nằm trong Advanced mode.",
+    basicMode: "Basic mode",
+    advancedMode: "Advanced mode: JSON rules",
+    hide: "Ẩn",
+    show: "Hiện",
+    notClassified: "Chưa phân loại",
+    tags: "Tag",
+    noTemplateSelected: "Chưa chọn template.",
+    templatePreview: "Xem trước template",
+    close: "Đóng",
+    rulePreview: "Xem rules",
+    rulePreviewBody: "JSON/rule details chỉ chỉnh sửa trong Advanced mode. Preview này không hiển thị raw JSON ở template card.",
+    mandatoryFields: "Field bắt buộc",
+    none: "Không có"
+  },
+  en: {
+    title: "Template Hub",
+    description: "Manage reusable profiles for D01 BPMN and D02 Service Blueprint. Template QA creates recommendations only; it never auto-applies changes.",
+    changeTemplate: "Change template",
+    previewTemplate: "Preview template",
+    runTemplateQA: "Run Template QA",
+    running: "Running...",
+    save: "Save",
+    reset: "Reset",
+    recommendations: "Template QA Recommendations",
+    reviewRequired: "Human review required. No template change is auto-applied.",
+    starterPack: "Banking Starter Pack and saved templates",
+    outputType: "Output type",
+    businessDomain: "Business domain",
+    processType: "Process type",
+    scope: "Scope",
+    status: "Status",
+    all: "All",
+    preview: "Preview",
+    useD01: "Use D01",
+    useD02: "Use D02",
+    editor: "Template editor",
+    editorHelper: "Basic mode shows metadata. Advanced mode contains JSON rules.",
+    basicMode: "Basic mode",
+    advancedMode: "Advanced mode: JSON rules",
+    hide: "Hide",
+    show: "Show",
+    notClassified: "Not classified",
+    tags: "Tags",
+    noTemplateSelected: "No template selected.",
+    templatePreview: "Template preview",
+    close: "Close",
+    rulePreview: "Rule preview",
+    rulePreviewBody: "JSON/rule details are editable only in Advanced mode. This preview intentionally avoids showing raw JSON in the template card.",
+    mandatoryFields: "Mandatory fields",
+    none: "None"
+  }
+} satisfies Record<Locale, Record<string, string>>;
 
 type RuleField =
   | "laneRules"
@@ -332,6 +411,7 @@ function TemplateSummary({ draft }: { draft: TemplateDraft }) {
 }
 
 export function TemplateLibraryEditor() {
+  const [locale, setActiveLocale] = useState<Locale>("vi");
   const [drafts, setDrafts] = useState<TemplateDraft[]>(() => sampleDrafts());
   const [activeTemplateId, setActiveTemplateId] = useState(
     sampleBpmnTemplateProfile.id
@@ -363,6 +443,7 @@ export function TemplateLibraryEditor() {
   });
 
   useEffect(() => {
+    setActiveLocale(getLocale());
     const savedTemplates = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
     const savedD01 = window.localStorage.getItem(D01_STORAGE_KEY);
     const savedD02 = window.localStorage.getItem(D02_STORAGE_KEY);
@@ -394,6 +475,22 @@ export function TemplateLibraryEditor() {
     if (savedD02) {
       setSelectedD02TemplateId(savedD02);
     }
+  }, []);
+
+  useEffect(() => {
+    function handleLocaleChange(event: Event) {
+      const localeDetail = (event as CustomEvent<{ locale?: Locale }>).detail;
+
+      if (localeDetail?.locale) {
+        setActiveLocale(localeDetail.locale);
+      }
+    }
+
+    window.addEventListener(LOCALE_EVENT, handleLocaleChange);
+
+    return () => {
+      window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -435,6 +532,7 @@ export function TemplateLibraryEditor() {
   const previewDraft = previewTemplateId
     ? findTemplate(drafts, previewTemplateId)
     : null;
+  const text = templateHubText[locale];
 
   const filteredDrafts = useMemo(
     () =>
@@ -651,14 +749,14 @@ export function TemplateLibraryEditor() {
             onClick={changeTemplate}
             type="button"
           >
-            Change template
+            {text.changeTemplate}
           </button>
           <button
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             onClick={previewActiveTemplate}
             type="button"
           >
-            Preview template
+            {text.previewTemplate}
           </button>
           <button
             className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -666,27 +764,27 @@ export function TemplateLibraryEditor() {
             onClick={runTemplateReview}
             type="button"
           >
-            {isReviewingTemplate ? "Running..." : "Run Template QA"}
+            {isReviewingTemplate ? text.running : text.runTemplateQA}
           </button>
           <button
             className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
             onClick={saveTemplates}
             type="button"
           >
-            Save
+            {text.save}
           </button>
           <button
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             onClick={resetTemplates}
             type="button"
           >
-            Reset
+            {text.reset}
           </button>
         </>
       }
       bodyClassName="p-4"
-      description="Manage reusable profiles for D01 BPMN and D02 Service Blueprint. Template QA creates recommendations only; it never auto-applies changes."
-      title="Template Hub / Trung tâm template"
+      description={text.description}
+      title={text.title}
     >
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded border border-slate-200 bg-slate-50 p-3">
@@ -722,10 +820,10 @@ export function TemplateLibraryEditor() {
       {templateReviewRecommendations.length > 0 ? (
         <div className="mt-4 rounded border border-indigo-200 bg-indigo-50 p-3">
           <p className="text-sm font-semibold text-indigo-950">
-            Template QA Recommendations
+            {text.recommendations}
           </p>
           <p className="mt-1 text-sm text-indigo-900">
-            Human review required. No template change is auto-applied.
+            {text.reviewRequired}
           </p>
           <div className="mt-3 grid gap-3">
             {templateReviewRecommendations.map((recommendation) => (
@@ -768,15 +866,15 @@ export function TemplateLibraryEditor() {
 
       <div id="template-hub-list" className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
         <p className="text-sm font-semibold text-slate-950">
-          Banking Starter Pack and saved templates
+          {text.starterPack}
         </p>
         <div className="mt-3 grid gap-3 md:grid-cols-5">
           {[
-            { key: "outputType", label: "Output type", options: filterOptions.outputType },
-            { key: "businessDomain", label: "Business domain", options: filterOptions.businessDomain },
-            { key: "processType", label: "Process type", options: filterOptions.processType },
-            { key: "scopeType", label: "Scope", options: filterOptions.scopeType },
-            { key: "status", label: "Status", options: filterOptions.status }
+            { key: "outputType", label: text.outputType, options: filterOptions.outputType },
+            { key: "businessDomain", label: text.businessDomain, options: filterOptions.businessDomain },
+            { key: "processType", label: text.processType, options: filterOptions.processType },
+            { key: "scopeType", label: text.scope, options: filterOptions.scopeType },
+            { key: "status", label: text.status, options: filterOptions.status }
           ].map((filter) => (
             <label className="grid gap-1 text-xs font-semibold text-slate-600" key={filter.key}>
               {filter.label}
@@ -790,7 +888,7 @@ export function TemplateLibraryEditor() {
                 }
                 value={filters[filter.key as keyof typeof filters]}
               >
-                <option value="">All</option>
+                <option value="">{text.all}</option>
                 {filter.options.map((option) => (
                   <option key={option} value={option}>
                     {option}
@@ -831,21 +929,21 @@ export function TemplateLibraryEditor() {
                       onClick={() => setPreviewTemplateId(draft.id)}
                       type="button"
                     >
-                      Preview
+                      {text.preview}
                     </button>
                     <button
                       className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       onClick={() => useForD01(draft.id)}
                       type="button"
                     >
-                      Use D01
+                      {text.useD01}
                     </button>
                     <button
                       className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       onClick={() => useForD02(draft.id)}
                       type="button"
                     >
-                      Use D02
+                      {text.useD02}
                     </button>
                   </div>
                 </div>
@@ -862,14 +960,14 @@ export function TemplateLibraryEditor() {
         <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-950">
-              Template editor
+              {text.editor}
             </p>
             <p className="mt-1 text-sm text-slate-600">
-              Basic mode shows metadata. Advanced mode contains JSON rules.
+              {text.editorHelper}
             </p>
           </div>
           <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
-            Basic mode
+            {text.basicMode}
           </span>
         </div>
 
@@ -935,7 +1033,7 @@ export function TemplateLibraryEditor() {
                     }
                     value={activeDraft[field.key]}
                   >
-                    <option value="">Not classified</option>
+                    <option value="">{text.notClassified}</option>
                     {field.options.map((option) => (
                       <option key={option} value={option}>
                         {option}
@@ -945,7 +1043,7 @@ export function TemplateLibraryEditor() {
                 </label>
               ))}
               <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Tags
+                {text.tags}
                 <input
                   className="rounded border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
                   onChange={(event) => updateDraft("tags", event.target.value)}
@@ -961,9 +1059,9 @@ export function TemplateLibraryEditor() {
                 onClick={() => setAdvancedModeOpen((isOpen) => !isOpen)}
                 type="button"
               >
-                <span>Advanced mode: JSON rules</span>
+                <span>{text.advancedMode}</span>
                 <span className="text-xs text-slate-500">
-                  {advancedModeOpen ? "Hide" : "Show"}
+                  {advancedModeOpen ? text.hide : text.show}
                 </span>
               </button>
               {advancedModeOpen ? (
@@ -984,7 +1082,7 @@ export function TemplateLibraryEditor() {
                     </label>
                   ))}
                   <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">
-                    Mandatory fields
+                    {text.mandatoryFields}
                     <textarea
                       className="min-h-28 rounded border border-slate-300 px-3 py-2 font-mono text-xs font-normal text-slate-900"
                       onChange={(event) =>
@@ -998,7 +1096,7 @@ export function TemplateLibraryEditor() {
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-sm text-slate-600">No template selected.</p>
+          <p className="mt-4 text-sm text-slate-600">{text.noTemplateSelected}</p>
         )}
       </div>
 
@@ -1008,7 +1106,7 @@ export function TemplateLibraryEditor() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium uppercase text-slate-500">
-                  Template preview
+                  {text.templatePreview}
                 </p>
                 <h3 className="mt-1 text-xl font-semibold text-slate-950">
                   {previewDraft.name}
@@ -1019,25 +1117,23 @@ export function TemplateLibraryEditor() {
                 onClick={() => setPreviewTemplateId(null)}
                 type="button"
               >
-                Close
+                {text.close}
               </button>
             </div>
             <div className="mt-4">
               <TemplateSummary draft={previewDraft} />
             </div>
             <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-              <p className="font-semibold text-slate-950">Rule preview</p>
+              <p className="font-semibold text-slate-950">{text.rulePreview}</p>
               <p className="mt-2">
-                JSON/rule details are editable only in Advanced mode. This
-                preview intentionally avoids showing raw JSON in the template
-                card.
+                {text.rulePreviewBody}
               </p>
               <p className="mt-2">
-                Mandatory fields:{" "}
+                {text.mandatoryFields}:{" "}
                 {previewDraft.mandatoryFields
                   .split(/\r?\n/)
                   .filter(Boolean)
-                  .join(", ") || "None"}
+                  .join(", ") || text.none}
               </p>
             </div>
           </div>

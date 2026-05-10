@@ -26,6 +26,7 @@ import {
   inferChannel,
   inferCustomerInteractionType
 } from "@/lib/utils/process-task-inference";
+import { getLocale, type Locale } from "@/lib/i18n";
 import {
   sampleBpmnTemplateProfile,
   sampleProcessTasks,
@@ -47,6 +48,48 @@ const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
+const LOCALE_EVENT = "process-blueprint-locale-change";
+
+const ptrText = {
+  vi: {
+    title: "Process Task Register",
+    description: "Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau khi refresh trình duyệt.",
+    saveChanges: "Lưu thay đổi",
+    more: "Thêm",
+    addRow: "Thêm dòng",
+    resetSample: "Reset mẫu",
+    exportExcel: "Export Excel",
+    importExcel: "Import Excel",
+    downloadExcelTemplate: "Tải Excel template",
+    exportJson: "Export JSON",
+    sample: "Mẫu",
+    autoSuggest: "Auto-suggest interaction fields",
+    oneRow: "Một dòng = một task/gateway/event/data interaction.",
+    gateway: "Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.",
+    systemData: "System/data phải giữ liên kết với hành trình người dùng.",
+    totalRows: "Tổng dòng",
+    gatewayCount: "Gateway"
+  },
+  en: {
+    title: "Process Task Register",
+    description: "Data can be edited directly in the table. Click Save to keep it after browser refresh.",
+    saveChanges: "Save changes",
+    more: "More",
+    addRow: "Add row",
+    resetSample: "Reset sample",
+    exportExcel: "Export Excel",
+    importExcel: "Import Excel",
+    downloadExcelTemplate: "Download Excel template",
+    exportJson: "Export JSON",
+    sample: "Sample",
+    autoSuggest: "Auto-suggest interaction fields",
+    oneRow: "One row = one task, gateway, event, or data interaction.",
+    gateway: "Gateways must include a condition question and complete yes/no branches.",
+    systemData: "System/data fields should stay linked to the user journey.",
+    totalRows: "Total rows",
+    gatewayCount: "Gateways"
+  }
+} satisfies Record<Locale, Record<string, string>>;
 
 type EditableColumn = {
   key: keyof ProcessTask;
@@ -444,6 +487,7 @@ function isEmptyChannel(task: ProcessTask) {
 }
 
 export function ProcessTaskRegister() {
+  const [locale, setActiveLocale] = useState<Locale>("vi");
   const [tasks, setTasks] = useState<ProcessTask[]>(() => cloneSampleTasks());
   const [selectedSampleProcessId, setSelectedSampleProcessId] =
     useState<SampleProcessId>("sme-online-loan");
@@ -454,6 +498,8 @@ export function ProcessTaskRegister() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
+    setActiveLocale(getLocale());
+
     function loadSavedTasks() {
       const savedTasks = window.localStorage.getItem(STORAGE_KEY);
 
@@ -491,6 +537,22 @@ export function ProcessTaskRegister() {
     };
   }, []);
 
+  useEffect(() => {
+    function handleLocaleChange(event: Event) {
+      const localeDetail = (event as CustomEvent<{ locale?: Locale }>).detail;
+
+      if (localeDetail?.locale) {
+        setActiveLocale(localeDetail.locale);
+      }
+    }
+
+    window.addEventListener(LOCALE_EVENT, handleLocaleChange);
+
+    return () => {
+      window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
+    };
+  }, []);
+
   const gatewayCount = useMemo(
     () => tasks.filter((task) => task.rowType === "gateway").length,
     [tasks]
@@ -498,6 +560,7 @@ export function ProcessTaskRegister() {
 
   const qaIssues = useMemo(() => validateProcessTasks(tasks), [tasks]);
   const activeSampleProcess = getSampleProcess(selectedSampleProcessId);
+  const text = ptrText[locale];
 
   function focusIssueRow(stepId: string) {
     setHighlightedStepId(stepId);
@@ -899,7 +962,7 @@ export function ProcessTaskRegister() {
               onClick={saveTasks}
               type="button"
             >
-              Save changes
+              {text.saveChanges}
             </button>
             <input
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -914,7 +977,7 @@ export function ProcessTaskRegister() {
                 onClick={() => setIsRegisterMoreMenuOpen((isOpen) => !isOpen)}
                 type="button"
               >
-                More
+                {text.more}
               </button>
               {isRegisterMoreMenuOpen ? (
                 <div className="absolute right-0 z-20 mt-2 w-60 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
@@ -926,7 +989,7 @@ export function ProcessTaskRegister() {
                     }}
                     type="button"
                   >
-                    Add row
+                    {text.addRow}
                   </button>
                   <button
                     className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -936,7 +999,7 @@ export function ProcessTaskRegister() {
                     }}
                     type="button"
                   >
-                    Reset sample
+                    {text.resetSample}
                   </button>
                   <button
                     className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -946,7 +1009,7 @@ export function ProcessTaskRegister() {
                     }}
                     type="button"
                   >
-                    Export Excel
+                    {text.exportExcel}
                   </button>
                   <button
                     className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -956,7 +1019,7 @@ export function ProcessTaskRegister() {
                     }}
                     type="button"
                   >
-                    Import Excel
+                    {text.importExcel}
                   </button>
                   <button
                     className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -966,7 +1029,7 @@ export function ProcessTaskRegister() {
                     }}
                     type="button"
                   >
-                    Download Excel template
+                    {text.downloadExcelTemplate}
                   </button>
                   <button
                     className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -976,7 +1039,7 @@ export function ProcessTaskRegister() {
                     }}
                     type="button"
                   >
-                    Export JSON
+                    {text.exportJson}
                   </button>
                 </div>
               ) : null}
@@ -984,7 +1047,7 @@ export function ProcessTaskRegister() {
           </div>
         }
         bodyClassName="p-4"
-        description="Dữ liệu có thể sửa trực tiếp trong bảng. Bấm Lưu để giữ lại sau khi refresh trình duyệt."
+        description={text.description}
         title="Process Task Register"
       >
           <div className="mb-4">
@@ -993,7 +1056,7 @@ export function ProcessTaskRegister() {
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                Sample
+                {text.sample}
                 <select
                   className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700"
                   onChange={(event) => switchSampleProcess(event.target.value)}
@@ -1011,16 +1074,16 @@ export function ProcessTaskRegister() {
                 onClick={autoSuggestInteractionFields}
                 type="button"
               >
-                Auto-suggest interaction fields
+                {text.autoSuggest}
               </button>
             </div>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
-              <li>Một dòng = một task/gateway/event/data interaction.</li>
-              <li>Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.</li>
-              <li>System/data phải giữ liên kết với hành trình người dùng.</li>
+              <li>{text.oneRow}</li>
+              <li>{text.gateway}</li>
+              <li>{text.systemData}</li>
             </ul>
             <p className="mt-2 text-sm text-slate-500">
-              Tổng dòng: {tasks.length} | Gateway: {gatewayCount}
+              {text.totalRows}: {tasks.length} | {text.gatewayCount}: {gatewayCount}
             </p>
           </div>
           {saveMessage ? (

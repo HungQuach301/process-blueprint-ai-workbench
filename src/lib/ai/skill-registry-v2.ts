@@ -155,6 +155,30 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "process-modeling-qa-recommendation-v1"
   },
   {
+    skillId: "artifact-review",
+    version: "1.0.0",
+    module: "module-2-process-modeling",
+    status: "real-ai-ready",
+    description:
+      "Review generated D01 BPMN or D02 Service Blueprint artifacts and route fixes back to PTR or template recommendations.",
+    inputSchema: {
+      id: "ProcessTaskRegisterContext",
+      description:
+        "ProcessTask[] plus selected TemplateProfile, artifact type, generated XML, and optional rule QA issues.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "ArtifactReviewResponse",
+      description:
+        "PTR recommendations, template recommendations, and artifact review warnings for user review.",
+      validatorId: "validateArtifactReviewResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "process-modeling-artifact-review-v1"
+  },
+  {
     skillId: "template-review",
     version: "1.0.0",
     module: "module-2-process-modeling",

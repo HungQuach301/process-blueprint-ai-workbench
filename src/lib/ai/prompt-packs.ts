@@ -124,6 +124,23 @@ export const processModelingPromptPacks: AIPromptPack[] = [
           "Review template metadata and rules only. Do not modify D01/D02 generators and do not apply template patches automatically."
       }
     ]
+  },
+  {
+    id: "process-modeling-artifact-review-v1",
+    version: "1.0.0",
+    domain: "process-modeling",
+    description:
+      "Review generated D01 BPMN or D02 Service Blueprint output without mutating artifact XML.",
+    outputContract:
+      "{ recommendations: QARecommendation[], templateRecommendations: TemplateRecommendation[], warnings: string[] }.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Review the generated BPMN or draw.io XML as an artifact quality check. Never rewrite or patch the XML directly. Any process fix must be returned as QARecommendation objects targeting existing ProcessTask.stepId values. Any template fix must be returned as TemplateRecommendation objects for the selected template. Put artifact-only concerns that cannot safely become a PTR or template fix into warnings."
+      }
+    ]
   }
 ];
 

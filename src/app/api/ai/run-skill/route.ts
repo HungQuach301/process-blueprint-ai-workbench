@@ -10,7 +10,10 @@ import type { ProcessTask } from "@/lib/models/process-task";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
 import { runMockTemplateReview } from "@/lib/ai/ai-template-review-service";
-import type { AITemplateReviewRequest } from "@/lib/ai/ai-template-review-types";
+import type {
+  AITemplateReviewRequest,
+  TemplateRecommendation
+} from "@/lib/ai/ai-template-review-types";
 import {
   createConfiguredAIProvider,
   getAIProviderStatus,
@@ -67,6 +70,7 @@ const LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID = "chat-to-draft-ptr";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
 const PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID =
   "process-improvement-recommendation";
+const ARTIFACT_REVIEW_SKILL_ID = "artifact-review";
 const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const TEMPLATE_REVIEW_REGISTRY_SKILL_ID = "template-review";
 const ORCHESTRATION_VERSION = "2.0.0";
@@ -189,6 +193,7 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID,
     AI_PROCESS_QA_SKILL_ID,
     PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
+    ARTIFACT_REVIEW_SKILL_ID,
     AI_TEMPLATE_REVIEW_SKILL_ID
   ].includes(routeSkillId);
 }
@@ -592,10 +597,32 @@ type TemplateReviewPayload = Omit<
   selectedTemplate?: unknown;
 };
 
+type ArtifactReviewPayload = {
+  artifactType: "bpmn" | "service-blueprint";
+  artifactXml: string;
+  processTasks: ProcessTask[];
+  selectedTemplate: unknown;
+  qaIssues?: unknown;
+};
+
 function isTemplateReviewPayload(
   value: unknown
 ): value is TemplateReviewPayload {
   return isObject(value) && isObject(value.selectedTemplate);
+}
+
+function isArtifactReviewPayload(
+  value: unknown
+): value is ArtifactReviewPayload {
+  return (
+    isObject(value) &&
+    (value.artifactType === "bpmn" ||
+      value.artifactType === "service-blueprint") &&
+    typeof value.artifactXml === "string" &&
+    value.artifactXml.trim().length > 0 &&
+    Array.isArray(value.processTasks) &&
+    isObject(value.selectedTemplate)
+  );
 }
 
 function getValidationContext(
@@ -611,6 +638,14 @@ function getValidationContext(
   if (routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID && isTemplateReviewPayload(payload)) {
     return {
       selectedTemplate: payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number]
+    };
+  }
+
+  if (routeSkillId === ARTIFACT_REVIEW_SKILL_ID && isArtifactReviewPayload(payload)) {
+    return {
+      validStepIds: payload.processTasks.map((task) => task.stepId),
+      selectedTemplate:
+        payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number]
     };
   }
 
@@ -667,6 +702,20 @@ function normalizeValidatedResult(routeSkillId: string, value: unknown) {
   if (routeSkillId === AI_PROCESS_QA_SKILL_ID) {
     return {
       recommendations: value
+    };
+  }
+
+  if (routeSkillId === ARTIFACT_REVIEW_SKILL_ID && isObject(value)) {
+    return {
+      recommendations: enforceGraphChangingRisk(
+        Array.isArray(value.recommendations)
+          ? (value.recommendations as QARecommendation[])
+          : []
+      ),
+      templateRecommendations: Array.isArray(value.templateRecommendations)
+        ? value.templateRecommendations
+        : [],
+      warnings: Array.isArray(value.warnings) ? value.warnings : []
     };
   }
 
@@ -850,6 +899,91 @@ function createMockAIQAResponse({
       validationPassed: true,
       promptPackId: skill.promptPackId,
       dataUsageMode,
+      audit
+    }
+  });
+}
+
+function createMockArtifactReviewResponse({
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isArtifactReviewPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Artifact review request must include artifactType, artifactXml, processTasks, and selectedTemplate."
+      },
+      { status: 400 }
+    );
+  }
+
+  const selectedTemplate =
+    payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number];
+  const warnings = [
+    payload.artifactType === "bpmn"
+      ? "Mock artifact review checked generated BPMN as read-only output."
+      : "Mock artifact review checked generated Service Blueprint draw.io XML as read-only output.",
+    "AI artifact review does not modify generated XML directly; fixes must route back to PTR or template recommendations."
+  ];
+  const qaRecommendations: QARecommendation[] = [];
+  const templateRecommendations: TemplateRecommendation[] = [];
+  const validation = validateAISkillOutput(
+    ARTIFACT_REVIEW_SKILL_ID,
+    {
+      recommendations: qaRecommendations,
+      templateRecommendations,
+      warnings
+    },
+    {
+      validStepIds: payload.processTasks.map((task) => task.stepId),
+      selectedTemplate
+    }
+  );
+
+  if (!validation.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Mock artifact review output failed schema validation.",
+        validationErrors: validation.errors
+      },
+      { status: 422 }
+    );
+  }
+
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId: ARTIFACT_REVIEW_SKILL_ID,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: ARTIFACT_REVIEW_SKILL_ID,
+    result: validation.value,
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      artifactType: payload.artifactType,
+      artifactXmlLength: payload.artifactXml.length,
       audit
     }
   });
@@ -1730,6 +1864,10 @@ function createMockResponse({
     return createMockProcessImprovementResponse({ skill, payload, dataUsageMode });
   }
 
+  if (routeSkillId === ARTIFACT_REVIEW_SKILL_ID) {
+    return createMockArtifactReviewResponse({ skill, payload, dataUsageMode });
+  }
+
   if (routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID) {
     return createMockTemplateReviewResponse({ skill, payload, dataUsageMode });
   }
@@ -1764,6 +1902,13 @@ function createRouteSpecificInputValidationError(
     !isTemplateReviewPayload(payload)
   ) {
     return "Template review request must include selectedTemplate.";
+  }
+
+  if (
+    routeSkillId === ARTIFACT_REVIEW_SKILL_ID &&
+    !isArtifactReviewPayload(payload)
+  ) {
+    return "Artifact review request must include artifactType, artifactXml, processTasks, and selectedTemplate.";
   }
 
   return "";

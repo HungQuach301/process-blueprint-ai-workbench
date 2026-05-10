@@ -25,7 +25,8 @@ export type AISkillSchemaId =
   | "AcceptanceCriteriaResponse"
   | "AICodingPackResponse"
   | "QARecommendationResponse"
-  | "TemplateRecommendationResponse";
+  | "TemplateRecommendationResponse"
+  | "ArtifactReviewResponse";
 
 export type AISkillValidationContext = {
   validStepIds?: string[];
@@ -113,6 +114,12 @@ export type AICodingPackResponse = {
   assumptions: string[];
   openQuestions: string[];
   traceLinks?: TraceLink[];
+};
+
+export type ArtifactReviewResponse = {
+  recommendations: QARecommendation[];
+  templateRecommendations: TemplateRecommendation[];
+  warnings: string[];
 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -560,6 +567,74 @@ export function normalizeDeterministicCodingPack(
   };
 }
 
+export function validateArtifactReviewResponse(
+  value: unknown,
+  context: AISkillValidationContext = {}
+): SchemaValidationResult<ArtifactReviewResponse> {
+  const errors: string[] = [];
+
+  if (!isObject(value)) {
+    return {
+      ok: false,
+      errors: ["ArtifactReviewResponse must be an object."]
+    };
+  }
+
+  const recommendations = value.recommendations ?? [];
+  const qaValidation = validateAIQARecommendations(
+    recommendations,
+    context.validStepIds ?? []
+  );
+
+  if (!qaValidation.ok) {
+    errors.push(...qaValidation.errors);
+  }
+
+  let templateRecommendations: TemplateRecommendation[] = [];
+
+  if (value.templateRecommendations !== undefined) {
+    if (!context.selectedTemplate) {
+      errors.push(
+        "selectedTemplate is required to validate artifact template recommendations."
+      );
+    } else {
+      const templateValidation = validateTemplateReviewOutput(
+        { recommendations: value.templateRecommendations },
+        context.selectedTemplate
+      );
+
+      if (!templateValidation.ok) {
+        errors.push(...templateValidation.errors);
+      } else {
+        templateRecommendations = templateValidation.recommendations;
+      }
+    }
+  }
+
+  if (value.warnings !== undefined) {
+    validateStringArray(value.warnings, "warnings", errors);
+  }
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      recommendations: qaValidation.ok ? qaValidation.recommendations : [],
+      templateRecommendations,
+      warnings: Array.isArray(value.warnings)
+        ? (value.warnings as string[])
+        : []
+    },
+    errors: []
+  };
+}
+
 export function validateAISkillInput(
   skillId: string,
   value: unknown
@@ -581,6 +656,7 @@ export function validateAISkillInput(
       "ai-process-qa",
       "process-qa-recommendation",
       "process-improvement-recommendation",
+      "artifact-review",
       "template-recommendation",
       "ptr-to-brd-outline",
       "ptr-to-srs-outline",
@@ -633,6 +709,10 @@ export function validateAISkillOutput(
       value: validation.recommendations satisfies QARecommendation[],
       errors: []
     };
+  }
+
+  if (skillId === "artifact-review") {
+    return validateArtifactReviewResponse(value, context);
   }
 
   if (skillId === "template-review" || skillId === "ai-template-review") {

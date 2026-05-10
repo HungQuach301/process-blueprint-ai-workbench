@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import { BpmnPreview } from "@/components/preview/BpmnPreview";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
+import {
+  confirmRealAICallIfNeeded,
+  logAICallAudit
+} from "@/lib/ai/ai-governance";
+import type { TemplateRecommendation } from "@/lib/ai/ai-template-review-types";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
+import type { QARecommendation } from "@/lib/recommendation-engine/types";
+import { validateProcessTasks } from "@/lib/qa/task-register-rules";
 import {
   sampleBpmnTemplateProfile,
   sampleProcessTasks
 } from "@/lib/sample-data/sme-online-loan";
 
+const ARTIFACT_REVIEW_SKILL_ID = "artifact-review";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
@@ -65,9 +73,49 @@ function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
+type ArtifactReviewResult = {
+  recommendations: QARecommendation[];
+  templateRecommendations: TemplateRecommendation[];
+  warnings: string[];
+};
+
 export function D01BpmnOutput() {
   const [xml, setXml] = useState("");
   const [message, setMessage] = useState("");
+  const [reviewResult, setReviewResult] = useState<ArtifactReviewResult | null>(
+    null
+  );
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [realAIEnabled, setRealAIEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAIMode() {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "GET"
+        });
+        const data = (await response.json()) as {
+          realAIEnabled?: boolean;
+        };
+
+        if (active) {
+          setRealAIEnabled(data.realAIEnabled === true);
+        }
+      } catch {
+        if (active) {
+          setRealAIEnabled(false);
+        }
+      }
+    }
+
+    loadAIMode();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function generateXml() {
     try {
@@ -80,6 +128,7 @@ export function D01BpmnOutput() {
       }
 
       setXml(generatedXml);
+      setReviewResult(null);
       window.localStorage.setItem(D01_GENERATED_XML_KEY, generatedXml);
       window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "fresh");
       window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
@@ -100,6 +149,100 @@ export function D01BpmnOutput() {
           ? `Không thể generate D01 BPMN: ${error.message}`
           : "Không thể generate D01 BPMN. Vui lòng kiểm tra dữ liệu đầu vào."
       );
+    }
+  }
+
+  async function reviewBpmnWithAI() {
+    if (!xml.trim()) {
+      setMessage("ChÆ°a cÃ³ BPMN XML Ä‘á»ƒ review. Vui lÃ²ng generate D01 trÆ°á»›c.");
+      return;
+    }
+
+    const processTasks = readProcessTasks();
+    const selectedTemplate = readSelectedD01Template();
+    if (!confirmRealAICallIfNeeded(realAIEnabled)) {
+      return;
+    }
+
+    setIsReviewing(true);
+    setReviewResult(null);
+    setMessage("Äang review BPMN báº±ng AI...");
+
+    try {
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: ARTIFACT_REVIEW_SKILL_ID,
+          payload: {
+            artifactType: "bpmn",
+            artifactXml: xml,
+            processTasks,
+            selectedTemplate,
+            qaIssues: validateProcessTasks(processTasks)
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        validationErrors?: string[];
+        result?: Partial<ArtifactReviewResult>;
+        meta?: {
+          externalApiCalled?: boolean;
+          providerId?: string;
+          validationPassed?: boolean;
+        };
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        const errorMessage = [
+          data.error ?? "AI artifact review failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+        logAICallAudit({
+          skillId: ARTIFACT_REVIEW_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled,
+          externalApiCalled: data.meta?.externalApiCalled,
+          extraMetadata: {
+            artifactType: "bpmn"
+          }
+        });
+        throw new Error(errorMessage);
+      }
+
+      const result: ArtifactReviewResult = {
+        recommendations: data.result.recommendations ?? [],
+        templateRecommendations: data.result.templateRecommendations ?? [],
+        warnings: data.result.warnings ?? []
+      };
+
+      setReviewResult(result);
+      logAICallAudit({
+        skillId: ARTIFACT_REVIEW_SKILL_ID,
+        success: true,
+        realAIEnabled,
+        externalApiCalled: data.meta?.externalApiCalled,
+        extraMetadata: {
+          artifactType: "bpmn",
+          ptrRecommendationCount: result.recommendations.length,
+          templateRecommendationCount: result.templateRecommendations.length,
+          warningCount: result.warnings.length
+        }
+      });
+      setMessage("ÄÃ£ review BPMN báº±ng AI. Káº¿t quáº£ chá»‰ lÃ  preview, khÃ´ng tá»± Ä‘á»™ng sá»­a XML.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "KhÃ´ng thá»ƒ review BPMN báº±ng AI."
+      );
+    } finally {
+      setIsReviewing(false);
     }
   }
 
@@ -140,6 +283,14 @@ export function D01BpmnOutput() {
             >
               Download .bpmn
             </button>
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isReviewing || !xml.trim()}
+              onClick={reviewBpmnWithAI}
+              type="button"
+            >
+              {isReviewing ? "Reviewing..." : "Review BPMN with AI"}
+            </button>
         </>
       }
       bodyClassName="p-4"
@@ -154,6 +305,24 @@ export function D01BpmnOutput() {
         <div className="mb-4">
           <BpmnPreview xml={xml} />
         </div>
+
+        {reviewResult ? (
+          <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <p className="font-semibold text-slate-900">AI artifact review</p>
+            <p className="mt-1">
+              PTR recommendations: {reviewResult.recommendations.length} · Template recommendations:{" "}
+              {reviewResult.templateRecommendations.length} · Warnings:{" "}
+              {reviewResult.warnings.length}
+            </p>
+            {reviewResult.warnings.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {reviewResult.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
 
         <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
           XML đã generate

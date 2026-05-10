@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added AI artifact review for generated D01 BPMN and D02 Service Blueprint outputs.
+- Added `artifact-review` to AI Skill Registry V2 with Product AI/OpenAI/Claude/Mock support.
+- Added `ArtifactReviewResponse` validation for PTR `QARecommendation[]`, template `TemplateRecommendation[]`, and artifact warnings.
+- Added a process-modeling artifact review prompt pack that forbids direct BPMN/draw.io XML mutation and routes fixes back to PTR or template recommendations.
+- Added deterministic mock/local route support for `/api/ai/run-skill` skill id `artifact-review`.
+- Added UI actions `Review BPMN with AI` and `Review Service Blueprint with AI` in the D01/D02 output panels.
+- Kept artifact review read-only: generated XML is not changed and no recommendation is auto-applied.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for artifact review skill support.
 - Completed AI QA and AI Recommendation V2 hardening for Process Modeling Core.
 - Updated QA Panel so AI QA receives `ProcessTask[]`, rule-based QA issues, existing rule recommendations, and selected D01/D02 template metadata.
 - Hardened `QARecommendation[]` validation for AI output: source `ai`/`hybrid`, confidence/impact/risk, target step ids, operation kinds, operation step references, and graph-changing safety.
@@ -75,10 +83,13 @@ Complete Module 2 + Module 3 with full real AI support.
 ## Files changed
 
 - `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
 - `src/components/qa-panel/QAPanel.tsx`
 - `src/app/api/ai/run-skill/route.ts`
 - `src/lib/ai/ai-qa-types.ts`
 - `src/lib/ai/ai-qa-service.ts`
+- `src/lib/ai/skill-schemas.ts`
 - `src/lib/ai/skill-registry-v2.ts`
 - `src/lib/ai/prompt-packs.ts`
 - `src/lib/recommendation-engine/qa-recommendation-schema.ts`
@@ -110,6 +121,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- AI artifact review is read-only for generated BPMN/draw.io XML; any fix must be represented as a PTR QA recommendation or Template recommendation.
+- `artifact-review` uses general `ENABLE_REAL_AI` for provider-backed execution and mock/local fallback otherwise.
+- Artifact review UI currently previews counts and warnings to keep D01/D02 output panels uncluttered; deeper recommendation handoff to QA Panel/Template Hub is a later slice.
 - AI QA V2 treats rule QA as the first-pass source of deterministic issues and recommendations.
 - AI QA may return `source=hybrid` when it extends a rule recommendation with extra rationale/context.
 - Graph-changing AI recommendations are always high risk/high impact and require explicit confirmation, regardless of provider output.
@@ -143,6 +157,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Current blockers
 
+- Artifact review recommendations are validated and returned by the route, but the D01/D02 UI currently shows counts/warnings only; full handoff into QA Panel and Template Hub still needs a scoped follow-up.
 - Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
 - Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
 - The branch may still need to be created or switched in git if it does not already exist.

@@ -1179,63 +1179,7 @@ export function AIInputBriefPanel() {
         sourceLabel: `PDF ${file.name}`
       });
       return;
-      const pdfLines = result.rawText
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
-      const structuredBrief = parseStructuredProcessBriefFromForm({
-        processInfo: pdfLines[0] || "PDF extracted process",
-        businessObjective: result.rawText.slice(0, 1200),
-        scope: result.rawText.slice(0, 1200),
-        startEnd: [
-          pdfLines[0] || "Request received",
-          pdfLines[pdfLines.length - 1] || "Process completed"
-        ].join("\n"),
-        actors: "",
-        relatedSystems: "",
-        dataDocuments: "",
-        inputLanguage: locale,
-        outputLanguage: locale
-      });
-      const response = generateDraftProcessTaskRegister({
-        brief: structuredBrief,
-        currentLocale: locale
-      });
-      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
-      const nextResponse = {
-        ...response,
-        assumptions: [
-          ...response.assumptions,
-          "PDF text extraction is local and rule-based.",
-          "Generated Draft PTR must be reviewed before Apply."
-        ],
-        openQuestions:
-          result.warnings.length > 0
-            ? result.warnings
-            : ["Review extracted PDF text before applying to PTR."],
-        qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
-        sourceSummary: `Draft generated locally from PDF file ${file.name}.`
-      };
 
-      setPdfExtraction(result);
-      updateIntakeFileStatus(file, "extracted");
-
-      if (!draftQualityGate.canPreview) {
-        const errors = formatQualityGateErrorsVi(draftQualityGate);
-
-        setDraftTasks([]);
-        setDraftMeta(null);
-        setBlockingErrors(errors);
-        setMessage("Draft PTR từ PDF không đạt Quality Gate.");
-        return;
-      }
-
-      setBlockingErrors([]);
-      setDraftTasks(nextResponse.draftProcessTasks);
-      setDraftMeta(nextResponse);
-      setMessage(
-        `Đã tạo draft PTR từ PDF: ${nextResponse.draftProcessTasks.length} dòng. Hãy review trước khi Apply.`
-      );
     } catch (error) {
       updateIntakeFileStatus(file, "failed");
       setPdfExtraction(null);
@@ -1301,60 +1245,6 @@ export function AIInputBriefPanel() {
     });
     return;
 
-    const pdfLines = activePdfExtraction.rawText
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const structuredBrief = parseStructuredProcessBriefFromForm({
-      processInfo: pdfLines[0] || "PDF extracted process",
-      businessObjective: activePdfExtraction.rawText.slice(0, 1200),
-      scope: activePdfExtraction.rawText.slice(0, 1200),
-      startEnd: [
-        pdfLines[0] || "Request received",
-        pdfLines[pdfLines.length - 1] || "Process completed"
-      ].join("\n"),
-      actors: "",
-      relatedSystems: "",
-      dataDocuments: "",
-      inputLanguage: locale,
-      outputLanguage: locale
-    });
-    const response = generateDraftProcessTaskRegister({
-      brief: structuredBrief,
-      currentLocale: locale
-    });
-    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
-    const nextResponse = {
-      ...response,
-      assumptions: [
-        ...response.assumptions,
-        "PDF text extraction is local and rule-based.",
-        "Generated Draft PTR must be reviewed before Apply."
-      ],
-      openQuestions:
-        activePdfExtraction.warnings.length > 0
-          ? activePdfExtraction.warnings
-          : ["Review extracted PDF text before applying to PTR."],
-      qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
-      sourceSummary: "Draft generated locally from PDF extracted text."
-    };
-
-    if (!draftQualityGate.canPreview) {
-      const errors = formatQualityGateErrorsVi(draftQualityGate);
-
-      setDraftTasks([]);
-      setDraftMeta(null);
-      setBlockingErrors(errors);
-      setMessage("Draft PTR từ PDF không đạt Quality Gate.");
-      return;
-    }
-
-    setBlockingErrors([]);
-    setDraftTasks(nextResponse.draftProcessTasks);
-    setDraftMeta(nextResponse);
-    setMessage(
-      `Đã tạo draft PTR từ PDF extraction: ${nextResponse.draftProcessTasks.length} dòng. Hãy review trước khi Apply.`
-    );
   }
 
   async function generateDraftPtrFromChatNotes() {

@@ -5,9 +5,17 @@ import {
   validateStructuredProcessBrief
 } from "@/lib/ai-intake";
 import {
-  createOpenAIProvider,
-  type AIModelRequest
-} from "@/lib/ai/providers/openai-provider";
+  createConfiguredAIProvider,
+  getAIProviderStatus,
+  getConfiguredAIModel,
+  getConfiguredAIProviderId,
+  isAIProviderConfigured
+} from "@/lib/ai/providers/provider-factory";
+import {
+  extractJsonText,
+  type AIModelRequest,
+  type AIProviderResponse
+} from "@/lib/ai/providers/provider-types";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
 import { runMockTemplateReview } from "@/lib/ai/ai-template-review-service";
@@ -48,22 +56,11 @@ function isValidRunSkillRequest(
 }
 
 function extractJsonObject(value: string) {
-  const trimmedValue = value.trim();
-  const fencedJsonMatch = trimmedValue.match(/```(?:json)?\s*([\s\S]*?)```/i);
-
-  if (fencedJsonMatch?.[1]) {
-    return fencedJsonMatch[1].trim();
-  }
-
-  return trimmedValue;
+  return extractJsonText(value);
 }
 
 function getProviderName() {
-  return process.env.AI_PROVIDER || "openai";
-}
-
-function isOpenAIProviderConfigured() {
-  return Boolean(process.env.OPENAI_API_KEY && process.env.AI_MODEL);
+  return getConfiguredAIProviderId();
 }
 
 function createPromptForInputBriefToPtr(payload: unknown) {
@@ -141,6 +138,40 @@ function createPromptForAITemplateReview(payload: unknown) {
       )
     }
   ];
+}
+
+function parseProviderJson(result: AIProviderResponse) {
+  if (result.parsedJson !== undefined) {
+    return result.parsedJson;
+  }
+
+  if (!result.rawText) {
+    throw new Error("AI provider output did not include text content.");
+  }
+
+  return JSON.parse(extractJsonObject(result.rawText));
+}
+
+function createProviderMeta(
+  result: AIProviderResponse,
+  additionalMeta: Record<string, unknown>
+) {
+  return {
+    externalApiCalled: result.externalApiCalled,
+    providerId: result.providerId,
+    model: result.model,
+    requestId: result.requestId,
+    tokenUsage: result.tokenUsage,
+    latencyMs: result.latencyMs,
+    warnings: result.warnings,
+    ...additionalMeta
+  };
+}
+
+async function runConfiguredProvider(aiRequest: AIModelRequest) {
+  const provider = createConfiguredAIProvider();
+
+  return provider.run(aiRequest);
 }
 
 function isAIQAPayload(value: unknown): value is Omit<AIQARequest, "context"> {
@@ -403,11 +434,7 @@ export function GET() {
     process.env.ENABLE_REAL_AI_QA === "true" ||
     process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
   const providerName = getProviderName();
-  const providerStatus = !realAIEnabled
-    ? "mock-only"
-    : providerName === "openai" && isOpenAIProviderConfigured()
-      ? "configured"
-      : "not configured";
+  const providerStatus = getAIProviderStatus(realAIEnabled, providerName);
 
   return NextResponse.json({
     ok: true,
@@ -417,7 +444,7 @@ export function GET() {
       process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
     providerStatus,
     provider: providerName,
-    model: process.env.AI_MODEL || ""
+    model: getConfiguredAIModel(providerName)
   });
 }
 
@@ -469,28 +496,13 @@ export async function POST(request: Request) {
     }
 
     const selectedTemplate = body.payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number];
-    const providerName = getProviderName();
 
-    if (providerName !== "openai") {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: `Unsupported AI_PROVIDER: ${providerName}`
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!isOpenAIProviderConfigured()) {
+    if (!isAIProviderConfigured()) {
       return createMockTemplateReviewResponse(body.payload);
     }
 
     try {
-      const provider = createOpenAIProvider({
-        apiKey: process.env.OPENAI_API_KEY || "",
-        model: process.env.AI_MODEL || ""
-      });
-      const result = await provider.run({
+      const result = await runConfiguredProvider({
         skillId,
         payload: body.payload,
         messages: createPromptForAITemplateReview(body.payload)
@@ -498,17 +510,16 @@ export async function POST(request: Request) {
       let parsedResult: unknown;
 
       try {
-        parsedResult = JSON.parse(extractJsonObject(result.content));
+        parsedResult = parseProviderJson(result);
       } catch {
         return NextResponse.json(
           {
             ok: false,
             error: "AI template review output was not valid JSON.",
-            meta: {
-              externalApiCalled: result.externalApiCalled,
+            meta: createProviderMeta(result, {
               realAITemplateReviewEnabled: true,
               validationPassed: false
-            }
+            })
           },
           { status: 422 }
         );
@@ -526,11 +537,10 @@ export async function POST(request: Request) {
             error:
               "AI template review output failed TemplateRecommendation schema validation.",
             validationErrors: validation.errors,
-            meta: {
-              externalApiCalled: result.externalApiCalled,
+            meta: createProviderMeta(result, {
               realAITemplateReviewEnabled: true,
               validationPassed: false
-            }
+            })
           },
           { status: 422 }
         );
@@ -544,11 +554,10 @@ export async function POST(request: Request) {
           recommendations: validation.recommendations,
           qualityScore: validation.qualityScore
         },
-        meta: {
-          externalApiCalled: result.externalApiCalled,
+        meta: createProviderMeta(result, {
           realAITemplateReviewEnabled: true,
           validationPassed: true
-        }
+        })
       });
     } catch (error) {
       return NextResponse.json(
@@ -581,47 +590,30 @@ export async function POST(request: Request) {
       );
     }
 
-    const providerName = getProviderName();
-
-    if (providerName !== "openai") {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: `Unsupported AI_PROVIDER: ${providerName}`
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!isOpenAIProviderConfigured()) {
+    if (!isAIProviderConfigured()) {
       return createMockAIQAResponse(body.payload);
     }
 
     try {
-      const provider = createOpenAIProvider({
-        apiKey: process.env.OPENAI_API_KEY || "",
-        model: process.env.AI_MODEL || ""
-      });
       const aiRequest: AIModelRequest = {
         skillId,
         payload: body.payload,
         messages: createPromptForAIProcessQA(body.payload)
       };
-      const result = await provider.run(aiRequest);
+      const result = await runConfiguredProvider(aiRequest);
       let parsedResult: unknown;
 
       try {
-        parsedResult = JSON.parse(extractJsonObject(result.content));
+        parsedResult = parseProviderJson(result);
       } catch {
         return NextResponse.json(
           {
             ok: false,
             error: "AI QA output was not valid JSON.",
-            meta: {
-              externalApiCalled: result.externalApiCalled,
+            meta: createProviderMeta(result, {
               realAIQAEnabled: true,
               validationPassed: false
-            }
+            })
           },
           { status: 422 }
         );
@@ -641,11 +633,10 @@ export async function POST(request: Request) {
             ok: false,
             error: "AI QA output failed QARecommendation schema validation.",
             validationErrors: validation.errors,
-            meta: {
-              externalApiCalled: result.externalApiCalled,
+            meta: createProviderMeta(result, {
               realAIQAEnabled: true,
               validationPassed: false
-            }
+            })
           },
           { status: 422 }
         );
@@ -658,11 +649,10 @@ export async function POST(request: Request) {
         result: {
           recommendations: validation.recommendations
         },
-        meta: {
-          externalApiCalled: result.externalApiCalled,
+        meta: createProviderMeta(result, {
           realAIQAEnabled: true,
           validationPassed: true
-        }
+        })
       });
     } catch (error) {
       return NextResponse.json(
@@ -724,19 +714,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const providerName = getProviderName();
-
-  if (providerName !== "openai") {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: `Unsupported AI_PROVIDER: ${providerName}`
-      },
-      { status: 400 }
-    );
-  }
-
-  if (!isOpenAIProviderConfigured()) {
+  if (!isAIProviderConfigured()) {
     const mockResponse = createMockResponse(skillId, body.payload);
     return mockResponse instanceof NextResponse
       ? mockResponse
@@ -744,32 +722,26 @@ export async function POST(request: Request) {
   }
 
   try {
-    const provider = createOpenAIProvider({
-      apiKey: process.env.OPENAI_API_KEY || "",
-      model: process.env.AI_MODEL || ""
-    });
-
     const aiRequest: AIModelRequest = {
       skillId,
       payload: briefValidation.value,
       messages: createPromptForInputBriefToPtr(briefValidation.value)
     };
 
-    const result = await provider.run(aiRequest);
+    const result = await runConfiguredProvider(aiRequest);
     let parsedResult: unknown;
 
     try {
-      parsedResult = JSON.parse(extractJsonObject(result.content));
+      parsedResult = parseProviderJson(result);
     } catch {
       return NextResponse.json(
         {
           ok: false,
           error: "AI output was not valid JSON.",
-          meta: {
-            externalApiCalled: result.externalApiCalled,
+          meta: createProviderMeta(result, {
             realAIEnabled: true,
             validationPassed: false
-          }
+          })
         },
         { status: 422 }
       );
@@ -783,11 +755,10 @@ export async function POST(request: Request) {
           ok: false,
           error: "AI output failed DraftProcessTaskRegister schema validation.",
           validationErrors: draftValidation.errors,
-          meta: {
-            externalApiCalled: result.externalApiCalled,
+          meta: createProviderMeta(result, {
             realAIEnabled: true,
             validationPassed: false
-          }
+          })
         },
         { status: 422 }
       );
@@ -804,11 +775,10 @@ export async function POST(request: Request) {
           error: "Draft PTR khong dat Quality Gate.",
           validationErrors: formatQualityGateErrorsVi(draftQualityGate),
           qualityGate: draftQualityGate,
-          meta: {
-            externalApiCalled: result.externalApiCalled,
+          meta: createProviderMeta(result, {
             realAIEnabled: true,
             validationPassed: true
-          }
+          })
         },
         { status: 422 }
       );
@@ -827,12 +797,11 @@ export async function POST(request: Request) {
         ...draftValidation.value,
         qualityGateWarnings
       },
-      meta: {
-        externalApiCalled: result.externalApiCalled,
+      meta: createProviderMeta(result, {
         realAIEnabled: true,
         validationPassed: true,
         qualityGate: draftQualityGate
-      }
+      })
     });
   } catch (error) {
     return NextResponse.json(

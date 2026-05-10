@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Implemented AI Provider Adapter V2 for Mock, Product AI, OpenAI, and Claude.
+- Added a normalized provider response shape with `rawText`, `rawJson`, `parsedJson`, `providerId`, `model`, `requestId`, `tokenUsage`, `latencyMs`, and `warnings`.
+- Updated `/api/ai/run-skill` to select providers through a server-side provider factory while preserving existing mock fallback, validation, and preview-first behavior.
+- Updated `.env.example`, `docs/AI_CONNECTION_SETUP.md`, and `docs/AI_IMPLEMENTATION_MATRIX.md` for Product AI/OpenAI/Claude/Mock provider support.
 - Audited the current AI implementation across the AI skill route, provider types/adapters, AI intake, quality gates, recommendation validation, template review validation, audit log, AI settings UI, AI Input Brief, QA Panel, Template Hub, Product Delivery, and AI Coding Pack export.
 - Created `docs/AI_IMPLEMENTATION_MATRIX.md` covering skill id, module, input/output schema, Mock/Product AI/OpenAI/Claude support, validation, UI surface, apply behavior, audit behavior, and gaps.
 - Pivoted planning docs from an immediate MVP1 release to MVP1-AI after full Module 2 and Module 3 completion.
@@ -30,6 +34,15 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/lib/ai/providers/provider-types.ts`
+- `src/lib/ai/providers/mock-provider.ts`
+- `src/lib/ai/providers/product-ai-provider.ts`
+- `src/lib/ai/providers/openai-provider.ts`
+- `src/lib/ai/providers/claude-provider.ts`
+- `src/lib/ai/providers/provider-factory.ts`
+- `src/app/api/ai/run-skill/route.ts`
+- `.env.example`
+- `docs/AI_CONNECTION_SETUP.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/NEXT_IMPLEMENTATION_PLAN.md`
 - `docs/ROADMAP.md`
@@ -39,8 +52,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
-- AI implementation audit confirmed OpenAI is the only real external provider currently implemented server-side.
-- Product AI and Claude are currently UI/type placeholders only.
+- AI Provider Adapter V2 is now the server-side provider abstraction for active AI skill routes.
+- Product AI, OpenAI, Claude, and Mock share the same normalized response shape.
+- Product AI and Claude are now implemented as server-side adapters, but still require real environment configuration and provider contract testing before production use.
 - Product Delivery and AI Coding Pack are deterministic export workflows, not real AI skills yet.
 - MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
 - The active planning branch is now `feature/m2-m3-full-ai`.
@@ -54,11 +68,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 - The branch may still need to be created or switched in git if it does not already exist.
 - Module 2 and Module 3 real AI implementation work still needs scoped task breakdown.
+- Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
+- Claude/OpenAI schema repair and retry behavior are not implemented yet.
 - Full Artifact Graph is intentionally not part of MVP1-AI.
 
 ## Next recommended task
 
-Use `docs/AI_IMPLEMENTATION_MATRIX.md` to break down the next implementation tasks: provider adapter gaps first, then Module 2 real AI hardening, then Module 3 Product Delivery Core schemas and skills.
+Verify active skills against each provider mode with feature flags on/off, then add schema retry/repair and server-side audit persistence as the next hardening slice.
 
 ## Exact prompt for next ChatGPT session
 

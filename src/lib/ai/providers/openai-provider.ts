@@ -1,72 +1,82 @@
-export type AIModelMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
-};
-
-export type AIModelRequest = {
-  skillId: string;
-  payload: unknown;
-  model?: string;
-  messages?: AIModelMessage[];
-};
-
-export type AIModelResponse = {
-  provider: "openai";
-  model: string;
-  content: string;
-  raw?: unknown;
-  externalApiCalled: boolean;
-};
-
-export interface ModelProvider {
-  run(request: AIModelRequest): Promise<AIModelResponse>;
-}
+import {
+  buildDefaultMessages,
+  createRequestId,
+  parseJsonIfPossible,
+  type AIModelRequest,
+  type AIProviderAdapter,
+  type AIProviderResponse,
+  type AITokenUsage
+} from "@/lib/ai/providers/provider-types";
 
 type OpenAIProviderOptions = {
   apiKey: string;
   model: string;
 };
 
-function buildInput(request: AIModelRequest): AIModelMessage[] {
-  if (request.messages?.length) {
-    return request.messages;
+function getOpenAIOutputText(raw: unknown) {
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    "output_text" in raw &&
+    typeof raw.output_text === "string"
+  ) {
+    return raw.output_text;
   }
 
-  return [
-    {
-      role: "system",
-      content:
-        "You are a server-side AI provider adapter. Return structured, reviewable output only."
-    },
-    {
-      role: "user",
-      content: JSON.stringify(
-        {
-          skillId: request.skillId,
-          payload: request.payload
-        },
-        null,
-        2
-      )
-    }
-  ];
+  return "";
+}
+
+function getOpenAITokenUsage(raw: unknown): AITokenUsage | undefined {
+  if (typeof raw !== "object" || raw === null || !("usage" in raw)) {
+    return undefined;
+  }
+
+  const usage = raw.usage;
+
+  if (typeof usage !== "object" || usage === null) {
+    return undefined;
+  }
+
+  const inputTokens =
+    "input_tokens" in usage && typeof usage.input_tokens === "number"
+      ? usage.input_tokens
+      : undefined;
+  const outputTokens =
+    "output_tokens" in usage && typeof usage.output_tokens === "number"
+      ? usage.output_tokens
+      : undefined;
+  const totalTokens =
+    "total_tokens" in usage && typeof usage.total_tokens === "number"
+      ? usage.total_tokens
+      : inputTokens !== undefined && outputTokens !== undefined
+        ? inputTokens + outputTokens
+        : undefined;
+
+  return inputTokens !== undefined ||
+    outputTokens !== undefined ||
+    totalTokens !== undefined
+    ? { inputTokens, outputTokens, totalTokens }
+    : undefined;
 }
 
 export function createOpenAIProvider(
   options: OpenAIProviderOptions
-): ModelProvider {
+): AIProviderAdapter {
   return {
-    async run(request) {
+    providerId: "openai",
+    async run(request: AIModelRequest): Promise<AIProviderResponse> {
       if (!options.apiKey) {
-        throw new Error("OPENAI_API_KEY is required when real AI is enabled.");
+        throw new Error("OPENAI_API_KEY is required when OpenAI is enabled.");
       }
 
       const model = request.model || options.model;
 
       if (!model) {
-        throw new Error("AI_MODEL is required when real AI is enabled.");
+        throw new Error("AI_MODEL or OPENAI_MODEL is required when OpenAI is enabled.");
       }
 
+      const requestId = request.requestId ?? createRequestId("openai");
+      const startedAt = Date.now();
       const response = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
@@ -75,7 +85,7 @@ export function createOpenAIProvider(
         },
         body: JSON.stringify({
           model,
-          input: buildInput(request)
+          input: buildDefaultMessages(request)
         })
       });
 
@@ -83,17 +93,23 @@ export function createOpenAIProvider(
         throw new Error(`OpenAI request failed with status ${response.status}.`);
       }
 
-      const raw = (await response.json()) as {
-        output_text?: string;
-      };
+      const rawJson = await response.json();
+      const rawText = getOpenAIOutputText(rawJson);
 
       return {
-        provider: "openai",
+        rawText,
+        rawJson,
+        parsedJson: parseJsonIfPossible(rawText),
+        providerId: "openai",
         model,
-        content: raw.output_text ?? "",
-        raw,
+        requestId,
+        tokenUsage: getOpenAITokenUsage(rawJson),
+        latencyMs: Date.now() - startedAt,
+        warnings: rawText ? [] : ["OpenAI response did not include output_text."],
         externalApiCalled: true
       };
     }
   };
 }
+
+export type { AIModelRequest, AIProviderResponse };

@@ -15,8 +15,19 @@ Copy `.env.example` to `.env.local` for local development and set only server-si
 
 ```env
 AI_PROVIDER=openai
-OPENAI_API_KEY=
 AI_MODEL=
+
+PRODUCT_AI_ENDPOINT=
+PRODUCT_AI_API_KEY=
+PRODUCT_AI_MODEL=
+
+OPENAI_API_KEY=
+OPENAI_MODEL=
+
+ANTHROPIC_API_KEY=
+CLAUDE_MODEL=
+
+MOCK_AI_MODEL=mock-local
 
 ENABLE_REAL_AI=false
 ENABLE_REAL_AI_QA=false
@@ -34,15 +45,49 @@ Do not add `NEXT_PUBLIC_OPENAI_API_KEY`, `NEXT_PUBLIC_ANTHROPIC_API_KEY`, or sim
 - `ENABLE_REAL_AI_TEMPLATE_REVIEW`
   Enables the real provider path for `ai-template-review`.
 
-If a flag is `false`, the route returns mock/local output. If a flag is `true` but `OPENAI_API_KEY` or `AI_MODEL` is missing, MVP1 falls back to mock/local output instead of exposing secrets or failing inside the browser.
+If a flag is `false`, the route returns mock/local output. If a flag is `true` but the selected provider is missing required server env, MVP1 falls back to mock/local output instead of exposing secrets or failing inside the browser.
 
 ## Provider Options
 
-Current scaffolded provider:
+Current server-side provider adapters:
+
+- `AI_PROVIDER=mock`
+  - Uses local normalized mock provider output.
+  - Does not call an external API.
+
+- `AI_PROVIDER=product-ai`
+  - Uses `PRODUCT_AI_ENDPOINT`.
+  - Optional auth uses `PRODUCT_AI_API_KEY`.
+  - Uses `PRODUCT_AI_MODEL` or falls back to `AI_MODEL`.
+  - Product AI is server-side only; do not expose Product AI keys in browser code.
 
 - `AI_PROVIDER=openai`
+  - Uses `OPENAI_API_KEY`.
+  - Uses `OPENAI_MODEL` or falls back to `AI_MODEL`.
+  - Calls OpenAI only from `src/app/api/ai/run-skill/route.ts`.
 
-Other providers such as Claude, Azure OpenAI, Local AI, and Enterprise AI are product modes prepared in the UI, but they are not implemented as provider adapters in MVP1. Do not enable unsupported providers until a server-side adapter and validation path exist.
+- `AI_PROVIDER=claude`
+  - Uses `ANTHROPIC_API_KEY`.
+  - Uses `CLAUDE_MODEL` or falls back to `AI_MODEL`.
+  - Calls Anthropic Claude only from server-side provider code.
+
+Azure OpenAI, Local AI, and Enterprise AI remain product modes prepared in the UI, but they are not implemented as V2 provider adapters yet.
+
+## Provider Adapter V2 Response Shape
+
+All V2 adapters normalize provider responses to:
+
+- `rawText` or `rawJson`
+- `parsedJson` when JSON parsing succeeds
+- `providerId`
+- `model`
+- `requestId`
+- `tokenUsage` when available
+- `latencyMs`
+- `warnings`
+- `externalApiCalled`
+
+Skill routes still run schema validation and quality gates after the provider returns. Provider output is never applied directly.
 
 ## Data Warning
 
@@ -99,9 +144,9 @@ Client components must not:
 
 ## Verification Checklist
 
-- `rg -n "OPENAI_API_KEY|apiKey|Authorization|Bearer|process.env" src/components`
+- `rg -n "OPENAI_API_KEY|ANTHROPIC_API_KEY|PRODUCT_AI_API_KEY|apiKey|Authorization|Bearer|process.env" src/components`
   should not show browser-side provider key usage.
 - `npx.cmd tsc --noEmit` should pass.
 - With all feature flags false, AI workflows should still return mock/local output.
-- With a feature flag true but missing `OPENAI_API_KEY` or `AI_MODEL`, the route should still fall back to mock/local output.
+- With a feature flag true but missing the selected provider env, the route should still fall back to mock/local output.
 - With a supported provider configured server-side, output must still pass schema validation before it is shown.

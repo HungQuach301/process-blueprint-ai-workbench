@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added Product Scope Review and MVP Slicing AI for Product Delivery Core.
+- Added route-backed skill ids `product-scope-review` and `mvp-slicing` through `/api/ai/run-skill`.
+- Added canonical `ProductScopeReview` output with in-scope items, out-of-scope items, assumptions, open questions, MVP slice, later phases, dependencies, risks, quality issues, and trace links.
+- Wired Product Scope Review and MVP Slicing through Product AI/OpenAI/Claude/Mock support with schema validation, quality gate, preview-first behavior, and no auto-save/apply.
+- Added Export Center actions to preview Product Scope Review/MVP Slicing and download Scope JSON only after preview.
+- Added local audit actions for `generate_product_scope_review_preview` and `export_product_scope_review_draft`.
+- Updated AI Skill Registry and AI Implementation Matrix for scope review and MVP slicing support.
 - Completed AI User Story and Acceptance Criteria generation for Product Delivery Core.
 - Added route-backed skill ids `srs-to-user-stories`, `brd-to-user-stories`, legacy-compatible `brd-or-notes-to-user-stories`, and `user-stories-to-acceptance-criteria` through `/api/ai/run-skill`.
 - Extended canonical user story and acceptance criteria models with epics, stable ids, role, goal/action, business value, dependencies, priority/complexity, source requirement refs, source step refs, and quality issues.
@@ -222,7 +229,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
 - Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
 - The branch may still need to be created or switched in git if it does not already exist.
-- Module 3 user story, acceptance criteria, Jira export, MVP slicing, and requirement QA real AI flows still need scoped task breakdown using Registry V2.
+- Module 3 Jira export, scope/non-scope definition aliasing, and requirement QA real AI flows still need scoped task breakdown using Registry V2.
 - Product Delivery BRD route support exists; full Artifact Graph persistence and durable server-side audit are still pending.
 - Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
 - Provider-specific Claude/OpenAI schema repair and contract tests are not implemented yet; only route-level malformed JSON repair exists.
@@ -231,7 +238,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Next recommended task
 
-Verify Module 3 BRD/SRS generation with Mock/Product AI/OpenAI/Claude provider modes, then add structured route-backed user story and acceptance criteria skills.
+Verify Module 3 Product Delivery flows with Mock/Product AI/OpenAI/Claude provider modes, then add Jira-ready export and requirement quality check.
 
 ## Exact prompt for next ChatGPT session
 

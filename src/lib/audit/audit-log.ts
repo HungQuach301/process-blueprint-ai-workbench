@@ -18,7 +18,9 @@ export type AuditAction =
   | "generate_user_stories_preview"
   | "export_user_stories_draft"
   | "generate_acceptance_criteria_preview"
-  | "export_acceptance_criteria_draft";
+  | "export_acceptance_criteria_draft"
+  | "generate_product_scope_review_preview"
+  | "export_product_scope_review_draft";
 
 export type AuditLogEntry = {
   id: string;

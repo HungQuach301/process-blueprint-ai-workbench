@@ -2,6 +2,7 @@ import type { AICodingPackFiles } from "@/lib/generators/ai-coding-pack-generato
 import {
   validateAcceptanceCriteriaSet,
   validateBRD,
+  validateProductScopeReview,
   validateSRS,
   validateUserStorySet,
   type AcceptanceCriteriaSet,
@@ -10,6 +11,7 @@ import {
   type BRDSection,
   type FunctionalRequirement,
   type ProductDeliveryTraceLink,
+  type ProductScopeReview,
   type SRS,
   type UserStory,
   type UserStorySet
@@ -38,6 +40,7 @@ export type AISkillSchemaId =
   | "SRSResponse"
   | "UserStorySetResponse"
   | "AcceptanceCriteriaResponse"
+  | "ProductScopeReviewResponse"
   | "AICodingPackResponse"
   | "QARecommendationResponse"
   | "TemplateRecommendationResponse"
@@ -54,6 +57,7 @@ export type BRDResponse = BRD;
 export type SRSResponse = SRS;
 export type UserStorySetResponse = UserStorySet;
 export type AcceptanceCriteriaResponse = AcceptanceCriteriaSet;
+export type ProductScopeReviewResponse = ProductScopeReview;
 
 export type AICodingPackFile = {
   path: string;
@@ -237,6 +241,12 @@ export function validateAcceptanceCriteriaResponse(
   return validateAcceptanceCriteriaSet(value);
 }
 
+export function validateProductScopeReviewResponse(
+  value: unknown
+): SchemaValidationResult<ProductScopeReviewResponse> {
+  return validateProductScopeReview(value);
+}
+
 export function validateAICodingPackResponse(
   value: unknown
 ): SchemaValidationResult<AICodingPackResponse> {
@@ -400,8 +410,6 @@ export function validateAISkillInput(
       "ptr-to-brd-outline",
       "ptr-to-srs-outline",
       "ptr-to-user-stories",
-      "mvp-slicing",
-      "scope-nonscope-definition",
       "requirement-quality-check",
       "ptr-to-ai-coding-pack"
     ].includes(skillId)
@@ -473,7 +481,10 @@ export function validateAISkillInput(
     skillId === "srs-to-user-stories" ||
     skillId === "brd-to-user-stories" ||
     skillId === "brd-or-notes-to-user-stories" ||
-    skillId === "user-stories-to-acceptance-criteria"
+    skillId === "user-stories-to-acceptance-criteria" ||
+    skillId === "product-scope-review" ||
+    skillId === "mvp-slicing" ||
+    skillId === "scope-nonscope-definition"
   ) {
     if (!isObject(value)) {
       return {
@@ -513,6 +524,23 @@ export function validateAISkillInput(
         ok: false,
         errors: [
           "user-stories-to-acceptance-criteria requires userStorySet or processTasks."
+        ]
+      };
+    }
+
+    if (
+      (skillId === "product-scope-review" ||
+        skillId === "mvp-slicing" ||
+        skillId === "scope-nonscope-definition") &&
+      !isObject(value.brd) &&
+      !isObject(value.srs) &&
+      !isObject(value.userStorySet) &&
+      !Array.isArray(value.processTasks)
+    ) {
+      return {
+        ok: false,
+        errors: [
+          `${skillId} requires BRD, SRS, userStorySet, or Process Task Register context.`
         ]
       };
     }
@@ -622,6 +650,14 @@ export function validateAISkillOutput(
 
   if (skillId === "user-stories-to-acceptance-criteria") {
     return validateAcceptanceCriteriaResponse(value);
+  }
+
+  if (
+    skillId === "product-scope-review" ||
+    skillId === "mvp-slicing" ||
+    skillId === "scope-nonscope-definition"
+  ) {
+    return validateProductScopeReviewResponse(value);
   }
 
   if (

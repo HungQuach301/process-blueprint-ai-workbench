@@ -10,16 +10,19 @@ import type { ProcessTask } from "@/lib/models/process-task";
 import {
   generateAcceptanceCriteriaSet,
   generateBRD,
+  generateProductScopeReview,
   generateSRS,
   generateUserStorySet
 } from "@/lib/generators/product-delivery-generator";
 import {
   runAcceptanceCriteriaQualityGate,
   runBRDQualityGate,
+  runProductScopeReviewQualityGate,
   runSRSQualityGate,
   runUserStoryQualityGate,
   type AcceptanceCriteriaSet,
   type BRD,
+  type ProductScopeReview,
   type SRS,
   type UserStorySet
 } from "@/lib/models/product-delivery";
@@ -100,6 +103,8 @@ const LEGACY_BRD_OR_NOTES_TO_USER_STORIES_SKILL_ID =
   "brd-or-notes-to-user-stories";
 const USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID =
   "user-stories-to-acceptance-criteria";
+const PRODUCT_SCOPE_REVIEW_SKILL_ID = "product-scope-review";
+const MVP_SLICING_SKILL_ID = "mvp-slicing";
 const ORCHESTRATION_VERSION = "2.0.0";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
 const SERVER_PROVIDER_IDS: AIProviderId[] = ["product-ai", "openai", "claude", "mock"];
@@ -234,7 +239,9 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     SRS_TO_USER_STORIES_SKILL_ID,
     BRD_TO_USER_STORIES_SKILL_ID,
     LEGACY_BRD_OR_NOTES_TO_USER_STORIES_SKILL_ID,
-    USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID
+    USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID,
+    PRODUCT_SCOPE_REVIEW_SKILL_ID,
+    MVP_SLICING_SKILL_ID
   ].includes(routeSkillId);
 }
 
@@ -260,6 +267,13 @@ function isUserStoryGenerationSkill(routeSkillId: string) {
 
 function isAcceptanceCriteriaGenerationSkill(routeSkillId: string) {
   return routeSkillId === USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID;
+}
+
+function isProductScopeReviewSkill(routeSkillId: string) {
+  return [
+    PRODUCT_SCOPE_REVIEW_SKILL_ID,
+    MVP_SLICING_SKILL_ID
+  ].includes(routeSkillId);
 }
 
 function isDraftPtrGenerationSkill(routeSkillId: string) {
@@ -690,6 +704,11 @@ type AcceptanceCriteriaGenerationPayload = BRDGenerationPayload & {
   userStorySet?: UserStorySet;
 };
 
+type ProductScopeReviewPayload = UserStoryGenerationPayload & {
+  userStorySet?: UserStorySet;
+  businessObjective?: string;
+};
+
 function isTemplateReviewPayload(
   value: unknown
 ): value is TemplateReviewPayload {
@@ -730,6 +749,12 @@ function isAcceptanceCriteriaGenerationPayload(
   return isObject(value);
 }
 
+function isProductScopeReviewPayload(
+  value: unknown
+): value is ProductScopeReviewPayload {
+  return isObject(value);
+}
+
 function hasEnoughBRDText(payload: BRDGenerationPayload) {
   return [
     payload.projectContext,
@@ -748,6 +773,17 @@ function hasEnoughSRSText(payload: SRSGenerationPayload) {
 
 function hasEnoughUserStoryText(payload: UserStoryGenerationPayload) {
   return hasEnoughSRSText(payload) || isObject(payload.srs);
+}
+
+function hasScopeReviewContext(payload: ProductScopeReviewPayload) {
+  return (
+    Array.isArray(payload.processTasks) ||
+    isObject(payload.brd) ||
+    isObject(payload.srs) ||
+    isObject(payload.userStorySet) ||
+    hasEnoughBRDText(payload) ||
+    typeof payload.businessObjective === "string"
+  );
 }
 
 function getValidationContext(
@@ -2283,6 +2319,90 @@ function createMockAcceptanceCriteriaResponse({
   });
 }
 
+function createMockProductScopeReviewResponse({
+  routeSkillId,
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  routeSkillId: string;
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isProductScopeReviewPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Product scope review request must include ProductDeliveryContext."
+      },
+      { status: 400 }
+    );
+  }
+
+  const scopeReview = generateProductScopeReview({
+    brd: payload.brd,
+    srs: payload.srs,
+    userStorySet: payload.userStorySet,
+    processTasks: Array.isArray(payload.processTasks) ? payload.processTasks : [],
+    projectContext: payload.projectContext,
+    notes: payload.notes,
+    sourceSummary: payload.sourceSummary,
+    uploadedFileText: payload.uploadedFileText,
+    businessObjective: payload.businessObjective,
+    generatedAt: payload.generatedAt ?? new Date().toISOString()
+  });
+  const qualityGate = runProductScopeReviewQualityGate(scopeReview);
+
+  if (!qualityGate.canPreview) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Product Scope Review failed quality gate.",
+        validationErrors: qualityGate.issues
+          .filter((issue) => issue.severity === "error")
+          .map((issue) => issue.message),
+        qualityGate
+      },
+      { status: 422 }
+    );
+  }
+
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: routeSkillId,
+    registrySkillId: getRegistrySkillId(routeSkillId),
+    result: {
+      ...scopeReview,
+      qualityIssues: qualityGate.issues
+    },
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      realAIEnabled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      qualityGate,
+      audit
+    }
+  });
+}
+
 function createMockResponse({
   routeSkillId,
   skill,
@@ -2367,6 +2487,15 @@ function createMockResponse({
 
   if (isAcceptanceCriteriaGenerationSkill(routeSkillId)) {
     return createMockAcceptanceCriteriaResponse({
+      routeSkillId,
+      skill,
+      payload,
+      dataUsageMode
+    });
+  }
+
+  if (isProductScopeReviewSkill(routeSkillId)) {
+    return createMockProductScopeReviewResponse({
       routeSkillId,
       skill,
       payload,
@@ -2472,6 +2601,13 @@ function createRouteSpecificInputValidationError(
       (!isObject(payload.userStorySet) && !Array.isArray(payload.processTasks)))
   ) {
     return "Acceptance Criteria request must include userStorySet or Process Task Register context.";
+  }
+
+  if (
+    isProductScopeReviewSkill(routeSkillId) &&
+    (!isProductScopeReviewPayload(payload) || !hasScopeReviewContext(payload))
+  ) {
+    return "Product Scope Review request must include BRD, SRS, userStorySet, PTR, notes, sourceSummary, projectContext, uploadedFileText, or businessObjective.";
   }
 
   return "";
@@ -2932,6 +3068,41 @@ export async function POST(request: Request) {
       };
       additionalMeta = {
         qualityGate: criteriaQualityGate
+      };
+    }
+
+    if (isProductScopeReviewSkill(routeSkillId)) {
+      const scopeReview = outputValidation.value as ProductScopeReview;
+      const scopeQualityGate = runProductScopeReviewQualityGate(scopeReview);
+
+      if (!scopeQualityGate.canPreview) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Product Scope Review failed quality gate.",
+            validationErrors: scopeQualityGate.issues
+              .filter((issue) => issue.severity === "error")
+              .map((issue) => issue.message),
+            qualityGate: scopeQualityGate,
+            meta: createProviderMeta(parseResult.providerResult, {
+              skillId: routeSkillId,
+              registrySkillId,
+              promptPackId: skill.promptPackId,
+              dataUsageMode,
+              outputRepairAttempted: parseResult.repairAttempted,
+              validationPassed: true
+            })
+          },
+          { status: 422 }
+        );
+      }
+
+      normalizedResult = {
+        ...scopeReview,
+        qualityIssues: scopeQualityGate.issues
+      };
+      additionalMeta = {
+        qualityGate: scopeQualityGate
       };
     }
 

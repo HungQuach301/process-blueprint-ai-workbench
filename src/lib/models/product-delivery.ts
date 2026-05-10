@@ -19,7 +19,9 @@ export type ProductDeliveryQualityIssueCode =
   | "missing-ac"
   | "ac-not-testable"
   | "story-too-broad"
-  | "no-source-trace";
+  | "no-source-trace"
+  | "missing-mvp-slice"
+  | "missing-risk";
 
 export type ProductDeliveryQualityIssue = {
   code: ProductDeliveryQualityIssueCode;
@@ -233,6 +235,37 @@ export type AcceptanceCriteriaSet = {
   qualityIssues: ProductDeliveryQualityIssue[];
 };
 
+export type ProductScopeReviewItem = {
+  id: string;
+  title: string;
+  description: string;
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+  sourceStoryIds?: string[];
+};
+
+export type ProductDeliverySlice = {
+  id: string;
+  title: string;
+  summary: string;
+  items: ProductScopeReviewItem[];
+};
+
+export type ProductScopeReview = {
+  id: string;
+  title: string;
+  inScope: ProductScopeReviewItem[];
+  outOfScope: ProductScopeReviewItem[];
+  assumptions: Assumption[];
+  openQuestions: OpenQuestion[];
+  mvpSlice: ProductDeliverySlice;
+  laterPhases: ProductDeliverySlice[];
+  dependencies: ProductScopeReviewItem[];
+  risks: ProductScopeReviewItem[];
+  qualityIssues: ProductDeliveryQualityIssue[];
+  traceLinks?: ProductDeliveryTraceLink[];
+};
+
 export type ProductDeliveryDraft = {
   id: string;
   generatedAt: string;
@@ -301,6 +334,19 @@ export type AcceptanceCriteriaGenerationInput = {
   notes?: string;
   sourceSummary?: string;
   uploadedFileText?: string;
+  generatedAt: string;
+};
+
+export type ProductScopeReviewInput = {
+  brd?: BRD;
+  srs?: SRS;
+  userStorySet?: UserStorySet;
+  processTasks?: ProcessTask[];
+  projectContext?: string;
+  notes?: string;
+  sourceSummary?: string;
+  uploadedFileText?: string;
+  businessObjective?: string;
   generatedAt: string;
 };
 
@@ -462,7 +508,9 @@ function validateQualityIssues(value: unknown, errors: string[]) {
     "missing-ac",
     "ac-not-testable",
     "story-too-broad",
-    "no-source-trace"
+    "no-source-trace",
+    "missing-mvp-slice",
+    "missing-risk"
   ]);
   const validSeverities = new Set(["error", "warning"]);
 
@@ -616,6 +664,62 @@ export function runAcceptanceCriteriaQualityGate(
       });
     }
   });
+
+  const dedupedIssues = Array.from(
+    new Map(
+      issues.map((issue) => [
+        `${issue.code}:${issue.targetId ?? ""}:${issue.message}`,
+        issue
+      ])
+    ).values()
+  );
+
+  return {
+    canPreview: !dedupedIssues.some((issue) => issue.severity === "error"),
+    issues: dedupedIssues
+  };
+}
+
+export function runProductScopeReviewQualityGate(
+  scopeReview: ProductScopeReview
+) {
+  const issues: ProductDeliveryQualityIssue[] = [...scopeReview.qualityIssues];
+
+  if (scopeReview.inScope.length === 0) {
+    issues.push({
+      code: "missing-scope",
+      severity: "error",
+      message: "Product scope review must include at least one in-scope item.",
+      targetId: scopeReview.id
+    });
+  }
+
+  if (scopeReview.outOfScope.length === 0) {
+    issues.push({
+      code: "missing-scope",
+      severity: "warning",
+      message: "Product scope review should include explicit out-of-scope items.",
+      targetId: scopeReview.id
+    });
+  }
+
+  if (scopeReview.mvpSlice.items.length === 0) {
+    issues.push({
+      code: "missing-mvp-slice",
+      severity: "error",
+      message: "MVP slicing must include at least one MVP item.",
+      targetId: scopeReview.mvpSlice.id
+    });
+  }
+
+  if (scopeReview.risks.length === 0) {
+    issues.push({
+      code: "missing-risk",
+      severity: "warning",
+      message: "Product scope review should include delivery risks.",
+      targetId: scopeReview.id
+    });
+  }
 
   const dedupedIssues = Array.from(
     new Map(
@@ -1394,6 +1498,123 @@ export function validateAcceptanceCriteriaSet(
   return {
     ok: true,
     value: value as AcceptanceCriteriaSet,
+    errors: []
+  };
+}
+
+function validateProductScopeReviewItems(
+  value: unknown,
+  fieldName: string,
+  errors: string[],
+  requireNonEmpty = false
+) {
+  if (!Array.isArray(value)) {
+    errors.push(`${fieldName} must be an array.`);
+    return;
+  }
+
+  if (requireNonEmpty && value.length === 0) {
+    errors.push(`${fieldName} must contain at least one item.`);
+  }
+
+  value.forEach((item, index) => {
+    if (!isObject(item)) {
+      errors.push(`${fieldName}[${index}] must be an object.`);
+      return;
+    }
+
+    ["id", "title", "description"].forEach((field) =>
+      validateString(item[field], `${fieldName}[${index}].${field}`, errors)
+    );
+    validateOptionalStringArray(
+      item.sourceStepIds,
+      `${fieldName}[${index}].sourceStepIds`,
+      errors
+    );
+    validateOptionalStringArray(
+      item.sourceRequirementIds,
+      `${fieldName}[${index}].sourceRequirementIds`,
+      errors
+    );
+    validateOptionalStringArray(
+      item.sourceStoryIds,
+      `${fieldName}[${index}].sourceStoryIds`,
+      errors
+    );
+  });
+}
+
+function validateProductDeliverySlice(
+  value: unknown,
+  fieldName: string,
+  errors: string[],
+  requireItems = false
+) {
+  if (!isObject(value)) {
+    errors.push(`${fieldName} must be an object.`);
+    return;
+  }
+
+  ["id", "title", "summary"].forEach((field) =>
+    validateString(value[field], `${fieldName}.${field}`, errors)
+  );
+  validateProductScopeReviewItems(
+    value.items,
+    `${fieldName}.items`,
+    errors,
+    requireItems
+  );
+}
+
+export function validateProductScopeReview(
+  value: unknown
+): SchemaValidationResult<ProductScopeReview> {
+  const errors: string[] = [];
+
+  if (!isObject(value)) {
+    return {
+      ok: false,
+      errors: ["ProductScopeReview must be an object."]
+    };
+  }
+
+  ["id", "title"].forEach((field) =>
+    validateString(value[field], `productScopeReview.${field}`, errors)
+  );
+  validateProductScopeReviewItems(value.inScope, "productScopeReview.inScope", errors, true);
+  validateProductScopeReviewItems(value.outOfScope, "productScopeReview.outOfScope", errors);
+  validateAssumptions(value.assumptions, errors);
+  validateOpenQuestions(value.openQuestions, errors);
+  validateProductDeliverySlice(value.mvpSlice, "productScopeReview.mvpSlice", errors, true);
+
+  if (!Array.isArray(value.laterPhases)) {
+    errors.push("productScopeReview.laterPhases must be an array.");
+  } else {
+    value.laterPhases.forEach((phase, index) =>
+      validateProductDeliverySlice(
+        phase,
+        `productScopeReview.laterPhases[${index}]`,
+        errors
+      )
+    );
+  }
+
+  validateProductScopeReviewItems(
+    value.dependencies,
+    "productScopeReview.dependencies",
+    errors
+  );
+  validateProductScopeReviewItems(value.risks, "productScopeReview.risks", errors);
+  validateQualityIssues(value.qualityIssues, errors);
+  validateTraceLinks(value.traceLinks, errors);
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: value as ProductScopeReview,
     errors: []
   };
 }

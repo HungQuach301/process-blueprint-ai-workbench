@@ -500,10 +500,33 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "product-delivery-user-stories-v1"
   },
   {
+    skillId: "product-scope-review",
+    version: "1.0.0",
+    module: "module-3-product-delivery",
+    status: "real-ai-ready",
+    description:
+      "Review product scope boundaries and draft in-scope/out-of-scope recommendations from Product Delivery artifacts.",
+    inputSchema: {
+      id: "ProductDeliveryContext",
+      description: "BRD, SRS, user stories, optional business objective, and PTR context.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "ProductScopeReviewResponse",
+      description:
+        "In-scope items, out-of-scope items, assumptions, open questions, MVP slice, later phases, dependencies, risks, and quality issues.",
+      validatorId: "validateProductScopeReviewResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "product-delivery-scope-review-v1"
+  },
+  {
     skillId: "mvp-slicing",
     version: "1.0.0",
     module: "module-3-product-delivery",
-    status: "planned",
+    status: "real-ai-ready",
     description:
       "Recommend MVP, later, and out-of-scope slices from product delivery artifacts.",
     inputSchema: {
@@ -512,14 +535,15 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
       validatorId: "validateAISkillInput"
     },
     outputSchema: {
-      id: "BRDResponse",
-      description: "Structured slice recommendation captured as reviewable sections.",
-      validatorId: "validateBRDResponse"
+      id: "ProductScopeReviewResponse",
+      description:
+        "MVP slice, later phases, in-scope/out-of-scope boundaries, dependencies, risks, assumptions, and open questions.",
+      validatorId: "validateProductScopeReviewResponse"
     },
     allowedProviders: allProviders,
     requiresApproval: true,
     dataSensitivity: "confidential",
-    promptPackId: "product-delivery-brd-v1"
+    promptPackId: "product-delivery-scope-review-v1"
   },
   {
     skillId: "scope-nonscope-definition",

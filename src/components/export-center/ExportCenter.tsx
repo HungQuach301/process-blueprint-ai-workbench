@@ -20,6 +20,7 @@ import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type {
   AcceptanceCriteriaSet,
   BRD,
+  ProductScopeReview,
   SRS,
   UserStorySet
 } from "@/lib/models/product-delivery";
@@ -92,6 +93,12 @@ type AcceptanceCriteriaPreview = {
   timestamp: string;
   sourceSkillId: "user-stories-to-acceptance-criteria";
   acceptanceCriteria: AcceptanceCriteriaSet;
+};
+
+type ProductScopeReviewPreview = {
+  timestamp: string;
+  sourceSkillId: "product-scope-review" | "mvp-slicing";
+  scopeReview: ProductScopeReview;
 };
 
 function createTimestamp() {
@@ -185,6 +192,8 @@ export function ExportCenter() {
     useState<UserStoryPreview | null>(null);
   const [acceptanceCriteriaPreview, setAcceptanceCriteriaPreview] =
     useState<AcceptanceCriteriaPreview | null>(null);
+  const [productScopeReviewPreview, setProductScopeReviewPreview] =
+    useState<ProductScopeReviewPreview | null>(null);
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingAICodingPack, setIsDownloadingAICodingPack] =
@@ -193,6 +202,8 @@ export function ExportCenter() {
   const [isGeneratingSRS, setIsGeneratingSRS] = useState(false);
   const [isGeneratingUserStories, setIsGeneratingUserStories] = useState(false);
   const [isGeneratingAcceptanceCriteria, setIsGeneratingAcceptanceCriteria] =
+    useState(false);
+  const [isGeneratingProductScopeReview, setIsGeneratingProductScopeReview] =
     useState(false);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
@@ -232,6 +243,7 @@ export function ExportCenter() {
     setSRSPreview(null);
     setUserStoryPreview(null);
     setAcceptanceCriteriaPreview(null);
+    setProductScopeReviewPreview(null);
   }, [productDeliveryContext, productDeliveryNotes, productDeliveryFileText]);
 
   const readiness = useMemo(
@@ -544,6 +556,7 @@ export function ExportCenter() {
       });
       setUserStoryPreview(null);
       setAcceptanceCriteriaPreview(null);
+      setProductScopeReviewPreview(null);
       saveAuditLogEntry({
         action: "generate_srs_preview",
         status: "success",
@@ -633,6 +646,7 @@ export function ExportCenter() {
         userStorySet: data.result
       });
       setAcceptanceCriteriaPreview(null);
+      setProductScopeReviewPreview(null);
       saveAuditLogEntry({
         action: "generate_user_stories_preview",
         status: "success",
@@ -735,6 +749,100 @@ export function ExportCenter() {
       );
     } finally {
       setIsGeneratingAcceptanceCriteria(false);
+    }
+  }
+
+  async function generateProductScopeReviewPreview(
+    skillId: "product-scope-review" | "mvp-slicing"
+  ) {
+    const timestamp = createTimestamp();
+    const sourceSummary = readInputBriefSourceSummary();
+    const processTasks = readProcessTasks();
+
+    if (
+      !brdPreview &&
+      !srsPreview &&
+      !userStoryPreview &&
+      processTasks.length === 0 &&
+      !productDeliveryContext.trim() &&
+      !productDeliveryNotes.trim() &&
+      !productDeliveryFileText.trim()
+    ) {
+      setMessage("Generate BRD/SRS/User Stories preview or add product context before scope review.");
+      return;
+    }
+
+    try {
+      setIsGeneratingProductScopeReview(true);
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId,
+          payload: {
+            brd: brdPreview?.brd,
+            srs: srsPreview?.srs,
+            userStorySet: userStoryPreview?.userStorySet,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            businessObjective: brdPreview?.brd.businessObjective,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        result?: ProductScopeReview;
+        error?: string;
+        validationErrors?: string[];
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        setProductScopeReviewPreview(null);
+        setMessage(
+          data.validationErrors?.length
+            ? data.validationErrors.join(" ")
+            : data.error || "Could not generate product scope review preview."
+        );
+        return;
+      }
+
+      setProductScopeReviewPreview({
+        timestamp,
+        sourceSkillId: skillId,
+        scopeReview: data.result
+      });
+      saveAuditLogEntry({
+        action: "generate_product_scope_review_preview",
+        status: "success",
+        summary:
+          "Generated structured Product Scope Review preview through AI skill route.",
+        metadata: {
+          timestamp,
+          skillId,
+          externalRoute: "/api/ai/run-skill",
+          inScopeCount: data.result.inScope.length,
+          outOfScopeCount: data.result.outOfScope.length,
+          mvpItemCount: data.result.mvpSlice.items.length,
+          laterPhaseCount: data.result.laterPhases.length,
+          qualityIssueCount: data.result.qualityIssues.length
+        }
+      });
+      setMessage("Da tao preview Product Scope Review/MVP Slicing. Chua save/apply.");
+    } catch (error) {
+      setProductScopeReviewPreview(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao Product Scope Review preview: ${error.message}`
+          : "Khong the tao Product Scope Review preview. Vui long thu lai."
+      );
+    } finally {
+      setIsGeneratingProductScopeReview(false);
     }
   }
 
@@ -972,6 +1080,35 @@ export function ExportCenter() {
       }
     });
     setMessage("Da export Acceptance Criteria draft JSON.");
+  }
+
+  function downloadProductScopeReviewJson() {
+    if (!productScopeReviewPreview) {
+      setMessage("Generate Product Scope Review preview before downloading.");
+      return;
+    }
+
+    downloadBlob(
+      JSON.stringify(productScopeReviewPreview.scopeReview, null, 2),
+      `Product_Scope_Review_Draft_${productScopeReviewPreview.timestamp}.json`,
+      "application/json;charset=utf-8"
+    );
+    saveAuditLogEntry({
+      action: "export_product_scope_review_draft",
+      status: "success",
+      summary: "Exported structured Product Scope Review draft JSON.",
+      metadata: {
+        timestamp: productScopeReviewPreview.timestamp,
+        skillId: productScopeReviewPreview.sourceSkillId,
+        inScopeCount: productScopeReviewPreview.scopeReview.inScope.length,
+        outOfScopeCount: productScopeReviewPreview.scopeReview.outOfScope.length,
+        mvpItemCount:
+          productScopeReviewPreview.scopeReview.mvpSlice.items.length,
+        qualityIssueCount:
+          productScopeReviewPreview.scopeReview.qualityIssues.length
+      }
+    });
+    setMessage("Da export Product Scope Review draft JSON.");
   }
 
   async function downloadAICodingPackZip() {
@@ -1233,6 +1370,30 @@ export function ExportCenter() {
                 Download AC JSON
               </button>
               <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingProductScopeReview}
+                onClick={() => void generateProductScopeReviewPreview("product-scope-review")}
+                type="button"
+              >
+                {isGeneratingProductScopeReview ? "Reviewing Scope..." : "Review Product Scope"}
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingProductScopeReview}
+                onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
+                type="button"
+              >
+                Generate MVP Slicing
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={!productScopeReviewPreview}
+                onClick={downloadProductScopeReviewJson}
+                type="button"
+              >
+                Download Scope JSON
+              </button>
+              <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={previewProductDeliveryDraft}
                 type="button"
@@ -1260,6 +1421,7 @@ export function ExportCenter() {
               <li>SRS outline</li>
               <li>User stories</li>
               <li>Acceptance criteria</li>
+              <li>Product scope review and MVP slicing</li>
               <li>Assumptions and open questions</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
@@ -1534,6 +1696,53 @@ export function ExportCenter() {
                 null,
                 2
               )}
+            </pre>
+          </div>
+        ) : null}
+
+        {productScopeReviewPreview ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: Product scope review and MVP slicing
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {productScopeReviewPreview.timestamp} via{" "}
+                {productScopeReviewPreview.sourceSkillId}. Preview only; not
+                saved to an Artifact Graph.
+              </p>
+            </div>
+            <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
+              <div>
+                <p className="font-medium text-slate-950">In scope</p>
+                <p className="mt-1 text-slate-600">
+                  {productScopeReviewPreview.scopeReview.inScope.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Out of scope</p>
+                <p className="mt-1 text-slate-600">
+                  {productScopeReviewPreview.scopeReview.outOfScope.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">MVP items</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    productScopeReviewPreview.scopeReview.mvpSlice.items
+                      .length
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Risks</p>
+                <p className="mt-1 text-slate-600">
+                  {productScopeReviewPreview.scopeReview.risks.length}
+                </p>
+              </div>
+            </div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
+              {JSON.stringify(productScopeReviewPreview.scopeReview, null, 2)}
             </pre>
           </div>
         ) : null}

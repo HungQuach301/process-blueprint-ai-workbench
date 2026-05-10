@@ -55,6 +55,7 @@ Schema helpers now cover:
 - `SRSResponse`
 - `UserStorySetResponse`
 - `AcceptanceCriteriaResponse`
+- `ProductScopeReviewResponse`
 - `AICodingPackResponse`
 - `QARecommendationResponse`
 - `TemplateRecommendationResponse`
@@ -101,7 +102,8 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 | `ptr-to-user-stories` | `implemented` | Generate simple user stories from Process Task Register. | `ProcessTask[]`, optional project context | User stories with `ProcessTask.stepId` trace references | Preview/export only |
 | `user-stories-to-acceptance-criteria` | `real-ai-ready` | Generate acceptance criteria from reviewed user story preview. | `UserStorySet`, optional `ProcessTask[]`, BRD/SRS, notes/source context | Acceptance criteria with stable ids, story refs, source requirement refs, source step refs, and quality issues | Preview/export only |
 | `user-stories-to-jira-export` | `planned` | Convert reviewed user stories into Jira-ready export. | User stories, acceptance criteria, labels, epic metadata | Jira-ready markdown/CSV/JSON draft | Preview/download only |
-| `mvp-slicing` | `planned` | Propose MVP, later, and out-of-scope slices. | BRD/SRS/user stories, constraints, priority notes | MVP slice recommendation, risks, assumptions | Recommendation only |
+| `product-scope-review` | `real-ai-ready` | Review product scope boundaries from Product Delivery artifacts. | BRD, SRS, user stories, optional business objective, PTR/source context | In-scope, out-of-scope, assumptions, open questions, MVP slice, later phases, dependencies, risks, quality issues | Preview/export only |
+| `mvp-slicing` | `real-ai-ready` | Propose MVP, later, and out-of-scope slices. | BRD/SRS/user stories, optional business objective, PTR/source context | MVP slice, later phases, dependencies, risks, assumptions, open questions, scope boundaries | Preview/export only |
 | `scope-nonscope-definition` | `planned` | Draft scope and non-scope from process and product notes. | PTR, notes, BRD/SRS context | Scope/non-scope draft, open questions | Preview/save/export only |
 | `requirement-quality-check` | `planned` | Review BRD/SRS/user stories for ambiguity, missing criteria, and trace gaps. | Product delivery artifacts, trace links | Requirement QA findings and recommendations | Recommendation only |
 | `user-stories-to-ai-coding-pack` | `planned` | Generate AI-ready coding context for Codex, Claude Code, Cursor, and similar tools from reviewed stories. | User stories, acceptance criteria, architecture constraints, test expectations | `AGENTS.md` draft, `CLAUDE.md` draft, cursor rules draft, `spec.json`, implementation plan, test plan | Export only after user review |
@@ -334,6 +336,33 @@ Output:
 - Given/When/Then or equivalent testable condition
 - source requirement refs and `ProcessTask.stepId` refs where possible
 - qualityIssues for missing AC, non-testable AC, missing source trace, and broad stories
+
+Apply behavior:
+Preview/export only. No auto-save and no Artifact Graph persistence in this slice.
+
+### product-scope-review / mvp-slicing
+
+Purpose:
+Review product scope boundaries and propose MVP/later phase slicing from Product Delivery artifacts.
+
+Input:
+- BRD draft
+- SRS draft
+- `UserStorySet`
+- optional `ProcessTask[]`
+- optional business objective
+- optional notes/chat, source summary, and uploaded file text
+
+Output:
+- in-scope items
+- out-of-scope items
+- assumptions
+- open questions
+- MVP slice
+- later phases
+- dependencies
+- risks
+- qualityIssues for missing scope, missing MVP slice, missing risks, or trace gaps
 
 Apply behavior:
 Preview/export only. No auto-save and no Artifact Graph persistence in this slice.

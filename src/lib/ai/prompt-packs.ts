@@ -214,6 +214,23 @@ export const productDeliveryPromptPacks: AIPromptPack[] = [
     ]
   },
   {
+    id: "product-delivery-scope-review-v1",
+    version: "1.0.0",
+    domain: "product-delivery",
+    description:
+      "Review product scope boundaries and propose MVP/later phase slicing from Product Delivery artifacts.",
+    outputContract:
+      "ProductScopeReviewResponse with inScope, outOfScope, assumptions, openQuestions, mvpSlice, laterPhases, dependencies, risks, qualityIssues, and traceLinks.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Review BRD, SRS, user stories, Process Task Register, notes, and optional business objective to produce a ProductScopeReviewResponse. Return only structured JSON. Include explicit in-scope and out-of-scope items, assumptions, open questions, MVP slice, later phases, dependencies, risks, qualityIssues, and source refs where possible. Keep output draft/preview only and do not auto-apply or persist anything."
+      }
+    ]
+  },
+  {
     id: "product-delivery-ai-coding-pack-v1",
     version: "1.0.0",
     domain: "product-delivery",

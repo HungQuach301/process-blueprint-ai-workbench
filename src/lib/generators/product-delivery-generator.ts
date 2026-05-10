@@ -14,6 +14,9 @@ import type {
   ProductDeliveryDraft,
   ProductDeliveryInput,
   ProductScope,
+  ProductScopeReview,
+  ProductScopeReviewInput,
+  ProductScopeReviewItem,
   RiskDependency,
   SRS,
   SRSConstraint,
@@ -26,11 +29,13 @@ import type {
 import {
   runAcceptanceCriteriaQualityGate,
   runBRDQualityGate,
+  runProductScopeReviewQualityGate,
   runSRSQualityGate,
   runUserStoryQualityGate,
   validateBRD,
   validateAcceptanceCriteriaSet,
   validateProductDeliveryDraft,
+  validateProductScopeReview,
   validateSRS,
   validateUserStorySet
 } from "@/lib/models/product-delivery";
@@ -45,7 +50,9 @@ export type {
   UserStoryGenerationInput,
   UserStorySet,
   AcceptanceCriteriaGenerationInput,
-  AcceptanceCriteriaSet
+  AcceptanceCriteriaSet,
+  ProductScopeReviewInput,
+  ProductScopeReview
 };
 
 function nonEmpty(value: string | null | undefined) {
@@ -681,7 +688,10 @@ export function generateSRS(input: SRSGenerationInput): SRS {
 }
 
 function createProductDeliveryInputFallback(
-  input: UserStoryGenerationInput | AcceptanceCriteriaGenerationInput
+  input:
+    | UserStoryGenerationInput
+    | AcceptanceCriteriaGenerationInput
+    | ProductScopeReviewInput
 ): ProductDeliveryInput {
   return {
     processTasks: input.processTasks ?? [],
@@ -980,6 +990,211 @@ export function generateAcceptanceCriteriaSet(
   if (!validation.ok) {
     throw new Error(
       `Acceptance Criteria Set failed schema validation: ${validation.errors.join(" ")}`
+    );
+  }
+
+  return validation.value;
+}
+
+function createScopeItem(
+  id: string,
+  title: string,
+  description: string,
+  sourceStepIds?: string[],
+  sourceRequirementIds?: string[],
+  sourceStoryIds?: string[]
+): ProductScopeReviewItem {
+  return {
+    id,
+    title,
+    description,
+    sourceStepIds,
+    sourceRequirementIds,
+    sourceStoryIds
+  };
+}
+
+function getScopeReviewSourceItems(input: ProductScopeReviewInput) {
+  const srsRequirements = input.srs?.functionalRequirements ?? [];
+  const brdRequirements = input.brd?.businessRequirements ?? [];
+  const stories = input.userStorySet?.stories ?? [];
+  const tasks = getDeliveryRows(input.processTasks ?? []);
+
+  if (stories.length > 0) {
+    return stories.map((story, index) =>
+      createScopeItem(
+        `SCOPE-US-${String(index + 1).padStart(3, "0")}`,
+        story.title,
+        story.businessValue,
+        story.sourceStepIds,
+        story.sourceRequirementIds,
+        [story.id]
+      )
+    );
+  }
+
+  if (srsRequirements.length > 0) {
+    return srsRequirements.map((requirement, index) =>
+      createScopeItem(
+        `SCOPE-FR-${String(index + 1).padStart(3, "0")}`,
+        requirement.title,
+        requirement.description,
+        requirement.sourceStepIds,
+        [requirement.id, ...(requirement.sourceRequirementIds ?? [])]
+      )
+    );
+  }
+
+  if (brdRequirements.length > 0) {
+    return brdRequirements.map((requirement, index) =>
+      createScopeItem(
+        `SCOPE-BR-${String(index + 1).padStart(3, "0")}`,
+        requirement.title,
+        requirement.description,
+        requirement.sourceStepIds,
+        [requirement.id]
+      )
+    );
+  }
+
+  if (tasks.length > 0) {
+    return tasks.map((task, index) =>
+      createScopeItem(
+        `SCOPE-STEP-${String(index + 1).padStart(3, "0")}`,
+        task.taskName,
+        nonEmpty(task.output) || `Deliver process step ${task.stepId}.`,
+        [task.stepId]
+      )
+    );
+  }
+
+  return [
+    createScopeItem(
+      "SCOPE-NOTE-001",
+      "Review product scope from notes",
+      nonEmpty(input.notes) ||
+        nonEmpty(input.projectContext) ||
+        nonEmpty(input.sourceSummary) ||
+        "Confirm product scope from available source context."
+    )
+  ];
+}
+
+function buildProductScopeReview(input: ProductScopeReviewInput): ProductScopeReview {
+  const sourceItems = getScopeReviewSourceItems(input);
+  const inScope = sourceItems.slice(0, Math.max(1, Math.ceil(sourceItems.length * 0.65)));
+  const laterItems = sourceItems.slice(inScope.length);
+  const brdOutOfScope = input.brd?.scope.outOfScope ?? [];
+  const outOfScope = brdOutOfScope.length
+    ? brdOutOfScope.map((item, index) =>
+        createScopeItem(
+          `OOS-${String(index + 1).padStart(3, "0")}`,
+          item,
+          "Explicitly listed as out of scope in the BRD/source context."
+        )
+      )
+    : [
+        createScopeItem(
+          "OOS-001",
+          "Full Artifact Graph persistence",
+          "Keep MVP1-AI scope review as preview/export only until Artifact Graph persistence is intentionally added."
+        ),
+        createScopeItem(
+          "OOS-002",
+          "Production integration rollout",
+          "Final integrations, tenant controls, and production cutover remain outside this draft slice."
+        )
+      ];
+  const dependencies = [
+    ...((input.brd?.risksDependencies ?? [])
+      .filter((item) => item.type === "dependency")
+      .map((item, index) =>
+        createScopeItem(
+          `DEP-BRD-${String(index + 1).padStart(3, "0")}`,
+          item.description.slice(0, 80),
+          item.description,
+          item.sourceStepIds
+        )
+      )),
+    ...((input.srs?.interfaceIntegrationRequirements ?? []).map((item, index) =>
+      createScopeItem(
+        `DEP-SRS-${String(index + 1).padStart(3, "0")}`,
+        item.name,
+        item.description,
+        item.sourceStepIds,
+        item.sourceRequirementIds
+      )
+    ))
+  ].slice(0, 8);
+  const risks = [
+    ...((input.brd?.risksDependencies ?? [])
+      .filter((item) => item.type === "risk")
+      .map((item, index) =>
+        createScopeItem(
+          `RISK-BRD-${String(index + 1).padStart(3, "0")}`,
+          item.description.slice(0, 80),
+          item.description,
+          item.sourceStepIds
+        )
+      )),
+    createScopeItem(
+      "RISK-001",
+      "Scope requires human confirmation",
+      "Generated scope and MVP slices must be reviewed by product and business stakeholders before delivery planning."
+    )
+  ].slice(0, 8);
+  const laterPhaseItems = laterItems.length > 0 ? laterItems : outOfScope.slice(0, 1);
+  const scopeReview: ProductScopeReview = {
+    id: "PSR-PD-001",
+    title: "Product Scope Review and MVP Slicing",
+    inScope,
+    outOfScope,
+    assumptions: buildAssumptions(createProductDeliveryInputFallback(input)),
+    openQuestions: buildOpenQuestions(createProductDeliveryInputFallback(input)),
+    mvpSlice: {
+      id: "MVP-PD-001",
+      title: "MVP slice",
+      summary:
+        input.businessObjective ||
+        input.brd?.businessObjective ||
+        "MVP slice based on available BRD, SRS, user story, and process context.",
+      items: inScope.slice(0, Math.max(1, Math.min(5, inScope.length)))
+    },
+    laterPhases: [
+      {
+        id: "PHASE-PD-002",
+        title: "Later phase",
+        summary: "Items that can follow after the MVP slice is validated.",
+        items: laterPhaseItems
+      }
+    ],
+    dependencies,
+    risks,
+    qualityIssues: [],
+    traceLinks: sourceItems.flatMap((item) =>
+      (item.sourceStepIds ?? []).map((stepId) => ({
+        sourceStepIds: [stepId],
+        targetId: item.id
+      }))
+    )
+  };
+  const qualityGate = runProductScopeReviewQualityGate(scopeReview);
+
+  return {
+    ...scopeReview,
+    qualityIssues: qualityGate.issues
+  };
+}
+
+export function generateProductScopeReview(
+  input: ProductScopeReviewInput
+): ProductScopeReview {
+  const scopeReview = buildProductScopeReview(input);
+  const validation = validateProductScopeReview(scopeReview);
+
+  if (!validation.ok) {
+    throw new Error(
+      `Product Scope Review failed schema validation: ${validation.errors.join(" ")}`
     );
   }
 

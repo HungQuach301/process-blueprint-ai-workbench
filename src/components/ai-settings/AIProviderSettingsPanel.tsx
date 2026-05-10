@@ -34,7 +34,10 @@ type AIStatusResponse = {
   realAIQAEnabled?: boolean;
   realAITemplateReviewEnabled?: boolean;
   providerStatus?: "configured" | "not configured" | "mock-only";
+  displayStatus?: ProviderDisplayStatus;
   provider?: ServerProviderId;
+  effectiveProvider?: ServerProviderId;
+  fallbackActive?: boolean;
   providers?: ProviderStatusItem[];
   dataUsageMode?: DataUsageMode;
   model?: string;
@@ -160,7 +163,10 @@ const textByLocale = {
     changed: "Có thay đổi chưa lưu.",
     mockModeSummary: "Local/mock, không gọi provider bên ngoài.",
     realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
-    modelPlaceholder: "Tên hiển thị tùy chọn"
+    modelPlaceholder: "Tên hiển thị tùy chọn",
+    effectiveProvider: "Provider thuc thi",
+    fallbackActive: "Fallback local/mock dang hoat dong vi provider da chon chua san sang.",
+    selectedStatus: "Trang thai provider da chon"
   },
   en: {
     title: "AI Connection Center",
@@ -201,7 +207,10 @@ const textByLocale = {
     changed: "Unsaved changes.",
     mockModeSummary: "Local/mock mode, no external provider call.",
     realModeSummary: "Real AI via the selected provider. Data may be processed in the cloud according to server configuration.",
-    modelPlaceholder: "Optional display name only"
+    modelPlaceholder: "Optional display name only",
+    effectiveProvider: "Effective provider",
+    fallbackActive: "Local/mock fallback is active because the selected provider is not ready.",
+    selectedStatus: "Selected provider status"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -290,6 +299,8 @@ export function AIProviderSettingsPanel() {
     serverStatus.realAIQAEnabled === true ||
     serverStatus.realAITemplateReviewEnabled === true;
   const selectedServerProvider = serverStatus.provider ?? "mock";
+  const effectiveServerProvider =
+    serverStatus.effectiveProvider ?? selectedServerProvider;
   const providerStatuses = useMemo(
     () => serverStatus.providers ?? [],
     [serverStatus.providers]
@@ -494,6 +505,12 @@ export function AIProviderSettingsPanel() {
             <p className="mt-1 font-semibold text-slate-950">
               {serverStatus.provider ?? "mock"}
             </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {text.selectedStatus}:{" "}
+              {serverStatus.displayStatus
+                ? getStatusText(serverStatus.displayStatus, locale)
+                : "-"}
+            </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase text-slate-500">
@@ -510,8 +527,16 @@ export function AIProviderSettingsPanel() {
             <p className="mt-1 font-semibold text-slate-950">
               {serverStatus.model || settings.modelName || "-"}
             </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {text.effectiveProvider}: {effectiveServerProvider}
+            </p>
           </div>
         </div>
+        {serverStatus.fallbackActive ? (
+          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            {text.fallbackActive}
+          </p>
+        ) : null}
         <p className="mt-3 text-xs text-slate-500">
           {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
         </p>

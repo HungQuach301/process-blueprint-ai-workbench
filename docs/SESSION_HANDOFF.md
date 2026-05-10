@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved AI provider status and AI Run History for MVP1-AI RC2.
+- AI Connection Center now receives selected provider status, effective provider, and fallback-active metadata from `/api/ai/run-skill`.
+- Product AI/OpenAI/Claude missing-env or disabled states now clearly surface local/mock fallback instead of implying a successful external provider call.
+- AI Run History now derives explicit validation states: `valid`, `invalid`, `skipped`, and `not applicable`.
+- AI Run History rows now show skill, provider, model, status, validation status, external API flag, latency, tokens, and timestamp.
+- Failure or warning rows now have expandable safe details: error type, safe error message, validation summary, provider request id, warnings, and suggested next action.
+- AI history remains metadata-only; full prompt text and full model output are still not stored.
 - Fixed MVP1-AI RC2 release-facing P0 UI blockers.
 - Removed the visible Workspace placeholder card and duplicate QA Panel placeholder card from the main page flow.
 - Made the left navigation locale-aware and filtered hidden placeholder-only sections from release navigation.

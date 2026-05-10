@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import JSZip from "jszip";
 import {
   exportAIRunHistoryJson,
@@ -145,6 +145,11 @@ type AIRunRouteMeta = {
   };
   externalApiCalled?: boolean;
   warnings?: string[];
+  errorCode?: string;
+  audit?: {
+    errorCode?: string;
+    requestId?: string;
+  };
 };
 
 type AISkillRouteResponse<T> = {
@@ -205,7 +210,7 @@ function readJsonArray<T>(key: string, fallback: T[]) {
   const parsedValue = JSON.parse(savedValue);
 
   if (!Array.isArray(parsedValue)) {
-    throw new Error(`${key} không phải là danh sách hợp lệ.`);
+    throw new Error(`${key} khÃ´ng pháº£i lÃ  danh sÃ¡ch há»£p lá»‡.`);
   }
 
   return parsedValue as T[];
@@ -309,6 +314,7 @@ export function ExportCenter() {
   const [productDeliveryNotes, setProductDeliveryNotes] = useState("");
   const [productDeliveryFileText, setProductDeliveryFileText] = useState("");
   const [aiRunHistory, setAIRunHistory] = useState<AIRunRecord[]>([]);
+  const [expandedAIRunId, setExpandedAIRunId] = useState<string | null>(null);
   const [compareModeEnabled, setCompareModeEnabled] = useState(false);
   const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
   const [compareResults, setCompareResults] = useState<ExportCompareResult[]>([]);
@@ -402,12 +408,14 @@ export function ExportCenter() {
     skillId,
     success,
     meta,
-    errorMessage
+    errorMessage,
+    validationErrors
   }: {
     skillId: string;
     success: boolean;
     meta?: AIRunRouteMeta;
     errorMessage?: string;
+    validationErrors?: string[];
   }) {
     logAICallAudit({
       skillId,
@@ -421,7 +429,14 @@ export function ExportCenter() {
       latencyMs: meta?.latencyMs,
       validationPassed: meta?.validationPassed ?? success,
       tokenUsage: meta?.tokenUsage,
-      warnings: meta?.warnings
+      warnings: meta?.warnings,
+      errorType: meta?.errorCode ?? meta?.audit?.errorCode,
+      validationErrors,
+      suggestedNextAction: success
+        ? "Review the preview before applying or exporting."
+        : validationErrors?.length
+          ? "Review validation issues, adjust the source context, then rerun the skill."
+          : "Check provider status or rerun with Local/Mock fallback."
     });
     refreshAIRunHistory();
   }
@@ -666,7 +681,8 @@ export function ExportCenter() {
           skillId,
           success: response.ok && data.ok === true,
           meta: data.meta,
-          errorMessage: response.ok && data.ok ? undefined : errorMessage
+          errorMessage: response.ok && data.ok ? undefined : errorMessage,
+          validationErrors: data.validationErrors
         });
       } catch (error) {
         const errorMessage =
@@ -809,14 +825,14 @@ export function ExportCenter() {
       setArtifacts(nextArtifacts);
       setExportPackageStatus("fresh");
       refreshArtifactStatuses();
-      setMessage("Đã generate fresh đủ 5 artifacts cho output package.");
+      setMessage("ÄÃ£ generate fresh Ä‘á»§ 5 artifacts cho output package.");
     } catch (error) {
       setArtifacts(null);
       setExportPackageStatus("not_generated");
       setMessage(
         error instanceof Error
-          ? `Không thể generate output package: ${error.message}`
-          : "Không thể generate output package. Vui lòng kiểm tra dữ liệu."
+          ? `KhÃ´ng thá»ƒ generate output package: ${error.message}`
+          : "KhÃ´ng thá»ƒ generate output package. Vui lÃ²ng kiá»ƒm tra dá»¯ liá»‡u."
       );
     }
   }
@@ -924,7 +940,8 @@ export function ExportCenter() {
           skillId,
           success: false,
           meta: data.meta,
-          errorMessage: data.error
+          errorMessage: data.error,
+          validationErrors: data.validationErrors
         });
         setMessage(
           data.validationErrors?.length
@@ -1024,7 +1041,8 @@ export function ExportCenter() {
           skillId,
           success: false,
           meta: data.meta,
-          errorMessage: data.error
+          errorMessage: data.error,
+          validationErrors: data.validationErrors
         });
         setMessage(
           data.validationErrors?.length
@@ -1123,7 +1141,8 @@ export function ExportCenter() {
           skillId,
           success: false,
           meta: data.meta,
-          errorMessage: data.error
+          errorMessage: data.error,
+          validationErrors: data.validationErrors
         });
         setMessage(
           data.validationErrors?.length
@@ -1216,7 +1235,8 @@ export function ExportCenter() {
           skillId,
           success: false,
           meta: data.meta,
-          errorMessage: data.error
+          errorMessage: data.error,
+          validationErrors: data.validationErrors
         });
         setMessage(
           data.validationErrors?.length
@@ -1318,7 +1338,8 @@ export function ExportCenter() {
           skillId,
           success: false,
           meta: data.meta,
-          errorMessage: data.error
+          errorMessage: data.error,
+          validationErrors: data.validationErrors
         });
         setMessage(
           data.validationErrors?.length
@@ -1419,7 +1440,8 @@ export function ExportCenter() {
           skillId,
           success: false,
           meta: data.meta,
-          errorMessage: data.error
+          errorMessage: data.error,
+          validationErrors: data.validationErrors
         });
         setMessage(
           data.validationErrors?.length
@@ -1515,12 +1537,12 @@ export function ExportCenter() {
       setArtifacts(currentArtifacts);
       setExportPackageStatus("fresh");
       refreshArtifactStatuses();
-      setMessage("Đã tạo ZIP output package.");
+      setMessage("ÄÃ£ táº¡o ZIP output package.");
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? `Không thể download ZIP: ${error.message}`
-          : "Không thể download ZIP. Vui lòng thử lại."
+          ? `KhÃ´ng thá»ƒ download ZIP: ${error.message}`
+          : "KhÃ´ng thá»ƒ download ZIP. Vui lÃ²ng thá»­ láº¡i."
       );
     } finally {
       setIsDownloading(false);
@@ -1533,7 +1555,7 @@ export function ExportCenter() {
       `Audit_Log_${createTimestamp()}.json`,
       "application/json;charset=utf-8"
     );
-    setMessage("Đã export audit log JSON.");
+    setMessage("ÄÃ£ export audit log JSON.");
   }
 
   function downloadAIRunHistory() {
@@ -1670,7 +1692,8 @@ export function ExportCenter() {
           skillId,
           success: false,
           meta: data.meta,
-          errorMessage: data.error
+          errorMessage: data.error,
+          validationErrors: data.validationErrors
         });
         setMessage(
           data.validationErrors?.length
@@ -1923,8 +1946,8 @@ export function ExportCenter() {
               Output Package ZIP
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Generate và đóng gói D01 BPMN, D02 Service Blueprint, JSON dữ liệu
-              và QA Report vào một file ZIP.
+              Generate vÃ  Ä‘Ã³ng gÃ³i D01 BPMN, D02 Service Blueprint, JSON dá»¯ liá»‡u
+              vÃ  QA Report vÃ o má»™t file ZIP.
             </p>
           </div>
 
@@ -1942,7 +1965,7 @@ export function ExportCenter() {
               onClick={downloadZip}
               type="button"
             >
-              {isDownloading ? "Đang tạo ZIP..." : "Download ZIP"}
+              {isDownloading ? "Äang táº¡o ZIP..." : "Download ZIP"}
             </button>
             <button
               className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
@@ -2027,63 +2050,125 @@ export function ExportCenter() {
 
         {aiRunHistory.length ? (
           <div className="mt-4 overflow-x-auto rounded border border-slate-200">
-            <table className="min-w-[56rem] text-left text-sm">
+            <table className="min-w-[72rem] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Skill</th>
                   <th className="px-3 py-2 font-semibold">Provider</th>
+                  <th className="px-3 py-2 font-semibold">Model</th>
                   <th className="px-3 py-2 font-semibold">Status</th>
                   <th className="px-3 py-2 font-semibold">Validation</th>
                   <th className="px-3 py-2 font-semibold">Latency</th>
                   <th className="px-3 py-2 font-semibold">External</th>
                   <th className="px-3 py-2 font-semibold">Tokens</th>
-                  <th className="px-3 py-2 font-semibold">Warnings</th>
                   <th className="px-3 py-2 font-semibold">Timestamp</th>
+                  <th className="px-3 py-2 font-semibold">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
-                {aiRunHistory.slice(0, 8).map((run) => (
-                  <tr key={run.id}>
-                    <td className="px-3 py-2 font-medium text-slate-950">
-                      {run.skillId}
-                    </td>
-                    <td className="px-3 py-2">
-                      {run.provider}
-                      {run.model ? ` / ${run.model}` : ""}
-                    </td>
-                    <td className="px-3 py-2">
-                      <span
-                        className={`rounded px-2 py-1 text-xs font-medium ${
-                          run.status === "success"
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-rose-50 text-rose-700"
-                        }`}
-                      >
-                        {run.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2">
-                      {run.validationPassed === undefined
-                        ? "unknown"
-                        : run.validationPassed
-                          ? "passed"
-                          : "failed"}
-                    </td>
-                    <td className="px-3 py-2">
-                      {run.latencyMs === undefined ? "-" : `${run.latencyMs}ms`}
-                    </td>
-                    <td className="px-3 py-2">
-                      {run.externalApiCalled ? "yes" : "no"}
-                    </td>
-                    <td className="px-3 py-2">
-                      {run.tokenUsage?.totalTokens ?? "-"}
-                    </td>
-                    <td className="px-3 py-2">{run.warnings.length}</td>
-                    <td className="px-3 py-2 text-xs text-slate-500">
-                      {new Date(run.timestamp).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {aiRunHistory.slice(0, 8).map((run) => {
+                  const isExpanded = expandedAIRunId === run.id;
+                  const canExpand =
+                    run.status === "failure" ||
+                    run.validationStatus === "invalid" ||
+                    run.warnings.length > 0;
+
+                  return (
+                    <Fragment key={run.id}>
+                      <tr key={run.id}>
+                        <td className="px-3 py-2 font-medium text-slate-950">
+                          {run.skillId}
+                        </td>
+                        <td className="px-3 py-2">{run.provider}</td>
+                        <td className="px-3 py-2">{run.model || "-"}</td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`rounded px-2 py-1 text-xs font-medium ${
+                              run.status === "success"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-rose-50 text-rose-700"
+                            }`}
+                          >
+                            {run.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">{run.validationStatus}</td>
+                        <td className="px-3 py-2">
+                          {run.latencyMs === undefined
+                            ? "-"
+                            : `${run.latencyMs}ms`}
+                        </td>
+                        <td className="px-3 py-2">
+                          {run.externalApiCalled ? "yes" : "no"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {run.tokenUsage?.totalTokens ?? "-"}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-500">
+                          {new Date(run.timestamp).toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2">
+                          {canExpand ? (
+                            <button
+                              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                              onClick={() =>
+                                setExpandedAIRunId(isExpanded ? null : run.id)
+                              }
+                              type="button"
+                            >
+                              {isExpanded ? "Hide" : "Details"}
+                            </button>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                      </tr>
+                      {isExpanded ? (
+                        <tr key={`${run.id}-details`}>
+                          <td className="bg-slate-50 px-3 py-3" colSpan={10}>
+                            <div className="grid gap-3 text-xs text-slate-700 md:grid-cols-2">
+                              <p>
+                                <span className="font-semibold">Error type:</span>{" "}
+                                {run.errorType || "not applicable"}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Request id:</span>{" "}
+                                {run.requestId || "not available"}
+                              </p>
+                              <p className="md:col-span-2">
+                                <span className="font-semibold">
+                                  Safe message:
+                                </span>{" "}
+                                {run.safeErrorMessage || "No safe error message recorded."}
+                              </p>
+                              <p className="md:col-span-2">
+                                <span className="font-semibold">
+                                  Validation summary:
+                                </span>{" "}
+                                {run.validationErrorSummary ||
+                                  (run.validationStatus === "valid"
+                                    ? "Valid."
+                                    : "No validation summary recorded.")}
+                              </p>
+                              <p className="md:col-span-2">
+                                <span className="font-semibold">Warnings:</span>{" "}
+                                {run.warnings.length
+                                  ? run.warnings.join("; ")
+                                  : "None"}
+                              </p>
+                              <p className="md:col-span-2">
+                                <span className="font-semibold">
+                                  Suggested next action:
+                                </span>{" "}
+                                {run.suggestedNextAction}
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

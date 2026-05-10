@@ -2901,6 +2901,9 @@ export function GET() {
   const providerName = getProviderName();
   const dataUsageMode = getServerDataUsageMode(realAIEnabled, providerName);
   const providerStatus = getAIProviderStatus(realAIEnabled, providerName);
+  const displayStatus = getProviderDisplayStatus(providerName);
+  const effectiveProvider =
+    providerName !== "mock" && displayStatus !== "configured" ? "mock" : providerName;
 
   return NextResponse.json({
     ok: true,
@@ -2910,10 +2913,13 @@ export function GET() {
     realAITemplateReviewEnabled:
       process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true",
     providerStatus,
+    displayStatus,
     providers: getProviderStatusSummary(),
     provider: providerName,
+    effectiveProvider,
+    fallbackActive: effectiveProvider === "mock" && providerName !== "mock",
     dataUsageMode,
-    model: getConfiguredAIModel(providerName)
+    model: getConfiguredAIModel(effectiveProvider)
   });
 }
 
@@ -2937,6 +2943,10 @@ export async function POST(request: Request) {
     const providerName = getProviderName();
     const dataUsageMode = getServerDataUsageMode(realAIEnabled, providerName);
     const selectedProviderStatus = getProviderDisplayStatus(providerName);
+    const effectiveProvider =
+      providerName !== "mock" && selectedProviderStatus !== "configured"
+        ? "mock"
+        : providerName;
 
     return NextResponse.json({
       ok: selectedProviderStatus === "configured" || selectedProviderStatus === "available",
@@ -2946,8 +2956,10 @@ export async function POST(request: Request) {
       providerStatus: getAIProviderStatus(realAIEnabled, providerName),
       displayStatus: selectedProviderStatus,
       providers: getProviderStatusSummary(),
+      effectiveProvider,
+      fallbackActive: effectiveProvider === "mock" && providerName !== "mock",
       dataUsageMode,
-      model: getConfiguredAIModel(providerName),
+      model: getConfiguredAIModel(effectiveProvider),
       externalApiCalled: false,
       message:
         selectedProviderStatus === "missing env"

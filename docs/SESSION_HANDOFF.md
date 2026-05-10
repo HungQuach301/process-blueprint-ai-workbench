@@ -18,6 +18,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Audited the current AI implementation across the AI skill route, provider types/adapters, AI intake, quality gates, recommendation validation, template review validation, audit log, AI settings UI, AI Input Brief, QA Panel, Template Hub, Product Delivery, and AI Coding Pack export.
+- Created `docs/AI_IMPLEMENTATION_MATRIX.md` covering skill id, module, input/output schema, Mock/Product AI/OpenAI/Claude support, validation, UI surface, apply behavior, audit behavior, and gaps.
 - Pivoted planning docs from an immediate MVP1 release to MVP1-AI after full Module 2 and Module 3 completion.
 - Updated the next implementation plan with the new phase, branch, release target, and priority order.
 - Updated the roadmap so MVP1-AI includes full Module 2 Process Modeling Core and Module 3 Product Delivery Core.
@@ -28,6 +30,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/NEXT_IMPLEMENTATION_PLAN.md`
 - `docs/ROADMAP.md`
 - `docs/AI_SKILL_REGISTRY.md`
@@ -36,6 +39,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- AI implementation audit confirmed OpenAI is the only real external provider currently implemented server-side.
+- Product AI and Claude are currently UI/type placeholders only.
+- Product Delivery and AI Coding Pack are deterministic export workflows, not real AI skills yet.
 - MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
 - The active planning branch is now `feature/m2-m3-full-ai`.
 - The release target is now `v0.8.0-mvp1-ai`.
@@ -52,7 +58,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Next recommended task
 
-Create the implementation breakdown for `feature/m2-m3-full-ai`, starting with Module 2 completion and real AI hardening, then Module 3 Product Delivery Core skills.
+Use `docs/AI_IMPLEMENTATION_MATRIX.md` to break down the next implementation tasks: provider adapter gaps first, then Module 2 real AI hardening, then Module 3 Product Delivery Core schemas and skills.
 
 ## Exact prompt for next ChatGPT session
 

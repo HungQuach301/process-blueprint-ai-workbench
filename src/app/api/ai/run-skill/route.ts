@@ -6,6 +6,7 @@ import {
   validateStructuredProcessBrief
 } from "@/lib/ai-intake";
 import type { IntakeLanguage } from "@/lib/ai-intake";
+import type { ProcessTask } from "@/lib/models/process-task";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
 import { runMockTemplateReview } from "@/lib/ai/ai-template-review-service";
@@ -41,6 +42,7 @@ import {
   runDraftProcessTaskRegisterQualityGate
 } from "@/lib/quality-engine";
 import { validateAIQARecommendations } from "@/lib/recommendation-engine/qa-recommendation-schema";
+import type { QARecommendation } from "@/lib/recommendation-engine/types";
 import { validateTemplateReviewOutput } from "@/lib/template-recommendation-engine";
 
 export const runtime = "nodejs";
@@ -63,6 +65,8 @@ const LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID = "file-to-draft-ptr";
 const CHAT_TO_PTR_DRAFT_SKILL_ID = "chat-to-ptr-draft";
 const LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID = "chat-to-draft-ptr";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+const PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID =
+  "process-improvement-recommendation";
 const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const TEMPLATE_REVIEW_REGISTRY_SKILL_ID = "template-review";
 const ORCHESTRATION_VERSION = "2.0.0";
@@ -184,6 +188,7 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     CHAT_TO_PTR_DRAFT_SKILL_ID,
     LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID,
     AI_PROCESS_QA_SKILL_ID,
+    PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
     AI_TEMPLATE_REVIEW_SKILL_ID
   ].includes(routeSkillId);
 }
@@ -620,7 +625,45 @@ function getValidationContext(
   return {};
 }
 
+function isGraphChangingQARecommendation(recommendation: QARecommendation) {
+  return (recommendation.operations ?? []).some((operation) =>
+    [
+      "SplitTask",
+      "CreateTaskAfter",
+      "CreateTaskBefore",
+      "InsertTaskBetween",
+      "CreateGateway",
+      "AddGatewayBranch",
+      "UpdateConnection",
+      "CreateLane"
+    ].includes(operation.kind)
+  );
+}
+
+function enforceGraphChangingRisk(recommendations: QARecommendation[]) {
+  return recommendations.map((recommendation) =>
+    isGraphChangingQARecommendation(recommendation)
+      ? {
+          ...recommendation,
+          impact: "high" as const,
+          riskLevel: "high" as const,
+          requiresConfirmation: true,
+          warnings: [
+            ...(recommendation.warnings ?? []),
+            "Graph-changing AI recommendation requires explicit human confirmation."
+          ]
+        }
+      : recommendation
+  );
+}
+
 function normalizeValidatedResult(routeSkillId: string, value: unknown) {
+  if (routeSkillId === PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID) {
+    return {
+      recommendations: enforceGraphChangingRisk(value as QARecommendation[])
+    };
+  }
+
   if (routeSkillId === AI_PROCESS_QA_SKILL_ID) {
     return {
       recommendations: value
@@ -803,6 +846,521 @@ function createMockAIQAResponse({
       validationPassed: true,
       promptPackId: skill.promptPackId,
       dataUsageMode,
+      audit
+    }
+  });
+}
+
+type PtrAIAssistantAction =
+  | "normalize-selected-rows"
+  | "infer-missing-actor-system-lane"
+  | "improve-task-wording"
+  | "suggest-split-complex-task"
+  | "generate-missing-input-output"
+  | "suggest-interaction-channel";
+
+const ptrAIAssistantActionLabels: Record<PtrAIAssistantAction, string> = {
+  "normalize-selected-rows": "Normalize selected rows",
+  "infer-missing-actor-system-lane": "Infer missing actor/system/lane",
+  "improve-task-wording": "Improve task wording",
+  "suggest-split-complex-task": "Suggest split complex task",
+  "generate-missing-input-output": "Generate missing input/output",
+  "suggest-interaction-channel": "Suggest customer interaction/channel"
+};
+
+function isPtrAIAssistantAction(value: unknown): value is PtrAIAssistantAction {
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(ptrAIAssistantActionLabels, value)
+  );
+}
+
+function normalizeWords(value: string) {
+  return value
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function titleCaseTaskName(value: string) {
+  const normalized = normalizeWords(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function inferMockActor(task: ProcessTask) {
+  if (task.actor?.trim()) {
+    return "";
+  }
+
+  if (task.customerInteractionType === "Customer Action") {
+    return "Customer";
+  }
+
+  if (task.bpmnType === "serviceTask" || task.taskNature === "automatic") {
+    return "System";
+  }
+
+  if (/approve|approval|phe duyet/i.test(task.taskName)) {
+    return "Approver";
+  }
+
+  return "Process Owner";
+}
+
+function inferMockSystem(task: ProcessTask) {
+  if (task.system?.trim()) {
+    return "";
+  }
+
+  if (task.bpmnType === "serviceTask" || task.taskNature === "automatic") {
+    return "Core workflow system";
+  }
+
+  if (/document|ho so|file/i.test(`${task.taskName} ${task.input} ${task.output}`)) {
+    return "Document management system";
+  }
+
+  return "";
+}
+
+function inferMockInteractionType(task: ProcessTask) {
+  if (task.customerInteractionType && task.customerInteractionType !== "None") {
+    return "";
+  }
+
+  if (/customer|khach hang/i.test(`${task.actor} ${task.taskName}`)) {
+    return "Customer Action" as const;
+  }
+
+  if (task.bpmnType === "serviceTask" || task.taskNature === "automatic") {
+    return "Back-stage System" as const;
+  }
+
+  if (task.system?.trim()) {
+    return "Front-stage System" as const;
+  }
+
+  return "Back-stage People" as const;
+}
+
+function inferMockChannel(task: ProcessTask) {
+  if (task.channel && task.channel !== "Other") {
+    return "";
+  }
+
+  const text = `${task.taskName} ${task.system} ${task.input} ${task.output}`;
+
+  if (/email/i.test(text)) {
+    return "Email";
+  }
+
+  if (/sms|otp/i.test(text)) {
+    return "SMS";
+  }
+
+  if (/mobile|app/i.test(text)) {
+    return "Mobile App";
+  }
+
+  if (/portal|web/i.test(text)) {
+    return "Portal";
+  }
+
+  return task.system?.trim() ? "Internal System" : "Other";
+}
+
+function createSplitTasks(task: ProcessTask, usedStepIds: Set<string>) {
+  const baseStepId = task.stepId || `AI${Date.now()}`;
+  const taskName = task.taskName || "Review and complete task";
+  const parts = taskName
+    .split(/\s+(?:and|then|va|sau do)\s+/i)
+    .map(titleCaseTaskName)
+    .filter(Boolean)
+    .slice(0, 2);
+  const names = parts.length >= 2 ? parts : [`Prepare ${taskName}`, `Complete ${taskName}`];
+
+  return names.map((name, index) => {
+    let suffixIndex = index + 1;
+    let nextStepId = `${baseStepId}-${suffixIndex}`;
+
+    while (usedStepIds.has(nextStepId)) {
+      suffixIndex += 1;
+      nextStepId = `${baseStepId}-${suffixIndex}`;
+    }
+
+    usedStepIds.add(nextStepId);
+
+    return {
+      ...task,
+      id: `${task.id}-ai-split-${suffixIndex}`,
+      stepId: nextStepId,
+      taskName: name,
+      reviewStatus: "needsReview" as const,
+      comment: normalizeWords(
+        `${task.comment ?? ""} AI Assistant split preview from ${task.stepId}.`
+      )
+    };
+  });
+}
+
+function createPtrAIAssistantRecommendation({
+  action,
+  task,
+  usedStepIds
+}: {
+  action: PtrAIAssistantAction;
+  task: ProcessTask;
+  usedStepIds: Set<string>;
+}): QARecommendation | null {
+  const base = {
+    id: `ptr-ai-${action}-${task.stepId}-${Date.now()}`,
+    source: "ai" as const,
+    issueId: `ptr-ai-${action}-${task.stepId}`,
+    issueCode: `PTR_AI_${action.replaceAll("-", "_").toUpperCase()}`,
+    targetStepIds: [task.stepId],
+    requiresConfirmation: true,
+    complianceTags: ["ptr-ai-assistant", "human-review", "mock-safe"]
+  };
+
+  if (action === "normalize-selected-rows") {
+    const operations: QARecommendation["operations"] = [];
+    const normalizedTaskName = titleCaseTaskName(task.taskName);
+    const normalizedPhase = titleCaseTaskName(task.phase);
+
+    if (normalizedTaskName && normalizedTaskName !== task.taskName) {
+      operations.push({
+        kind: "UpdateTaskField",
+        stepId: task.stepId,
+        field: "taskName",
+        value: normalizedTaskName
+      });
+    }
+
+    if (normalizedPhase && normalizedPhase !== task.phase) {
+      operations.push({
+        kind: "UpdateTaskField",
+        stepId: task.stepId,
+        field: "phase",
+        value: normalizedPhase
+      });
+    }
+
+    if (!operations.length) {
+      return null;
+    }
+
+    return {
+      ...base,
+      recommendationType: "UpdateField",
+      type: "UpdateField",
+      title: `Normalize ${task.stepId}`,
+      description: "Normalize spacing/capitalization for the selected PTR row.",
+      rationale: "The mock assistant only proposes field patches and does not apply them.",
+      confidence: "high",
+      impact: "low",
+      riskLevel: "low",
+      operations,
+      previewText: `${task.stepId}: normalize task wording/phase formatting.`,
+      warnings: ["Mock AI Assistant recommendation. Review before applying."]
+    };
+  }
+
+  if (action === "infer-missing-actor-system-lane") {
+    const operations: QARecommendation["operations"] = [];
+    const actor = inferMockActor(task);
+    const system = inferMockSystem(task);
+
+    if (actor) {
+      operations.push({
+        kind: "AssignActor",
+        stepId: task.stepId,
+        actor,
+        actorLane: actor
+      });
+    } else if (task.actor && !task.actorLane) {
+      operations.push({
+        kind: "UpdateTaskField",
+        stepId: task.stepId,
+        field: "actorLane",
+        value: task.actor
+      });
+    }
+
+    if (system) {
+      operations.push({
+        kind: "AssignSystem",
+        stepId: task.stepId,
+        system,
+        systemLane: system
+      });
+    } else if (task.system && !task.systemLane) {
+      operations.push({
+        kind: "UpdateTaskField",
+        stepId: task.stepId,
+        field: "systemLane",
+        value: task.system
+      });
+    }
+
+    if (!operations.length) {
+      return null;
+    }
+
+    return {
+      ...base,
+      recommendationType: actor ? "AssignActor" : "AssignSystem",
+      type: actor ? "AssignActor" : "AssignSystem",
+      title: `Infer ownership for ${task.stepId}`,
+      description: "Infer missing actor, system, or lane values from the selected row context.",
+      rationale: "Missing ownership fields reduce BPMN lane and Service Blueprint readiness.",
+      confidence: "medium",
+      impact: "medium",
+      riskLevel: "low",
+      operations,
+      previewText: `${task.stepId}: fill missing actor/system/lane fields.`,
+      warnings: ["Inference is mock/local and should be reviewed by the user."]
+    };
+  }
+
+  if (action === "improve-task-wording") {
+    const nextTaskName = titleCaseTaskName(task.taskName.replace(/^do\s+/i, ""));
+
+    if (!nextTaskName || nextTaskName === task.taskName) {
+      return null;
+    }
+
+    return {
+      ...base,
+      recommendationType: "UpdateField",
+      type: "UpdateField",
+      title: `Improve wording for ${task.stepId}`,
+      description: "Make the task name more concise while preserving the current business meaning.",
+      rationale: "Clear task wording improves PTR readability and downstream artifact quality.",
+      confidence: "medium",
+      impact: "low",
+      riskLevel: "low",
+      patch: {
+        taskName: nextTaskName
+      },
+      operations: [
+        {
+          kind: "UpdateTaskField",
+          stepId: task.stepId,
+          field: "taskName",
+          value: nextTaskName
+        }
+      ],
+      previewText: `${task.stepId}: taskName -> ${nextTaskName}`,
+      warnings: ["Review wording to ensure domain meaning is preserved."]
+    };
+  }
+
+  if (action === "suggest-split-complex-task") {
+    const newTasks = createSplitTasks(task, usedStepIds);
+
+    return {
+      ...base,
+      recommendationType: "SplitTask",
+      type: "SplitTask",
+      title: `Split complex task ${task.stepId}`,
+      description: "Suggest splitting this selected row into smaller reviewable tasks.",
+      rationale:
+        "The selected task may contain multiple actions. Splitting changes the process graph and must be reviewed carefully.",
+      confidence: "medium",
+      impact: "high",
+      riskLevel: "high",
+      operations: [
+        {
+          kind: "SplitTask",
+          targetStepId: task.stepId,
+          newTasks
+        }
+      ],
+      newTasks,
+      previewText: `${task.stepId}: split into ${newTasks.map((item) => item.stepId).join(", ")}.`,
+      warnings: [
+        "High risk graph-changing recommendation.",
+        "Not selected by Select safe recommendations."
+      ]
+    };
+  }
+
+  if (action === "generate-missing-input-output") {
+    const operations: QARecommendation["operations"] = [];
+
+    if (!task.input?.trim()) {
+      operations.push({
+        kind: "UpdateTaskField",
+        stepId: task.stepId,
+        field: "input",
+        value: `Inputs required to ${task.taskName || "complete this step"}`
+      });
+    }
+
+    if (!task.output?.trim()) {
+      operations.push({
+        kind: "UpdateTaskField",
+        stepId: task.stepId,
+        field: "output",
+        value: `Output of ${task.taskName || "this step"}`
+      });
+    }
+
+    if (!operations.length) {
+      return null;
+    }
+
+    return {
+      ...base,
+      recommendationType: "UpdateField",
+      type: "UpdateField",
+      title: `Generate input/output for ${task.stepId}`,
+      description: "Draft missing input/output fields for the selected PTR row.",
+      rationale: "Input/output fields improve traceability for process and product delivery artifacts.",
+      confidence: "medium",
+      impact: "medium",
+      riskLevel: "low",
+      operations,
+      previewText: `${task.stepId}: draft missing input/output values.`,
+      warnings: ["Generated text is a draft and should be adjusted to the real process."]
+    };
+  }
+
+  const interactionType = inferMockInteractionType(task);
+  const channel = inferMockChannel(task);
+  const operations: QARecommendation["operations"] = [];
+
+  if (interactionType) {
+    operations.push({
+      kind: "SetInteractionType",
+      stepId: task.stepId,
+      customerInteractionType: interactionType
+    });
+  }
+
+  if (channel) {
+    operations.push({
+      kind: "UpdateTaskField",
+      stepId: task.stepId,
+      field: "channel",
+      value: channel
+    });
+  }
+
+  if (!operations.length) {
+    return null;
+  }
+
+  return {
+    ...base,
+    recommendationType: "SetInteractionType",
+    type: "SetInteractionType",
+    title: `Suggest interaction/channel for ${task.stepId}`,
+    description: "Suggest customer interaction type and channel for Service Blueprint readiness.",
+    rationale: "D02 Service Blueprint requires customer interaction and channel context.",
+    confidence: "medium",
+    impact: "medium",
+    riskLevel: "low",
+    operations,
+    previewText: `${task.stepId}: suggest customerInteractionType/channel.`,
+    warnings: ["Review D02 layer fit before applying."]
+  };
+}
+
+function createMockProcessImprovementResponse({
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isAIQAPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Process improvement request must include processTasks."
+      },
+      { status: 400 }
+    );
+  }
+
+  const payloadRecord = payload as Omit<AIQARequest, "context"> & {
+    metadata?: unknown;
+    targetStepIds?: unknown;
+  };
+  const metadata = isObject(payloadRecord.metadata) ? payloadRecord.metadata : {};
+  const action = isPtrAIAssistantAction(metadata.ptrAiAction)
+    ? metadata.ptrAiAction
+    : "normalize-selected-rows";
+  const targetStepIds = Array.isArray(payloadRecord.targetStepIds)
+    ? payloadRecord.targetStepIds.filter((stepId): stepId is string => typeof stepId === "string")
+    : [];
+  const selectedTasks =
+    targetStepIds.length > 0
+      ? payload.processTasks.filter((task) => targetStepIds.includes(task.stepId))
+      : payload.processTasks.slice(0, 3);
+  const usedStepIds = new Set(payload.processTasks.map((task) => task.stepId));
+  const recommendations = selectedTasks
+    .map((task) =>
+      createPtrAIAssistantRecommendation({
+        action,
+        task,
+        usedStepIds
+      })
+    )
+    .filter((recommendation): recommendation is QARecommendation => recommendation !== null);
+  const validation = validateAIQARecommendations(
+    recommendations,
+    payload.processTasks.map((task) => task.stepId)
+  );
+
+  if (!validation.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Mock process improvement output failed schema validation.",
+        validationErrors: validation.errors
+      },
+      { status: 422 }
+    );
+  }
+
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId: PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
+    result: {
+      recommendations: validation.recommendations
+    },
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      ptrAiAction: action,
+      ptrAiActionLabel: ptrAIAssistantActionLabels[action],
       audit
     }
   });
@@ -1162,6 +1720,10 @@ function createMockResponse({
 
   if (routeSkillId === AI_PROCESS_QA_SKILL_ID) {
     return createMockAIQAResponse({ skill, payload, dataUsageMode });
+  }
+
+  if (routeSkillId === PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID) {
+    return createMockProcessImprovementResponse({ skill, payload, dataUsageMode });
   }
 
   if (routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID) {

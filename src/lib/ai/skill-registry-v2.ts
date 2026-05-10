@@ -136,7 +136,7 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     skillId: "process-improvement-recommendation",
     version: "1.0.0",
     module: "module-2-process-modeling",
-    status: "planned",
+    status: "real-ai-ready",
     description:
       "Suggest semantic process improvements beyond deterministic QA rules.",
     inputSchema: {

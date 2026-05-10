@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added PTR AI Assistant selected-row actions in Process Task Register.
+- Added row selection checkboxes and an AI Assistant menu for normalize, infer actor/system/lane, improve wording, split complex task, generate input/output, and suggest interaction/channel.
+- Wired PTR AI Assistant actions to `/api/ai/run-skill` with skill id `process-improvement-recommendation`.
+- Returned AI Assistant output as `QARecommendation[]` surfaced through the existing QA Panel recommendation workflow.
+- Preserved no direct mutation: recommendations still require QA Panel preview/confirmation before apply.
+- Added deterministic mock/local route support for `process-improvement-recommendation` and allowed provider-backed Product AI/OpenAI/Claude execution through Orchestration V2.
+- Kept split task recommendations high risk/graph-changing so they are not selected by Select safe.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for PTR AI Assistant route/UI support.
 - Completed Module 2 route-backed Draft PTR generation from three sources: structured Manual Input, File Intake extracted text, and pasted Chat/Notes.
 - Added route/registry support for `file-to-ptr-draft` and `chat-to-ptr-draft`, with legacy route aliases for `file-to-draft-ptr` and `chat-to-draft-ptr`.
 - Added `qualityIssues` to the Draft PTR contract and validation path.
@@ -59,6 +67,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/app/api/ai/run-skill/route.ts`
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `docs/AI_SKILL_REGISTRY.md`
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
+- `docs/SESSION_HANDOFF.md`
 - `src/components/input-brief/AIInputBriefPanel.tsx`
 - `src/lib/ai-intake/draft-ptr-generator.ts`
 - `src/lib/ai-intake/draft-ptr-schema.ts`
@@ -84,6 +99,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- PTR AI Assistant uses `process-improvement-recommendation` rather than adding six separate skill ids for this slice; the selected action is carried in `metadata.ptrAiAction`.
+- PTR AI Assistant outputs `QARecommendation[]` so it can reuse existing QA Panel preview/apply/feedback behavior.
+- PTR AI Assistant does not mutate `ProcessTask[]` directly.
 - Module 2 Draft PTR source skills now use canonical route ids `input-brief-to-ptr`, `file-to-ptr-draft`, and `chat-to-ptr-draft`.
 - `qualityIssues` is now part of the Draft PTR AI output contract alongside assumptions, open questions, source summary, confidence, and quality gate warnings.
 - File Intake real AI support uses locally extracted text only; OCR/image extraction remains explicitly unsupported.

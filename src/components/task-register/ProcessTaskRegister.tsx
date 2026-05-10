@@ -19,6 +19,7 @@ import {
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
 import {
+  type QaIssue,
   type QARecommendation,
   validateProcessTasks
 } from "@/lib/qa/task-register-rules";
@@ -64,6 +65,19 @@ const ptrText = {
     exportJson: "Export JSON",
     sample: "Mẫu",
     autoSuggest: "Auto-suggest interaction fields",
+    aiAssistant: "AI Assistant",
+    aiNoSelection: "Chọn ít nhất một dòng trước khi chạy AI Assistant.",
+    aiRunning: "Đang chạy AI Assistant...",
+    aiNoRecommendations: "AI Assistant không trả recommendation nào cho các dòng đã chọn.",
+    aiRecommendationsReady: "AI Assistant đã tạo recommendation trong QA Panel.",
+    normalizeRows: "Normalize selected rows",
+    inferActorSystemLane: "Infer missing actor/system/lane",
+    improveTaskWording: "Improve task wording",
+    suggestSplitTask: "Suggest split complex task",
+    generateInputOutput: "Generate missing input/output",
+    suggestInteractionChannel: "Suggest customerInteractionType/channel",
+    selectRows: "Chọn dòng",
+    selectedRows: "dòng đã chọn",
     oneRow: "Một dòng = một task/gateway/event/data interaction.",
     gateway: "Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.",
     systemData: "System/data phải giữ liên kết với hành trình người dùng.",
@@ -83,6 +97,19 @@ const ptrText = {
     exportJson: "Export JSON",
     sample: "Sample",
     autoSuggest: "Auto-suggest interaction fields",
+    aiAssistant: "AI Assistant",
+    aiNoSelection: "Select at least one row before running AI Assistant.",
+    aiRunning: "Running AI Assistant...",
+    aiNoRecommendations: "AI Assistant did not return recommendations for the selected rows.",
+    aiRecommendationsReady: "AI Assistant created recommendations in the QA Panel.",
+    normalizeRows: "Normalize selected rows",
+    inferActorSystemLane: "Infer missing actor/system/lane",
+    improveTaskWording: "Improve task wording",
+    suggestSplitTask: "Suggest split complex task",
+    generateInputOutput: "Generate missing input/output",
+    suggestInteractionChannel: "Suggest customerInteractionType/channel",
+    selectRows: "Select rows",
+    selectedRows: "selected rows",
     oneRow: "One row = one task, gateway, event, or data interaction.",
     gateway: "Gateways must include a condition question and complete yes/no branches.",
     systemData: "System/data fields should stay linked to the user journey.",
@@ -103,6 +130,28 @@ type SelectOption = {
 };
 
 type SampleProcessId = "sme-online-loan" | "corporate-account-opening";
+
+type PtrAIAssistantActionId =
+  | "normalize-selected-rows"
+  | "infer-missing-actor-system-lane"
+  | "improve-task-wording"
+  | "suggest-split-complex-task"
+  | "generate-missing-input-output"
+  | "suggest-interaction-channel";
+
+const PTR_AI_ASSISTANT_SKILL_ID = "process-improvement-recommendation";
+
+const ptrAIAssistantActions: Array<{
+  id: PtrAIAssistantActionId;
+  textKey: keyof typeof ptrText.vi;
+}> = [
+  { id: "normalize-selected-rows", textKey: "normalizeRows" },
+  { id: "infer-missing-actor-system-lane", textKey: "inferActorSystemLane" },
+  { id: "improve-task-wording", textKey: "improveTaskWording" },
+  { id: "suggest-split-complex-task", textKey: "suggestSplitTask" },
+  { id: "generate-missing-input-output", textKey: "generateInputOutput" },
+  { id: "suggest-interaction-channel", textKey: "suggestInteractionChannel" }
+];
 
 const visibleColumns: EditableColumn[] = [
   { key: "stepId", label: "Mã bước", minWidth: "110px" },
@@ -495,6 +544,10 @@ export function ProcessTaskRegister() {
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ProcessTaskImportPreview | null>(null);
   const [isRegisterMoreMenuOpen, setIsRegisterMoreMenuOpen] = useState(false);
+  const [isPtrAIMenuOpen, setIsPtrAIMenuOpen] = useState(false);
+  const [isRunningPtrAI, setIsRunningPtrAI] = useState(false);
+  const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(() => new Set());
+  const [ptrAiIssues, setPtrAiIssues] = useState<QaIssue[]>([]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -553,12 +606,32 @@ export function ProcessTaskRegister() {
     };
   }, []);
 
+  useEffect(() => {
+    setPtrAiIssues([]);
+    setSelectedStepIds((currentStepIds) => {
+      const validStepIds = new Set(tasks.map((task) => task.stepId));
+      const nextStepIds = new Set(
+        [...currentStepIds].filter((stepId) => validStepIds.has(stepId))
+      );
+
+      return nextStepIds.size === currentStepIds.size ? currentStepIds : nextStepIds;
+    });
+  }, [tasks]);
+
   const gatewayCount = useMemo(
     () => tasks.filter((task) => task.rowType === "gateway").length,
     [tasks]
   );
 
   const qaIssues = useMemo(() => validateProcessTasks(tasks), [tasks]);
+  const displayQaIssues = useMemo(
+    () => [...ptrAiIssues, ...qaIssues],
+    [ptrAiIssues, qaIssues]
+  );
+  const selectedTasks = useMemo(
+    () => tasks.filter((task) => selectedStepIds.has(task.stepId)),
+    [selectedStepIds, tasks]
+  );
   const activeSampleProcess = getSampleProcess(selectedSampleProcessId);
   const text = ptrText[locale];
 
@@ -567,6 +640,159 @@ export function ProcessTaskRegister() {
     document
       .getElementById(`process-task-row-${stepId}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function toggleSelectedRow(stepId: string) {
+    setSelectedStepIds((currentStepIds) => {
+      const nextStepIds = new Set(currentStepIds);
+
+      if (nextStepIds.has(stepId)) {
+        nextStepIds.delete(stepId);
+      } else {
+        nextStepIds.add(stepId);
+      }
+
+      return nextStepIds;
+    });
+  }
+
+  function toggleAllRows() {
+    setSelectedStepIds((currentStepIds) =>
+      currentStepIds.size === tasks.length
+        ? new Set()
+        : new Set(tasks.map((task) => task.stepId))
+    );
+  }
+
+  async function runPtrAIAssistantAction(actionId: PtrAIAssistantActionId) {
+    if (selectedTasks.length === 0) {
+      setSaveMessage(text.aiNoSelection);
+      return;
+    }
+
+    setIsRunningPtrAI(true);
+    setIsPtrAIMenuOpen(false);
+    setSaveMessage(text.aiRunning);
+
+    try {
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: PTR_AI_ASSISTANT_SKILL_ID,
+          payload: {
+            processTasks: tasks,
+            templateProfiles: readTemplateProfiles(),
+            targetStepIds: selectedTasks.map((task) => task.stepId),
+            metadata: {
+              ptrAiAction: actionId,
+              selectedOnly: true,
+              selectedRowCount: selectedTasks.length
+            }
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        mode?: "mock" | "provider-backed";
+        result?: {
+          recommendations?: QARecommendation[];
+        };
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+        };
+      };
+
+      if (!response.ok || !data.ok) {
+        setPtrAiIssues([]);
+        setSaveMessage(
+          [data.error ?? "PTR AI Assistant failed.", ...(data.validationErrors ?? [])].join(" ")
+        );
+        saveAuditLogEntry({
+          action: "ai_call",
+          status: "failure",
+          summary: "PTR AI Assistant request failed.",
+          metadata: {
+            skillId: PTR_AI_ASSISTANT_SKILL_ID,
+            actionId,
+            selectedRowCount: selectedTasks.length,
+            externalApiCalled: data.meta?.externalApiCalled === true
+          }
+        });
+        return;
+      }
+
+      const recommendations = (data.result?.recommendations ?? []).map(
+        (recommendation) => ({
+          ...recommendation,
+          source: "ai" as const,
+          requiresConfirmation: true
+        })
+      );
+
+      if (recommendations.length === 0) {
+        setPtrAiIssues([]);
+        setSaveMessage(text.aiNoRecommendations);
+        return;
+      }
+
+      const firstSelectedTask = selectedTasks[0];
+
+      setPtrAiIssues([
+        {
+          id: `ptr-ai-assistant-${actionId}-${Date.now()}`,
+          issueCode:
+            actionId === "suggest-split-complex-task"
+              ? "MULTI_ACTION_TASK"
+              : "SERVICE_BLUEPRINT_CARD_READINESS",
+          stepId: firstSelectedTask.stepId,
+          taskName: firstSelectedTask.taskName || firstSelectedTask.stepId,
+          severity: "suggestion",
+          message: `${text.aiAssistant}: ${text[ptrAIAssistantActions.find((action) => action.id === actionId)?.textKey ?? "aiAssistant"]}`,
+          suggestedFix:
+            "Review the AI recommendations in this panel, then apply selected items only after confirmation.",
+          recommendations
+        }
+      ]);
+      setSaveMessage(
+        `${text.aiRecommendationsReady} (${recommendations.length}; ${
+          data.mode === "provider-backed" ? "provider-backed" : "mock/local"
+        })`
+      );
+      saveAuditLogEntry({
+        action: "ai_call",
+        status: "success",
+        summary: "PTR AI Assistant generated recommendations.",
+        metadata: {
+          skillId: PTR_AI_ASSISTANT_SKILL_ID,
+          actionId,
+          selectedRowCount: selectedTasks.length,
+          recommendationCount: recommendations.length,
+          mode: data.mode ?? "mock",
+          externalApiCalled: data.meta?.externalApiCalled === true
+        }
+      });
+    } catch {
+      setPtrAiIssues([]);
+      setSaveMessage("PTR AI Assistant request failed. No change was applied.");
+      saveAuditLogEntry({
+        action: "ai_call",
+        status: "failure",
+        summary: "PTR AI Assistant network request failed.",
+        metadata: {
+          skillId: PTR_AI_ASSISTANT_SKILL_ID,
+          actionId,
+          selectedRowCount: selectedTasks.length,
+          externalApiCalled: false
+        }
+      });
+    } finally {
+      setIsRunningPtrAI(false);
+    }
   }
 
   function updateCell(index: number, key: keyof ProcessTask, value: string) {
@@ -946,7 +1172,7 @@ export function ProcessTaskRegister() {
   return (
     <>
       <QAPanel
-        issues={qaIssues}
+        issues={displayQaIssues}
         processTasks={tasks}
         onApplyRecommendation={applyRecommendation}
         onApplyRecommendations={applyRecommendations}
@@ -1076,6 +1302,33 @@ export function ProcessTaskRegister() {
               >
                 {text.autoSuggest}
               </button>
+              <div className="relative">
+                <button
+                  className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
+                  disabled={isRunningPtrAI || selectedTasks.length === 0}
+                  onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
+                  type="button"
+                >
+                  {isRunningPtrAI
+                    ? text.aiRunning
+                    : `${text.aiAssistant} (${selectedTasks.length})`}
+                </button>
+                {isPtrAIMenuOpen ? (
+                  <div className="absolute left-0 z-20 mt-2 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                    {ptrAIAssistantActions.map((action) => (
+                      <button
+                        className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                        disabled={isRunningPtrAI}
+                        key={action.id}
+                        onClick={() => void runPtrAIAssistantAction(action.id)}
+                        type="button"
+                      >
+                        {text[action.textKey]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
               <li>{text.oneRow}</li>
@@ -1083,7 +1336,8 @@ export function ProcessTaskRegister() {
               <li>{text.systemData}</li>
             </ul>
             <p className="mt-2 text-sm text-slate-500">
-              {text.totalRows}: {tasks.length} | {text.gatewayCount}: {gatewayCount}
+              {text.totalRows}: {tasks.length} | {text.gatewayCount}: {gatewayCount} |{" "}
+              {selectedTasks.length} {text.selectedRows}
             </p>
           </div>
           {saveMessage ? (
@@ -1214,7 +1468,16 @@ export function ProcessTaskRegister() {
           <table className="w-max min-w-full border-collapse text-left text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>
-                <th className="sticky left-0 z-10 w-14 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                <th className="sticky left-0 z-20 w-12 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                  <input
+                    aria-label={text.selectRows}
+                    checked={tasks.length > 0 && selectedStepIds.size === tasks.length}
+                    className="h-4 w-4 rounded border-slate-300"
+                    onChange={toggleAllRows}
+                    type="checkbox"
+                  />
+                </th>
+                <th className="sticky left-12 z-10 w-14 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
                   #
                 </th>
                 {visibleColumns.map((column) => (
@@ -1242,7 +1505,16 @@ export function ProcessTaskRegister() {
                   id={`process-task-row-${task.stepId}`}
                   key={task.id}
                 >
-                  <td className="sticky left-0 z-10 border-b border-r border-slate-200 bg-inherit px-3 py-2 font-medium text-slate-600">
+                  <td className="sticky left-0 z-20 border-b border-r border-slate-200 bg-inherit px-3 py-2">
+                    <input
+                      aria-label={`${text.selectRows}: ${task.stepId}`}
+                      checked={selectedStepIds.has(task.stepId)}
+                      className="h-4 w-4 rounded border-slate-300"
+                      onChange={() => toggleSelectedRow(task.stepId)}
+                      type="checkbox"
+                    />
+                  </td>
+                  <td className="sticky left-12 z-10 border-b border-r border-slate-200 bg-inherit px-3 py-2 font-medium text-slate-600">
                     {index + 1}
                   </td>
                   {visibleColumns.map((column) => {

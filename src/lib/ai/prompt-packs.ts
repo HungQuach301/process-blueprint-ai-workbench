@@ -104,7 +104,7 @@ export const processModelingPromptPacks: AIPromptPack[] = [
       {
         role: "system",
         content:
-          "Return process QA recommendations only. Use existing stepIds, explain the rationale, and never select graph-changing changes by default."
+          "Return process QA recommendations only. Use existing stepIds, explain the rationale, and never select graph-changing changes by default. When metadata.ptrAiAction is provided, focus only on that selected-row action and return QARecommendation[] patches or graph-changing previews for human approval."
       }
     ]
   },

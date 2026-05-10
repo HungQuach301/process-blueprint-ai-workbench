@@ -82,6 +82,7 @@ type RunSkillRequestBody = {
   action?: unknown;
   skillId?: unknown;
   payload?: unknown;
+  providerId?: unknown;
 };
 
 type DataUsageMode =
@@ -120,6 +121,10 @@ const USER_STORIES_TO_AI_CODING_PACK_SKILL_ID =
 const ORCHESTRATION_VERSION = "2.0.0";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
 const SERVER_PROVIDER_IDS: AIProviderId[] = ["product-ai", "openai", "claude", "mock"];
+
+function isAIProviderId(value: unknown): value is AIProviderId {
+  return SERVER_PROVIDER_IDS.includes(value as AIProviderId);
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -490,8 +495,11 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   }
 }
 
-async function runConfiguredProviderWithTimeout(aiRequest: AIModelRequest) {
-  const provider = createConfiguredAIProvider();
+async function runConfiguredProviderWithTimeout(
+  aiRequest: AIModelRequest,
+  providerId = getProviderName()
+) {
+  const provider = createConfiguredAIProvider(providerId);
 
   return withTimeout(provider.run(aiRequest), getProviderTimeoutMs());
 }
@@ -529,20 +537,23 @@ async function parseProviderJsonWithOptionalRepair({
     }
 
     try {
-      const repairResult = await runConfiguredProviderWithTimeout({
-        skillId: routeSkillId,
-        payload: {
-          repairOnly: true,
-          sourceProviderRequestId: result.requestId,
-          sourceOutputLength: result.rawText.length
+      const repairResult = await runConfiguredProviderWithTimeout(
+        {
+          skillId: routeSkillId,
+          payload: {
+            repairOnly: true,
+            sourceProviderRequestId: result.requestId,
+            sourceOutputLength: result.rawText.length
+          },
+          model: result.model,
+          messages: createRepairMessages({
+            skill,
+            routeSkillId,
+            malformedJson: result.rawText.slice(0, 24000)
+          })
         },
-        model: result.model,
-        messages: createRepairMessages({
-          skill,
-          routeSkillId,
-          malformedJson: result.rawText.slice(0, 24000)
-        })
-      });
+        result.providerId
+      );
 
       return {
         parsedResult: parseProviderJson(repairResult),
@@ -1033,8 +1044,8 @@ function createMockTemplateReviewResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
     result: {
       recommendations: validation.recommendations,
@@ -1126,8 +1137,8 @@ function createMockAIQAResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: AI_PROCESS_QA_SKILL_ID,
     result: {
       recommendations: validation.recommendations
@@ -1212,8 +1223,8 @@ function createMockArtifactReviewResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: ARTIFACT_REVIEW_SKILL_ID,
     result: validation.value,
     meta: {
@@ -1725,8 +1736,8 @@ function createMockProcessImprovementResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
     result: {
       recommendations: validation.recommendations
@@ -1832,8 +1843,8 @@ function createMockInputBriefResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
     result: {
       ...draftValidation.value,
@@ -1927,8 +1938,8 @@ function createMockFileToPtrDraftResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: FILE_TO_PTR_DRAFT_SKILL_ID,
     result: {
@@ -2029,8 +2040,8 @@ function createMockChatToPtrDraftResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: CHAT_TO_PTR_DRAFT_SKILL_ID,
     result: {
@@ -2119,8 +2130,8 @@ function createMockBRDResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: getRegistrySkillId(routeSkillId),
     result: {
@@ -2203,8 +2214,8 @@ function createMockSRSResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: getRegistrySkillId(routeSkillId),
     result: {
@@ -2292,8 +2303,8 @@ function createMockUserStoryResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: getRegistrySkillId(routeSkillId),
     result: {
@@ -2373,8 +2384,8 @@ function createMockAcceptanceCriteriaResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: getRegistrySkillId(routeSkillId),
     result: {
@@ -2457,8 +2468,8 @@ function createMockProductScopeReviewResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: getRegistrySkillId(routeSkillId),
     result: {
@@ -2561,8 +2572,8 @@ function createMockAICodingPackResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: getRegistrySkillId(routeSkillId),
     result: {
@@ -2625,8 +2636,8 @@ function createMockRequirementQAResponse({
   return NextResponse.json({
     ok: true,
     mode: "mock",
-    provider: getProviderName(),
-    model: process.env.AI_MODEL || "",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
     skillId: routeSkillId,
     registrySkillId: getRegistrySkillId(routeSkillId),
     result,
@@ -2976,7 +2987,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const selectedProvider = getProviderName();
+  const selectedProvider = isAIProviderId(body.providerId)
+    ? body.providerId
+    : getProviderName();
   const realAIEnabled = isRealAIEnabledForSkill(routeSkillId);
   const dataUsageMode = getServerDataUsageMode(realAIEnabled, selectedProvider);
   const routeSpecificValidationError = createRouteSpecificInputValidationError(
@@ -3057,6 +3070,7 @@ export async function POST(request: Request) {
           registrySkillId,
           allowedProviders: skill.allowedProviders,
           selectedProvider,
+          requestedProvider: isAIProviderId(body.providerId) ? body.providerId : undefined,
           validationPassed: false,
           externalApiCalled: false
         }
@@ -3089,6 +3103,7 @@ export async function POST(request: Request) {
           orchestrationVersion: ORCHESTRATION_VERSION,
           skillId: routeSkillId,
           registrySkillId,
+          requestedProvider: isAIProviderId(body.providerId) ? body.providerId : undefined,
           skillStatus: skill.status,
           validationPassed: false,
           externalApiCalled: false
@@ -3108,7 +3123,7 @@ export async function POST(request: Request) {
         payload: inputValidation.value
       })
     };
-    const result = await runConfiguredProviderWithTimeout(aiRequest);
+    const result = await runConfiguredProviderWithTimeout(aiRequest, selectedProvider);
     const parseResult = await parseProviderJsonWithOptionalRepair({
       skill,
       routeSkillId,

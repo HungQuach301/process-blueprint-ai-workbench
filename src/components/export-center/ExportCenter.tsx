@@ -9,7 +9,10 @@ import {
   type AIRunRecord,
   saveAuditLogEntry
 } from "@/lib/audit/audit-log";
-import { logAICallAudit } from "@/lib/ai/ai-governance";
+import {
+  confirmRealAICallIfNeeded,
+  logAICallAudit
+} from "@/lib/ai/ai-governance";
 import {
   generateAICodingPack,
   type AICodingPackFiles
@@ -125,6 +128,9 @@ type AICodingPackRouteResponse = {
   qualityIssues?: string[];
 };
 
+type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
+type ExportCompareKind = "brd" | "userStories" | "aiCodingPack";
+
 type AIRunRouteMeta = {
   providerId?: string;
   provider?: string;
@@ -146,8 +152,32 @@ type AISkillRouteResponse<T> = {
   result?: T;
   error?: string;
   validationErrors?: string[];
+  provider?: string;
+  model?: string;
+  mode?: "mock" | "provider-backed";
   meta?: AIRunRouteMeta;
 };
+
+type ExportCompareResult = {
+  id: string;
+  kind: ExportCompareKind;
+  skillId: string;
+  providerId: CompareProviderId;
+  model: string;
+  confidence: string;
+  warnings: string[];
+  summary: string;
+  validationStatus: string;
+  result?: BRD | UserStorySet | AICodingPackRouteResponse;
+  error?: string;
+};
+
+const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
+  { id: "product-ai", label: "Product AI" },
+  { id: "openai", label: "OpenAI" },
+  { id: "claude", label: "Claude" },
+  { id: "mock", label: "Local/Mock" }
+];
 
 function mapCodingPackPreviewToRouteFiles(files: AICodingPackFiles) {
   return [
@@ -279,6 +309,10 @@ export function ExportCenter() {
   const [productDeliveryNotes, setProductDeliveryNotes] = useState("");
   const [productDeliveryFileText, setProductDeliveryFileText] = useState("");
   const [aiRunHistory, setAIRunHistory] = useState<AIRunRecord[]>([]);
+  const [compareModeEnabled, setCompareModeEnabled] = useState(false);
+  const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
+  const [compareResults, setCompareResults] = useState<ExportCompareResult[]>([]);
+  const [isRunningCompare, setIsRunningCompare] = useState(false);
   const [brdPreview, setBRDPreview] = useState<BRDPreview | null>(null);
   const [srsPreview, setSRSPreview] = useState<SRSPreview | null>(null);
   const [userStoryPreview, setUserStoryPreview] =
@@ -390,6 +424,317 @@ export function ExportCenter() {
       warnings: meta?.warnings
     });
     refreshAIRunHistory();
+  }
+
+  function toggleCompareProvider(providerId: CompareProviderId) {
+    setCompareProviderIds((currentIds) =>
+      currentIds.includes(providerId)
+        ? currentIds.filter((id) => id !== providerId)
+        : [...currentIds, providerId]
+    );
+  }
+
+  function summarizeExportCompareResult(
+    kind: ExportCompareKind,
+    result: BRD | UserStorySet | AICodingPackRouteResponse
+  ) {
+    if (kind === "brd") {
+      const brd = result as BRD;
+
+      return `${brd.businessRequirements.length} requirement(s), ${brd.stakeholders.length} stakeholder(s), ${brd.qualityIssues.length} quality issue(s).`;
+    }
+
+    if (kind === "userStories") {
+      const userStorySet = result as UserStorySet;
+
+      return `${userStorySet.stories.length} storie(s), ${userStorySet.epics.length} epic(s), ${userStorySet.qualityIssues.length} quality issue(s).`;
+    }
+
+    const codingPack = result as AICodingPackRouteResponse;
+
+    return `${codingPack.files.length} file(s), ${codingPack.qualityIssues?.length ?? 0} quality issue(s).`;
+  }
+
+  function getCompareConfidence(result: BRD | UserStorySet | AICodingPackRouteResponse) {
+    if ("qualityIssues" in result && Array.isArray(result.qualityIssues)) {
+      return result.qualityIssues.some((issue) =>
+        typeof issue === "object" &&
+        issue !== null &&
+        "severity" in issue &&
+        issue.severity === "error"
+      )
+        ? "medium"
+        : "high";
+    }
+
+    return "unknown";
+  }
+
+  function buildBRDComparePayload(skillId: "ptr-to-brd" | "notes-to-brd") {
+    const timestamp = createTimestamp();
+    const sourceSummary = readInputBriefSourceSummary();
+    const processTasks = readProcessTasks();
+
+    return {
+      generatedAt: timestamp,
+      payload: {
+        processTasks: skillId === "ptr-to-brd" ? processTasks : undefined,
+        projectContext: productDeliveryContext,
+        notes: productDeliveryNotes,
+        sourceSummary,
+        uploadedFileText: productDeliveryFileText,
+        generatedAt: timestamp
+      }
+    };
+  }
+
+  function buildUserStoryComparePayload(
+    skillId: "srs-to-user-stories" | "brd-to-user-stories"
+  ) {
+    const timestamp = createTimestamp();
+
+    return {
+      generatedAt: timestamp,
+      payload: {
+        srs: srsPreview?.srs,
+        brd: brdPreview?.brd,
+        processTasks: readProcessTasks(),
+        projectContext: productDeliveryContext,
+        notes: productDeliveryNotes,
+        sourceSummary: readInputBriefSourceSummary(),
+        uploadedFileText: productDeliveryFileText,
+        generatedAt: timestamp
+      }
+    };
+  }
+
+  function buildAICodingPackComparePayload() {
+    const timestamp = createTimestamp();
+
+    return {
+      generatedAt: timestamp,
+      payload: {
+        brd: brdPreview?.brd,
+        srs: srsPreview?.srs,
+        userStorySet: userStoryPreview?.userStorySet,
+        acceptanceCriteria: acceptanceCriteriaPreview?.acceptanceCriteria,
+        processTasks: readProcessTasks(),
+        projectContext: productDeliveryContext || projectContext,
+        notes: productDeliveryNotes,
+        sourceSummary: readInputBriefSourceSummary(),
+        uploadedFileText: productDeliveryFileText,
+        assumptions: [
+          "AI Coding Pack is generated from reviewed Product Delivery artifacts."
+        ],
+        openQuestions: [
+          "Confirm target repository architecture before implementation."
+        ],
+        generatedAt: timestamp
+      }
+    };
+  }
+
+  async function runExportProviderCompare({
+    kind,
+    skillId
+  }: {
+    kind: ExportCompareKind;
+    skillId:
+      | "ptr-to-brd"
+      | "notes-to-brd"
+      | "srs-to-user-stories"
+      | "brd-to-user-stories"
+      | "user-stories-to-ai-coding-pack";
+  }) {
+    if (!compareModeEnabled) {
+      return;
+    }
+
+    if (compareProviderIds.length === 0) {
+      setMessage("Choose at least one provider before running Provider Compare.");
+      return;
+    }
+
+    if (
+      kind === "brd" &&
+      skillId === "notes-to-brd" &&
+      [productDeliveryContext, productDeliveryNotes, readInputBriefSourceSummary(), productDeliveryFileText]
+        .filter(Boolean)
+        .join("\n")
+        .trim().length < 20
+    ) {
+      setMessage("Add notes, context, source summary, or uploaded file text before comparing BRD from notes.");
+      return;
+    }
+
+    if (kind === "userStories" && !srsPreview && !brdPreview && readProcessTasks().length === 0) {
+      setMessage("Generate SRS/BRD preview or ensure PTR has rows before comparing user stories.");
+      return;
+    }
+
+    if (
+      kind === "aiCodingPack" &&
+      !brdPreview &&
+      !srsPreview &&
+      !userStoryPreview &&
+      !acceptanceCriteriaPreview &&
+      readProcessTasks().length === 0
+    ) {
+      setMessage("Generate Product Delivery artifacts or ensure PTR has rows before comparing AI Coding Pack.");
+      return;
+    }
+
+    const usesCloudProvider = compareProviderIds.some((providerId) => providerId !== "mock");
+
+    if (compareProviderIds.length > 1 && usesCloudProvider) {
+      const confirmed = window.confirm(
+        "Provider Compare will call multiple selected providers and may increase cost. Continue?"
+      );
+
+      if (!confirmed) {
+        setMessage("Provider Compare cancelled. No preview was changed.");
+        return;
+      }
+    }
+
+    if (!confirmRealAICallIfNeeded(usesCloudProvider)) {
+      setMessage("Provider Compare cancelled by cloud AI consent check.");
+      return;
+    }
+
+    setIsRunningCompare(true);
+    setCompareResults([]);
+    setMessage("Running Provider Compare...");
+
+    const comparePayload =
+      kind === "brd"
+        ? buildBRDComparePayload(skillId as "ptr-to-brd" | "notes-to-brd")
+        : kind === "userStories"
+          ? buildUserStoryComparePayload(
+              skillId as "srs-to-user-stories" | "brd-to-user-stories"
+            )
+          : buildAICodingPackComparePayload();
+    const nextResults: ExportCompareResult[] = [];
+
+    for (const providerId of compareProviderIds) {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            skillId,
+            providerId,
+            payload: comparePayload.payload
+          })
+        });
+        const data =
+          (await response.json()) as AISkillRouteResponse<
+            BRD | UserStorySet | AICodingPackRouteResponse
+          >;
+        const errorMessage = [
+          data.error,
+          ...(data.validationErrors ?? [])
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        nextResults.push({
+          id: `${skillId}-${providerId}-${Date.now()}`,
+          kind,
+          skillId,
+          providerId,
+          model: data.meta?.model ?? data.model ?? "",
+          confidence: data.result ? getCompareConfidence(data.result) : "unknown",
+          warnings: data.meta?.warnings ?? [],
+          summary:
+            response.ok && data.ok && data.result
+              ? summarizeExportCompareResult(kind, data.result)
+              : errorMessage || "Provider run failed.",
+          validationStatus:
+            data.meta?.validationPassed === false ||
+            !response.ok ||
+            !data.ok ||
+            !data.result
+              ? "failed"
+              : "passed",
+          result: response.ok && data.ok ? data.result : undefined,
+          error: response.ok && data.ok ? undefined : errorMessage
+        });
+        logRouteAIRun({
+          skillId,
+          success: response.ok && data.ok === true,
+          meta: data.meta,
+          errorMessage: response.ok && data.ok ? undefined : errorMessage
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Provider compare request failed.";
+
+        nextResults.push({
+          id: `${skillId}-${providerId}-${Date.now()}`,
+          kind,
+          skillId,
+          providerId,
+          model: "",
+          confidence: "unknown",
+          warnings: [],
+          summary: errorMessage,
+          validationStatus: "failed",
+          error: errorMessage
+        });
+        logRouteAIRun({
+          skillId,
+          success: false,
+          errorMessage
+        });
+      }
+    }
+
+    setCompareResults(nextResults);
+    setIsRunningCompare(false);
+    setMessage("Provider Compare finished. Choose one output to preview further.");
+  }
+
+  function useExportCompareResult(result: ExportCompareResult) {
+    if (!result.result) {
+      return;
+    }
+
+    const timestamp = createTimestamp();
+
+    if (result.kind === "brd") {
+      setBRDPreview({
+        timestamp,
+        sourceSkillId: result.skillId as "ptr-to-brd" | "notes-to-brd",
+        brd: result.result as BRD
+      });
+      setSRSPreview(null);
+    }
+
+    if (result.kind === "userStories") {
+      setUserStoryPreview({
+        timestamp,
+        sourceSkillId: result.skillId as "srs-to-user-stories" | "brd-to-user-stories",
+        userStorySet: result.result as UserStorySet
+      });
+      setAcceptanceCriteriaPreview(null);
+      setProductScopeReviewPreview(null);
+    }
+
+    if (result.kind === "aiCodingPack") {
+      const routeResult = result.result as AICodingPackRouteResponse;
+
+      setAICodingPack({
+        timestamp,
+        files: mapRouteCodingPackFiles(routeResult),
+        sourceSkillId: "user-stories-to-ai-coding-pack",
+        qualityIssues: routeResult.qualityIssues
+      });
+    }
+
+    setMessage(`Selected ${result.providerId} output for preview. No provider outputs were merged.`);
   }
 
   function buildArtifacts() {
@@ -1937,6 +2282,166 @@ export function ExportCenter() {
                 Download Product Delivery Markdown
               </button>
             </div>
+            <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">
+                    Provider Compare
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    Optional and off by default. Compare selected providers for
+                    BRD, User Stories, or AI Coding Pack, then choose one output
+                    to preview further.
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    checked={compareModeEnabled}
+                    onChange={(event) => setCompareModeEnabled(event.target.checked)}
+                    type="checkbox"
+                  />
+                  Enable compare mode
+                </label>
+              </div>
+              {compareModeEnabled ? (
+                <div className="mt-3 space-y-3">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                    {compareProviders.map((provider) => (
+                      <label className="flex items-center gap-2" key={provider.id}>
+                        <input
+                          checked={compareProviderIds.includes(provider.id)}
+                          onChange={() => toggleCompareProvider(provider.id)}
+                          type="checkbox"
+                        />
+                        {provider.label}
+                      </label>
+                    ))}
+                    {compareProviderIds.length > 1 ? (
+                      <span className="text-xs text-amber-700">
+                        Multiple providers may increase AI cost.
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isRunningCompare}
+                      onClick={() =>
+                        void runExportProviderCompare({
+                          kind: "brd",
+                          skillId: "ptr-to-brd"
+                        })
+                      }
+                      type="button"
+                    >
+                      Compare BRD from PTR
+                    </button>
+                    <button
+                      className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isRunningCompare}
+                      onClick={() =>
+                        void runExportProviderCompare({
+                          kind: "brd",
+                          skillId: "notes-to-brd"
+                        })
+                      }
+                      type="button"
+                    >
+                      Compare BRD from Notes
+                    </button>
+                    <button
+                      className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isRunningCompare}
+                      onClick={() =>
+                        void runExportProviderCompare({
+                          kind: "userStories",
+                          skillId: "srs-to-user-stories"
+                        })
+                      }
+                      type="button"
+                    >
+                      Compare Stories from SRS
+                    </button>
+                    <button
+                      className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isRunningCompare}
+                      onClick={() =>
+                        void runExportProviderCompare({
+                          kind: "userStories",
+                          skillId: "brd-to-user-stories"
+                        })
+                      }
+                      type="button"
+                    >
+                      Compare Stories from BRD
+                    </button>
+                    <button
+                      className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={isRunningCompare}
+                      onClick={() =>
+                        void runExportProviderCompare({
+                          kind: "aiCodingPack",
+                          skillId: "user-stories-to-ai-coding-pack"
+                        })
+                      }
+                      type="button"
+                    >
+                      {isRunningCompare ? "Comparing..." : "Compare AI Coding Pack"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            {compareResults.length > 0 ? (
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {compareResults.map((result) => (
+                  <div
+                    className="rounded border border-slate-200 bg-white p-3"
+                    key={result.id}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">
+                          {result.providerId}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {result.skillId} | Model: {result.model || "n/a"}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded px-2 py-1 text-xs font-semibold ${
+                          result.validationStatus === "passed"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-rose-50 text-rose-700"
+                        }`}
+                      >
+                        {result.validationStatus}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-700">
+                      {result.summary}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Confidence: {result.confidence} | Warnings:{" "}
+                      {result.warnings.length}
+                    </p>
+                    {result.error ? (
+                      <p className="mt-2 text-xs text-rose-700">
+                        {result.error}
+                      </p>
+                    ) : null}
+                    <button
+                      className="mt-3 rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                      disabled={!result.result || result.validationStatus !== "passed"}
+                      onClick={() => useExportCompareResult(result)}
+                      type="button"
+                    >
+                      Use this output
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div className="rounded border border-slate-200 bg-slate-50 p-3">

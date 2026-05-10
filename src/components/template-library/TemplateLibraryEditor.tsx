@@ -41,6 +41,29 @@ const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
+type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
+
+type TemplateCompareResult = {
+  id: string;
+  providerId: CompareProviderId;
+  model: string;
+  confidence: string;
+  warnings: string[];
+  summary: string;
+  validationStatus: string;
+  recommendations: TemplateRecommendation[];
+  qualityScore: TemplateQualityScore | null;
+  assumptions: string[];
+  error?: string;
+};
+
+const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
+  { id: "product-ai", label: "Product AI" },
+  { id: "openai", label: "OpenAI" },
+  { id: "claude", label: "Claude" },
+  { id: "mock", label: "Local/Mock" }
+];
+
 const templateHubText = {
   vi: {
     title: "Trung tâm template",
@@ -439,6 +462,10 @@ export function TemplateLibraryEditor() {
   const [realAITemplateReviewEnabled, setRealAITemplateReviewEnabled] =
     useState(false);
   const [isReviewingTemplate, setIsReviewingTemplate] = useState(false);
+  const [compareModeEnabled, setCompareModeEnabled] = useState(false);
+  const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
+  const [compareResults, setCompareResults] = useState<TemplateCompareResult[]>([]);
+  const [isRunningCompare, setIsRunningCompare] = useState(false);
   const [advancedModeOpen, setAdvancedModeOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(
     null
@@ -759,6 +786,193 @@ export function TemplateLibraryEditor() {
     }
   }
 
+  function toggleCompareProvider(providerId: CompareProviderId) {
+    setCompareProviderIds((currentIds) =>
+      currentIds.includes(providerId)
+        ? currentIds.filter((id) => id !== providerId)
+        : [...currentIds, providerId]
+    );
+  }
+
+  function summarizeTemplateReview({
+    recommendations,
+    qualityScore
+  }: {
+    recommendations: TemplateRecommendation[];
+    qualityScore?: TemplateQualityScore | null;
+  }) {
+    return `${recommendations.length} recommendation(s)${
+      qualityScore ? `, quality score ${qualityScore.score}/100` : ""
+    }.`;
+  }
+
+  async function runTemplateReviewCompare() {
+    if (!activeDraft) {
+      setMessage("No template selected for Provider Compare.");
+      return;
+    }
+
+    if (compareProviderIds.length === 0) {
+      setMessage("Choose at least one provider before running Provider Compare.");
+      return;
+    }
+
+    let selectedTemplate: TemplateProfile;
+
+    try {
+      selectedTemplate = draftToProfile(activeDraft);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Cannot compare template: ${error.message}`
+          : "Cannot compare template because advanced JSON rules are invalid."
+      );
+      return;
+    }
+
+    const usesCloudProvider = compareProviderIds.some((providerId) => providerId !== "mock");
+
+    if (compareProviderIds.length > 1 && usesCloudProvider) {
+      const confirmed = window.confirm(
+        "Provider Compare will call multiple selected providers and may increase cost. Continue?"
+      );
+
+      if (!confirmed) {
+        setMessage("Provider Compare cancelled. No template change was applied.");
+        return;
+      }
+    }
+
+    if (!confirmRealAICallIfNeeded(realAITemplateReviewEnabled && usesCloudProvider)) {
+      setMessage("Provider Compare cancelled by cloud AI consent check.");
+      return;
+    }
+
+    setIsRunningCompare(true);
+    setCompareResults([]);
+    setMessage("Running Provider Compare for Template Review...");
+
+    const nextResults: TemplateCompareResult[] = [];
+
+    for (const providerId of compareProviderIds) {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+            providerId,
+            payload: {
+              selectedTemplate,
+              outputType: selectedTemplate.outputType,
+              processType: selectedTemplate.processType,
+              businessDomain: selectedTemplate.businessDomain
+            }
+          })
+        });
+        const data = (await response.json()) as {
+          ok?: boolean;
+          mode?: "mock" | "provider-backed";
+          provider?: string;
+          model?: string;
+          result?: {
+            recommendations?: TemplateRecommendation[];
+            qualityScore?: TemplateQualityScore;
+            warnings?: string[];
+            assumptions?: string[];
+          };
+          error?: string;
+          validationErrors?: string[];
+          meta?: {
+            providerId?: string;
+            model?: string;
+            warnings?: string[];
+            validationPassed?: boolean;
+            externalApiCalled?: boolean;
+          };
+        };
+        const recommendations = data.result?.recommendations ?? [];
+        const errorMessage = [
+          data.error,
+          ...(data.validationErrors ?? [])
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        nextResults.push({
+          id: `${AI_TEMPLATE_REVIEW_SKILL_ID}-${providerId}-${Date.now()}`,
+          providerId,
+          model: data.meta?.model ?? data.model ?? "",
+          confidence:
+            recommendations.find((recommendation) => recommendation.confidence === "high")
+              ? "high"
+              : recommendations[0]?.confidence ?? "unknown",
+          warnings: [...(data.meta?.warnings ?? []), ...(data.result?.warnings ?? [])],
+          summary:
+            response.ok && data.ok
+              ? summarizeTemplateReview({
+                  recommendations,
+                  qualityScore: data.result?.qualityScore
+                })
+              : errorMessage || "Provider run failed.",
+          validationStatus:
+            data.meta?.validationPassed === false || !response.ok || !data.ok
+              ? "failed"
+              : "passed",
+          recommendations: response.ok && data.ok ? recommendations : [],
+          qualityScore: response.ok && data.ok ? data.result?.qualityScore ?? null : null,
+          assumptions: response.ok && data.ok ? data.result?.assumptions ?? [] : [],
+          error: response.ok && data.ok ? undefined : errorMessage
+        });
+        logAICallAudit({
+          skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+          success: response.ok && data.ok === true,
+          errorMessage: response.ok && data.ok ? undefined : errorMessage,
+          realAIEnabled: data.mode === "provider-backed",
+          externalApiCalled: data.meta?.externalApiCalled === true,
+          provider: data.meta?.providerId ?? data.provider ?? providerId,
+          model: data.meta?.model,
+          warnings: data.meta?.warnings,
+          validationPassed: data.meta?.validationPassed,
+          extraMetadata: {
+            compareMode: true,
+            recommendationCount: recommendations.length,
+            hasQualityScore: Boolean(data.result?.qualityScore)
+          }
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Provider compare request failed.";
+
+        nextResults.push({
+          id: `${AI_TEMPLATE_REVIEW_SKILL_ID}-${providerId}-${Date.now()}`,
+          providerId,
+          model: "",
+          confidence: "unknown",
+          warnings: [],
+          summary: errorMessage,
+          validationStatus: "failed",
+          recommendations: [],
+          qualityScore: null,
+          assumptions: [],
+          error: errorMessage
+        });
+      }
+    }
+
+    setCompareResults(nextResults);
+    setMessage("Provider Compare finished. Choose one provider output to review further.");
+    setIsRunningCompare(false);
+  }
+
+  function useCompareResult(result: TemplateCompareResult) {
+    setTemplateReviewRecommendations(result.recommendations);
+    setTemplateQualityScore(result.qualityScore);
+    setTemplateReviewWarnings(result.warnings);
+    setTemplateReviewAssumptions(result.assumptions);
+    setMessage(`Selected ${result.providerId} Template Review output. No template change was auto-applied.`);
+  }
+
   return (
     <SessionFrame
       actions={
@@ -825,6 +1039,98 @@ export function TemplateLibraryEditor() {
       </div>
 
       {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+
+      <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-950">
+              Provider Compare
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              Optional and off by default. Compare only selected providers; no
+              template recommendation is auto-applied.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              checked={compareModeEnabled}
+              onChange={(event) => setCompareModeEnabled(event.target.checked)}
+              type="checkbox"
+            />
+            Enable compare mode
+          </label>
+        </div>
+        {compareModeEnabled ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-700">
+            {compareProviders.map((provider) => (
+              <label className="flex items-center gap-2" key={provider.id}>
+                <input
+                  checked={compareProviderIds.includes(provider.id)}
+                  onChange={() => toggleCompareProvider(provider.id)}
+                  type="checkbox"
+                />
+                {provider.label}
+              </label>
+            ))}
+            <button
+              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isRunningCompare}
+              onClick={() => void runTemplateReviewCompare()}
+              type="button"
+            >
+              {isRunningCompare ? "Comparing..." : "Compare Template Review"}
+            </button>
+            {compareProviderIds.length > 1 ? (
+              <span className="text-xs text-amber-700">
+                Multiple providers may increase AI cost.
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {compareResults.length > 0 ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {compareResults.map((result) => (
+            <div className="rounded border border-slate-200 bg-white p-3" key={result.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {result.providerId}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Model: {result.model || "n/a"}
+                  </p>
+                </div>
+                <span
+                  className={`rounded px-2 py-1 text-xs font-semibold ${
+                    result.validationStatus === "passed"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-rose-50 text-rose-700"
+                  }`}
+                >
+                  {result.validationStatus}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">{result.summary}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Confidence: {result.confidence} | Warnings: {result.warnings.length}
+              </p>
+              {result.error ? (
+                <p className="mt-2 text-xs text-rose-700">{result.error}</p>
+              ) : null}
+              <button
+                className="mt-3 rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={result.validationStatus !== "passed"}
+                onClick={() => useCompareResult(result)}
+                type="button"
+              >
+                Use this output
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {templateQualityScore ? (
         <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">

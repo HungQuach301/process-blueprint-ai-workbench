@@ -42,6 +42,27 @@ const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
+type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
+
+type AIQACompareResult = {
+  id: string;
+  providerId: CompareProviderId;
+  model: string;
+  confidence: string;
+  warnings: string[];
+  summary: string;
+  validationStatus: string;
+  recommendations: QARecommendation[];
+  error?: string;
+};
+
+const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
+  { id: "product-ai", label: "Product AI" },
+  { id: "openai", label: "OpenAI" },
+  { id: "claude", label: "Claude" },
+  { id: "mock", label: "Local/Mock" }
+];
+
 const qaPanelText = {
   vi: {
     title: "QA Panel",
@@ -245,6 +266,10 @@ export function QAPanel({
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
   const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [compareModeEnabled, setCompareModeEnabled] = useState(false);
+  const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
+  const [compareResults, setCompareResults] = useState<AIQACompareResult[]>([]);
+  const [isRunningCompare, setIsRunningCompare] = useState(false);
   useEffect(() => {
     setActiveLocale(getLocale());
     setAiQaIssues([]);
@@ -420,6 +445,206 @@ export function QAPanel({
 
   function clearLocalFeedback() {
     clearRecommendationFeedback();
+  }
+
+  function toggleCompareProvider(providerId: CompareProviderId) {
+    setCompareProviderIds((currentIds) =>
+      currentIds.includes(providerId)
+        ? currentIds.filter((id) => id !== providerId)
+        : [...currentIds, providerId]
+    );
+  }
+
+  function summarizeQARecommendations(recommendations: QARecommendation[]) {
+    const highConfidenceCount = recommendations.filter(
+      (recommendation) => recommendation.confidence === "high"
+    ).length;
+    const highRiskCount = recommendations.filter(
+      (recommendation) => recommendation.riskLevel === "high"
+    ).length;
+
+    return `${recommendations.length} recommendation(s), ${highConfidenceCount} high confidence, ${highRiskCount} high risk.`;
+  }
+
+  async function runAiQaCompare() {
+    if (!compareModeEnabled) {
+      return;
+    }
+
+    if (compareProviderIds.length === 0) {
+      setAiQaMessage("Choose at least one provider before running Provider Compare.");
+      return;
+    }
+
+    const usesCloudProvider = compareProviderIds.some((providerId) => providerId !== "mock");
+
+    if (compareProviderIds.length > 1 && usesCloudProvider) {
+      const confirmed = window.confirm(
+        "Provider Compare will call multiple selected providers and may increase cost. Continue?"
+      );
+
+      if (!confirmed) {
+        setAiQaMessage("Provider Compare cancelled. No recommendation was applied.");
+        return;
+      }
+    }
+
+    if (!confirmRealAICallIfNeeded(realAIQAEnabled && usesCloudProvider)) {
+      setAiQaMessage("Provider Compare cancelled by cloud AI consent check.");
+      return;
+    }
+
+    setIsRunningCompare(true);
+    setCompareResults([]);
+    setAiQaMessage("Running Provider Compare for AI QA...");
+
+    const nextResults: AIQACompareResult[] = [];
+
+    for (const providerId of compareProviderIds) {
+      try {
+        const routeResponse = await fetch("/api/ai/run-skill", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            skillId: AI_PROCESS_QA_SKILL_ID,
+            providerId,
+            payload: {
+              processTasks,
+              qaIssues: issues,
+              existingRecommendations: existingRuleRecommendations,
+              templateProfiles: readSelectedTemplateProfiles()
+            }
+          })
+        });
+        const data = (await routeResponse.json()) as {
+          ok?: boolean;
+          mode?: "mock" | "provider-backed";
+          provider?: string;
+          model?: string;
+          result?: {
+            recommendations?: QARecommendation[];
+          };
+          error?: string;
+          validationErrors?: string[];
+          meta?: {
+            providerId?: string;
+            model?: string;
+            warnings?: string[];
+            validationPassed?: boolean;
+            externalApiCalled?: boolean;
+          };
+        };
+        const recommendations = (data.result?.recommendations ?? []).map(
+          (recommendation) => ({
+            ...recommendation,
+            source:
+              recommendation.source === "hybrid"
+                ? ("hybrid" as const)
+                : ("ai" as const),
+            requiresConfirmation: true
+          })
+        );
+        const errorMessage = [
+          data.error,
+          ...(data.validationErrors ?? [])
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        nextResults.push({
+          id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
+          providerId,
+          model: data.meta?.model ?? data.model ?? "",
+          confidence:
+            recommendations.find((recommendation) => recommendation.confidence === "high")
+              ? "high"
+              : recommendations[0]?.confidence ?? "unknown",
+          warnings: data.meta?.warnings ?? [],
+          summary: routeResponse.ok && data.ok
+            ? summarizeQARecommendations(recommendations)
+            : errorMessage || "Provider run failed.",
+          validationStatus:
+            data.meta?.validationPassed === false || !routeResponse.ok || !data.ok
+              ? "failed"
+              : "passed",
+          recommendations: routeResponse.ok && data.ok ? recommendations : [],
+          error: routeResponse.ok && data.ok ? undefined : errorMessage
+        });
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          success: routeResponse.ok && data.ok === true,
+          errorMessage: routeResponse.ok && data.ok ? undefined : errorMessage,
+          realAIEnabled: data.mode === "provider-backed",
+          externalApiCalled: data.meta?.externalApiCalled === true,
+          provider: data.meta?.providerId ?? data.provider ?? providerId,
+          model: data.meta?.model,
+          warnings: data.meta?.warnings,
+          validationPassed: data.meta?.validationPassed,
+          extraMetadata: {
+            compareMode: true,
+            recommendationCount: recommendations.length
+          }
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Provider compare request failed.";
+
+        nextResults.push({
+          id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
+          providerId,
+          model: "",
+          confidence: "unknown",
+          warnings: [],
+          summary: errorMessage,
+          validationStatus: "failed",
+          recommendations: [],
+          error: errorMessage
+        });
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: realAIQAEnabled && providerId !== "mock",
+          externalApiCalled: false,
+          provider: providerId,
+          extraMetadata: {
+            compareMode: true
+          }
+        });
+      }
+    }
+
+    setCompareResults(nextResults);
+    setAiQaMessage("Provider Compare finished. Choose one provider output to preview further.");
+    setIsRunningCompare(false);
+  }
+
+  function useCompareResult(result: AIQACompareResult) {
+    setAiQaIssues(
+      result.recommendations.length > 0
+        ? [
+            {
+              id: `ai-process-qa-compare-${Date.now()}`,
+              issueCode: "SERVICE_BLUEPRINT_CARD_READINESS",
+              stepId:
+                result.recommendations[0].targetStepIds[0] ??
+                processTasks[0]?.stepId ??
+                "AI",
+              taskName: `${result.providerId} AI QA recommendation`,
+              severity: "suggestion",
+              message:
+                "Provider Compare output selected for the existing Recommendation Engine workflow.",
+              suggestedFix:
+                "Review the selected provider recommendation, preview the operation, then apply only after confirmation.",
+              recommendations: result.recommendations
+            }
+          ]
+        : []
+    );
+    clearSelection();
+    setAiQaMessage(`Selected ${result.providerId} output for AI QA preview.`);
   }
 
   async function runAiQa() {
@@ -749,6 +974,36 @@ export function QAPanel({
             </button>
             <label className="flex items-center gap-2">
               <input
+                checked={compareModeEnabled}
+                onChange={(event) => setCompareModeEnabled(event.target.checked)}
+                type="checkbox"
+              />
+              Provider Compare
+            </label>
+            {compareModeEnabled ? (
+              <>
+                {compareProviders.map((provider) => (
+                  <label className="flex items-center gap-1" key={provider.id}>
+                    <input
+                      checked={compareProviderIds.includes(provider.id)}
+                      onChange={() => toggleCompareProvider(provider.id)}
+                      type="checkbox"
+                    />
+                    {provider.label}
+                  </label>
+                ))}
+                <button
+                  className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isRunningCompare}
+                  onClick={() => void runAiQaCompare()}
+                  type="button"
+                >
+                  {isRunningCompare ? "Comparing..." : "Compare providers"}
+                </button>
+              </>
+            ) : null}
+            <label className="flex items-center gap-2">
+              <input
                 checked={showOnlySafe}
                 onChange={(event) => setShowOnlySafe(event.target.checked)}
                 type="checkbox"
@@ -772,6 +1027,53 @@ export function QAPanel({
               {text.includeGraph}
             </label>
           </div>
+        </div>
+      ) : null}
+
+      {compareResults.length > 0 ? (
+        <div className="mb-4 grid gap-3 lg:grid-cols-2">
+          {compareResults.map((result) => (
+            <div
+              className="rounded border border-slate-200 bg-white p-3"
+              key={result.id}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {result.providerId}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Model: {result.model || "n/a"}
+                  </p>
+                </div>
+                <span
+                  className={`rounded px-2 py-1 text-xs font-semibold ${
+                    result.validationStatus === "passed"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-rose-50 text-rose-700"
+                  }`}
+                >
+                  {result.validationStatus}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">{result.summary}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Confidence: {result.confidence} | Warnings:{" "}
+                {result.warnings.length}
+              </p>
+              {result.error ? (
+                <p className="mt-2 text-xs text-rose-700">{result.error}</p>
+              ) : null}
+              <button
+                className="mt-3 rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={result.recommendations.length === 0}
+                onClick={() => useCompareResult(result)}
+                type="button"
+              >
+                Use this output
+              </button>
+            </div>
+          ))}
         </div>
       ) : null}
 

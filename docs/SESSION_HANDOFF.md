@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added optional Provider Compare mode for selected AI skills.
+- Added server-side `providerId` override support to `/api/ai/run-skill`; provider selection still stays server-side and continues to enforce feature flags, data mode, provider config, allowed providers, schema validation, quality gates, mock/local fallback, and safe audit metadata.
+- Added Provider Compare UI for Product Delivery BRD generation, User Story generation, and AI Coding Pack generation in Export Center.
+- Added Provider Compare UI for Process QA in QA Panel.
+- Added Provider Compare UI for Template Review in Template Hub.
+- Compare mode is off by default, requires explicit provider selection, shows side-by-side provider/model/confidence/warnings/summary/validation status, and requires the user to choose one output for preview.
+- Added cost warning and cloud AI consent checks before multi-provider/non-mock compare runs.
+- Preserved no auto-merge and no auto-apply behavior for provider outputs.
 - Added AI Run History and audit visibility for Module 2 and Module 3.
 - Extended local audit helpers to derive safe `AI Run History` records from `ai_call` entries.
 - Captured AI run metadata for route-backed Product Delivery and AI Coding Pack skill calls: skill id, provider, model, status, timestamp, latency, validation result, token usage, external API flag, warnings, and request id when available.
@@ -156,6 +164,9 @@ Complete Module 2 + Module 3 with full real AI support.
 - `src/app/api/ai/run-skill/route.ts`
 - `src/lib/audit/audit-log.ts`
 - `src/lib/ai/ai-governance.ts`
+- `src/components/export-center/ExportCenter.tsx`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
 - `docs/AI_SKILL_REGISTRY.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/SESSION_HANDOFF.md`

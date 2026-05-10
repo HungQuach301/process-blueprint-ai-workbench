@@ -13,7 +13,13 @@ export type ProductDeliveryQualityIssueCode =
   | "requirement-not-testable"
   | "missing-actor-system"
   | "missing-nfr"
-  | "unclear-dependency";
+  | "unclear-dependency"
+  | "missing-role"
+  | "missing-value"
+  | "missing-ac"
+  | "ac-not-testable"
+  | "story-too-broad"
+  | "no-source-trace";
 
 export type ProductDeliveryQualityIssue = {
   code: ProductDeliveryQualityIssueCode;
@@ -174,26 +180,45 @@ export type SRS = {
 export type UserStory = {
   id: string;
   title: string;
+  role: string;
+  goal: string;
+  businessValue: string;
   persona: string;
   need: string;
   benefit: string;
-  sourceStepIds: string[];
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
+  epicId?: string;
+  dependencies?: string[];
+  priority?: "must" | "should" | "could";
+  complexity?: "low" | "medium" | "high";
   acceptanceCriteria?: string[];
+};
+
+export type Epic = {
+  id: string;
+  title: string;
+  description: string;
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
 };
 
 export type UserStorySet = {
   id: string;
   title: string;
+  epics: Epic[];
   stories: UserStory[];
   assumptions: Assumption[];
   openQuestions: OpenQuestion[];
+  qualityIssues: ProductDeliveryQualityIssue[];
   traceLinks?: ProductDeliveryTraceLink[];
 };
 
 export type AcceptanceCriterion = {
   id: string;
   storyId?: string;
-  sourceStepIds: string[];
+  sourceStepIds?: string[];
+  sourceRequirementIds?: string[];
   given: string;
   when: string;
   then: string;
@@ -205,6 +230,7 @@ export type AcceptanceCriteriaSet = {
   criteria: AcceptanceCriterion[];
   assumptions: Assumption[];
   openQuestions: OpenQuestion[];
+  qualityIssues: ProductDeliveryQualityIssue[];
 };
 
 export type ProductDeliveryDraft = {
@@ -254,6 +280,28 @@ export type SRSGenerationInput = {
   uploadedFileText?: string;
   generatedAt: string;
   source: "brd-draft" | "notes-chat";
+};
+
+export type UserStoryGenerationInput = {
+  srs?: SRS;
+  brd?: BRD;
+  processTasks?: ProcessTask[];
+  projectContext?: string;
+  notes?: string;
+  sourceSummary?: string;
+  uploadedFileText?: string;
+  generatedAt: string;
+  source: "srs-draft" | "brd-draft" | "notes-chat";
+};
+
+export type AcceptanceCriteriaGenerationInput = {
+  userStorySet?: UserStorySet;
+  processTasks?: ProcessTask[];
+  projectContext?: string;
+  notes?: string;
+  sourceSummary?: string;
+  uploadedFileText?: string;
+  generatedAt: string;
 };
 
 export type SchemaValidationResult<T> =
@@ -408,7 +456,13 @@ function validateQualityIssues(value: unknown, errors: string[]) {
     "requirement-not-testable",
     "missing-actor-system",
     "missing-nfr",
-    "unclear-dependency"
+    "unclear-dependency",
+    "missing-role",
+    "missing-value",
+    "missing-ac",
+    "ac-not-testable",
+    "story-too-broad",
+    "no-source-trace"
   ]);
   const validSeverities = new Set(["error", "warning"]);
 
@@ -435,6 +489,147 @@ function validateQualityIssues(value: unknown, errors: string[]) {
       validateString(issue.targetId, `brd.qualityIssues[${index}].targetId`, errors);
     }
   });
+}
+
+export function runUserStoryQualityGate(userStorySet: UserStorySet) {
+  const issues: ProductDeliveryQualityIssue[] = [...userStorySet.qualityIssues];
+
+  userStorySet.stories.forEach((story) => {
+    if (!story.role.trim() || story.role.toLowerCase() === "process user") {
+      issues.push({
+        code: "missing-role",
+        severity: "warning",
+        message: `User story ${story.id} should identify a specific role.`,
+        targetId: story.id
+      });
+    }
+
+    if (!story.businessValue.trim()) {
+      issues.push({
+        code: "missing-value",
+        severity: "warning",
+        message: `User story ${story.id} should include business value.`,
+        targetId: story.id
+      });
+    }
+
+    if ((story.acceptanceCriteria ?? []).length === 0) {
+      issues.push({
+        code: "missing-ac",
+        severity: "warning",
+        message: `User story ${story.id} should include acceptance criteria.`,
+        targetId: story.id
+      });
+    }
+
+    if ((story.sourceStepIds ?? []).length === 0 && (story.sourceRequirementIds ?? []).length === 0) {
+      issues.push({
+        code: "no-source-trace",
+        severity: "warning",
+        message: `User story ${story.id} should trace to PTR step ids or requirement ids.`,
+        targetId: story.id
+      });
+    }
+
+    if (
+      story.goal.length > 160 ||
+      /\band\b|\bthen\b|;/.test(story.goal.toLowerCase())
+    ) {
+      issues.push({
+        code: "story-too-broad",
+        severity: "warning",
+        message: `User story ${story.id} may be too broad and should be split.`,
+        targetId: story.id
+      });
+    }
+  });
+
+  const dedupedIssues = Array.from(
+    new Map(
+      issues.map((issue) => [
+        `${issue.code}:${issue.targetId ?? ""}:${issue.message}`,
+        issue
+      ])
+    ).values()
+  );
+
+  return {
+    canPreview: !dedupedIssues.some((issue) => issue.severity === "error"),
+    issues: dedupedIssues
+  };
+}
+
+export function runAcceptanceCriteriaQualityGate(
+  criteriaSet: AcceptanceCriteriaSet
+) {
+  const issues: ProductDeliveryQualityIssue[] = [...criteriaSet.qualityIssues];
+  const testableWords = [
+    "is",
+    "are",
+    "must",
+    "should",
+    "display",
+    "record",
+    "create",
+    "update",
+    "reject",
+    "approve",
+    "export",
+    "validate"
+  ];
+
+  if (criteriaSet.criteria.length === 0) {
+    issues.push({
+      code: "missing-ac",
+      severity: "warning",
+      message: "Acceptance Criteria Set should contain at least one criterion."
+    });
+  }
+
+  criteriaSet.criteria.forEach((criterion) => {
+    const statement = [
+      criterion.given,
+      criterion.when,
+      criterion.then
+    ].join(" ").toLowerCase();
+
+    if (
+      criterion.given.trim().length < 6 ||
+      criterion.when.trim().length < 6 ||
+      criterion.then.trim().length < 6 ||
+      !testableWords.some((word) => statement.includes(word))
+    ) {
+      issues.push({
+        code: "ac-not-testable",
+        severity: "warning",
+        message: `Acceptance criterion ${criterion.id} may not be testable enough.`,
+        targetId: criterion.id
+      });
+    }
+
+    if ((criterion.sourceStepIds ?? []).length === 0 && (criterion.sourceRequirementIds ?? []).length === 0) {
+      issues.push({
+        code: "no-source-trace",
+        severity: "warning",
+        message: `Acceptance criterion ${criterion.id} should trace to a source step or requirement.`,
+        targetId: criterion.id
+      });
+    }
+  });
+
+  const dedupedIssues = Array.from(
+    new Map(
+      issues.map((issue) => [
+        `${issue.code}:${issue.targetId ?? ""}:${issue.message}`,
+        issue
+      ])
+    ).values()
+  );
+
+  return {
+    canPreview: !dedupedIssues.some((issue) => issue.severity === "error"),
+    issues: dedupedIssues
+  };
 }
 
 export function runSRSQualityGate(srs: SRS) {
@@ -1025,6 +1220,31 @@ export function validateUserStorySet(
     validateString(value[field], `userStorySet.${field}`, errors)
   );
 
+  if (!Array.isArray(value.epics)) {
+    errors.push("userStorySet.epics must be an array.");
+  } else {
+    value.epics.forEach((epic, index) => {
+      if (!isObject(epic)) {
+        errors.push(`userStorySet.epics[${index}] must be an object.`);
+        return;
+      }
+
+      ["id", "title", "description"].forEach((field) =>
+        validateString(epic[field], `userStorySet.epics[${index}].${field}`, errors)
+      );
+      validateOptionalStringArray(
+        epic.sourceStepIds,
+        `userStorySet.epics[${index}].sourceStepIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        epic.sourceRequirementIds,
+        `userStorySet.epics[${index}].sourceRequirementIds`,
+        errors
+      );
+    });
+  }
+
   if (!Array.isArray(value.stories) || value.stories.length === 0) {
     errors.push("userStorySet.stories must be a non-empty array.");
   } else {
@@ -1034,18 +1254,36 @@ export function validateUserStorySet(
         return;
       }
 
-      ["id", "title", "persona", "need", "benefit"].forEach((field) =>
+      [
+        "id",
+        "title",
+        "role",
+        "goal",
+        "businessValue",
+        "persona",
+        "need",
+        "benefit"
+      ].forEach((field) =>
         validateString(
           story[field],
           `userStorySet.stories[${index}].${field}`,
           errors
         )
       );
-      validateStringArray(
+      validateOptionalStringArray(
         story.sourceStepIds,
         `userStorySet.stories[${index}].sourceStepIds`,
-        errors,
-        true
+        errors
+      );
+      validateOptionalStringArray(
+        story.sourceRequirementIds,
+        `userStorySet.stories[${index}].sourceRequirementIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        story.dependencies,
+        `userStorySet.stories[${index}].dependencies`,
+        errors
       );
 
       if (story.acceptanceCriteria !== undefined) {
@@ -1055,11 +1293,30 @@ export function validateUserStorySet(
           errors
         );
       }
+
+      if (story.epicId !== undefined) {
+        validateString(story.epicId, `userStorySet.stories[${index}].epicId`, errors);
+      }
+
+      if (
+        isString(story.priority) &&
+        !["must", "should", "could"].includes(story.priority)
+      ) {
+        errors.push(`userStorySet.stories[${index}].priority must be must, should, or could.`);
+      }
+
+      if (
+        isString(story.complexity) &&
+        !["low", "medium", "high"].includes(story.complexity)
+      ) {
+        errors.push(`userStorySet.stories[${index}].complexity must be low, medium, or high.`);
+      }
     });
   }
 
   validateAssumptions(value.assumptions, errors);
   validateOpenQuestions(value.openQuestions, errors);
+  validateQualityIssues(value.qualityIssues, errors);
   validateTraceLinks(value.traceLinks, errors);
 
   if (errors.length > 0) {
@@ -1105,11 +1362,15 @@ export function validateAcceptanceCriteriaSet(
           errors
         )
       );
-      validateStringArray(
+      validateOptionalStringArray(
         criterion.sourceStepIds,
         `acceptanceCriteria.criteria[${index}].sourceStepIds`,
-        errors,
-        true
+        errors
+      );
+      validateOptionalStringArray(
+        criterion.sourceRequirementIds,
+        `acceptanceCriteria.criteria[${index}].sourceRequirementIds`,
+        errors
       );
 
       if (criterion.storyId !== undefined) {
@@ -1124,6 +1385,7 @@ export function validateAcceptanceCriteriaSet(
 
   validateAssumptions(value.assumptions, errors);
   validateOpenQuestions(value.openQuestions, errors);
+  validateQualityIssues(value.qualityIssues, errors);
 
   if (errors.length > 0) {
     return { ok: false, errors };

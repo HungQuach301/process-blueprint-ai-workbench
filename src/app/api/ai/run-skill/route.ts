@@ -7,12 +7,21 @@ import {
 } from "@/lib/ai-intake";
 import type { IntakeLanguage } from "@/lib/ai-intake";
 import type { ProcessTask } from "@/lib/models/process-task";
-import { generateBRD, generateSRS } from "@/lib/generators/product-delivery-generator";
 import {
+  generateAcceptanceCriteriaSet,
+  generateBRD,
+  generateSRS,
+  generateUserStorySet
+} from "@/lib/generators/product-delivery-generator";
+import {
+  runAcceptanceCriteriaQualityGate,
   runBRDQualityGate,
   runSRSQualityGate,
+  runUserStoryQualityGate,
+  type AcceptanceCriteriaSet,
   type BRD,
-  type SRS
+  type SRS,
+  type UserStorySet
 } from "@/lib/models/product-delivery";
 import { runMockAIQA } from "@/lib/ai/ai-qa-service";
 import type { AIQARequest } from "@/lib/ai/ai-qa-types";
@@ -85,6 +94,12 @@ const PTR_TO_BRD_SKILL_ID = "ptr-to-brd";
 const LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID = "ptr-to-brd-outline";
 const BRD_TO_SRS_SKILL_ID = "brd-to-srs";
 const NOTES_TO_SRS_SKILL_ID = "notes-to-srs";
+const SRS_TO_USER_STORIES_SKILL_ID = "srs-to-user-stories";
+const BRD_TO_USER_STORIES_SKILL_ID = "brd-to-user-stories";
+const LEGACY_BRD_OR_NOTES_TO_USER_STORIES_SKILL_ID =
+  "brd-or-notes-to-user-stories";
+const USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID =
+  "user-stories-to-acceptance-criteria";
 const ORCHESTRATION_VERSION = "2.0.0";
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45000;
 const SERVER_PROVIDER_IDS: AIProviderId[] = ["product-ai", "openai", "claude", "mock"];
@@ -215,7 +230,11 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     PTR_TO_BRD_SKILL_ID,
     LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID,
     BRD_TO_SRS_SKILL_ID,
-    NOTES_TO_SRS_SKILL_ID
+    NOTES_TO_SRS_SKILL_ID,
+    SRS_TO_USER_STORIES_SKILL_ID,
+    BRD_TO_USER_STORIES_SKILL_ID,
+    LEGACY_BRD_OR_NOTES_TO_USER_STORIES_SKILL_ID,
+    USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID
   ].includes(routeSkillId);
 }
 
@@ -229,6 +248,18 @@ function isBRDGenerationSkill(routeSkillId: string) {
 
 function isSRSGenerationSkill(routeSkillId: string) {
   return [BRD_TO_SRS_SKILL_ID, NOTES_TO_SRS_SKILL_ID].includes(routeSkillId);
+}
+
+function isUserStoryGenerationSkill(routeSkillId: string) {
+  return [
+    SRS_TO_USER_STORIES_SKILL_ID,
+    BRD_TO_USER_STORIES_SKILL_ID,
+    LEGACY_BRD_OR_NOTES_TO_USER_STORIES_SKILL_ID
+  ].includes(routeSkillId);
+}
+
+function isAcceptanceCriteriaGenerationSkill(routeSkillId: string) {
+  return routeSkillId === USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID;
 }
 
 function isDraftPtrGenerationSkill(routeSkillId: string) {
@@ -651,6 +682,14 @@ type SRSGenerationPayload = BRDGenerationPayload & {
   brd?: BRD;
 };
 
+type UserStoryGenerationPayload = SRSGenerationPayload & {
+  srs?: SRS;
+};
+
+type AcceptanceCriteriaGenerationPayload = BRDGenerationPayload & {
+  userStorySet?: UserStorySet;
+};
+
 function isTemplateReviewPayload(
   value: unknown
 ): value is TemplateReviewPayload {
@@ -679,6 +718,18 @@ function isSRSGenerationPayload(value: unknown): value is SRSGenerationPayload {
   return isObject(value);
 }
 
+function isUserStoryGenerationPayload(
+  value: unknown
+): value is UserStoryGenerationPayload {
+  return isObject(value);
+}
+
+function isAcceptanceCriteriaGenerationPayload(
+  value: unknown
+): value is AcceptanceCriteriaGenerationPayload {
+  return isObject(value);
+}
+
 function hasEnoughBRDText(payload: BRDGenerationPayload) {
   return [
     payload.projectContext,
@@ -693,6 +744,10 @@ function hasEnoughBRDText(payload: BRDGenerationPayload) {
 
 function hasEnoughSRSText(payload: SRSGenerationPayload) {
   return hasEnoughBRDText(payload) || isObject(payload.brd);
+}
+
+function hasEnoughUserStoryText(payload: UserStoryGenerationPayload) {
+  return hasEnoughSRSText(payload) || isObject(payload.srs);
 }
 
 function getValidationContext(
@@ -2058,6 +2113,176 @@ function createMockSRSResponse({
   });
 }
 
+function createMockUserStoryResponse({
+  routeSkillId,
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  routeSkillId: string;
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isUserStoryGenerationPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "User story request must include ProductDeliveryContext."
+      },
+      { status: 400 }
+    );
+  }
+
+  const source =
+    routeSkillId === SRS_TO_USER_STORIES_SKILL_ID
+      ? "srs-draft"
+      : routeSkillId === BRD_TO_USER_STORIES_SKILL_ID
+        ? "brd-draft"
+        : "notes-chat";
+  const userStorySet = generateUserStorySet({
+    srs: payload.srs,
+    brd: payload.brd,
+    processTasks: Array.isArray(payload.processTasks) ? payload.processTasks : [],
+    projectContext: payload.projectContext,
+    notes: payload.notes,
+    sourceSummary: payload.sourceSummary,
+    uploadedFileText: payload.uploadedFileText,
+    generatedAt: payload.generatedAt ?? new Date().toISOString(),
+    source
+  });
+  const qualityGate = runUserStoryQualityGate(userStorySet);
+
+  if (!qualityGate.canPreview) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "User Story draft failed quality gate.",
+        validationErrors: qualityGate.issues
+          .filter((issue) => issue.severity === "error")
+          .map((issue) => issue.message),
+        qualityGate
+      },
+      { status: 422 }
+    );
+  }
+
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: routeSkillId,
+    registrySkillId: getRegistrySkillId(routeSkillId),
+    result: {
+      ...userStorySet,
+      qualityIssues: qualityGate.issues
+    },
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      realAIEnabled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      qualityGate,
+      audit
+    }
+  });
+}
+
+function createMockAcceptanceCriteriaResponse({
+  routeSkillId,
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  routeSkillId: string;
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isAcceptanceCriteriaGenerationPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Acceptance criteria request must include ProductDeliveryContext."
+      },
+      { status: 400 }
+    );
+  }
+
+  const criteriaSet = generateAcceptanceCriteriaSet({
+    userStorySet: payload.userStorySet,
+    processTasks: Array.isArray(payload.processTasks) ? payload.processTasks : [],
+    projectContext: payload.projectContext,
+    notes: payload.notes,
+    sourceSummary: payload.sourceSummary,
+    uploadedFileText: payload.uploadedFileText,
+    generatedAt: payload.generatedAt ?? new Date().toISOString()
+  });
+  const qualityGate = runAcceptanceCriteriaQualityGate(criteriaSet);
+
+  if (!qualityGate.canPreview) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Acceptance Criteria draft failed quality gate.",
+        validationErrors: qualityGate.issues
+          .filter((issue) => issue.severity === "error")
+          .map((issue) => issue.message),
+        qualityGate
+      },
+      { status: 422 }
+    );
+  }
+
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: routeSkillId,
+    registrySkillId: getRegistrySkillId(routeSkillId),
+    result: {
+      ...criteriaSet,
+      qualityIssues: qualityGate.issues
+    },
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      realAIEnabled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      qualityGate,
+      audit
+    }
+  });
+}
+
 function createMockResponse({
   routeSkillId,
   skill,
@@ -2124,6 +2349,24 @@ function createMockResponse({
 
   if (isSRSGenerationSkill(routeSkillId)) {
     return createMockSRSResponse({
+      routeSkillId,
+      skill,
+      payload,
+      dataUsageMode
+    });
+  }
+
+  if (isUserStoryGenerationSkill(routeSkillId)) {
+    return createMockUserStoryResponse({
+      routeSkillId,
+      skill,
+      payload,
+      dataUsageMode
+    });
+  }
+
+  if (isAcceptanceCriteriaGenerationSkill(routeSkillId)) {
+    return createMockAcceptanceCriteriaResponse({
       routeSkillId,
       skill,
       payload,
@@ -2198,6 +2441,37 @@ function createRouteSpecificInputValidationError(
     (!isSRSGenerationPayload(payload) || !hasEnoughSRSText(payload))
   ) {
     return "Notes-to-SRS request must include notes, sourceSummary, projectContext, uploadedFileText, or BRD draft with enough content.";
+  }
+
+  if (
+    routeSkillId === SRS_TO_USER_STORIES_SKILL_ID &&
+    (!isUserStoryGenerationPayload(payload) ||
+      (!isObject(payload.srs) && !Array.isArray(payload.processTasks)))
+  ) {
+    return "SRS-to-User-Stories request must include an SRS draft or Process Task Register context.";
+  }
+
+  if (
+    routeSkillId === BRD_TO_USER_STORIES_SKILL_ID &&
+    (!isUserStoryGenerationPayload(payload) ||
+      (!isObject(payload.brd) && !Array.isArray(payload.processTasks)))
+  ) {
+    return "BRD-to-User-Stories request must include a BRD draft or Process Task Register context.";
+  }
+
+  if (
+    routeSkillId === LEGACY_BRD_OR_NOTES_TO_USER_STORIES_SKILL_ID &&
+    (!isUserStoryGenerationPayload(payload) || !hasEnoughUserStoryText(payload))
+  ) {
+    return "User Story request must include SRS, BRD, PTR, notes, sourceSummary, projectContext, or uploadedFileText with enough content.";
+  }
+
+  if (
+    routeSkillId === USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID &&
+    (!isAcceptanceCriteriaGenerationPayload(payload) ||
+      (!isObject(payload.userStorySet) && !Array.isArray(payload.processTasks)))
+  ) {
+    return "Acceptance Criteria request must include userStorySet or Process Task Register context.";
   }
 
   return "";
@@ -2587,6 +2861,77 @@ export async function POST(request: Request) {
       };
       additionalMeta = {
         qualityGate: srsQualityGate
+      };
+    }
+
+    if (isUserStoryGenerationSkill(routeSkillId)) {
+      const userStorySet = outputValidation.value as UserStorySet;
+      const userStoryQualityGate = runUserStoryQualityGate(userStorySet);
+
+      if (!userStoryQualityGate.canPreview) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "User Story draft failed quality gate.",
+            validationErrors: userStoryQualityGate.issues
+              .filter((issue) => issue.severity === "error")
+              .map((issue) => issue.message),
+            qualityGate: userStoryQualityGate,
+            meta: createProviderMeta(parseResult.providerResult, {
+              skillId: routeSkillId,
+              registrySkillId,
+              promptPackId: skill.promptPackId,
+              dataUsageMode,
+              outputRepairAttempted: parseResult.repairAttempted,
+              validationPassed: true
+            })
+          },
+          { status: 422 }
+        );
+      }
+
+      normalizedResult = {
+        ...userStorySet,
+        qualityIssues: userStoryQualityGate.issues
+      };
+      additionalMeta = {
+        qualityGate: userStoryQualityGate
+      };
+    }
+
+    if (isAcceptanceCriteriaGenerationSkill(routeSkillId)) {
+      const criteriaSet = outputValidation.value as AcceptanceCriteriaSet;
+      const criteriaQualityGate =
+        runAcceptanceCriteriaQualityGate(criteriaSet);
+
+      if (!criteriaQualityGate.canPreview) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Acceptance Criteria draft failed quality gate.",
+            validationErrors: criteriaQualityGate.issues
+              .filter((issue) => issue.severity === "error")
+              .map((issue) => issue.message),
+            qualityGate: criteriaQualityGate,
+            meta: createProviderMeta(parseResult.providerResult, {
+              skillId: routeSkillId,
+              registrySkillId,
+              promptPackId: skill.promptPackId,
+              dataUsageMode,
+              outputRepairAttempted: parseResult.repairAttempted,
+              validationPassed: true
+            })
+          },
+          { status: 422 }
+        );
+      }
+
+      normalizedResult = {
+        ...criteriaSet,
+        qualityIssues: criteriaQualityGate.issues
+      };
+      additionalMeta = {
+        qualityGate: criteriaQualityGate
       };
     }
 

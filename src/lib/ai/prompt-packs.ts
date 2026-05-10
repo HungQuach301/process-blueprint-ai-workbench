@@ -186,13 +186,13 @@ export const productDeliveryPromptPacks: AIPromptPack[] = [
     description:
       "Generate user stories from PTR, BRD, notes, or structured requirement context.",
     outputContract:
-      "UserStorySetResponse with stories, sourceStepIds, assumptions, openQuestions, and traceLinks.",
+      "UserStorySetResponse with epics, stories, stable ids, role, goal, businessValue, acceptanceCriteria, dependencies, priority/complexity, sourceRequirementIds, sourceStepIds, qualityIssues, assumptions, openQuestions, and traceLinks.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Create user stories that preserve actor intent and source ProcessTask traceability. Keep acceptance criteria reviewable."
+          "Create user stories from SRS, BRD, Process Task Register, notes, or chat context. Preserve actor intent, source ProcessTask.stepId values, and source requirement ids where possible. Include epics when useful, stable story ids, role, goal/action, business value, acceptance criteria, dependencies, priority or complexity if inferable, assumptions, open questions, and qualityIssues for missing-role, missing-value, missing-ac, story-too-broad, or no-source-trace. Do not auto-apply or persist anything."
       }
     ]
   },
@@ -203,13 +203,13 @@ export const productDeliveryPromptPacks: AIPromptPack[] = [
     description:
       "Generate Given/When/Then acceptance criteria for reviewed stories or PTR-derived stories.",
     outputContract:
-      "AcceptanceCriteriaResponse with criteria, assumptions, and openQuestions.",
+      "AcceptanceCriteriaResponse with criteria, stable ids, storyId, Given/When/Then, sourceStepIds, sourceRequirementIds, qualityIssues, assumptions, and openQuestions.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Write testable Given/When/Then criteria. Preserve storyId and sourceStepIds when available."
+          "Write testable Given/When/Then criteria from reviewed user stories. Preserve storyId, sourceStepIds, and sourceRequirementIds when available. Add qualityIssues for missing-ac, ac-not-testable, and no-source-trace instead of hiding uncertainty. Do not auto-apply or persist anything."
       }
     ]
   },

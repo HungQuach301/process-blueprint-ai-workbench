@@ -17,7 +17,12 @@ import {
   type ProductDeliveryDraft
 } from "@/lib/generators/product-delivery-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
-import type { BRD, SRS } from "@/lib/models/product-delivery";
+import type {
+  AcceptanceCriteriaSet,
+  BRD,
+  SRS,
+  UserStorySet
+} from "@/lib/models/product-delivery";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import { validateProcessTasks } from "@/lib/qa/task-register-rules";
@@ -75,6 +80,18 @@ type SRSPreview = {
   timestamp: string;
   sourceSkillId: "brd-to-srs" | "notes-to-srs";
   srs: SRS;
+};
+
+type UserStoryPreview = {
+  timestamp: string;
+  sourceSkillId: "srs-to-user-stories" | "brd-to-user-stories";
+  userStorySet: UserStorySet;
+};
+
+type AcceptanceCriteriaPreview = {
+  timestamp: string;
+  sourceSkillId: "user-stories-to-acceptance-criteria";
+  acceptanceCriteria: AcceptanceCriteriaSet;
 };
 
 function createTimestamp() {
@@ -164,12 +181,19 @@ export function ExportCenter() {
   const [productDeliveryFileText, setProductDeliveryFileText] = useState("");
   const [brdPreview, setBRDPreview] = useState<BRDPreview | null>(null);
   const [srsPreview, setSRSPreview] = useState<SRSPreview | null>(null);
+  const [userStoryPreview, setUserStoryPreview] =
+    useState<UserStoryPreview | null>(null);
+  const [acceptanceCriteriaPreview, setAcceptanceCriteriaPreview] =
+    useState<AcceptanceCriteriaPreview | null>(null);
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingAICodingPack, setIsDownloadingAICodingPack] =
     useState(false);
   const [isGeneratingBRD, setIsGeneratingBRD] = useState(false);
   const [isGeneratingSRS, setIsGeneratingSRS] = useState(false);
+  const [isGeneratingUserStories, setIsGeneratingUserStories] = useState(false);
+  const [isGeneratingAcceptanceCriteria, setIsGeneratingAcceptanceCriteria] =
+    useState(false);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
   const [exportPackageStatus, setExportPackageStatus] =
@@ -206,6 +230,8 @@ export function ExportCenter() {
   useEffect(() => {
     setBRDPreview(null);
     setSRSPreview(null);
+    setUserStoryPreview(null);
+    setAcceptanceCriteriaPreview(null);
   }, [productDeliveryContext, productDeliveryNotes, productDeliveryFileText]);
 
   const readiness = useMemo(
@@ -516,6 +542,8 @@ export function ExportCenter() {
         sourceSkillId: skillId,
         srs: data.result
       });
+      setUserStoryPreview(null);
+      setAcceptanceCriteriaPreview(null);
       saveAuditLogEntry({
         action: "generate_srs_preview",
         status: "success",
@@ -540,6 +568,173 @@ export function ExportCenter() {
       );
     } finally {
       setIsGeneratingSRS(false);
+    }
+  }
+
+  async function generateUserStoryPreview(
+    skillId: "srs-to-user-stories" | "brd-to-user-stories"
+  ) {
+    const timestamp = createTimestamp();
+    const sourceSummary = readInputBriefSourceSummary();
+    const processTasks = readProcessTasks();
+
+    if (skillId === "srs-to-user-stories" && !srsPreview && processTasks.length === 0) {
+      setMessage("Generate SRS preview or ensure PTR has rows before generating user stories.");
+      return;
+    }
+
+    if (skillId === "brd-to-user-stories" && !brdPreview && processTasks.length === 0) {
+      setMessage("Generate BRD preview or ensure PTR has rows before generating user stories.");
+      return;
+    }
+
+    try {
+      setIsGeneratingUserStories(true);
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId,
+          payload: {
+            srs: srsPreview?.srs,
+            brd: brdPreview?.brd,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        result?: UserStorySet;
+        error?: string;
+        validationErrors?: string[];
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        setUserStoryPreview(null);
+        setAcceptanceCriteriaPreview(null);
+        setMessage(
+          data.validationErrors?.length
+            ? data.validationErrors.join(" ")
+            : data.error || "Could not generate user stories preview."
+        );
+        return;
+      }
+
+      setUserStoryPreview({
+        timestamp,
+        sourceSkillId: skillId,
+        userStorySet: data.result
+      });
+      setAcceptanceCriteriaPreview(null);
+      saveAuditLogEntry({
+        action: "generate_user_stories_preview",
+        status: "success",
+        summary: "Generated structured User Story Set preview through AI skill route.",
+        metadata: {
+          timestamp,
+          skillId,
+          externalRoute: "/api/ai/run-skill",
+          epicCount: data.result.epics.length,
+          storyCount: data.result.stories.length,
+          qualityIssueCount: data.result.qualityIssues.length
+        }
+      });
+      setMessage("Da tao preview User Stories structured. Chua save/apply.");
+    } catch (error) {
+      setUserStoryPreview(null);
+      setAcceptanceCriteriaPreview(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao User Stories preview: ${error.message}`
+          : "Khong the tao User Stories preview. Vui long thu lai."
+      );
+    } finally {
+      setIsGeneratingUserStories(false);
+    }
+  }
+
+  async function generateAcceptanceCriteriaPreview() {
+    const timestamp = createTimestamp();
+    const sourceSummary = readInputBriefSourceSummary();
+    const processTasks = readProcessTasks();
+
+    if (!userStoryPreview && processTasks.length === 0) {
+      setMessage("Generate user stories preview or ensure PTR has rows before generating acceptance criteria.");
+      return;
+    }
+
+    try {
+      setIsGeneratingAcceptanceCriteria(true);
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "user-stories-to-acceptance-criteria",
+          payload: {
+            userStorySet: userStoryPreview?.userStorySet,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        result?: AcceptanceCriteriaSet;
+        error?: string;
+        validationErrors?: string[];
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        setAcceptanceCriteriaPreview(null);
+        setMessage(
+          data.validationErrors?.length
+            ? data.validationErrors.join(" ")
+            : data.error || "Could not generate acceptance criteria preview."
+        );
+        return;
+      }
+
+      setAcceptanceCriteriaPreview({
+        timestamp,
+        sourceSkillId: "user-stories-to-acceptance-criteria",
+        acceptanceCriteria: data.result
+      });
+      saveAuditLogEntry({
+        action: "generate_acceptance_criteria_preview",
+        status: "success",
+        summary:
+          "Generated structured Acceptance Criteria preview through AI skill route.",
+        metadata: {
+          timestamp,
+          skillId: "user-stories-to-acceptance-criteria",
+          externalRoute: "/api/ai/run-skill",
+          criteriaCount: data.result.criteria.length,
+          qualityIssueCount: data.result.qualityIssues.length
+        }
+      });
+      setMessage("Da tao preview Acceptance Criteria structured. Chua save/apply.");
+    } catch (error) {
+      setAcceptanceCriteriaPreview(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao Acceptance Criteria preview: ${error.message}`
+          : "Khong the tao Acceptance Criteria preview. Vui long thu lai."
+      );
+    } finally {
+      setIsGeneratingAcceptanceCriteria(false);
     }
   }
 
@@ -724,6 +919,59 @@ export function ExportCenter() {
       }
     });
     setMessage("Da export SRS draft JSON.");
+  }
+
+  function downloadUserStoriesJson() {
+    if (!userStoryPreview) {
+      setMessage("Generate User Stories preview before downloading.");
+      return;
+    }
+
+    downloadBlob(
+      JSON.stringify(userStoryPreview.userStorySet, null, 2),
+      `User_Stories_Draft_${userStoryPreview.timestamp}.json`,
+      "application/json;charset=utf-8"
+    );
+    saveAuditLogEntry({
+      action: "export_user_stories_draft",
+      status: "success",
+      summary: "Exported structured User Story Set draft JSON.",
+      metadata: {
+        timestamp: userStoryPreview.timestamp,
+        skillId: userStoryPreview.sourceSkillId,
+        epicCount: userStoryPreview.userStorySet.epics.length,
+        storyCount: userStoryPreview.userStorySet.stories.length,
+        qualityIssueCount: userStoryPreview.userStorySet.qualityIssues.length
+      }
+    });
+    setMessage("Da export User Stories draft JSON.");
+  }
+
+  function downloadAcceptanceCriteriaJson() {
+    if (!acceptanceCriteriaPreview) {
+      setMessage("Generate Acceptance Criteria preview before downloading.");
+      return;
+    }
+
+    downloadBlob(
+      JSON.stringify(acceptanceCriteriaPreview.acceptanceCriteria, null, 2),
+      `Acceptance_Criteria_Draft_${acceptanceCriteriaPreview.timestamp}.json`,
+      "application/json;charset=utf-8"
+    );
+    saveAuditLogEntry({
+      action: "export_acceptance_criteria_draft",
+      status: "success",
+      summary: "Exported structured Acceptance Criteria draft JSON.",
+      metadata: {
+        timestamp: acceptanceCriteriaPreview.timestamp,
+        skillId: acceptanceCriteriaPreview.sourceSkillId,
+        criteriaCount:
+          acceptanceCriteriaPreview.acceptanceCriteria.criteria.length,
+        qualityIssueCount:
+          acceptanceCriteriaPreview.acceptanceCriteria.qualityIssues.length
+      }
+    });
+    setMessage("Da export Acceptance Criteria draft JSON.");
   }
 
   async function downloadAICodingPackZip() {
@@ -945,6 +1193,46 @@ export function ExportCenter() {
                 Download SRS JSON
               </button>
               <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingUserStories}
+                onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
+                type="button"
+              >
+                {isGeneratingUserStories ? "Generating Stories..." : "Generate Stories from SRS"}
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingUserStories}
+                onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
+                type="button"
+              >
+                Generate Stories from BRD
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={!userStoryPreview}
+                onClick={downloadUserStoriesJson}
+                type="button"
+              >
+                Download Stories JSON
+              </button>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingAcceptanceCriteria}
+                onClick={() => void generateAcceptanceCriteriaPreview()}
+                type="button"
+              >
+                {isGeneratingAcceptanceCriteria ? "Generating AC..." : "Generate Acceptance Criteria"}
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={!acceptanceCriteriaPreview}
+                onClick={downloadAcceptanceCriteriaJson}
+                type="button"
+              >
+                Download AC JSON
+              </button>
+              <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={previewProductDeliveryDraft}
                 type="button"
@@ -975,8 +1263,9 @@ export function ExportCenter() {
               <li>Assumptions and open questions</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              No Artifact Graph is created in MVP1. Future AI enhancement can
-              use the server-side `brd-or-notes-to-user-stories` skill.
+              No Artifact Graph is created in MVP1. User stories and acceptance
+              criteria are generated through server-side AI skill routes and
+              remain preview/export only.
             </p>
           </div>
         </div>
@@ -1129,6 +1418,122 @@ export function ExportCenter() {
             </div>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
               {JSON.stringify(srsPreview.srs, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+
+        {userStoryPreview ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: Structured user stories draft
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {userStoryPreview.timestamp} via{" "}
+                {userStoryPreview.sourceSkillId}. Preview only; not saved to an
+                Artifact Graph.
+              </p>
+            </div>
+            <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
+              <div>
+                <p className="font-medium text-slate-950">Epics</p>
+                <p className="mt-1 text-slate-600">
+                  {userStoryPreview.userStorySet.epics.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Stories</p>
+                <p className="mt-1 text-slate-600">
+                  {userStoryPreview.userStorySet.stories.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Source steps</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    new Set(
+                      userStoryPreview.userStorySet.stories.flatMap(
+                        (story) => story.sourceStepIds ?? []
+                      )
+                    ).size
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="mt-1 text-slate-600">
+                  {userStoryPreview.userStorySet.qualityIssues.length}
+                </p>
+              </div>
+            </div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
+              {JSON.stringify(userStoryPreview.userStorySet, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+
+        {acceptanceCriteriaPreview ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: Structured acceptance criteria draft
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {acceptanceCriteriaPreview.timestamp} via{" "}
+                {acceptanceCriteriaPreview.sourceSkillId}. Preview only; not
+                saved to an Artifact Graph.
+              </p>
+            </div>
+            <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
+              <div>
+                <p className="font-medium text-slate-950">Criteria</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    acceptanceCriteriaPreview.acceptanceCriteria.criteria
+                      .length
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Source stories</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    new Set(
+                      acceptanceCriteriaPreview.acceptanceCriteria.criteria.map(
+                        (criterion) => criterion.storyId
+                      )
+                    ).size
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Source steps</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    new Set(
+                      acceptanceCriteriaPreview.acceptanceCriteria.criteria.flatMap(
+                        (criterion) => criterion.sourceStepIds ?? []
+                      )
+                    ).size
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    acceptanceCriteriaPreview.acceptanceCriteria.qualityIssues
+                      .length
+                  }
+                </p>
+              </div>
+            </div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
+              {JSON.stringify(
+                acceptanceCriteriaPreview.acceptanceCriteria,
+                null,
+                2
+              )}
             </pre>
           </div>
         ) : null}

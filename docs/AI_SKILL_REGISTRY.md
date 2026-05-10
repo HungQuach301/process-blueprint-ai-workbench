@@ -95,9 +95,11 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 | `brd-to-srs` | `real-ai-ready` | Generate structured SRS from BRD draft, PTR, and optional source context. | BRD draft, optional `ProcessTask[]`, notes/chat, source summary, uploaded file text | Structured SRS with stable functional/non-functional requirement ids, actors/roles, systems/components, data requirements, interfaces, constraints, assumptions, open questions, quality issues, and trace links | Preview/export only |
 | `notes-to-srs` | `real-ai-ready` | Generate structured SRS from notes/chat and optional source context. | Notes/chat, project context, AI Input Brief summary, uploaded file text, optional BRD/PTR context | Structured SRS with stable ids, source references where possible, assumptions, open questions, and quality issues | Preview/export only |
 | `ptr-to-srs-outline` | `implemented` | Legacy deterministic SRS outline from process and product context. | `ProcessTask[]`, BRD draft, constraints | SRS outline draft, assumptions, open questions | Preview/export only |
-| `brd-or-notes-to-user-stories` | `planned` | Generate user stories and acceptance criteria from BRD, notes, or structured requirements. | BRD draft or notes, optional persona/module/scope | `UserStorySet` draft, acceptance criteria, assumptions, open questions, trace links | User review and save/export as draft artifact |
+| `srs-to-user-stories` | `real-ai-ready` | Generate epics and user stories from structured SRS, PTR, and optional source notes. | SRS draft, optional BRD, `ProcessTask[]`, notes/chat, source summary, uploaded file text | `UserStorySet` with stable story ids, role, goal, business value, acceptance criteria, dependencies, priority/complexity, source requirement refs, and quality issues | Preview/export only |
+| `brd-to-user-stories` | `real-ai-ready` | Generate epics and user stories from structured BRD, PTR, and optional source notes. | BRD draft, optional SRS, `ProcessTask[]`, notes/chat, source summary, uploaded file text | `UserStorySet` with stable story ids, role, goal, business value, acceptance criteria, dependencies, priority/complexity, source refs, and quality issues | Preview/export only |
+| `brd-or-notes-to-user-stories` | `implemented` | Legacy compatible user story generation from BRD, notes, or structured requirements. | BRD draft or notes, optional PTR/project context | `UserStorySet` draft with trace links and quality issues | Preview/export only |
 | `ptr-to-user-stories` | `implemented` | Generate simple user stories from Process Task Register. | `ProcessTask[]`, optional project context | User stories with `ProcessTask.stepId` trace references | Preview/export only |
-| `user-stories-to-acceptance-criteria` | `implemented` | Generate acceptance criteria from PTR-derived user stories. | User stories or `ProcessTask[]` | Acceptance criteria draft | Preview/export only |
+| `user-stories-to-acceptance-criteria` | `real-ai-ready` | Generate acceptance criteria from reviewed user story preview. | `UserStorySet`, optional `ProcessTask[]`, BRD/SRS, notes/source context | Acceptance criteria with stable ids, story refs, source requirement refs, source step refs, and quality issues | Preview/export only |
 | `user-stories-to-jira-export` | `planned` | Convert reviewed user stories into Jira-ready export. | User stories, acceptance criteria, labels, epic metadata | Jira-ready markdown/CSV/JSON draft | Preview/download only |
 | `mvp-slicing` | `planned` | Propose MVP, later, and out-of-scope slices. | BRD/SRS/user stories, constraints, priority notes | MVP slice recommendation, risks, assumptions | Recommendation only |
 | `scope-nonscope-definition` | `planned` | Draft scope and non-scope from process and product notes. | PTR, notes, BRD/SRS context | Scope/non-scope draft, open questions | Preview/save/export only |
@@ -286,6 +288,55 @@ Output:
 
 Apply behavior:
 Preview/export only. No auto-save, no XML mutation, and no Artifact Graph persistence in this slice.
+
+### srs-to-user-stories / brd-to-user-stories
+
+Purpose:
+Generate structured epics and user stories from SRS, BRD, Process Task Register, notes/chat, and optional file/source summaries.
+
+Input:
+- SRS draft for `srs-to-user-stories`
+- BRD draft for `brd-to-user-stories`
+- optional `ProcessTask[]`
+- optional notes/chat and project context
+- optional AI Input Brief source summary
+- optional uploaded file text
+
+Output:
+- epics when useful
+- user stories with stable ids such as `US-001`
+- role
+- goal/action
+- business value
+- acceptance criteria
+- dependencies
+- priority or complexity when inferable
+- source requirement refs and `ProcessTask.stepId` refs where possible
+- qualityIssues for missing role, missing value, missing acceptance criteria, broad stories, and missing trace
+
+Apply behavior:
+Preview/export only. No auto-save and no Artifact Graph persistence in this slice.
+
+### user-stories-to-acceptance-criteria
+
+Purpose:
+Generate structured acceptance criteria from reviewed user story preview.
+
+Input:
+- `UserStorySet`
+- optional `ProcessTask[]`
+- optional BRD/SRS context
+- optional notes/chat, source summary, and uploaded file text
+
+Output:
+- acceptance criteria with stable ids such as `AC-US-001-001`
+- `storyId`
+- Given/When/Then or equivalent testable condition
+- source requirement refs and `ProcessTask.stepId` refs where possible
+- qualityIssues for missing AC, non-testable AC, missing source trace, and broad stories
+
+Apply behavior:
+Preview/export only. No auto-save and no Artifact Graph persistence in this slice.
 
 ### ptr-to-ai-coding-pack
 

@@ -1,6 +1,7 @@
 import type { ProcessTask } from "@/lib/models/process-task";
 import type {
   AcceptanceCriteriaSet,
+  AcceptanceCriteriaGenerationInput,
   ActorRole,
   Assumption,
   BRD,
@@ -18,15 +19,20 @@ import type {
   SRSConstraint,
   SRSGenerationInput,
   SystemComponent,
+  UserStoryGenerationInput,
   UserStory,
   UserStorySet
 } from "@/lib/models/product-delivery";
 import {
+  runAcceptanceCriteriaQualityGate,
   runBRDQualityGate,
   runSRSQualityGate,
+  runUserStoryQualityGate,
   validateBRD,
+  validateAcceptanceCriteriaSet,
   validateProductDeliveryDraft,
-  validateSRS
+  validateSRS,
+  validateUserStorySet
 } from "@/lib/models/product-delivery";
 
 export type {
@@ -35,7 +41,11 @@ export type {
   ProductDeliveryDraft,
   ProductDeliveryInput,
   SRS,
-  SRSGenerationInput
+  SRSGenerationInput,
+  UserStoryGenerationInput,
+  UserStorySet,
+  AcceptanceCriteriaGenerationInput,
+  AcceptanceCriteriaSet
 };
 
 function nonEmpty(value: string | null | undefined) {
@@ -670,17 +680,51 @@ export function generateSRS(input: SRSGenerationInput): SRS {
   return validation.value;
 }
 
-function buildUserStory(task: ProcessTask): UserStory {
-  const actor = nonEmpty(task.actor) || "process user";
+function createProductDeliveryInputFallback(
+  input: UserStoryGenerationInput | AcceptanceCriteriaGenerationInput
+): ProductDeliveryInput {
+  return {
+    processTasks: input.processTasks ?? [],
+    projectContext: input.projectContext,
+    notes: input.notes,
+    sourceSummary: input.sourceSummary,
+    uploadedFileText: input.uploadedFileText,
+    generatedAt: input.generatedAt
+  };
+}
+
+function createUserStoryInputFromProductDraft(
+  input: ProductDeliveryInput,
+  brd: BRD,
+  srs: SRS
+): UserStoryGenerationInput {
+  return {
+    ...input,
+    brd,
+    srs,
+    source: "srs-draft"
+  };
+}
+
+function buildUserStoryFromProcessTask(task: ProcessTask, index: number): UserStory {
+  const role = nonEmpty(task.actor) || "process user";
   const output = nonEmpty(task.output) || "the expected process outcome is produced";
+  const storyId = `US-${String(index + 1).padStart(3, "0")}`;
 
   return {
-    id: `US-${task.stepId}`,
+    id: storyId,
     title: task.taskName,
-    persona: actor,
+    role,
+    goal: task.taskName,
+    businessValue: output,
+    persona: role,
     need: task.taskName,
     benefit: output,
     sourceStepIds: [task.stepId],
+    dependencies: [task.defaultNextStep, task.yesNextStep, task.noNextStep]
+      .filter((stepId): stepId is string => typeof stepId === "string" && stepId.length > 0),
+    priority: task.reviewStatus === "approved" ? "must" : "should",
+    complexity: task.rowType === "gateway" ? "medium" : "low",
     acceptanceCriteria: [
       `Given ${nonEmpty(task.input) || "valid process input exists"}`,
       `When ${task.taskName}`,
@@ -689,53 +733,257 @@ function buildUserStory(task: ProcessTask): UserStory {
   };
 }
 
-function buildUserStorySet(input: ProductDeliveryInput): UserStorySet {
-  const rows = getDeliveryRows(input.processTasks);
+function buildUserStoriesFromSRS(input: UserStoryGenerationInput): UserStory[] {
+  const srs = input.srs;
+
+  if (!srs?.functionalRequirements.length) {
+    return [];
+  }
+
+  return srs.functionalRequirements.map((requirement, index) => {
+    const role =
+      srs.actorsRoles.find((actorRole) =>
+        requirement.actorRoleIds?.includes(actorRole.id)
+      )?.name || "product user";
+    const businessValue = requirement.description;
+
+    return {
+      id: `US-${String(index + 1).padStart(3, "0")}`,
+      title: requirement.title,
+      role,
+      goal: requirement.title,
+      businessValue,
+      persona: role,
+      need: requirement.title,
+      benefit: businessValue,
+      sourceStepIds: requirement.sourceStepIds,
+      sourceRequirementIds: [requirement.id, ...(requirement.sourceRequirementIds ?? [])],
+      epicId: "EPIC-001",
+      dependencies: requirement.systemComponentIds,
+      priority: "must",
+      complexity:
+        (requirement.systemComponentIds ?? []).length > 1 ? "medium" : "low",
+      acceptanceCriteria: [
+        `Given source requirement ${requirement.id} is in scope`,
+        `When ${role} performs ${requirement.title}`,
+        `Then the solution should satisfy ${requirement.id}`
+      ]
+    };
+  });
+}
+
+function buildUserStoriesFromBRD(input: UserStoryGenerationInput): UserStory[] {
+  const brd = input.brd;
+
+  if (!brd?.businessRequirements.length) {
+    return [];
+  }
+
+  return brd.businessRequirements.map((requirement, index) => {
+    const role = brd.stakeholders[index % Math.max(brd.stakeholders.length, 1)] || "business user";
+
+    return {
+      id: `US-${String(index + 1).padStart(3, "0")}`,
+      title: requirement.title,
+      role,
+      goal: requirement.title,
+      businessValue: requirement.description,
+      persona: role,
+      need: requirement.title,
+      benefit: requirement.description,
+      sourceStepIds: requirement.sourceStepIds,
+      sourceRequirementIds: [requirement.id],
+      epicId: "EPIC-001",
+      dependencies: [],
+      priority: requirement.priority,
+      complexity: requirement.description.length > 180 ? "medium" : "low",
+      acceptanceCriteria: [
+        `Given business requirement ${requirement.id} is approved`,
+        `When ${role} needs ${requirement.title}`,
+        `Then the delivered behavior should satisfy ${requirement.id}`
+      ]
+    };
+  });
+}
+
+function buildUserStoriesFromNotes(input: UserStoryGenerationInput): UserStory[] {
+  const lines = [
+    input.notes,
+    input.projectContext,
+    input.sourceSummary,
+    input.uploadedFileText
+  ]
+    .filter(Boolean)
+    .join("\n")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 12)
+    .slice(0, 6);
+
+  return lines.map((line, index) => ({
+    id: `US-${String(index + 1).padStart(3, "0")}`,
+    title: line.slice(0, 80),
+    role: "product user",
+    goal: line.slice(0, 120),
+    businessValue: line,
+    persona: "product user",
+    need: line.slice(0, 120),
+    benefit: line,
+    epicId: "EPIC-001",
+    dependencies: [],
+    priority: index === 0 ? "must" : "should",
+    complexity: "medium",
+    acceptanceCriteria: [
+      `Given the source note is confirmed`,
+      `When product user performs ${line.slice(0, 80)}`,
+      `Then the expected business outcome should be observable`
+    ]
+  }));
+}
+
+function buildUserStorySet(input: UserStoryGenerationInput): UserStorySet {
+  const processTasks = input.processTasks ?? [];
+  const rows = getDeliveryRows(processTasks);
+  const stories =
+    buildUserStoriesFromSRS(input).length > 0
+      ? buildUserStoriesFromSRS(input)
+      : buildUserStoriesFromBRD(input).length > 0
+        ? buildUserStoriesFromBRD(input)
+        : rows.length > 0
+          ? rows.map(buildUserStoryFromProcessTask)
+          : buildUserStoriesFromNotes(input);
+  const epicSourceStepIds = Array.from(
+    new Set(stories.flatMap((story) => story.sourceStepIds ?? []))
+  );
+  const epicSourceRequirementIds = Array.from(
+    new Set(stories.flatMap((story) => story.sourceRequirementIds ?? []))
+  );
+  const userStorySet: UserStorySet = {
+    id: "USS-PD-001",
+    title: "Product Delivery user stories",
+    epics: [
+      {
+        id: "EPIC-001",
+        title: input.srs?.title || input.brd?.title || "Product delivery epic",
+        description:
+          input.srs?.overview ||
+          input.brd?.summary ||
+          "Epic generated from available Product Delivery source context.",
+        sourceStepIds: epicSourceStepIds,
+        sourceRequirementIds: epicSourceRequirementIds
+      }
+    ],
+    stories,
+    assumptions: buildAssumptions(createProductDeliveryInputFallback(input)),
+    openQuestions: buildOpenQuestions(createProductDeliveryInputFallback(input)),
+    qualityIssues: [],
+    traceLinks: stories.flatMap((story) =>
+      (story.sourceStepIds ?? []).map((stepId) => ({
+        sourceStepIds: [stepId],
+        targetId: story.id
+      }))
+    )
+  };
+  const qualityGate = runUserStoryQualityGate(userStorySet);
 
   return {
-    id: "USS-PD-001",
-    title: "PTR-derived user stories",
-    stories: rows.map(buildUserStory),
-    assumptions: buildAssumptions(input),
-    openQuestions: buildOpenQuestions(input),
-    traceLinks: rows.map((task) => ({
-      sourceStepIds: [task.stepId],
-      targetId: `US-${task.stepId}`
-    }))
+    ...userStorySet,
+    qualityIssues: qualityGate.issues
   };
 }
 
+export function generateUserStorySet(input: UserStoryGenerationInput): UserStorySet {
+  const userStorySet = buildUserStorySet(input);
+  const validation = validateUserStorySet(userStorySet);
+
+  if (!validation.ok) {
+    throw new Error(
+      `User Story Set failed schema validation: ${validation.errors.join(" ")}`
+    );
+  }
+
+  return validation.value;
+}
+
 function buildAcceptanceCriteriaSet(
-  input: ProductDeliveryInput,
-  userStorySet: UserStorySet
+  input: AcceptanceCriteriaGenerationInput
 ): AcceptanceCriteriaSet {
-  const rows = getDeliveryRows(input.processTasks);
+  const processTasks = input.processTasks ?? [];
+  const rows = getDeliveryRows(processTasks);
+  const userStorySet =
+    input.userStorySet ??
+    buildUserStorySet({
+      ...input,
+      source: "notes-chat"
+    });
+  const criteria = userStorySet.stories.flatMap((story) => {
+    const matchingTask = rows.find((task) =>
+      story.sourceStepIds?.includes(task.stepId)
+    );
+    const sourceStepIds = story.sourceStepIds ?? (matchingTask ? [matchingTask.stepId] : undefined);
+    const baseCriteria = story.acceptanceCriteria?.length
+      ? story.acceptanceCriteria
+      : [
+          `Given ${matchingTask ? nonEmpty(matchingTask.input) || "valid process input exists" : "the story source context is confirmed"}`,
+          `When ${story.role} performs ${story.goal}`,
+          `Then ${story.businessValue}`
+        ];
+
+    if (baseCriteria.length >= 3) {
+      return [
+        {
+          id: `AC-${story.id}-001`,
+          storyId: story.id,
+          sourceStepIds,
+          sourceRequirementIds: story.sourceRequirementIds,
+          given: baseCriteria[0].replace(/^Given\s+/i, ""),
+          when: baseCriteria[1].replace(/^When\s+/i, ""),
+          then: baseCriteria[2].replace(/^Then\s+/i, "")
+        }
+      ];
+    }
+
+    return [
+      {
+        id: `AC-${story.id}-001`,
+        storyId: story.id,
+        sourceStepIds,
+        sourceRequirementIds: story.sourceRequirementIds,
+        given: "the source context and user role are confirmed",
+        when: `${story.role} performs ${story.goal}`,
+        then: story.businessValue
+      }
+    ];
+  });
+  const criteriaSet: AcceptanceCriteriaSet = {
+    id: "AC-PD-001",
+    title: "Product Delivery acceptance criteria",
+    criteria,
+    assumptions: buildAssumptions(createProductDeliveryInputFallback(input)),
+    openQuestions: buildOpenQuestions(createProductDeliveryInputFallback(input)),
+    qualityIssues: []
+  };
+  const qualityGate = runAcceptanceCriteriaQualityGate(criteriaSet);
 
   return {
-    id: "AC-PD-001",
-    title: "PTR-derived acceptance criteria",
-    criteria: rows.map((task) => {
-      const storyId = `US-${task.stepId}`;
-      const given = nonEmpty(task.input) || "valid process input exists";
-      const outcome = nonEmpty(task.output) || "the step output is produced";
-      const nextStep = task.defaultNextStep ?? task.yesNextStep ?? task.noNextStep;
-
-      return {
-        id: `AC-${task.stepId}`,
-        storyId: userStorySet.stories.some((story) => story.id === storyId)
-          ? storyId
-          : undefined,
-        sourceStepIds: [task.stepId],
-        given,
-        when: task.taskName,
-        then: nextStep
-          ? `${outcome}; the process can continue to ${nextStep}`
-          : outcome
-      };
-    }),
-    assumptions: buildAssumptions(input),
-    openQuestions: buildOpenQuestions(input)
+    ...criteriaSet,
+    qualityIssues: qualityGate.issues
   };
+}
+
+export function generateAcceptanceCriteriaSet(
+  input: AcceptanceCriteriaGenerationInput
+): AcceptanceCriteriaSet {
+  const criteriaSet = buildAcceptanceCriteriaSet(input);
+  const validation = validateAcceptanceCriteriaSet(criteriaSet);
+
+  if (!validation.ok) {
+    throw new Error(
+      `Acceptance Criteria Set failed schema validation: ${validation.errors.join(" ")}`
+    );
+  }
+
+  return validation.value;
 }
 
 function renderList(items: string[]) {
@@ -945,14 +1193,28 @@ function renderUserStories(userStorySet: UserStorySet) {
   return [
     "# User Stories",
     "",
+    "## Epics",
+    "",
+    renderList(
+      userStorySet.epics.map(
+        (epic) => `${epic.id} - ${epic.title}: ${epic.description}`
+      )
+    ),
+    "",
+    "## Stories",
+    "",
     userStorySet.stories
       .map((story) =>
         [
           `### ${story.id} - ${story.title}`,
           "",
-          `As a ${story.persona}, I want to ${story.need.toLowerCase()}, so that ${story.benefit}.`,
+          `As a ${story.role}, I want to ${story.goal.toLowerCase()}, so that ${story.businessValue}.`,
           "",
-          `Source steps: ${story.sourceStepIds.join(", ")}`,
+          `Priority: ${story.priority ?? "should"}`,
+          `Complexity: ${story.complexity ?? "medium"}`,
+          "",
+          `Source steps: ${(story.sourceStepIds ?? []).join(", ") || "not available"}`,
+          `Source requirements: ${(story.sourceRequirementIds ?? []).join(", ") || "not available"}`,
           "",
           "Acceptance criteria:",
           renderList(story.acceptanceCriteria ?? [])
@@ -973,7 +1235,8 @@ function renderAcceptanceCriteria(criteriaSet: AcceptanceCriteriaSet) {
           `## ${criterion.id}`,
           "",
           criterion.storyId ? `Story: ${criterion.storyId}` : "Story: to be confirmed",
-          `Source steps: ${criterion.sourceStepIds.join(", ")}`,
+          `Source steps: ${(criterion.sourceStepIds ?? []).join(", ") || "not available"}`,
+          `Source requirements: ${(criterion.sourceRequirementIds ?? []).join(", ") || "not available"}`,
           "",
           `- Given ${criterion.given}`,
           `- When ${criterion.when}`,
@@ -1007,8 +1270,13 @@ export function generateProductDeliveryDraft(
     scope
   );
   const srs = buildSRS(createSRSInputFromProductDraft(input, brd));
-  const userStorySet = buildUserStorySet(input);
-  const acceptanceCriteria = buildAcceptanceCriteriaSet(input, userStorySet);
+  const userStorySet = buildUserStorySet(
+    createUserStoryInputFromProductDraft(input, brd, srs)
+  );
+  const acceptanceCriteria = buildAcceptanceCriteriaSet({
+    ...input,
+    userStorySet
+  });
   const brdOutlineMarkdown = renderBrdOutline(brd);
   const srsOutlineMarkdown = renderSrsOutline(srs);
   const userStoriesMarkdown = renderUserStories(userStorySet);

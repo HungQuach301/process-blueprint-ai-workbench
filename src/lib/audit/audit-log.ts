@@ -14,7 +14,11 @@ export type AuditAction =
   | "generate_brd_preview"
   | "export_brd_draft"
   | "generate_srs_preview"
-  | "export_srs_draft";
+  | "export_srs_draft"
+  | "generate_user_stories_preview"
+  | "export_user_stories_draft"
+  | "generate_acceptance_criteria_preview"
+  | "export_acceptance_criteria_draft";
 
 export type AuditLogEntry = {
   id: string;

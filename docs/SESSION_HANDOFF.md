@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed AI User Story and Acceptance Criteria generation for Product Delivery Core.
+- Added route-backed skill ids `srs-to-user-stories`, `brd-to-user-stories`, legacy-compatible `brd-or-notes-to-user-stories`, and `user-stories-to-acceptance-criteria` through `/api/ai/run-skill`.
+- Extended canonical user story and acceptance criteria models with epics, stable ids, role, goal/action, business value, dependencies, priority/complexity, source requirement refs, source step refs, and quality issues.
+- Added quality gates for missing role, missing value, missing acceptance criteria, non-testable acceptance criteria, broad stories, and missing source trace.
+- Wired Export Center actions to preview structured user stories from SRS/BRD and preview structured acceptance criteria from user stories before JSON download.
+- Added local audit actions for `generate_user_stories_preview`, `export_user_stories_draft`, `generate_acceptance_criteria_preview`, and `export_acceptance_criteria_draft`.
+- Updated AI Skill Registry and AI Implementation Matrix for Product AI/OpenAI/Claude/Mock support on story and acceptance-criteria generation.
 - Completed AI SRS Generator for Product Delivery Core.
 - Added route-backed skill ids `brd-to-srs` and `notes-to-srs` through `/api/ai/run-skill`.
 - Extended canonical SRS model with actors/roles, systems/components, stable functional and non-functional requirement ids, data requirements, interface/integration requirements, constraints, quality issues, assumptions, open questions, and trace links.

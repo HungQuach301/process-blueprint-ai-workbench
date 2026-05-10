@@ -469,6 +469,61 @@ export function validateAISkillInput(
     };
   }
 
+  if (
+    skillId === "srs-to-user-stories" ||
+    skillId === "brd-to-user-stories" ||
+    skillId === "brd-or-notes-to-user-stories" ||
+    skillId === "user-stories-to-acceptance-criteria"
+  ) {
+    if (!isObject(value)) {
+      return {
+        ok: false,
+        errors: ["ProductDeliveryContext must be an object."]
+      };
+    }
+
+    if (
+      skillId === "srs-to-user-stories" &&
+      !isObject(value.srs) &&
+      !Array.isArray(value.processTasks)
+    ) {
+      return {
+        ok: false,
+        errors: ["srs-to-user-stories requires srs or processTasks."]
+      };
+    }
+
+    if (
+      skillId === "brd-to-user-stories" &&
+      !isObject(value.brd) &&
+      !Array.isArray(value.processTasks)
+    ) {
+      return {
+        ok: false,
+        errors: ["brd-to-user-stories requires brd or processTasks."]
+      };
+    }
+
+    if (
+      skillId === "user-stories-to-acceptance-criteria" &&
+      !isObject(value.userStorySet) &&
+      !Array.isArray(value.processTasks)
+    ) {
+      return {
+        ok: false,
+        errors: [
+          "user-stories-to-acceptance-criteria requires userStorySet or processTasks."
+        ]
+      };
+    }
+
+    return {
+      ok: true,
+      value,
+      errors: []
+    };
+  }
+
   return {
     ok: true,
     value,
@@ -558,6 +613,8 @@ export function validateAISkillOutput(
 
   if (
     skillId === "brd-or-notes-to-user-stories" ||
+    skillId === "srs-to-user-stories" ||
+    skillId === "brd-to-user-stories" ||
     skillId === "ptr-to-user-stories"
   ) {
     return validateUserStorySetResponse(value);

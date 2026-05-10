@@ -365,10 +365,56 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "product-delivery-srs-v1"
   },
   {
+    skillId: "srs-to-user-stories",
+    version: "1.0.0",
+    module: "module-3-product-delivery",
+    status: "real-ai-ready",
+    description:
+      "Generate user stories from structured SRS, BRD/PTR context, and optional notes.",
+    inputSchema: {
+      id: "ProductDeliveryContext",
+      description: "SRS draft plus optional BRD, ProcessTask[], notes, and source context.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "UserStorySetResponse",
+      description:
+        "Epics and user stories with stable ids, roles, goals, business value, acceptance criteria, dependencies, priority/complexity, quality issues, and source requirement refs.",
+      validatorId: "validateUserStorySetResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "product-delivery-user-stories-v1"
+  },
+  {
+    skillId: "brd-to-user-stories",
+    version: "1.0.0",
+    module: "module-3-product-delivery",
+    status: "real-ai-ready",
+    description:
+      "Generate user stories from structured BRD, PTR context, and optional notes.",
+    inputSchema: {
+      id: "ProductDeliveryContext",
+      description: "BRD draft plus optional SRS, ProcessTask[], notes, and source context.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "UserStorySetResponse",
+      description:
+        "Epics and user stories with stable ids, role, goal/action, business value, acceptance criteria, dependencies, priority/complexity, quality issues, and source requirement refs.",
+      validatorId: "validateUserStorySetResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "product-delivery-user-stories-v1"
+  },
+  {
     skillId: "brd-or-notes-to-user-stories",
     version: "1.0.0",
     module: "module-3-product-delivery",
-    status: "planned",
+    status: "implemented",
     description:
       "Generate user stories and acceptance criteria from BRD, notes, or structured requirements.",
     inputSchema: {
@@ -413,7 +459,7 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     skillId: "user-stories-to-acceptance-criteria",
     version: "1.0.0",
     module: "module-3-product-delivery",
-    status: "implemented",
+    status: "real-ai-ready",
     description:
       "Generate reviewable acceptance criteria from user stories or PTR-derived stories.",
     inputSchema: {

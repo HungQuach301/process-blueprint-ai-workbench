@@ -12,6 +12,10 @@ import {
 } from "@/lib/generators/ai-coding-pack-generator";
 import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
+import {
+  generateProductDeliveryDraft,
+  type ProductDeliveryDraft
+} from "@/lib/generators/product-delivery-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -24,6 +28,7 @@ import {
 } from "@/lib/sample-data/sme-online-loan";
 
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
+const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
@@ -52,6 +57,11 @@ type OutputArtifacts = {
 type AICodingPackPreview = {
   timestamp: string;
   files: AICodingPackFiles;
+};
+
+type ProductDeliveryPreview = {
+  timestamp: string;
+  draft: ProductDeliveryDraft;
 };
 
 function createTimestamp() {
@@ -85,6 +95,28 @@ function readTemplateProfiles() {
   ]);
 }
 
+function readInputBriefSourceSummary() {
+  const savedBrief = window.localStorage.getItem(BRIEF_STORAGE_KEY);
+
+  if (!savedBrief) {
+    return "";
+  }
+
+  try {
+    const parsedBrief = JSON.parse(savedBrief) as Record<string, unknown>;
+    const summaryFields = [
+      parsedBrief.processInfo,
+      parsedBrief.businessObjective,
+      parsedBrief.scopeBoundary,
+      parsedBrief.actors
+    ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+    return summaryFields.join("\n\n");
+  } catch {
+    return "";
+  }
+}
+
 function findTemplate(
   templates: TemplateProfile[],
   templateId: string | null,
@@ -111,7 +143,11 @@ export function ExportCenter() {
   const [aiCodingPack, setAICodingPack] = useState<AICodingPackPreview | null>(
     null
   );
+  const [productDeliveryDraft, setProductDeliveryDraft] =
+    useState<ProductDeliveryPreview | null>(null);
   const [projectContext, setProjectContext] = useState("");
+  const [productDeliveryContext, setProductDeliveryContext] = useState("");
+  const [productDeliveryNotes, setProductDeliveryNotes] = useState("");
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingAICodingPack, setIsDownloadingAICodingPack] =
@@ -274,6 +310,23 @@ export function ExportCenter() {
     };
   }
 
+  function buildProductDeliveryDraft() {
+    const timestamp = createTimestamp();
+    const processTasks = readProcessTasks();
+    const draft = generateProductDeliveryDraft({
+      processTasks,
+      projectContext: productDeliveryContext,
+      notes: productDeliveryNotes,
+      sourceSummary: readInputBriefSourceSummary(),
+      generatedAt: timestamp
+    });
+
+    return {
+      timestamp,
+      draft
+    };
+  }
+
   async function downloadZip() {
     try {
       setIsDownloading(true);
@@ -347,6 +400,51 @@ export function ExportCenter() {
         error instanceof Error
           ? `Khong the tao AI Coding Pack: ${error.message}`
           : "Khong the tao AI Coding Pack. Vui long kiem tra du lieu."
+      );
+    }
+  }
+
+  function previewProductDeliveryDraft() {
+    try {
+      const nextDraft = buildProductDeliveryDraft();
+
+      setProductDeliveryDraft(nextDraft);
+      setMessage("Da tao preview Product Delivery draft deterministic.");
+    } catch (error) {
+      setProductDeliveryDraft(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao Product Delivery draft: ${error.message}`
+          : "Khong the tao Product Delivery draft. Vui long kiem tra du lieu."
+      );
+    }
+  }
+
+  function downloadProductDeliveryMarkdown() {
+    try {
+      const currentDraft = productDeliveryDraft ?? buildProductDeliveryDraft();
+
+      downloadBlob(
+        currentDraft.draft.combinedMarkdown,
+        `Product_Delivery_Draft_${currentDraft.timestamp}.md`,
+        "text/markdown;charset=utf-8"
+      );
+      saveAuditLogEntry({
+        action: "export_product_delivery_draft",
+        status: "success",
+        summary: "Exported deterministic Product Delivery draft markdown.",
+        metadata: {
+          timestamp: currentDraft.timestamp,
+          sectionCount: 3
+        }
+      });
+      setProductDeliveryDraft(currentDraft);
+      setMessage("Da export Product Delivery draft markdown.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Khong the export Product Delivery draft: ${error.message}`
+          : "Khong the export Product Delivery draft. Vui long thu lai."
       );
     }
   }
@@ -468,6 +566,96 @@ export function ExportCenter() {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="border-t border-slate-200 p-4">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
+          <div>
+            <p className="text-sm font-medium uppercase text-slate-500">
+              Product Delivery
+            </p>
+            <h3 className="mt-1 text-xl font-semibold text-slate-950">
+              Draft BRD outline and user stories
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Deterministic MVP1 draft generated from Process Task Register,
+              saved AI Input Brief summary when available, and optional notes.
+              Preview first, then export markdown when ready.
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">
+                  Optional project context
+                </span>
+                <textarea
+                  className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                  onChange={(event) => setProductDeliveryContext(event.target.value)}
+                  placeholder="Example: MVP scope, target users, business objective, delivery constraints..."
+                  value={productDeliveryContext}
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700">
+                  Optional notes
+                </span>
+                <textarea
+                  className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                  onChange={(event) => setProductDeliveryNotes(event.target.value)}
+                  placeholder="Paste workshop notes, BRD notes, assumptions, or stakeholder comments..."
+                  value={productDeliveryNotes}
+                />
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={previewProductDeliveryDraft}
+                type="button"
+              >
+                Generate Product Delivery Draft
+              </button>
+              <button
+                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                onClick={downloadProductDeliveryMarkdown}
+                type="button"
+              >
+                Download Product Delivery Markdown
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-semibold text-slate-950">
+              Draft includes
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+              <li>BRD outline</li>
+              <li>User stories</li>
+              <li>Acceptance criteria</li>
+            </ul>
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              No Artifact Graph is created in MVP1. Future AI enhancement can
+              use the server-side `brd-or-notes-to-user-stories` skill.
+            </p>
+          </div>
+        </div>
+
+        {productDeliveryDraft ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: Product Delivery draft
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {productDeliveryDraft.timestamp}. Step IDs are
+                preserved in stories and acceptance criteria.
+              </p>
+            </div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
+              {productDeliveryDraft.draft.combinedMarkdown}
+            </pre>
+          </div>
+        ) : null}
       </div>
 
       <div className="border-t border-slate-200 p-4">

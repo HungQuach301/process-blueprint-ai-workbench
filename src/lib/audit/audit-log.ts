@@ -9,7 +9,8 @@ export type AuditAction =
   | "generate_d01"
   | "generate_d02"
   | "export_zip"
-  | "export_ai_coding_pack";
+  | "export_ai_coding_pack"
+  | "export_product_delivery_draft";
 
 export type AuditLogEntry = {
   id: string;

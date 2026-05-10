@@ -14,22 +14,22 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- Added lightweight deterministic AI Coding Pack export for MVP1.
-- Added an AI Coding Pack section in Export Center with optional project context, `spec.json` preview, and ZIP download.
-- Generated pack files include `AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`, `acceptance-criteria.md`, `implementation-plan.md`, and `test-plan.md`.
-- Pack content is derived from Process Task Register and selected D01/D02 template metadata, with `stepId` traceability preserved where possible.
-- Did not call external AI and documented richer AI generation as a future `user-stories-to-ai-coding-pack` skill.
+- Added a lightweight Product Delivery thin slice in Export Center.
+- Product Delivery can generate deterministic draft BRD outline, user stories, and acceptance criteria from Process Task Register, saved AI Input Brief summary when available, and optional manual context/notes.
+- Output is previewed first and can be exported as a single markdown draft.
+- Draft content preserves `ProcessTask.stepId` references where possible.
+- Did not create Artifact Graph, did not auto-save/apply, did not call external AI, and left D01/D02 generators unchanged.
 
 ## Files changed
 
 - `src/components/export-center/ExportCenter.tsx`
-- `src/lib/generators/ai-coding-pack-generator.ts`
+- `src/lib/generators/product-delivery-generator.ts`
 - `src/lib/audit/audit-log.ts`
 - `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- No new AI provider or Artifact Graph decision was made. MVP1 AI Coding Pack is deterministic export first; AI enhancement remains a future server-side skill.
+- No new Artifact Graph or AI provider decision was made. MVP1 Product Delivery is deterministic draft first; AI enhancement remains a future server-side skill.
 
 ## Current blockers
 
@@ -37,7 +37,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-Manually verify Export Center: preview AI Coding Pack, confirm `spec.json` contains PTR `stepId` values, download ZIP, and confirm all seven expected files are included.
+Manually verify Export Center: generate Product Delivery draft, confirm BRD outline/user stories/acceptance criteria preview before download, confirm exported markdown contains PTR `stepId` traceability.
 
 ## Exact prompt for next ChatGPT session
 

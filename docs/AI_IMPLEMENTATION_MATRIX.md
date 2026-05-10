@@ -55,6 +55,28 @@ Prompt packs are provider-neutral and split by domain:
 
 Runtime schema helpers now exist for `DraftProcessTaskRegister`, `BRDResponse`, `SRSResponse`, `UserStorySetResponse`, `AcceptanceCriteriaResponse`, `AICodingPackResponse`, `QARecommendationResponse`, and `TemplateRecommendationResponse`. Existing canonical validators are reused for active schemas where available.
 
+## AI Orchestration V2 Route
+
+Added on 2026-05-10 in `src/app/api/ai/run-skill/route.ts`.
+
+The route path is unchanged, but request execution now goes through an orchestration layer:
+
+| Step | Behavior |
+| --- | --- |
+| Skill validation | `skillId` is checked against AI Skill Registry V2. `ai-template-review` is treated as a route alias for registry skill `template-review`. |
+| Input validation | Uses `validateAISkillInput` plus route-specific checks for active QA and template review payloads. |
+| Provider/data enforcement | Uses existing feature flags, server `AI_PROVIDER`, allowed providers from the registry, provider config status, and optional `AI_DATA_USAGE_MODE`. |
+| Prompt selection | Uses the registered prompt pack from `src/lib/ai/prompt-packs.ts`. |
+| Provider selection | Uses the V2 provider factory for Mock/Product AI/OpenAI/Claude. |
+| Timeout handling | Provider calls are bounded by `AI_PROVIDER_TIMEOUT_MS` or `45000ms` default. |
+| JSON parsing | Parses structured JSON from normalized provider output. |
+| Safe repair | Performs one optional malformed-JSON repair attempt and still requires schema validation. |
+| Output validation | Uses `validateAISkillOutput` plus active Draft PTR quality gates where applicable. |
+| Response | Returns normalized metadata: orchestration version, provider, model, request id, prompt pack, schemas, data mode, latency, warnings, validation status, and safe audit metadata. |
+| Audit | Records server-safe audit metadata through server logging and returns audit metadata to the UI; full payload/output content is not logged by the route. |
+
+Invalid AI output returns `422` with reviewable validation errors and is blocked before any preview/apply/export flow can use it.
+
 ## Implementation Matrix
 
 | Skill id | Module | Input schema | Output schema | Mock support | Product AI support | OpenAI support | Claude support | Validation status | UI surface | Apply behavior | Audit behavior | Gaps |
@@ -83,16 +105,16 @@ Runtime schema helpers now exist for `DraftProcessTaskRegister`, `BRDResponse`, 
 
 | Route skill id | Mock/local behavior | Real AI flag | Provider behavior | Validation before returning success |
 | --- | --- | --- | --- | --- |
-| `input-brief-to-ptr` | Generates deterministic Draft PTR locally when `ENABLE_REAL_AI` is false or selected provider config is missing. | `ENABLE_REAL_AI` | `mock`, `product-ai`, `openai`, and `claude` are normalized through V2 provider factory. | Brief schema, brief quality gate, draft schema, draft quality gate. |
-| `ai-process-qa` | Uses `runMockAIQA` when `ENABLE_REAL_AI_QA` is false or selected provider config is missing. | `ENABLE_REAL_AI_QA` | `mock`, `product-ai`, `openai`, and `claude` are normalized through V2 provider factory. | `validateAIQARecommendations` against existing `stepId` values. |
-| `ai-template-review` | Uses `runMockTemplateReview` when `ENABLE_REAL_AI_TEMPLATE_REVIEW` is false or selected provider config is missing. | `ENABLE_REAL_AI_TEMPLATE_REVIEW` | `mock`, `product-ai`, `openai`, and `claude` are normalized through V2 provider factory. | `validateTemplateReviewOutput` against selected template id/schema. |
+| `input-brief-to-ptr` | Generates deterministic Draft PTR locally when `ENABLE_REAL_AI` is false, data mode is `local-only`, provider is `mock`, or selected provider config is missing. | `ENABLE_REAL_AI` | `mock`, `product-ai`, `openai`, and `claude` are selected through Orchestration V2 and the provider factory. | Skill registry input validation, brief schema, brief quality gate, draft schema, draft quality gate. |
+| `ai-process-qa` | Uses `runMockAIQA` when `ENABLE_REAL_AI_QA` is false, data mode is `local-only`, provider is `mock`, or selected provider config is missing. | `ENABLE_REAL_AI_QA` | `mock`, `product-ai`, `openai`, and `claude` are selected through Orchestration V2 and the provider factory. | Skill registry input validation and `validateAIQARecommendations` against existing `stepId` values. |
+| `ai-template-review` | Uses `runMockTemplateReview` when `ENABLE_REAL_AI_TEMPLATE_REVIEW` is false, data mode is `local-only`, provider is `mock`, or selected provider config is missing. | `ENABLE_REAL_AI_TEMPLATE_REVIEW` | `mock`, `product-ai`, `openai`, and `claude` are selected through Orchestration V2 and the provider factory. | Registry alias `template-review`, route-specific selected template validation, and `validateTemplateReviewOutput` against selected template id/schema. |
 
 ## Provider Gaps
 
 1. Product AI adapter is generic and expects the configured endpoint to return `rawText`, `rawJson`, `parsedJson`, `content`, `text`, `outputText`, or `output_text`; contract tests are still needed.
-2. Claude adapter is implemented through Anthropic Messages API using `fetch`, but schema retry/repair is not implemented.
+2. Claude adapter is implemented through Anthropic Messages API using `fetch`; route-level malformed JSON repair exists, but provider-specific schema retry/repair and contract tests are still needed.
 3. The UI provider value for OpenAI is `openai-byok`, while the server env expects `AI_PROVIDER=openai`. This is acceptable for the current non-secret UI preferences, but should be clarified before wiring UI provider mode to server execution.
-4. Server route audit is returned as response metadata but not persisted server-side; durable audit currently depends on browser-local UI logging.
+4. Server route audit metadata is returned and logged server-side without full payload/output content, but it is not persisted to a durable server audit store; durable audit currently depends on browser-local UI logging.
 5. Product Delivery and AI Coding Pack are deterministic exports, not AI route skills yet.
 6. Runtime schemas now exist for Module 3 and AI Coding Pack target outputs, but current deterministic markdown outputs still need structured adapters or route wiring before real AI support.
 

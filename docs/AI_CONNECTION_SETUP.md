@@ -32,6 +32,10 @@ MOCK_AI_MODEL=mock-local
 ENABLE_REAL_AI=false
 ENABLE_REAL_AI_QA=false
 ENABLE_REAL_AI_TEMPLATE_REVIEW=false
+
+# Optional orchestration controls
+AI_DATA_USAGE_MODE=no-training
+AI_PROVIDER_TIMEOUT_MS=45000
 ```
 
 Do not add `NEXT_PUBLIC_OPENAI_API_KEY`, `NEXT_PUBLIC_ANTHROPIC_API_KEY`, or similar browser-exposed secrets.
@@ -46,6 +50,17 @@ Do not add `NEXT_PUBLIC_OPENAI_API_KEY`, `NEXT_PUBLIC_ANTHROPIC_API_KEY`, or sim
   Enables the real provider path for `ai-template-review`.
 
 If a flag is `false`, the route returns mock/local output. If a flag is `true` but the selected provider is missing required server env, MVP1 falls back to mock/local output instead of exposing secrets or failing inside the browser.
+
+`AI_DATA_USAGE_MODE` is optional. Supported values are:
+
+- `local-only`
+- `cloud-processing`
+- `no-training`
+- `organization-private-learning`
+
+If `AI_DATA_USAGE_MODE=local-only`, `/api/ai/run-skill` will not call an external provider and will use mock/local behavior where the skill supports it. If it is omitted and real AI is enabled with a non-mock provider, the route reports `no-training` as the server data mode.
+
+`AI_PROVIDER_TIMEOUT_MS` is optional and defaults to `45000`.
 
 ## Provider Options
 
@@ -89,6 +104,25 @@ All V2 adapters normalize provider responses to:
 
 Skill routes still run schema validation and quality gates after the provider returns. Provider output is never applied directly.
 
+## AI Orchestration V2
+
+`/api/ai/run-skill` now uses AI Orchestration V2 for route-level control.
+
+The route:
+
+- validates `skillId` against `src/lib/ai/skill-registry-v2.ts`;
+- validates the input schema before provider execution;
+- enforces provider mode, allowed providers, feature flags, and server data mode;
+- selects Mock, Product AI, OpenAI, or Claude through the server-side provider factory;
+- applies the prompt pack attached to the registered skill;
+- parses structured provider output;
+- performs one optional malformed-JSON repair attempt when scoped and possible;
+- validates the final output schema before returning success;
+- returns normalized metadata including provider, model, request id, prompt pack id, schemas, data mode, latency, warnings, and validation status;
+- records safe server audit metadata without logging full sensitive payloads or full model output.
+
+Invalid provider output is blocked with a reviewable validation error. It is not applied, saved, or exported by the route.
+
 ## Data Warning
 
 When real AI is enabled and configured, process briefs, Process Task Register data, template metadata, and QA context may be sent to the configured server-side provider for processing.
@@ -126,6 +160,8 @@ Current MVP1 skills:
   - validates template review recommendations and optional quality score;
   - displays recommendations only;
   - does not auto-apply template changes.
+
+Registered-but-not-wired skills are validated against the registry but may return `501` until their deterministic mock or provider-backed workflow is implemented.
 
 ## Browser Boundary
 

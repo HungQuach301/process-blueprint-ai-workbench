@@ -611,12 +611,12 @@ function createGatewayBranchRecommendations(input: RuleRecommendationInput): QAR
       complianceTags: ["human-review", "process-integrity"]
     }),
     createRuleRecommendation({
-      id: `${issueId}-add-gateway-branch-placeholder`,
+      id: `${issueId}-add-gateway-branch-tbd`,
       issueId,
       issueCode,
       recommendationType: "AddGatewayBranch",
-      title: "Thêm placeholder cho nhánh thiếu",
-      description: "Tạo gợi ý bổ sung yesNextStep/noNextStep placeholder để người dùng điền sau.",
+      title: "Thêm giá trị TBD cho nhánh thiếu",
+      description: "Tạo gợi ý bổ sung yesNextStep/noNextStep dạng TBD để người dùng điền sau.",
       rationale: "Gateway cần đủ nhánh để luồng có thể generate ổn định.",
       confidence: "low",
       impact: "medium",
@@ -627,7 +627,7 @@ function createGatewayBranchRecommendations(input: RuleRecommendationInput): QAR
         yesNextStep: task.yesNextStep || "TBD_YES",
         noNextStep: task.noNextStep || "TBD_NO"
       },
-      warnings: ["Placeholder chưa phải stepId hợp lệ, cần tạo hoặc chọn step thật."],
+      warnings: ["Giá trị TBD chưa phải stepId hợp lệ, cần tạo hoặc chọn step thật."],
       requiresConfirmation: true,
       complianceTags: ["human-review", "process-integrity"]
     })
@@ -665,12 +665,12 @@ function createGatewayBranchOperationRecommendations(input: RuleRecommendationIn
       complianceTags: ["human-review", "process-integrity"]
     }),
     createRuleRecommendation({
-      id: `${issueId}-add-gateway-branch-placeholder`,
+      id: `${issueId}-add-gateway-branch-tbd`,
       issueId,
       issueCode,
       recommendationType: "AddGatewayBranch",
-      title: "Add placeholder gateway branches",
-      description: "Add placeholder yesNextStep/noNextStep values for user review.",
+      title: "Add temporary gateway branches",
+      description: "Add TBD yesNextStep/noNextStep values for user review.",
       rationale: "A gateway needs explicit branches before generation.",
       confidence: "low",
       impact: "medium",
@@ -701,7 +701,7 @@ function createGatewayBranchOperationRecommendations(input: RuleRecommendationIn
           reviewStatus: "needsReview"
         }
       ],
-      warnings: ["Placeholder stepIds are not valid yet; create or select real target steps before final export."],
+      warnings: ["TBD stepIds are not valid yet; create or select real target steps before final export."],
       requiresConfirmation: true,
       complianceTags: ["human-review", "process-integrity"]
     })
@@ -847,12 +847,12 @@ function createGatewayConditionRecommendations(input: RuleRecommendationInput): 
 
   return [
     createRuleRecommendation({
-      id: `${issueId}-set-placeholder-condition`,
+      id: `${issueId}-set-tbd-condition`,
       issueId,
       issueCode,
       recommendationType: "UpdateField",
-      title: "Add placeholder gateway condition",
-      description: "Add a placeholder condition question and mark the gateway for review.",
+      title: "Add TBD gateway condition",
+      description: "Add a TBD condition question and mark the gateway for review.",
       rationale: "Exclusive gateways need a clear decision question before generation.",
       confidence: "medium",
       impact: "medium",
@@ -873,7 +873,7 @@ function createGatewayConditionRecommendations(input: RuleRecommendationInput): 
           reviewStatus: "needsReview"
         }
       ],
-      warnings: ["Placeholder condition must be reviewed by business before final export."],
+      warnings: ["TBD condition must be reviewed by business before final export."],
       requiresConfirmation: true,
       complianceTags: ["process-integrity", "human-review"]
     })

@@ -88,8 +88,8 @@ const templateHubText = {
     useD02: "Dùng cho D02",
     editor: "Template editor",
     editorHelper: "Basic mode chỉ hiển thị metadata. JSON rules nằm trong Advanced mode.",
-    basicMode: "Basic mode",
-    advancedMode: "Advanced mode: JSON rules",
+    basicMode: "Chế độ cơ bản",
+    advancedMode: "Chế độ nâng cao: JSON rules",
     hide: "Ẩn",
     show: "Hiện",
     notClassified: "Chưa phân loại",
@@ -730,7 +730,7 @@ export function TemplateLibraryEditor() {
         };
         error?: string;
         validationErrors?: string[];
-        meta?: { externalApiCalled?: boolean };
+        meta?: { externalApiCalled?: boolean; providerId?: string };
       };
 
       if (!response.ok || !data.ok) {
@@ -756,7 +756,11 @@ export function TemplateLibraryEditor() {
       setTemplateReviewWarnings(data.result?.warnings ?? []);
       setTemplateReviewAssumptions(data.result?.assumptions ?? []);
       setMessage(
-        `${data.mode === "provider-backed" ? "Real" : "Mock"} Template QA returned ${
+        `${
+          data.mode === "provider-backed"
+            ? `Real provider ${data.meta?.providerId ?? "AI"}`
+            : "Mock/local"
+        } Template QA returned ${
           data.result?.recommendations?.length ?? 0
         } recommendation(s). No template change was auto-applied.`
       );

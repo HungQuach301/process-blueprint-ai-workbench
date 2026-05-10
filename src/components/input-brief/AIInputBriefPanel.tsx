@@ -128,9 +128,16 @@ const inputBriefUiText = {
     remove: "Xóa",
     unsupportedSummary: "Phát hiện file chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Voice/OCR/Image chưa được hỗ trợ.",
     other: "Khác",
-    realAIMode: "Chế độ Real AI",
-    mockMode: "Chế độ mock",
-    checkingAIMode: "Đang kiểm tra AI mode..."
+    realAIMode: "Real AI qua provider",
+    mockMode: "Local/mock, không gọi provider bên ngoài",
+    checkingAIMode: "Đang kiểm tra chế độ AI...",
+    cloudWarning: "Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
+    aiCancelled: "Đã hủy gọi Real AI. Bản nháp chưa được tạo.",
+    realAIRunning: "Real AI: đang gọi provider qua route server-side...",
+    mockRunning: "Local/mock: đang tạo bản nháp, không gọi provider bên ngoài.",
+    mockDone: "Local/mock: đã tạo bản nháp PTR. Không gọi provider bên ngoài.",
+    draftBlocked: "Không thể tạo bản nháp PTR",
+    draftRows: "dòng"
   },
   en: {
     generateWithAI: "Generate with AI",
@@ -165,9 +172,16 @@ const inputBriefUiText = {
     remove: "Remove",
     unsupportedSummary: "Unsupported file type detected. Supported formats are .xlsx, .docx, and .pdf. Voice/OCR/Image extraction is not supported yet.",
     other: "Other",
-    realAIMode: "Real AI mode",
-    mockMode: "Mock mode",
-    checkingAIMode: "Checking AI mode..."
+    realAIMode: "Real AI via provider",
+    mockMode: "Local/mock, no external provider call",
+    checkingAIMode: "Checking AI mode...",
+    cloudWarning: "Data may be processed in the cloud according to server configuration.",
+    aiCancelled: "Real AI call cancelled. No draft was created.",
+    realAIRunning: "Real AI: calling the provider through the server-side route...",
+    mockRunning: "Local/mock: generating a draft with no external provider call.",
+    mockDone: "Local/mock: generated Draft PTR. No external provider call.",
+    draftBlocked: "Cannot generate Draft PTR",
+    draftRows: "row(s)"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -560,6 +574,7 @@ export function AIInputBriefPanel() {
   const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [aiProvider, setAiProvider] = useState("mock");
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
 
@@ -637,14 +652,17 @@ export function AIInputBriefPanel() {
         });
         const data = (await response.json()) as {
           realAIEnabled?: boolean;
+          provider?: string;
         };
 
         if (active) {
           setRealAIEnabled(data.realAIEnabled === true);
+          setAiProvider(data.provider ?? "mock");
         }
       } catch {
         if (active) {
           setRealAIEnabled(false);
+          setAiProvider("mock");
         }
       } finally {
         if (active) {
@@ -955,16 +973,12 @@ export function AIInputBriefPanel() {
     const generationMode = realAIEnabled ? "real-ai" : "mock";
 
     if (realAIEnabled && !confirmRealAICallIfNeeded(true)) {
-      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      setMessage(uiText.aiCancelled);
       return null;
     }
 
     setIsGeneratingWithAI(true);
-    setMessage(
-      realAIEnabled
-        ? `Real AI mode: dang goi server-side skill ${skillId}...`
-        : `Mock mode: dang goi server-side skill ${skillId}...`
-    );
+    setMessage(realAIEnabled ? uiText.realAIRunning : uiText.mockRunning);
     saveAuditLogEntry({
       action: "generate_ai_draft",
       status: "success",
@@ -1358,7 +1372,7 @@ export function AIInputBriefPanel() {
     }
 
     if (!confirmRealAICallIfNeeded(realAIEnabled)) {
-      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      setMessage(uiText.aiCancelled);
       return;
     }
 
@@ -1421,13 +1435,13 @@ export function AIInputBriefPanel() {
         }
       });
       setMessage(
-        `Mock mode: Ä‘Ã£ táº¡o draft PTR local ${response.draftProcessTasks.length} dÃ²ng. KhÃ´ng gá»i external API.`
+        `${uiText.mockDone} ${response.draftProcessTasks.length} ${uiText.draftRows}.`
       );
       return;
     }
 
     setIsGeneratingWithAI(true);
-    setMessage("Real AI mode: Ä‘ang gá»i server-side AI provider...");
+    setMessage(uiText.realAIRunning);
 
     try {
       const routeResponse = await fetch("/api/ai/run-skill", {
@@ -2153,7 +2167,7 @@ export function AIInputBriefPanel() {
         <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
           {aiModeLoaded
             ? realAIEnabled
-              ? uiText.realAIMode
+              ? `${uiText.realAIMode}: ${aiProvider}. ${uiText.cloudWarning}`
               : uiText.mockMode
             : uiText.checkingAIMode}
         </span>
@@ -2162,7 +2176,7 @@ export function AIInputBriefPanel() {
 
       {blockingErrors.length > 0 ? (
         <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <p className="font-semibold">Khong the tao Draft PTR</p>
+          <p className="font-semibold">{uiText.draftBlocked}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {blockingErrors.map((error) => (
               <li key={error}>{error}</li>

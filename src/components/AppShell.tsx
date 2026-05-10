@@ -9,7 +9,6 @@ import { ExportCenter } from "@/components/export-center/ExportCenter";
 import { AIInputBriefPanel } from "@/components/input-brief/AIInputBriefPanel";
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
-import { SectionPanel } from "@/components/SectionPanel";
 import {
   getLocale,
   setLocale,
@@ -18,11 +17,12 @@ import {
 } from "@/lib/i18n";
 import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
+const releaseNavigationSections = navigationSections.filter(
+  (section) => section.id !== "workspace" && section.id !== "qa-panel"
+);
+
 export function AppShell() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
-  const sectionById = Object.fromEntries(
-    navigationSections.map((section) => [section.id, section])
-  );
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -36,7 +36,7 @@ export function AppShell() {
   return (
     <main className="min-h-screen w-full max-w-full overflow-x-hidden">
       <div className="mx-auto flex w-full max-w-7xl min-w-0 gap-6 px-6 py-6">
-        <Navigation sections={navigationSections} />
+        <Navigation locale={locale} sections={releaseNavigationSections} />
 
         <section className="min-w-0 max-w-full flex-1">
           <header className="mb-6 border-b border-slate-200 pb-5">
@@ -68,10 +68,6 @@ export function AppShell() {
           </header>
 
           <div className="grid min-w-0 gap-4">
-            {sectionById.workspace ? (
-              <SectionPanel section={sectionById.workspace} />
-            ) : null}
-
             <div className="min-w-0 max-w-full" id="ai-settings">
               <AIProviderSettingsPanel />
             </div>
@@ -87,10 +83,6 @@ export function AppShell() {
             <div className="min-w-0 max-w-full" id="process-task-register">
               <ProcessTaskRegister />
             </div>
-
-            {sectionById["qa-panel"] ? (
-              <SectionPanel section={sectionById["qa-panel"]} />
-            ) : null}
 
             <div className="min-w-0 max-w-full" id="d01-bpmn-preview">
               <D01BpmnOutput />

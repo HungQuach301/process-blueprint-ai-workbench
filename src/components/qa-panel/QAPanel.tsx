@@ -65,26 +65,29 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
 
 const qaPanelText = {
   vi: {
-    title: "QA Panel",
-    description: "QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue để nhảy tới dòng liên quan nếu còn tồn tại.",
-    downloadReport: "Tải QA Report",
-    recommendationToolbar: "Thanh recommendation",
-    recommendations: "recommendation",
+    title: "Bang kiem tra QA",
+    description: "QA chay lai tu dong khi du lieu trong bang thay doi. Chon issue de nhay toi dong lien quan neu con ton tai.",
+    downloadReport: "Tai bao cao QA",
+    recommendationToolbar: "Thanh de xuat",
+    recommendations: "de xuat",
     selected: "đã chọn",
-    safeHelper: "Safe = confidence cao, risk thấp và chỉ đổi field đơn giản. Recommendation đổi graph không được chọn mặc định.",
-    selectSafe: "Chọn safe",
-    applySelected: "Apply đã chọn",
+    safeHelper: "An toan = do tin cay cao, rui ro thap va chi doi truong don gian. De xuat doi graph khong duoc chon mac dinh.",
+    selectSafe: "Chon de xuat an toan",
+    applySelected: "Ap dung muc da chon",
     more: "Thêm",
     clearSelection: "Xóa lựa chọn",
-    applyAllSafe: "Apply tất cả safe recommendation",
-    exportFeedback: "Export feedback JSON",
+    applyAllSafe: "Ap dung tat ca de xuat an toan",
+    exportFeedback: "Xuat feedback JSON",
     clearLocalFeedback: "Xóa feedback local",
     running: "Đang chạy AI QA...",
-    runReal: "Chạy real AI QA",
-    runMock: "Chạy mock AI QA",
-    showOnlySafe: "Chỉ hiện safe recommendation",
-    includeMedium: "Bao gồm medium confidence",
-    includeGraph: "Bao gồm recommendation đổi graph"
+    runReal: "Chay AI QA",
+    runMock: "Chay mock QA",
+    showOnlySafe: "Chi hien de xuat an toan",
+    includeMedium: "Bao gom do tin cay trung binh",
+    includeGraph: "Bao gom de xuat doi graph",
+    providerCompare: "So sanh provider",
+    totalIssues: "Tong so issue",
+    noRecommendations: "Chua co de xuat tu dong."
   },
   en: {
     title: "QA Panel",
@@ -102,11 +105,14 @@ const qaPanelText = {
     exportFeedback: "Export feedback JSON",
     clearLocalFeedback: "Clear local feedback",
     running: "Running AI QA...",
-    runReal: "Run real AI QA",
-    runMock: "Run mock AI QA",
+    runReal: "Run AI QA",
+    runMock: "Run mock QA",
     showOnlySafe: "Show only safe recommendations",
     includeMedium: "Include medium confidence",
-    includeGraph: "Include graph-changing recommendations"
+    includeGraph: "Include graph-changing recommendations",
+    providerCompare: "Provider Compare",
+    totalIssues: "Total issues",
+    noRecommendations: "No automatic recommendations yet."
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -978,7 +984,7 @@ export function QAPanel({
                 onChange={(event) => setCompareModeEnabled(event.target.checked)}
                 type="checkbox"
               />
-              Provider Compare
+              {text.providerCompare}
             </label>
             {compareModeEnabled ? (
               <>
@@ -1084,7 +1090,7 @@ export function QAPanel({
       ) : null}
 
       <p className="mb-4 text-sm font-semibold text-slate-950">
-        Tổng số issue: {displayIssues.length}
+        {text.totalIssues}: {displayIssues.length}
       </p>
 
       <div className="grid w-full max-w-full min-w-0 gap-4 overflow-x-auto">
@@ -1198,7 +1204,7 @@ export function QAPanel({
                         </div>
                       ) : (
                         <p className="mt-2 text-sm text-slate-600">
-                          Chưa có gợi ý tự động.
+                          {text.noRecommendations}
                         </p>
                       )}
                     </div>

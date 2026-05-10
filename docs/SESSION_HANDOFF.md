@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Fixed MVP1-AI RC2 release-facing P0 UI blockers.
+- Removed the visible Workspace placeholder card and duplicate QA Panel placeholder card from the main page flow.
+- Made the left navigation locale-aware and filtered hidden placeholder-only sections from release navigation.
+- Replaced the `MVP Skeleton` eyebrow with an MVP1-AI release candidate label.
+- Updated AI Input Brief and AI Connection Center copy so mock mode clearly says local/mock with no external provider call, while real AI mode shows provider/cloud-processing warning copy.
+- Normalized QA Panel AI run labels to `Run AI QA` / `Run mock QA` and removed release-facing placeholder wording from recommendation warnings.
+- Updated navigation sample metadata so hidden/ready sections no longer carry `Placeholder` release status.
 - Added optional Provider Compare mode for selected AI skills.
 - Added server-side `providerId` override support to `/api/ai/run-skill`; provider selection still stays server-side and continues to enforce feature flags, data mode, provider config, allowed providers, schema validation, quality gates, mock/local fallback, and safe audit metadata.
 - Added Provider Compare UI for Product Delivery BRD generation, User Story generation, and AI Coding Pack generation in Export Center.

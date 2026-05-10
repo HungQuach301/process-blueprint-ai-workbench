@@ -122,42 +122,45 @@ const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: string }> = [
 
 const textByLocale = {
   vi: {
-    title: "Trung tam ket noi AI",
+    title: "Trung tâm kết nối AI",
     description:
-      "Chon provider, kiem tra ket noi va quan ly cau hinh AI khong nhay cam.",
-    save: "Luu thiet lap",
-    reset: "Reset",
-    test: "Test connection",
-    testing: "Dang test...",
-    status: "Trang thai",
-    selected: "Dang chon",
-    configured: "Da cau hinh",
-    missingEnv: "Thieu env",
-    disabled: "Dang tat",
-    available: "Kha dung",
-    dataWarning: "Canh bao du lieu",
+      "Chọn provider, kiểm tra kết nối và quản lý cấu hình AI không nhạy cảm.",
+    save: "Lưu thiết lập",
+    reset: "Đặt lại",
+    test: "Kiểm tra kết nối",
+    testing: "Đang kiểm tra...",
+    status: "Trạng thái",
+    selected: "Đang chọn",
+    configured: "Đã cấu hình",
+    missingEnv: "Thiếu env",
+    disabled: "Đang tắt",
+    available: "Khả dụng",
+    dataWarning: "Cảnh báo dữ liệu",
     dataWarningBody:
-      "Cloud AI chi duoc goi qua server-side route. Khong nhap hoac hien thi API key trong browser.",
-    currentMode: "Che do hien tai",
+      "Cloud AI chỉ được gọi qua route server-side. Không nhập hoặc hiển thị API key trong browser.",
+    currentMode: "Chế độ hiện tại",
     flags: "Feature flags",
     serverProvider: "Provider server",
     dataMode: "Data mode server",
     model: "Model",
-    advanced: "Advanced Settings",
-    show: "Hien",
-    hide: "An",
-    defaultProvider: "Default provider",
-    capability: "Default model/capability",
-    allowCloud: "Allow cloud AI",
-    requireApproval: "Require approval",
-    dataUsageMode: "Data usage mode",
-    organizationNote: "Organization note",
-    organizationPlaceholder: "Ghi chu tenant/to chuc tuy chon",
-    perSkillOverride: "Per-skill override",
-    inheritDefault: "Theo default provider",
-    saved: "Da luu preferences khong chua secret vao localStorage.",
-    resetDone: "Da reset ve local/mock va local-only.",
-    changed: "Co thay doi chua luu."
+    advanced: "Thiết lập nâng cao",
+    show: "Hiện",
+    hide: "Ẩn",
+    defaultProvider: "Provider mặc định",
+    capability: "Năng lực model mặc định",
+    allowCloud: "Cho phép cloud AI",
+    requireApproval: "Yêu cầu phê duyệt",
+    dataUsageMode: "Chế độ sử dụng dữ liệu",
+    organizationNote: "Ghi chú tổ chức",
+    organizationPlaceholder: "Ghi chú tenant/tổ chức tùy chọn",
+    perSkillOverride: "Ghi đè theo skill",
+    inheritDefault: "Theo provider mặc định",
+    saved: "Đã lưu preference không chứa secret vào localStorage.",
+    resetDone: "Đã đặt lại về local/mock và local-only.",
+    changed: "Có thay đổi chưa lưu.",
+    mockModeSummary: "Local/mock, không gọi provider bên ngoài.",
+    realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
+    modelPlaceholder: "Tên hiển thị tùy chọn"
   },
   en: {
     title: "AI Connection Center",
@@ -195,7 +198,10 @@ const textByLocale = {
     inheritDefault: "Use default provider",
     saved: "Saved non-secret preferences to localStorage.",
     resetDone: "Reset to local/mock and local-only.",
-    changed: "Unsaved changes."
+    changed: "Unsaved changes.",
+    mockModeSummary: "Local/mock mode, no external provider call.",
+    realModeSummary: "Real AI via the selected provider. Data may be processed in the cloud according to server configuration.",
+    modelPlaceholder: "Optional display name only"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -475,7 +481,10 @@ export function AIProviderSettingsPanel() {
               {text.currentMode}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {realAIEnabled ? "Real AI" : "Mock/local"}
+              {realAIEnabled ? "Real AI" : "Local/mock"}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {realAIEnabled ? text.realModeSummary : text.mockModeSummary}
             </p>
           </div>
           <div>
@@ -602,7 +611,8 @@ export function AIProviderSettingsPanel() {
                       modelName: event.target.value
                     })
                   }
-                  placeholder="optional display name only"
+                  aria-label={text.model}
+                  placeholder={text.modelPlaceholder}
                   type="text"
                   value={settings.modelName ?? ""}
                 />

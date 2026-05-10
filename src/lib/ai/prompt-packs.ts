@@ -246,6 +246,23 @@ export const productDeliveryPromptPacks: AIPromptPack[] = [
           "Generate coding-context files only from BRD, SRS, user stories, acceptance criteria, and Process Task Register context. Required files are AGENTS.md, CLAUDE.md, cursor-rules.md, spec.json, implementation-plan.md, acceptance-criteria.md, and test-plan.md. Include project goal, non-goals, requirements, user stories, acceptance criteria, architecture constraints, data/privacy constraints, testing expectations, and traceability refs. Add qualityIssues for missing AC, missing non-goals, missing test expectations, and unresolved open questions. Do not generate executable changes, do not call external tools, and keep source step/story/requirement traceability in spec.json."
       }
     ]
+  },
+  {
+    id: "product-delivery-requirement-qa-v1",
+    version: "1.0.0",
+    domain: "product-delivery",
+    description:
+      "Review Product Delivery artifacts for requirement quality and trace coverage.",
+    outputContract:
+      "RequirementQAResponse with findings[], recommendations[], coverage, assumptions, openQuestions, and warnings.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Review BRD, SRS, user stories, acceptance criteria, and AI Coding Pack artifacts. Check vague BRD requirements, missing BRD scope/stakeholder/objective, non-testable SRS requirements, missing NFR, user stories missing role/value/AC, non-testable acceptance criteria, AI Coding Pack missing constraints/test plan/non-goals, and trace coverage from BRD to SRS to user stories to AC. Return findings and draftPatch recommendations only. Do not apply, save, export, mutate source artifacts, or invent hidden requirements."
+      }
+    ]
   }
 ];
 

@@ -3,6 +3,7 @@ import {
   validateAcceptanceCriteriaSet,
   validateBRD,
   validateProductScopeReview,
+  validateRequirementQAResponse,
   validateSRS,
   validateUserStorySet,
   type AcceptanceCriteriaSet,
@@ -12,6 +13,7 @@ import {
   type FunctionalRequirement,
   type ProductDeliveryTraceLink,
   type ProductScopeReview,
+  type RequirementQAResponse,
   type SRS,
   type UserStory,
   type UserStorySet
@@ -41,6 +43,7 @@ export type AISkillSchemaId =
   | "UserStorySetResponse"
   | "AcceptanceCriteriaResponse"
   | "ProductScopeReviewResponse"
+  | "RequirementQAResponse"
   | "AICodingPackResponse"
   | "QARecommendationResponse"
   | "TemplateRecommendationResponse"
@@ -58,6 +61,7 @@ export type SRSResponse = SRS;
 export type UserStorySetResponse = UserStorySet;
 export type AcceptanceCriteriaResponse = AcceptanceCriteriaSet;
 export type ProductScopeReviewResponse = ProductScopeReview;
+export type { RequirementQAResponse };
 
 export type AICodingPackFile = {
   path: string;
@@ -246,6 +250,12 @@ export function validateProductScopeReviewResponse(
   value: unknown
 ): SchemaValidationResult<ProductScopeReviewResponse> {
   return validateProductScopeReview(value);
+}
+
+export function validateRequirementQAResult(
+  value: unknown
+): SchemaValidationResult<RequirementQAResponse> {
+  return validateRequirementQAResponse(value);
 }
 
 export function validateAICodingPackResponse(
@@ -460,7 +470,6 @@ export function validateAISkillInput(
       "ptr-to-brd-outline",
       "ptr-to-srs-outline",
       "ptr-to-user-stories",
-      "requirement-quality-check",
       "ptr-to-ai-coding-pack",
       "user-stories-to-ai-coding-pack"
     ].includes(skillId)
@@ -633,6 +642,36 @@ export function validateAISkillInput(
     };
   }
 
+  if (skillId === "requirement-quality-check") {
+    if (!isObject(value)) {
+      return {
+        ok: false,
+        errors: ["ProductDeliveryContext must be an object."]
+      };
+    }
+
+    if (
+      !isObject(value.brd) &&
+      !isObject(value.srs) &&
+      !isObject(value.userStorySet) &&
+      !isObject(value.acceptanceCriteria) &&
+      !isObject(value.aiCodingPack)
+    ) {
+      return {
+        ok: false,
+        errors: [
+          "requirement-quality-check requires BRD, SRS, userStorySet, acceptanceCriteria, or aiCodingPack."
+        ]
+      };
+    }
+
+    return {
+      ok: true,
+      value,
+      errors: []
+    };
+  }
+
   return {
     ok: true,
     value,
@@ -739,6 +778,10 @@ export function validateAISkillOutput(
     skillId === "scope-nonscope-definition"
   ) {
     return validateProductScopeReviewResponse(value);
+  }
+
+  if (skillId === "requirement-quality-check") {
+    return validateRequirementQAResult(value);
   }
 
   if (

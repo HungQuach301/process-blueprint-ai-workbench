@@ -22,11 +22,13 @@ import {
   runAcceptanceCriteriaQualityGate,
   runBRDQualityGate,
   runProductScopeReviewQualityGate,
+  runRequirementQualityCheck,
   runSRSQualityGate,
   runUserStoryQualityGate,
   type AcceptanceCriteriaSet,
   type BRD,
   type ProductScopeReview,
+  type RequirementQAResponse,
   type SRS,
   type UserStorySet
 } from "@/lib/models/product-delivery";
@@ -112,6 +114,7 @@ const USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID =
   "user-stories-to-acceptance-criteria";
 const PRODUCT_SCOPE_REVIEW_SKILL_ID = "product-scope-review";
 const MVP_SLICING_SKILL_ID = "mvp-slicing";
+const REQUIREMENT_QUALITY_CHECK_SKILL_ID = "requirement-quality-check";
 const USER_STORIES_TO_AI_CODING_PACK_SKILL_ID =
   "user-stories-to-ai-coding-pack";
 const ORCHESTRATION_VERSION = "2.0.0";
@@ -251,6 +254,7 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     USER_STORIES_TO_ACCEPTANCE_CRITERIA_SKILL_ID,
     PRODUCT_SCOPE_REVIEW_SKILL_ID,
     MVP_SLICING_SKILL_ID,
+    REQUIREMENT_QUALITY_CHECK_SKILL_ID,
     USER_STORIES_TO_AI_CODING_PACK_SKILL_ID
   ].includes(routeSkillId);
 }
@@ -288,6 +292,10 @@ function isProductScopeReviewSkill(routeSkillId: string) {
 
 function isAICodingPackGenerationSkill(routeSkillId: string) {
   return routeSkillId === USER_STORIES_TO_AI_CODING_PACK_SKILL_ID;
+}
+
+function isRequirementQualityCheckSkill(routeSkillId: string) {
+  return routeSkillId === REQUIREMENT_QUALITY_CHECK_SKILL_ID;
 }
 
 function isDraftPtrGenerationSkill(routeSkillId: string) {
@@ -729,6 +737,21 @@ type AICodingPackGenerationPayload = ProductScopeReviewPayload & {
   openQuestions?: string[];
 };
 
+type RequirementQualityCheckPayload = {
+  brd?: BRD;
+  srs?: SRS;
+  userStorySet?: UserStorySet;
+  acceptanceCriteria?: AcceptanceCriteriaSet;
+  aiCodingPack?: {
+    files?: Array<{
+      path: string;
+      content: string;
+    }>;
+    qualityIssues?: string[];
+  };
+  generatedAt?: string;
+};
+
 function isTemplateReviewPayload(
   value: unknown
 ): value is TemplateReviewPayload {
@@ -781,6 +804,12 @@ function isAICodingPackGenerationPayload(
   return isObject(value);
 }
 
+function isRequirementQualityCheckPayload(
+  value: unknown
+): value is RequirementQualityCheckPayload {
+  return isObject(value);
+}
+
 function hasEnoughBRDText(payload: BRDGenerationPayload) {
   return [
     payload.projectContext,
@@ -819,6 +848,16 @@ function hasAICodingPackContext(payload: AICodingPackGenerationPayload) {
     isObject(payload.brd) ||
     isObject(payload.srs) ||
     Array.isArray(payload.processTasks)
+  );
+}
+
+function hasRequirementQualityContext(payload: RequirementQualityCheckPayload) {
+  return (
+    isObject(payload.brd) ||
+    isObject(payload.srs) ||
+    isObject(payload.userStorySet) ||
+    isObject(payload.acceptanceCriteria) ||
+    isObject(payload.aiCodingPack)
   );
 }
 
@@ -2543,6 +2582,66 @@ function createMockAICodingPackResponse({
   });
 }
 
+function createMockRequirementQAResponse({
+  routeSkillId,
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  routeSkillId: string;
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isRequirementQualityCheckPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Requirement QA request must include ProductDeliveryContext."
+      },
+      { status: 400 }
+    );
+  }
+
+  const result = runRequirementQualityCheck({
+    brd: payload.brd,
+    srs: payload.srs,
+    userStorySet: payload.userStorySet,
+    acceptanceCriteria: payload.acceptanceCriteria,
+    aiCodingPack: payload.aiCodingPack,
+    generatedAt: payload.generatedAt ?? new Date().toISOString()
+  });
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: getProviderName(),
+    model: process.env.AI_MODEL || "",
+    skillId: routeSkillId,
+    registrySkillId: getRegistrySkillId(routeSkillId),
+    result,
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      realAIEnabled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      audit
+    }
+  });
+}
+
 function createMockResponse({
   routeSkillId,
   skill,
@@ -2645,6 +2744,15 @@ function createMockResponse({
 
   if (isAICodingPackGenerationSkill(routeSkillId)) {
     return createMockAICodingPackResponse({
+      routeSkillId,
+      skill,
+      payload,
+      dataUsageMode
+    });
+  }
+
+  if (isRequirementQualityCheckSkill(routeSkillId)) {
+    return createMockRequirementQAResponse({
       routeSkillId,
       skill,
       payload,
@@ -2764,6 +2872,14 @@ function createRouteSpecificInputValidationError(
     (!isAICodingPackGenerationPayload(payload) || !hasAICodingPackContext(payload))
   ) {
     return "AI Coding Pack request must include BRD, SRS, userStorySet, acceptanceCriteria, or Process Task Register context.";
+  }
+
+  if (
+    isRequirementQualityCheckSkill(routeSkillId) &&
+    (!isRequirementQualityCheckPayload(payload) ||
+      !hasRequirementQualityContext(payload))
+  ) {
+    return "Requirement QA request must include BRD, SRS, userStorySet, acceptanceCriteria, or AI Coding Pack context.";
   }
 
   return "";
@@ -3316,6 +3432,17 @@ export async function POST(request: Request) {
       };
       additionalMeta = {
         qualityGate: codingPackQualityGate
+      };
+    }
+
+    if (isRequirementQualityCheckSkill(routeSkillId)) {
+      const requirementQA = outputValidation.value as RequirementQAResponse;
+
+      normalizedResult = requirementQA;
+      additionalMeta = {
+        findingCount: requirementQA.findings.length,
+        recommendationCount: requirementQA.recommendations.length,
+        coverage: requirementQA.coverage
       };
     }
 

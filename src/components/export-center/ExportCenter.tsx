@@ -21,6 +21,7 @@ import type {
   AcceptanceCriteriaSet,
   BRD,
   ProductScopeReview,
+  RequirementQAResponse,
   SRS,
   UserStorySet
 } from "@/lib/models/product-delivery";
@@ -103,6 +104,12 @@ type ProductScopeReviewPreview = {
   scopeReview: ProductScopeReview;
 };
 
+type RequirementQAPreview = {
+  timestamp: string;
+  sourceSkillId: "requirement-quality-check";
+  requirementQA: RequirementQAResponse;
+};
+
 type AICodingPackRouteResponse = {
   files: Array<{
     path: string;
@@ -113,6 +120,18 @@ type AICodingPackRouteResponse = {
   openQuestions: string[];
   qualityIssues?: string[];
 };
+
+function mapCodingPackPreviewToRouteFiles(files: AICodingPackFiles) {
+  return [
+    { path: "AGENTS.md", content: files.agentsMd },
+    { path: "CLAUDE.md", content: files.claudeMd },
+    { path: "cursor-rules.md", content: files.cursorRulesMd },
+    { path: "spec.json", content: files.specJson },
+    { path: "acceptance-criteria.md", content: files.acceptanceCriteriaMd },
+    { path: "implementation-plan.md", content: files.implementationPlanMd },
+    { path: "test-plan.md", content: files.testPlanMd }
+  ];
+}
 
 function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -239,6 +258,8 @@ export function ExportCenter() {
     useState<AcceptanceCriteriaPreview | null>(null);
   const [productScopeReviewPreview, setProductScopeReviewPreview] =
     useState<ProductScopeReviewPreview | null>(null);
+  const [requirementQAPreview, setRequirementQAPreview] =
+    useState<RequirementQAPreview | null>(null);
   const [message, setMessage] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingAICodingPack, setIsDownloadingAICodingPack] =
@@ -249,6 +270,8 @@ export function ExportCenter() {
   const [isGeneratingAcceptanceCriteria, setIsGeneratingAcceptanceCriteria] =
     useState(false);
   const [isGeneratingProductScopeReview, setIsGeneratingProductScopeReview] =
+    useState(false);
+  const [isGeneratingRequirementQA, setIsGeneratingRequirementQA] =
     useState(false);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
@@ -289,6 +312,7 @@ export function ExportCenter() {
     setUserStoryPreview(null);
     setAcceptanceCriteriaPreview(null);
     setProductScopeReviewPreview(null);
+    setRequirementQAPreview(null);
   }, [productDeliveryContext, productDeliveryNotes, productDeliveryFileText]);
 
   const readiness = useMemo(
@@ -888,6 +912,97 @@ export function ExportCenter() {
       );
     } finally {
       setIsGeneratingProductScopeReview(false);
+    }
+  }
+
+  async function generateRequirementQAPreview() {
+    const timestamp = createTimestamp();
+
+    if (
+      !brdPreview &&
+      !srsPreview &&
+      !userStoryPreview &&
+      !acceptanceCriteriaPreview &&
+      !aiCodingPack
+    ) {
+      setMessage("Generate BRD/SRS/User Stories/AC or AI Coding Pack preview before Requirement QA.");
+      return;
+    }
+
+    try {
+      setIsGeneratingRequirementQA(true);
+      const response = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "requirement-quality-check",
+          payload: {
+            brd: brdPreview?.brd,
+            srs: srsPreview?.srs,
+            userStorySet: userStoryPreview?.userStorySet,
+            acceptanceCriteria: acceptanceCriteriaPreview?.acceptanceCriteria,
+            aiCodingPack: aiCodingPack
+              ? {
+                  files: mapCodingPackPreviewToRouteFiles(aiCodingPack.files),
+                  qualityIssues: aiCodingPack.qualityIssues
+                }
+              : undefined,
+            generatedAt: new Date().toISOString()
+          }
+        })
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        result?: RequirementQAResponse;
+        error?: string;
+        validationErrors?: string[];
+      };
+
+      if (!response.ok || !data.ok || !data.result) {
+        setRequirementQAPreview(null);
+        setMessage(
+          data.validationErrors?.length
+            ? data.validationErrors.join(" ")
+            : data.error || "Could not generate Requirement QA preview."
+        );
+        return;
+      }
+
+      setRequirementQAPreview({
+        timestamp,
+        sourceSkillId: "requirement-quality-check",
+        requirementQA: data.result
+      });
+      saveAuditLogEntry({
+        action: "generate_requirement_qa_preview",
+        status: "success",
+        summary:
+          "Generated Product Delivery Requirement QA preview through AI skill route.",
+        metadata: {
+          timestamp,
+          skillId: "requirement-quality-check",
+          findingCount: data.result.findings.length,
+          recommendationCount: data.result.recommendations.length,
+          uncoveredBrdRequirementCount:
+            data.result.coverage.uncoveredBrdRequirementIds.length,
+          uncoveredSrsRequirementCount:
+            data.result.coverage.uncoveredSrsRequirementIds.length,
+          storiesWithoutAcceptanceCriteriaCount:
+            data.result.coverage.storiesWithoutAcceptanceCriteriaIds.length
+        }
+      });
+      setMessage("Da tao preview Requirement QA. Khong save/apply tu dong.");
+    } catch (error) {
+      setRequirementQAPreview(null);
+      setMessage(
+        error instanceof Error
+          ? `Khong the tao Requirement QA preview: ${error.message}`
+          : "Khong the tao Requirement QA preview. Vui long thu lai."
+      );
+    } finally {
+      setIsGeneratingRequirementQA(false);
     }
   }
 
@@ -1546,6 +1661,14 @@ export function ExportCenter() {
                 Download Scope JSON
               </button>
               <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                disabled={isGeneratingRequirementQA}
+                onClick={() => void generateRequirementQAPreview()}
+                type="button"
+              >
+                {isGeneratingRequirementQA ? "Running Requirement QA..." : "Run Requirement QA"}
+              </button>
+              <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={previewProductDeliveryDraft}
                 type="button"
@@ -1574,6 +1697,7 @@ export function ExportCenter() {
               <li>User stories</li>
               <li>Acceptance criteria</li>
               <li>Product scope review and MVP slicing</li>
+              <li>Requirement QA and trace coverage</li>
               <li>Assumptions and open questions</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
@@ -1895,6 +2019,61 @@ export function ExportCenter() {
             </div>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
               {JSON.stringify(productScopeReviewPreview.scopeReview, null, 2)}
+            </pre>
+          </div>
+        ) : null}
+
+        {requirementQAPreview ? (
+          <div className="mt-4 rounded border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-4 py-3">
+              <p className="text-sm font-semibold text-slate-950">
+                Preview: Requirement QA and trace coverage
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generated at {requirementQAPreview.timestamp} via{" "}
+                {requirementQAPreview.sourceSkillId}. Findings are draft
+                recommendations only; nothing is applied or saved.
+              </p>
+            </div>
+            <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
+              <div>
+                <p className="font-medium text-slate-950">Findings</p>
+                <p className="mt-1 text-slate-600">
+                  {requirementQAPreview.requirementQA.findings.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">Draft patches</p>
+                <p className="mt-1 text-slate-600">
+                  {requirementQAPreview.requirementQA.recommendations.length}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">BRD gaps</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    requirementQAPreview.requirementQA.coverage
+                      .uncoveredBrdRequirementIds.length
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-slate-950">SRS/story gaps</p>
+                <p className="mt-1 text-slate-600">
+                  {
+                    requirementQAPreview.requirementQA.coverage
+                      .uncoveredSrsRequirementIds.length
+                  }{" "}
+                  /{" "}
+                  {
+                    requirementQAPreview.requirementQA.coverage
+                      .storiesWithoutAcceptanceCriteriaIds.length
+                  }
+                </p>
+              </div>
+            </div>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
+              {JSON.stringify(requirementQAPreview.requirementQA, null, 2)}
             </pre>
           </div>
         ) : null}

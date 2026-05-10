@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added Requirement QA and basic cross-artifact consistency checks for Module 3.
+- Added route-backed skill id `requirement-quality-check` through `/api/ai/run-skill`.
+- Added canonical `RequirementQAResponse` with findings, draft patch recommendations, coverage summary, assumptions, open questions, and warnings.
+- Reused BRD/SRS/User Story/Acceptance Criteria quality gates and added AI Coding Pack checks for missing constraints, missing test plan, and missing non-goals.
+- Added basic trace coverage checks for BRD requirement -> SRS, SRS requirement -> User Story, and User Story -> Acceptance Criteria.
+- Wired Export Center action to preview Requirement QA without saving/applying changes.
+- Updated AI Skill Registry and AI Implementation Matrix for Product AI/OpenAI/Claude/Mock support on Requirement QA.
 - Completed AI Coding Pack generation from Product Delivery artifacts.
 - Added route-backed skill id `user-stories-to-ai-coding-pack` through `/api/ai/run-skill`.
 - Extended AI Coding Pack generation to use BRD, SRS, user stories, acceptance criteria, and optional Process Task Register context.
@@ -237,7 +244,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
 - Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
 - The branch may still need to be created or switched in git if it does not already exist.
-- Module 3 Jira export, scope/non-scope definition aliasing, and requirement QA real AI flows still need scoped task breakdown using Registry V2.
+- Module 3 Jira export and scope/non-scope definition aliasing still need scoped task breakdown using Registry V2.
 - Product Delivery BRD route support exists; full Artifact Graph persistence and durable server-side audit are still pending.
 - Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
 - Provider-specific Claude/OpenAI schema repair and contract tests are not implemented yet; only route-level malformed JSON repair exists.

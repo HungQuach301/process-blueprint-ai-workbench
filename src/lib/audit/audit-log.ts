@@ -21,6 +21,7 @@ export type AuditAction =
   | "export_acceptance_criteria_draft"
   | "generate_product_scope_review_preview"
   | "export_product_scope_review_draft"
+  | "generate_requirement_qa_preview"
   | "generate_product_delivery_ai_coding_pack"
   | "export_product_delivery_ai_coding_pack";
 

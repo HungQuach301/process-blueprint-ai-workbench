@@ -21,7 +21,12 @@ export type ProductDeliveryQualityIssueCode =
   | "story-too-broad"
   | "no-source-trace"
   | "missing-mvp-slice"
-  | "missing-risk";
+  | "missing-risk"
+  | "missing-constraints"
+  | "missing-test-plan"
+  | "missing-non-goals"
+  | "brd-requirement-not-covered"
+  | "srs-requirement-not-covered";
 
 export type ProductDeliveryQualityIssue = {
   code: ProductDeliveryQualityIssueCode;
@@ -266,6 +271,73 @@ export type ProductScopeReview = {
   traceLinks?: ProductDeliveryTraceLink[];
 };
 
+export type RequirementQAArtifactType =
+  | "brd"
+  | "srs"
+  | "user-story"
+  | "acceptance-criteria"
+  | "ai-coding-pack"
+  | "trace-coverage";
+
+export type RequirementQADraftPatch = {
+  targetArtifactType: RequirementQAArtifactType;
+  targetId?: string;
+  fieldPath: string;
+  suggestedValue: string;
+  rationale: string;
+};
+
+export type RequirementQARecommendation = {
+  id: string;
+  title: string;
+  description: string;
+  artifactType: RequirementQAArtifactType;
+  targetId?: string;
+  confidence: "low" | "medium" | "high";
+  riskLevel: "low" | "medium" | "high";
+  draftPatch?: RequirementQADraftPatch;
+  sourceRequirementIds?: string[];
+  sourceStoryIds?: string[];
+  sourceStepIds?: string[];
+};
+
+export type RequirementQAFinding = {
+  id: string;
+  artifactType: RequirementQAArtifactType;
+  code: ProductDeliveryQualityIssueCode;
+  severity: "error" | "warning";
+  title: string;
+  message: string;
+  targetId?: string;
+  sourceRequirementIds?: string[];
+  sourceStoryIds?: string[];
+  sourceStepIds?: string[];
+  recommendationId?: string;
+};
+
+export type RequirementQACoverageSummary = {
+  brdRequirementCount: number;
+  brdCoveredBySrsCount: number;
+  uncoveredBrdRequirementIds: string[];
+  srsRequirementCount: number;
+  srsCoveredByStoriesCount: number;
+  uncoveredSrsRequirementIds: string[];
+  userStoryCount: number;
+  storiesWithAcceptanceCriteriaCount: number;
+  storiesWithoutAcceptanceCriteriaIds: string[];
+};
+
+export type RequirementQAResponse = {
+  id: string;
+  generatedAt: string;
+  findings: RequirementQAFinding[];
+  recommendations: RequirementQARecommendation[];
+  coverage: RequirementQACoverageSummary;
+  assumptions: string[];
+  openQuestions: string[];
+  warnings: string[];
+};
+
 export type ProductDeliveryDraft = {
   id: string;
   generatedAt: string;
@@ -347,6 +419,21 @@ export type ProductScopeReviewInput = {
   sourceSummary?: string;
   uploadedFileText?: string;
   businessObjective?: string;
+  generatedAt: string;
+};
+
+export type RequirementQualityCheckInput = {
+  brd?: BRD;
+  srs?: SRS;
+  userStorySet?: UserStorySet;
+  acceptanceCriteria?: AcceptanceCriteriaSet;
+  aiCodingPack?: {
+    files?: Array<{
+      path: string;
+      content: string;
+    }>;
+    qualityIssues?: string[];
+  };
   generatedAt: string;
 };
 
@@ -510,7 +597,12 @@ function validateQualityIssues(value: unknown, errors: string[]) {
     "story-too-broad",
     "no-source-trace",
     "missing-mvp-slice",
-    "missing-risk"
+    "missing-risk",
+    "missing-constraints",
+    "missing-test-plan",
+    "missing-non-goals",
+    "brd-requirement-not-covered",
+    "srs-requirement-not-covered"
   ]);
   const validSeverities = new Set(["error", "warning"]);
 
@@ -879,6 +971,410 @@ export function runBRDQualityGate(brd: BRD) {
     canPreview: !dedupedIssues.some((issue) => issue.severity === "error"),
     issues: dedupedIssues
   };
+}
+
+function makeRequirementQARecommendation({
+  id,
+  artifactType,
+  targetId,
+  title,
+  description,
+  fieldPath,
+  suggestedValue,
+  sourceRequirementIds,
+  sourceStoryIds,
+  sourceStepIds
+}: {
+  id: string;
+  artifactType: RequirementQAArtifactType;
+  targetId?: string;
+  title: string;
+  description: string;
+  fieldPath: string;
+  suggestedValue: string;
+  sourceRequirementIds?: string[];
+  sourceStoryIds?: string[];
+  sourceStepIds?: string[];
+}): RequirementQARecommendation {
+  return {
+    id,
+    title,
+    description,
+    artifactType,
+    targetId,
+    confidence: "medium",
+    riskLevel: "low",
+    draftPatch: {
+      targetArtifactType: artifactType,
+      targetId,
+      fieldPath,
+      suggestedValue,
+      rationale: description
+    },
+    sourceRequirementIds,
+    sourceStoryIds,
+    sourceStepIds
+  };
+}
+
+function makeRequirementQAFinding({
+  id,
+  artifactType,
+  code,
+  severity,
+  title,
+  message,
+  targetId,
+  recommendationId,
+  sourceRequirementIds,
+  sourceStoryIds,
+  sourceStepIds
+}: Omit<RequirementQAFinding, "severity"> & {
+  severity: "error" | "warning";
+}): RequirementQAFinding {
+  return {
+    id,
+    artifactType,
+    code,
+    severity,
+    title,
+    message,
+    targetId,
+    recommendationId,
+    sourceRequirementIds,
+    sourceStoryIds,
+    sourceStepIds
+  };
+}
+
+function getAICodingPackFileContent(
+  input: RequirementQualityCheckInput,
+  path: string
+) {
+  return (
+    input.aiCodingPack?.files?.find(
+      (file) => file.path.toLowerCase() === path.toLowerCase()
+    )?.content ?? ""
+  );
+}
+
+function dedupeRequirementQAResponse(response: RequirementQAResponse) {
+  return {
+    ...response,
+    findings: Array.from(
+      new Map(
+        response.findings.map((finding) => [
+          `${finding.artifactType}:${finding.code}:${finding.targetId ?? ""}:${finding.message}`,
+          finding
+        ])
+      ).values()
+    ),
+    recommendations: Array.from(
+      new Map(
+        response.recommendations.map((recommendation) => [
+          recommendation.id,
+          recommendation
+        ])
+      ).values()
+    )
+  };
+}
+
+export function runRequirementQualityCheck(
+  input: RequirementQualityCheckInput
+): RequirementQAResponse {
+  const findings: RequirementQAFinding[] = [];
+  const recommendations: RequirementQARecommendation[] = [];
+  const generatedAt = input.generatedAt || new Date().toISOString();
+
+  function addIssue(
+    artifactType: RequirementQAArtifactType,
+    issue: ProductDeliveryQualityIssue,
+    title: string,
+    fieldPath: string,
+    suggestedValue: string,
+    refs: {
+      sourceRequirementIds?: string[];
+      sourceStoryIds?: string[];
+      sourceStepIds?: string[];
+    } = {}
+  ) {
+    const sequence = findings.length + 1;
+    const recommendationId = `req-rec-${sequence.toString().padStart(3, "0")}`;
+
+    recommendations.push(
+      makeRequirementQARecommendation({
+        id: recommendationId,
+        artifactType,
+        targetId: issue.targetId,
+        title,
+        description: issue.message,
+        fieldPath,
+        suggestedValue,
+        ...refs
+      })
+    );
+    findings.push(
+      makeRequirementQAFinding({
+        id: `req-finding-${sequence.toString().padStart(3, "0")}`,
+        artifactType,
+        code: issue.code,
+        severity: issue.severity,
+        title,
+        message: issue.message,
+        targetId: issue.targetId,
+        recommendationId,
+        ...refs
+      })
+    );
+  }
+
+  if (input.brd) {
+    runBRDQualityGate(input.brd).issues.forEach((issue) =>
+      addIssue(
+        "brd",
+        issue,
+        "Review BRD requirement quality",
+        issue.targetId ? `businessRequirements.${issue.targetId}` : "brd",
+        "Clarify objective, scope, stakeholder, or requirement wording before export."
+      )
+    );
+  }
+
+  if (input.srs) {
+    runSRSQualityGate(input.srs).issues.forEach((issue) =>
+      addIssue(
+        "srs",
+        issue,
+        "Review SRS requirement quality",
+        issue.targetId ? `requirements.${issue.targetId}` : "srs",
+        "Make requirement testable and connect it to actor, system, NFR, or dependency context."
+      )
+    );
+  }
+
+  if (input.userStorySet) {
+    runUserStoryQualityGate(input.userStorySet).issues.forEach((issue) =>
+      addIssue(
+        "user-story",
+        issue,
+        "Review user story quality",
+        issue.targetId ? `stories.${issue.targetId}` : "userStorySet",
+        "Clarify role, value, acceptance criteria, scope, or trace references.",
+        {
+          sourceStoryIds: issue.targetId ? [issue.targetId] : undefined
+        }
+      )
+    );
+  }
+
+  if (input.acceptanceCriteria) {
+    runAcceptanceCriteriaQualityGate(input.acceptanceCriteria).issues.forEach(
+      (issue) =>
+        addIssue(
+          "acceptance-criteria",
+          issue,
+          "Review acceptance criteria quality",
+          issue.targetId ? `criteria.${issue.targetId}` : "acceptanceCriteria",
+          "Rewrite acceptance criteria as testable Given/When/Then conditions."
+        )
+    );
+  }
+
+  if (input.aiCodingPack) {
+    const agentsMd = getAICodingPackFileContent(input, "AGENTS.md").toLowerCase();
+    const claudeMd = getAICodingPackFileContent(input, "CLAUDE.md").toLowerCase();
+    const testPlan = getAICodingPackFileContent(input, "test-plan.md").toLowerCase();
+    const specJson = getAICodingPackFileContent(input, "spec.json").toLowerCase();
+
+    [
+      ...(input.aiCodingPack.qualityIssues ?? []).map((message) => ({
+        code: "missing-test-plan" as ProductDeliveryQualityIssueCode,
+        severity: "warning" as const,
+        message
+      }))
+    ].forEach((issue) =>
+      addIssue(
+        "ai-coding-pack",
+        issue,
+        "Review AI Coding Pack quality",
+        "aiCodingPack",
+        "Fix the AI Coding Pack before handoff to coding tools."
+      )
+    );
+
+    if (!agentsMd.includes("constraints") && !specJson.includes("constraints")) {
+      addIssue(
+        "ai-coding-pack",
+        {
+          code: "missing-constraints",
+          severity: "warning",
+          message:
+            "AI Coding Pack should include architecture and data/privacy constraints."
+        },
+        "Add coding constraints",
+        "AGENTS.md/spec.json",
+        "Add architecture constraints and data/privacy constraints before export."
+      );
+    }
+
+    if (!testPlan.includes("- [ ]") || !testPlan.includes("test")) {
+      addIssue(
+        "ai-coding-pack",
+        {
+          code: "missing-test-plan",
+          severity: "warning",
+          message:
+            "AI Coding Pack should include a test plan with checklist expectations."
+        },
+        "Add test plan expectations",
+        "test-plan.md",
+        "Add functional, edge case, and regression test checklist items."
+      );
+    }
+
+    if (!claudeMd.includes("non-goals")) {
+      addIssue(
+        "ai-coding-pack",
+        {
+          code: "missing-non-goals",
+          severity: "warning",
+          message: "AI Coding Pack should include explicit non-goals."
+        },
+        "Add non-goals",
+        "CLAUDE.md",
+        "Add explicit non-goals so coding tools do not expand scope silently."
+      );
+    }
+  }
+
+  const srsRequirementIds = new Set([
+    ...(input.srs?.functionalRequirements ?? []).map((requirement) => requirement.id),
+    ...(input.srs?.nonFunctionalRequirements ?? []).map((requirement) => requirement.id)
+  ]);
+  const srsSourceRequirementIds = new Set(
+    [
+      ...(input.srs?.functionalRequirements ?? []).flatMap(
+        (requirement) => requirement.sourceRequirementIds ?? []
+      ),
+      ...(input.srs?.nonFunctionalRequirements ?? []).flatMap(
+        (requirement) => requirement.sourceRequirementIds ?? []
+      )
+    ]
+  );
+  const storySourceRequirementIds = new Set(
+    (input.userStorySet?.stories ?? []).flatMap(
+      (story) => story.sourceRequirementIds ?? []
+    )
+  );
+  const criteriaStoryIds = new Set(
+    (input.acceptanceCriteria?.criteria ?? [])
+      .map((criterion) => criterion.storyId)
+      .filter((storyId): storyId is string => typeof storyId === "string")
+  );
+
+  const uncoveredBrdRequirementIds =
+    input.brd?.businessRequirements
+      .map((requirement) => requirement.id)
+      .filter((requirementId) => !srsSourceRequirementIds.has(requirementId)) ?? [];
+  const uncoveredSrsRequirementIds = Array.from(srsRequirementIds).filter(
+    (requirementId) => !storySourceRequirementIds.has(requirementId)
+  );
+  const storiesWithoutAcceptanceCriteriaIds =
+    input.userStorySet?.stories
+      .filter(
+        (story) =>
+          (story.acceptanceCriteria ?? []).length === 0 &&
+          !criteriaStoryIds.has(story.id)
+      )
+      .map((story) => story.id) ?? [];
+
+  uncoveredBrdRequirementIds.forEach((requirementId) =>
+    addIssue(
+      "trace-coverage",
+      {
+        code: "brd-requirement-not-covered",
+        severity: "warning",
+        message: `BRD requirement ${requirementId} is not covered by SRS requirements.`,
+        targetId: requirementId
+      },
+      "Cover BRD requirement in SRS",
+      `srs.functionalRequirements[sourceRequirementIds=${requirementId}]`,
+      "Add or link an SRS requirement that covers this BRD requirement.",
+      {
+        sourceRequirementIds: [requirementId]
+      }
+    )
+  );
+
+  uncoveredSrsRequirementIds.forEach((requirementId) =>
+    addIssue(
+      "trace-coverage",
+      {
+        code: "srs-requirement-not-covered",
+        severity: "warning",
+        message: `SRS requirement ${requirementId} is not covered by user stories.`,
+        targetId: requirementId
+      },
+      "Cover SRS requirement with user story",
+      `userStorySet.stories[sourceRequirementIds=${requirementId}]`,
+      "Add or link a user story that implements this SRS requirement.",
+      {
+        sourceRequirementIds: [requirementId]
+      }
+    )
+  );
+
+  storiesWithoutAcceptanceCriteriaIds.forEach((storyId) =>
+    addIssue(
+      "trace-coverage",
+      {
+        code: "missing-ac",
+        severity: "warning",
+        message: `User story ${storyId} does not have acceptance criteria.`,
+        targetId: storyId
+      },
+      "Add acceptance criteria for story",
+      `acceptanceCriteria.criteria[storyId=${storyId}]`,
+      "Add testable acceptance criteria for this story before export.",
+      {
+        sourceStoryIds: [storyId]
+      }
+    )
+  );
+
+  return dedupeRequirementQAResponse({
+    id: `requirement-qa-${Date.parse(generatedAt) || Date.now()}`,
+    generatedAt,
+    findings,
+    recommendations,
+    coverage: {
+      brdRequirementCount: input.brd?.businessRequirements.length ?? 0,
+      brdCoveredBySrsCount:
+        (input.brd?.businessRequirements.length ?? 0) -
+        uncoveredBrdRequirementIds.length,
+      uncoveredBrdRequirementIds,
+      srsRequirementCount: srsRequirementIds.size,
+      srsCoveredByStoriesCount:
+        srsRequirementIds.size - uncoveredSrsRequirementIds.length,
+      uncoveredSrsRequirementIds,
+      userStoryCount: input.userStorySet?.stories.length ?? 0,
+      storiesWithAcceptanceCriteriaCount:
+        (input.userStorySet?.stories.length ?? 0) -
+        storiesWithoutAcceptanceCriteriaIds.length,
+      storiesWithoutAcceptanceCriteriaIds
+    },
+    assumptions: [
+      "Requirement QA uses available preview artifacts only and does not persist changes."
+    ],
+    openQuestions:
+      findings.length > 0
+        ? ["Review findings and decide which draft patches should be applied manually."]
+        : [],
+    warnings: input.aiCodingPack
+      ? []
+      : ["AI Coding Pack checks were skipped because no coding pack preview was provided."]
+  });
 }
 
 export function validateBRD(value: unknown): SchemaValidationResult<BRD> {
@@ -1615,6 +2111,284 @@ export function validateProductScopeReview(
   return {
     ok: true,
     value: value as ProductScopeReview,
+    errors: []
+  };
+}
+
+function validateRequirementQAArtifactType(
+  value: unknown,
+  fieldName: string,
+  errors: string[]
+) {
+  if (
+    !isString(value) ||
+    ![
+      "brd",
+      "srs",
+      "user-story",
+      "acceptance-criteria",
+      "ai-coding-pack",
+      "trace-coverage"
+    ].includes(value)
+  ) {
+    errors.push(`${fieldName} must be a valid Requirement QA artifact type.`);
+  }
+}
+
+function validateRequirementQARecommendations(
+  value: unknown,
+  errors: string[]
+) {
+  const validConfidence = new Set(["low", "medium", "high"]);
+
+  if (!Array.isArray(value)) {
+    errors.push("requirementQA.recommendations must be an array.");
+    return;
+  }
+
+  value.forEach((recommendation, index) => {
+    if (!isObject(recommendation)) {
+      errors.push(`requirementQA.recommendations[${index}] must be an object.`);
+      return;
+    }
+
+    ["id", "title", "description"].forEach((field) =>
+      validateString(
+        recommendation[field],
+        `requirementQA.recommendations[${index}].${field}`,
+        errors
+      )
+    );
+    validateRequirementQAArtifactType(
+      recommendation.artifactType,
+      `requirementQA.recommendations[${index}].artifactType`,
+      errors
+    );
+
+    if (
+      !isString(recommendation.confidence) ||
+      !validConfidence.has(recommendation.confidence)
+    ) {
+      errors.push(
+        `requirementQA.recommendations[${index}].confidence must be low, medium, or high.`
+      );
+    }
+
+    if (
+      !isString(recommendation.riskLevel) ||
+      !validConfidence.has(recommendation.riskLevel)
+    ) {
+      errors.push(
+        `requirementQA.recommendations[${index}].riskLevel must be low, medium, or high.`
+      );
+    }
+
+    if (recommendation.targetId !== undefined) {
+      validateString(
+        recommendation.targetId,
+        `requirementQA.recommendations[${index}].targetId`,
+        errors
+      );
+    }
+
+    validateOptionalStringArray(
+      recommendation.sourceRequirementIds,
+      `requirementQA.recommendations[${index}].sourceRequirementIds`,
+      errors
+    );
+    validateOptionalStringArray(
+      recommendation.sourceStoryIds,
+      `requirementQA.recommendations[${index}].sourceStoryIds`,
+      errors
+    );
+    validateOptionalStringArray(
+      recommendation.sourceStepIds,
+      `requirementQA.recommendations[${index}].sourceStepIds`,
+      errors
+    );
+
+    if (recommendation.draftPatch !== undefined) {
+      if (!isObject(recommendation.draftPatch)) {
+        errors.push(
+          `requirementQA.recommendations[${index}].draftPatch must be an object.`
+        );
+      } else {
+        const draftPatch = recommendation.draftPatch;
+        validateRequirementQAArtifactType(
+          draftPatch.targetArtifactType,
+          `requirementQA.recommendations[${index}].draftPatch.targetArtifactType`,
+          errors
+        );
+        ["fieldPath", "suggestedValue", "rationale"].forEach((field) =>
+          validateString(
+            draftPatch[field],
+            `requirementQA.recommendations[${index}].draftPatch.${field}`,
+            errors
+          )
+        );
+
+        if (draftPatch.targetId !== undefined) {
+          validateString(
+            draftPatch.targetId,
+            `requirementQA.recommendations[${index}].draftPatch.targetId`,
+            errors
+          );
+        }
+      }
+    }
+  });
+}
+
+export function validateRequirementQAResponse(
+  value: unknown
+): SchemaValidationResult<RequirementQAResponse> {
+  const errors: string[] = [];
+  const validCodes = new Set<ProductDeliveryQualityIssueCode>([
+    "missing-objective",
+    "missing-scope",
+    "vague-requirement",
+    "missing-stakeholder",
+    "requirement-not-testable",
+    "missing-actor-system",
+    "missing-nfr",
+    "unclear-dependency",
+    "missing-role",
+    "missing-value",
+    "missing-ac",
+    "ac-not-testable",
+    "story-too-broad",
+    "no-source-trace",
+    "missing-mvp-slice",
+    "missing-risk",
+    "missing-constraints",
+    "missing-test-plan",
+    "missing-non-goals",
+    "brd-requirement-not-covered",
+    "srs-requirement-not-covered"
+  ]);
+  const validSeverities = new Set(["error", "warning"]);
+
+  if (!isObject(value)) {
+    return {
+      ok: false,
+      errors: ["RequirementQAResponse must be an object."]
+    };
+  }
+
+  ["id", "generatedAt"].forEach((field) =>
+    validateString(value[field], `requirementQA.${field}`, errors)
+  );
+
+  if (!Array.isArray(value.findings)) {
+    errors.push("requirementQA.findings must be an array.");
+  } else {
+    value.findings.forEach((finding, index) => {
+      if (!isObject(finding)) {
+        errors.push(`requirementQA.findings[${index}] must be an object.`);
+        return;
+      }
+
+      ["id", "title", "message"].forEach((field) =>
+        validateString(
+          finding[field],
+          `requirementQA.findings[${index}].${field}`,
+          errors
+        )
+      );
+      validateRequirementQAArtifactType(
+        finding.artifactType,
+        `requirementQA.findings[${index}].artifactType`,
+        errors
+      );
+
+      if (!isString(finding.code) || !validCodes.has(finding.code as ProductDeliveryQualityIssueCode)) {
+        errors.push(`requirementQA.findings[${index}].code must be valid.`);
+      }
+
+      if (!isString(finding.severity) || !validSeverities.has(finding.severity)) {
+        errors.push(
+          `requirementQA.findings[${index}].severity must be error or warning.`
+        );
+      }
+
+      if (finding.targetId !== undefined) {
+        validateString(
+          finding.targetId,
+          `requirementQA.findings[${index}].targetId`,
+          errors
+        );
+      }
+      if (finding.recommendationId !== undefined) {
+        validateString(
+          finding.recommendationId,
+          `requirementQA.findings[${index}].recommendationId`,
+          errors
+        );
+      }
+      validateOptionalStringArray(
+        finding.sourceRequirementIds,
+        `requirementQA.findings[${index}].sourceRequirementIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        finding.sourceStoryIds,
+        `requirementQA.findings[${index}].sourceStoryIds`,
+        errors
+      );
+      validateOptionalStringArray(
+        finding.sourceStepIds,
+        `requirementQA.findings[${index}].sourceStepIds`,
+        errors
+      );
+    });
+  }
+
+  validateRequirementQARecommendations(value.recommendations, errors);
+
+  if (!isObject(value.coverage)) {
+    errors.push("requirementQA.coverage must be an object.");
+  } else {
+    const coverage = value.coverage;
+    [
+      "brdRequirementCount",
+      "brdCoveredBySrsCount",
+      "srsRequirementCount",
+      "srsCoveredByStoriesCount",
+      "userStoryCount",
+      "storiesWithAcceptanceCriteriaCount"
+    ].forEach((field) => {
+      if (typeof coverage[field] !== "number") {
+        errors.push(`requirementQA.coverage.${field} must be a number.`);
+      }
+    });
+    validateStringArray(
+      coverage.uncoveredBrdRequirementIds,
+      "requirementQA.coverage.uncoveredBrdRequirementIds",
+      errors
+    );
+    validateStringArray(
+      coverage.uncoveredSrsRequirementIds,
+      "requirementQA.coverage.uncoveredSrsRequirementIds",
+      errors
+    );
+    validateStringArray(
+      coverage.storiesWithoutAcceptanceCriteriaIds,
+      "requirementQA.coverage.storiesWithoutAcceptanceCriteriaIds",
+      errors
+    );
+  }
+
+  validateStringArray(value.assumptions, "requirementQA.assumptions", errors);
+  validateStringArray(value.openQuestions, "requirementQA.openQuestions", errors);
+  validateStringArray(value.warnings, "requirementQA.warnings", errors);
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  return {
+    ok: true,
+    value: value as RequirementQAResponse,
     errors: []
   };
 }

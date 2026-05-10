@@ -105,7 +105,7 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 | `product-scope-review` | `real-ai-ready` | Review product scope boundaries from Product Delivery artifacts. | BRD, SRS, user stories, optional business objective, PTR/source context | In-scope, out-of-scope, assumptions, open questions, MVP slice, later phases, dependencies, risks, quality issues | Preview/export only |
 | `mvp-slicing` | `real-ai-ready` | Propose MVP, later, and out-of-scope slices. | BRD/SRS/user stories, optional business objective, PTR/source context | MVP slice, later phases, dependencies, risks, assumptions, open questions, scope boundaries | Preview/export only |
 | `scope-nonscope-definition` | `planned` | Draft scope and non-scope from process and product notes. | PTR, notes, BRD/SRS context | Scope/non-scope draft, open questions | Preview/save/export only |
-| `requirement-quality-check` | `planned` | Review BRD/SRS/user stories for ambiguity, missing criteria, and trace gaps. | Product delivery artifacts, trace links | Requirement QA findings and recommendations | Recommendation only |
+| `requirement-quality-check` | `real-ai-ready` | Review BRD/SRS/user stories/acceptance criteria/AI Coding Pack for ambiguity, missing criteria, and trace gaps. | Product delivery preview artifacts and AI Coding Pack preview | Requirement QA findings, draft patch recommendations, and coverage summary | Preview/recommendation only |
 | `user-stories-to-ai-coding-pack` | `real-ai-ready` | Generate AI-ready coding context for Codex, Claude Code, Cursor, and similar tools from reviewed Product Delivery artifacts. | BRD, SRS, user stories, acceptance criteria, optional `ProcessTask[]` | `AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`, implementation plan, acceptance criteria, test plan, quality issues | Preview/export only |
 
 ## Current implemented MVP skills
@@ -415,3 +415,26 @@ Output:
 
 Apply behavior:
 Preview/export only. No generated code is applied and no Artifact Graph persistence is created in this slice.
+
+### requirement-quality-check
+
+Purpose:
+Review Product Delivery artifacts for requirement quality and basic cross-artifact consistency.
+
+Input:
+- BRD draft
+- SRS draft
+- User Story Set
+- Acceptance Criteria Set
+- AI Coding Pack preview files when available
+
+Output:
+- Requirement QA findings
+- Draft patch recommendations
+- BRD-to-SRS coverage summary
+- SRS-to-User Story coverage summary
+- User Story-to-Acceptance Criteria coverage summary
+- assumptions, openQuestions, and warnings
+
+Apply behavior:
+Preview/recommendation only. The skill does not mutate BRD, SRS, user stories, acceptance criteria, AI Coding Pack files, or Process Task Register data.

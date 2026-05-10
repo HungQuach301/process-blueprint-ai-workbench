@@ -571,7 +571,7 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     skillId: "requirement-quality-check",
     version: "1.0.0",
     module: "module-3-product-delivery",
-    status: "planned",
+    status: "real-ai-ready",
     description:
       "Review BRD, SRS, user stories, and criteria for ambiguity and trace gaps.",
     inputSchema: {
@@ -580,14 +580,15 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
       validatorId: "validateAISkillInput"
     },
     outputSchema: {
-      id: "QARecommendationResponse",
-      description: "Requirement quality findings expressed as review recommendations.",
-      validatorId: "validateAIQARecommendations"
+      id: "RequirementQAResponse",
+      description:
+        "Requirement QA findings, draft patch recommendations, and cross-artifact coverage summary.",
+      validatorId: "validateRequirementQAResponse"
     },
     allowedProviders: allProviders,
     requiresApproval: true,
     dataSensitivity: "confidential",
-    promptPackId: "process-modeling-qa-recommendation-v1"
+    promptPackId: "product-delivery-requirement-qa-v1"
   },
   {
     skillId: "ptr-to-ai-coding-pack",

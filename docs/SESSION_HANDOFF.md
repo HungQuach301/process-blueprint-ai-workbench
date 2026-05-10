@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Implemented AI Skill Registry V2 for MVP1-AI under `src/lib/ai/`.
+- Added provider-neutral, process modeling, and product delivery prompt pack definitions.
+- Added runtime schema helpers for Draft PTR, BRD, SRS, User Story Set, Acceptance Criteria, AI Coding Pack, QARecommendation, and TemplateRecommendation outputs.
+- Reused existing canonical validators for StructuredProcessBrief, DraftProcessTaskRegister, QARecommendation, and TemplateRecommendation where available.
+- Updated `docs/AI_SKILL_REGISTRY.md` and `docs/AI_IMPLEMENTATION_MATRIX.md` to document Registry V2, prompt packs, schema contracts, and remaining wiring gaps.
 - Implemented AI Provider Adapter V2 for Mock, Product AI, OpenAI, and Claude.
 - Added a normalized provider response shape with `rawText`, `rawJson`, `parsedJson`, `providerId`, `model`, `requestId`, `tokenUsage`, `latencyMs`, and `warnings`.
 - Updated `/api/ai/run-skill` to select providers through a server-side provider factory while preserving existing mock fallback, validation, and preview-first behavior.
@@ -34,6 +39,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/lib/ai/skill-schemas.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/lib/ai/skill-registry-v2.ts`
 - `src/lib/ai/providers/provider-types.ts`
 - `src/lib/ai/providers/mock-provider.ts`
 - `src/lib/ai/providers/product-ai-provider.ts`
@@ -52,6 +60,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- AI Skill Registry V2 is now the contract layer for Module 2 and Module 3 real AI work.
+- Prompt packs are provider-neutral and do not expose API keys or browser-only provider behavior.
+- Module 3 and AI Coding Pack now have target structured response schemas, but route/UI wiring remains a later implementation slice.
 - AI Provider Adapter V2 is now the server-side provider abstraction for active AI skill routes.
 - Product AI, OpenAI, Claude, and Mock share the same normalized response shape.
 - Product AI and Claude are now implemented as server-side adapters, but still require real environment configuration and provider contract testing before production use.
@@ -67,14 +78,15 @@ Complete Module 2 + Module 3 with full real AI support.
 ## Current blockers
 
 - The branch may still need to be created or switched in git if it does not already exist.
-- Module 2 and Module 3 real AI implementation work still needs scoped task breakdown.
+- Module 2 and Module 3 real AI route/UI wiring still needs scoped task breakdown using Registry V2.
+- Product Delivery deterministic markdown output still needs structured adapters or route support for the new BRD/SRS/story/criteria schemas.
 - Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
 - Claude/OpenAI schema repair and retry behavior are not implemented yet.
 - Full Artifact Graph is intentionally not part of MVP1-AI.
 
 ## Next recommended task
 
-Verify active skills against each provider mode with feature flags on/off, then add schema retry/repair and server-side audit persistence as the next hardening slice.
+Wire Registry V2 into `/api/ai/run-skill` for prompt selection and validation dispatch, then verify active skills against each provider mode with feature flags on/off.
 
 ## Exact prompt for next ChatGPT session
 

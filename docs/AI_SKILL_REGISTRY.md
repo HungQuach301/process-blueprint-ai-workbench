@@ -20,6 +20,52 @@ All AI skills must:
 - `mock`: Mock/local path exists; real AI path still needs implementation or hardening.
 - `real-ai-ready`: Server-side real AI path is scaffolded or available with feature flags, schema validation, preview, and mock/local fallback.
 
+## Registry V2 implementation
+
+Runtime registry V2 is defined under:
+
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/lib/ai/skill-schemas.ts`
+
+Every V2 skill definition includes:
+
+- `skillId`
+- `module`
+- `inputSchema`
+- `outputSchema`
+- `allowedProviders`
+- `requiresApproval`
+- `dataSensitivity`
+- `promptPackId`
+- `version`
+
+The registry is intentionally not wired into all UI surfaces yet. It is the contract layer for the next implementation slice, while the active `/api/ai/run-skill` route continues to support the current real-AI-ready skills.
+
+Prompt packs are split into:
+
+- Provider-neutral prompts: JSON-only output, human approval, no browser secrets, no auto-apply.
+- Process modeling prompts: Input Brief to PTR, file to PTR, process QA, and template review.
+- Product delivery prompts: BRD, SRS, user stories, acceptance criteria, and AI Coding Pack.
+
+Schema helpers now cover:
+
+- `DraftProcessTaskRegister`
+- `BRDResponse`
+- `SRSResponse`
+- `UserStorySetResponse`
+- `AcceptanceCriteriaResponse`
+- `AICodingPackResponse`
+- `QARecommendationResponse`
+- `TemplateRecommendationResponse`
+
+Existing canonical validators are reused where available:
+
+- `validateStructuredProcessBrief`
+- `validateDraftProcessTaskRegister`
+- `validateAIQARecommendations`
+- `validateTemplateReviewOutput`
+
 ## MVP1-AI skill plan
 
 MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery Core before release.
@@ -31,7 +77,7 @@ MVP1-AI covers full Module 2 Process Modeling Core and Module 3 Product Delivery
 | `input-brief-to-ptr` | `real-ai-ready` | Generate Draft Process Task Register from structured AI Input Brief. | `StructuredProcessBrief`, optional source metadata | Draft `ProcessTask[]`, assumptions, open questions, source summary, confidence, quality issues | Preview and explicit apply only |
 | `file-to-draft-ptr` | `mock` | Generate Draft Process Task Register from uploaded document text or parsed file content. | File-derived text/metadata, optional user context | Draft `ProcessTask[]`, source summary, warnings | Preview and explicit apply only |
 | `chat-to-draft-ptr` | `planned` | Convert a guided conversation into Draft Process Task Register. | Chat transcript, structured follow-up answers | Draft `ProcessTask[]`, assumptions, open questions | Preview and explicit apply only |
-| `process-qa-recommendation` | `real-ai-ready` | Generate QA recommendations for Process Task Register. | `ProcessTask[]`, rule QA issues, selected templates | `QARecommendation[]`, meta | Existing recommendation preview/apply workflow |
+| `ai-process-qa` | `real-ai-ready` | Generate QA recommendations for Process Task Register. | `ProcessTask[]`, rule QA issues, selected templates | `QARecommendation[]`, meta | Existing recommendation preview/apply workflow |
 | `process-improvement-recommendation` | `planned` | Suggest semantic process improvements beyond deterministic QA. | `ProcessTask[]`, issue context, domain metadata | `QARecommendation[]`, warnings | Preview, select, confirm, then apply |
 | `template-review` | `real-ai-ready` | Review D01/D02 template fit and quality. | `TemplateProfile`, optional `ProcessTask[]`, selected artifact context | `TemplateRecommendation[]`, quality score, warnings | User accepts/edits recommendation before save |
 | `template-recommendation` | `implemented` | Recommend suitable D01/D02 templates based on process and metadata. | `ProcessTask[]`, template library metadata | Ranked template recommendations | No auto-apply |
@@ -75,7 +121,7 @@ Output:
 Apply behavior:
 User preview and explicit apply only.
 
-### process-qa-recommendation
+### ai-process-qa
 
 Purpose:
 Generate QA recommendations for Process Task Register.

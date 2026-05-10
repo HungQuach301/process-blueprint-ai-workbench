@@ -1,0 +1,209 @@
+import type { AIModelMessage } from "@/lib/ai/providers/provider-types";
+
+export type AIPromptPackDomain =
+  | "provider-neutral"
+  | "process-modeling"
+  | "product-delivery";
+
+export type AIPromptPack = {
+  id: string;
+  version: string;
+  domain: AIPromptPackDomain;
+  description: string;
+  messages: AIModelMessage[];
+  outputContract: string;
+};
+
+const providerNeutralSystemPrompt = [
+  "You are a server-side AI skill for Process Blueprint AI Workbench.",
+  "Return only structured JSON matching the requested schema.",
+  "Do not include markdown fences unless a schema field explicitly asks for markdown content.",
+  "Do not auto-apply, persist, or execute any generated output.",
+  "Preserve source ProcessTask.stepId values wherever traceability is possible.",
+  "Do not expose secrets or ask the browser for provider API keys."
+].join(" ");
+
+export const providerNeutralPromptPack: AIPromptPack = {
+  id: "provider-neutral-json-v1",
+  version: "1.0.0",
+  domain: "provider-neutral",
+  description:
+    "Shared JSON-only and human-in-the-loop constraints for all MVP1-AI skills.",
+  outputContract:
+    "Structured JSON only; no auto-apply; include assumptions/openQuestions when the schema supports them.",
+  messages: [
+    {
+      role: "system",
+      content: providerNeutralSystemPrompt
+    }
+  ]
+};
+
+export const processModelingPromptPacks: AIPromptPack[] = [
+  {
+    id: "process-modeling-input-brief-to-ptr-v1",
+    version: "1.0.0",
+    domain: "process-modeling",
+    description:
+      "Convert a StructuredProcessBrief into a DraftProcessTaskRegister preview.",
+    outputContract:
+      "DraftProcessTaskRegister with draftProcessTasks, assumptions, openQuestions, sourceSummary, confidence, inputLanguage, and outputLanguage.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Generate a draft Process Task Register from a structured business brief. Use canonical ProcessTask enum values and set uncertain rows to needsReview."
+      }
+    ]
+  },
+  {
+    id: "process-modeling-file-to-draft-ptr-v1",
+    version: "1.0.0",
+    domain: "process-modeling",
+    description:
+      "Convert extracted document text and metadata into a DraftProcessTaskRegister preview.",
+    outputContract:
+      "DraftProcessTaskRegister with file-derived sourceSummary and explicit warnings for missing context.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Use extracted document content as source evidence. Do not claim OCR support when image text is unavailable."
+      }
+    ]
+  },
+  {
+    id: "process-modeling-qa-recommendation-v1",
+    version: "1.0.0",
+    domain: "process-modeling",
+    description:
+      "Review ProcessTask rows and return QARecommendation objects for user approval.",
+    outputContract:
+      "QARecommendation[] or { recommendations: QARecommendation[] } with existing targetStepIds and requiresConfirmation true.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Return process QA recommendations only. Use existing stepIds, explain the rationale, and never select graph-changing changes by default."
+      }
+    ]
+  },
+  {
+    id: "process-modeling-template-review-v1",
+    version: "1.0.0",
+    domain: "process-modeling",
+    description:
+      "Review TemplateProfile fit for D01 BPMN or D02 Service Blueprint.",
+    outputContract:
+      "{ recommendations: TemplateRecommendation[], qualityScore?: TemplateQualityScore } with matching templateId.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Review template metadata and rules only. Do not modify D01/D02 generators and do not apply template patches automatically."
+      }
+    ]
+  }
+];
+
+export const productDeliveryPromptPacks: AIPromptPack[] = [
+  {
+    id: "product-delivery-brd-v1",
+    version: "1.0.0",
+    domain: "product-delivery",
+    description:
+      "Generate a traceable BRD response from ProcessTask rows and optional project context.",
+    outputContract:
+      "BRDResponse with sections, assumptions, openQuestions, and optional traceLinks.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Draft a BRD from the Process Task Register. Keep every process-derived statement traceable to sourceStepIds where possible."
+      }
+    ]
+  },
+  {
+    id: "product-delivery-srs-v1",
+    version: "1.0.0",
+    domain: "product-delivery",
+    description:
+      "Generate an SRS response from process, BRD, and constraint context.",
+    outputContract:
+      "SRSResponse with functionalRequirements, nonFunctionalRequirements, assumptions, openQuestions, and traceLinks.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Draft software requirements from process context without inventing implementation details not supported by the source."
+      }
+    ]
+  },
+  {
+    id: "product-delivery-user-stories-v1",
+    version: "1.0.0",
+    domain: "product-delivery",
+    description:
+      "Generate user stories from PTR, BRD, notes, or structured requirement context.",
+    outputContract:
+      "UserStorySetResponse with stories, sourceStepIds, assumptions, openQuestions, and traceLinks.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Create user stories that preserve actor intent and source ProcessTask traceability. Keep acceptance criteria reviewable."
+      }
+    ]
+  },
+  {
+    id: "product-delivery-acceptance-criteria-v1",
+    version: "1.0.0",
+    domain: "product-delivery",
+    description:
+      "Generate Given/When/Then acceptance criteria for reviewed stories or PTR-derived stories.",
+    outputContract:
+      "AcceptanceCriteriaResponse with criteria, assumptions, and openQuestions.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Write testable Given/When/Then criteria. Preserve storyId and sourceStepIds when available."
+      }
+    ]
+  },
+  {
+    id: "product-delivery-ai-coding-pack-v1",
+    version: "1.0.0",
+    domain: "product-delivery",
+    description:
+      "Generate AI Coding Pack files for Codex, Claude Code, Cursor, and similar tools.",
+    outputContract:
+      "AICodingPackResponse with files[], specJson, assumptions, openQuestions, and optional traceLinks.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Generate coding-context files only. Do not generate executable changes, do not call external tools, and keep source step traceability in spec.json."
+      }
+    ]
+  }
+];
+
+export const aiPromptPacks: AIPromptPack[] = [
+  providerNeutralPromptPack,
+  ...processModelingPromptPacks,
+  ...productDeliveryPromptPacks
+];
+
+export function getAIPromptPack(promptPackId: string) {
+  return aiPromptPacks.find((promptPack) => promptPack.id === promptPackId);
+}

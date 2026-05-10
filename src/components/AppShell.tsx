@@ -72,19 +72,19 @@ export function AppShell() {
               <SectionPanel section={sectionById.workspace} />
             ) : null}
 
-            <div id="ai-settings">
+            <div className="min-w-0 max-w-full" id="ai-settings">
               <AIProviderSettingsPanel />
             </div>
 
-            <div id="input-brief">
+            <div className="min-w-0 max-w-full" id="input-brief">
               <AIInputBriefPanel />
             </div>
 
-            <div id="template-library">
+            <div className="min-w-0 max-w-full" id="template-library">
               <TemplateLibraryEditor />
             </div>
 
-            <div id="process-task-register">
+            <div className="min-w-0 max-w-full" id="process-task-register">
               <ProcessTaskRegister />
             </div>
 
@@ -92,15 +92,15 @@ export function AppShell() {
               <SectionPanel section={sectionById["qa-panel"]} />
             ) : null}
 
-            <div id="d01-bpmn-preview">
+            <div className="min-w-0 max-w-full" id="d01-bpmn-preview">
               <D01BpmnOutput />
             </div>
 
-            <div id="d02-service-blueprint-preview">
+            <div className="min-w-0 max-w-full" id="d02-service-blueprint-preview">
               <D02ServiceBlueprintOutput />
             </div>
 
-            <div id="export-center">
+            <div className="min-w-0 max-w-full" id="export-center">
               <ExportCenter />
             </div>
           </div>

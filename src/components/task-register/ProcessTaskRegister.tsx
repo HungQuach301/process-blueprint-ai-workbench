@@ -1090,7 +1090,7 @@ export function ProcessTaskRegister() {
           </div>
         ) : null}
 
-        <div className="w-full max-w-full overflow-x-auto">
+        <div className="w-full max-w-full min-w-0 overflow-x-auto rounded border border-slate-200 bg-white">
           <table className="w-max min-w-full border-collapse text-left text-sm">
             <thead className="bg-slate-100 text-slate-700">
               <tr>

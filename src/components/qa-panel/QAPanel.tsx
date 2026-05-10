@@ -685,7 +685,7 @@ export function QAPanel({
         Tổng số issue: {displayIssues.length}
       </p>
 
-      <div className="grid min-w-0 gap-4">
+      <div className="grid w-full max-w-full min-w-0 gap-4 overflow-x-auto">
         {groupedIssues.map((group) => (
           <section className="min-w-0 rounded border border-slate-200" key={group.severity}>
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">

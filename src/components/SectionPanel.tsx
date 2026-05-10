@@ -7,7 +7,7 @@ type SectionPanelProps = {
 export function SectionPanel({ section }: SectionPanelProps) {
   return (
     <article
-      className="rounded border border-slate-200 bg-white p-5"
+      className="w-full max-w-full min-w-0 overflow-hidden rounded border border-slate-200 bg-white p-5"
       id={section.id}
     >
       <p className="text-sm font-medium text-slate-500">{section.status}</p>

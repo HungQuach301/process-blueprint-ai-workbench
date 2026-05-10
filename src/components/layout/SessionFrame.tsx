@@ -10,7 +10,7 @@ type SessionFrameProps = {
 };
 
 const scrollClasses: Record<NonNullable<SessionFrameProps["contentScroll"]>, string> = {
-  none: "",
+  none: "overflow-hidden",
   x: "overflow-x-auto",
   y: "overflow-y-auto",
   xy: "overflow-auto"
@@ -33,7 +33,7 @@ export function SessionFrame({
   return (
     <section className="w-full max-w-full min-w-0 overflow-hidden rounded border border-slate-200 bg-white">
       {hasHeader ? (
-        <div className="border-b border-slate-200 p-4">
+        <div className="w-full max-w-full min-w-0 overflow-hidden border-b border-slate-200 p-4">
           <div className="flex min-w-0 flex-wrap gap-3 lg:items-start lg:justify-between">
             <div className="min-w-0">
               {title ? (
@@ -49,7 +49,7 @@ export function SessionFrame({
             </div>
 
             {actions ? (
-              <div className="flex max-w-full flex-wrap gap-2">
+              <div className="flex min-w-0 max-w-full flex-wrap gap-2">
                 {actions}
               </div>
             ) : null}

@@ -435,7 +435,6 @@ export function D02ServiceBlueprintPreview() {
   return (
     <SessionFrame
       bodyClassName="p-4"
-      contentScroll="xy"
       description={`Template: ${template.name} | Tasks: ${tasks.length}`}
       title="Service Blueprint read-only preview"
     >
@@ -443,8 +442,9 @@ export function D02ServiceBlueprintPreview() {
           D02 Preview
         </p>
         <MetadataLegend />
+        <div className="mt-4 w-full max-w-full min-w-0 overflow-auto rounded border border-slate-200">
         <div
-          className="mt-4 grid min-w-max border border-slate-200 text-sm"
+          className="grid min-w-max text-sm"
           style={{
             gridTemplateColumns: `240px repeat(${phases.length}, minmax(360px, 1fr))`
           }}
@@ -501,6 +501,7 @@ export function D02ServiceBlueprintPreview() {
               ) : null}
             </div>
           ))}
+        </div>
         </div>
     </SessionFrame>
   );

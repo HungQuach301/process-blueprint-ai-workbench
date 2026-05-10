@@ -14,19 +14,21 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## What was done in the last session
 
-- Created MVP1 release documentation.
-- Added an MVP1 release checklist covering Process Modeling Core, real AI readiness, API key safety, manual regression, export tests, and GitHub release readiness.
-- Added MVP1 release notes covering summary, included features, AI behavior, known limitations, test checklist, and version/tag placeholder.
+- Improved AI Input Brief UX for MVP1.
+- Kept the Draft -> Preview -> User Apply workflow; no auto-apply behavior was added.
+- Added visible Manual Input, Import File, and Voice Input - Coming soon modes.
+- Updated Manual Input sections to use multiple-choice options with conditional `Khác / Other` free text.
+- Kept related systems split into customer-facing, internal, and third-party groups.
+- Kept Data / Documents as a separate section from systems.
 
 ## Files changed
 
-- `docs/MVP1_RELEASE_CHECKLIST.md`
-- `docs/MVP1_RELEASE_NOTES.md`
+- `src/components/input-brief/AIInputBriefPanel.tsx`
 - `docs/SESSION_HANDOFF.md`
 
 ## Important decisions made
 
-- No new product or architecture decision was made. This session documented MVP1 release readiness only.
+- No new product or architecture decision was made. This session applied a scoped MVP1 AI Input Brief UX improvement only.
 
 ## Current blockers
 
@@ -34,7 +36,7 @@ Phase 0 — Stabilize Process Modeling Core
 
 ## Next recommended task
 
-Review the MVP1 release checklist, replace release placeholders with the final version/tag, then run the full manual release regression before creating the GitHub release.
+Manually verify AI Input Brief modes, conditional Other text, local Draft PTR generation, draft preview, and explicit Apply behavior in the running app.
 
 ## Exact prompt for next ChatGPT session
 

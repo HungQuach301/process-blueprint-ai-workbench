@@ -110,7 +110,9 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
         </p>
       ) : null}
 
-      <div className="h-[560px] w-full bg-white" ref={containerRef} />
+      <div className="w-full max-w-full min-w-0 overflow-x-auto bg-white">
+        <div className="h-[560px] min-w-[960px]" ref={containerRef} />
+      </div>
     </SessionFrame>
   );
 }

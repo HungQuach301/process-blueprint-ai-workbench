@@ -334,7 +334,10 @@ const briefFields: BriefField[] = [
 ];
 
 const primaryBriefFields = briefFields.slice(0, 4);
-const relatedBriefFields = briefFields.slice(4);
+const systemBriefFields = briefFields.slice(4, 7);
+const dataDocumentBriefFields = briefFields.slice(7);
+const OTHER_OPTION_LABEL = "Khác / Other";
+const otherOptionLabels = new Set(["Khác", "Other", OTHER_OPTION_LABEL]);
 
 function markGeneratedArtifactsStale() {
   window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
@@ -439,6 +442,13 @@ function formatFileSize(fileSize: number) {
 
 function formatLastModified(lastModified: number) {
   return new Date(lastModified).toLocaleString();
+}
+
+function splitBriefLines(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 export function AIInputBriefPanel() {
@@ -575,31 +585,79 @@ export function AIInputBriefPanel() {
     [brief]
   );
 
-  function updateBriefField(key: BriefField["key"], value: string) {
+  function getFieldOptions(field: BriefField) {
+    return [
+      ...field.suggestions.filter((suggestion) => !otherOptionLabels.has(suggestion)),
+      OTHER_OPTION_LABEL
+    ];
+  }
+
+  function getFieldSelection(field: BriefField) {
+    const options = getFieldOptions(field);
+    const optionSet = new Set(options);
+    const currentValues = splitBriefLines(brief[field.key]);
+    const otherText = currentValues
+      .filter((entry) => !optionSet.has(entry) && !otherOptionLabels.has(entry))
+      .join("\n");
+    const selectedOptions = options.filter((option) => {
+      if (option === OTHER_OPTION_LABEL) {
+        return (
+          currentValues.some((entry) => otherOptionLabels.has(entry)) ||
+          otherText.trim().length > 0
+        );
+      }
+
+      return currentValues.includes(option);
+    });
+
+    return {
+      options,
+      otherText,
+      selectedOptions
+    };
+  }
+
+  function saveFieldSelection(
+    key: BriefField["key"],
+    selectedOptions: string[],
+    otherText: string
+  ) {
+    const nextValues = [
+      ...selectedOptions.filter((option) => option !== OTHER_OPTION_LABEL),
+      ...(selectedOptions.includes(OTHER_OPTION_LABEL) && !otherText.trim()
+        ? [OTHER_OPTION_LABEL]
+        : []),
+      ...splitBriefLines(otherText)
+    ];
+
     setBrief((currentBrief) => ({
       ...currentBrief,
-      [key]: value
+      [key]: nextValues.join("\n")
     }));
     setMessage("Brief đã được lưu local.");
   }
 
-  function toggleSuggestion(key: BriefField["key"], suggestion: string) {
-    setBrief((currentBrief) => {
-      const currentValues = currentBrief[key]
-        .split(/\r?\n/)
-        .map((entry) => entry.trim())
-        .filter(Boolean);
-      const hasSuggestion = currentValues.includes(suggestion);
-      const nextValues = hasSuggestion
-        ? currentValues.filter((entry) => entry !== suggestion)
-        : [...currentValues, suggestion];
+  function toggleSuggestion(field: BriefField, suggestion: string) {
+    const { otherText, selectedOptions } = getFieldSelection(field);
+    const isSelected = selectedOptions.includes(suggestion);
+    const nextSelectedOptions = isSelected
+      ? selectedOptions.filter((option) => option !== suggestion)
+      : [...selectedOptions, suggestion];
 
-      return {
-        ...currentBrief,
-        [key]: nextValues.join("\n")
-      };
-    });
-    setMessage("Brief đã được lưu local.");
+    saveFieldSelection(
+      field.key,
+      nextSelectedOptions,
+      suggestion === OTHER_OPTION_LABEL && isSelected ? "" : otherText
+    );
+  }
+
+  function updateOtherText(field: BriefField, value: string) {
+    const { selectedOptions } = getFieldSelection(field);
+    const nextSelectedOptions = selectedOptions.includes(OTHER_OPTION_LABEL)
+      ? selectedOptions
+      : [...selectedOptions, OTHER_OPTION_LABEL];
+
+    saveFieldSelection(field.key, nextSelectedOptions, value);
   }
 
   function saveBrief() {
@@ -1259,13 +1317,11 @@ export function AIInputBriefPanel() {
   const labels = previewLabels[locale];
 
   function renderBriefField(field: BriefField) {
-    const selectedSuggestions = brief[field.key]
-      .split(/\r?\n/)
-      .map((entry) => entry.trim())
-      .filter(Boolean);
+    const { options, otherText, selectedOptions } = getFieldSelection(field);
+    const isOtherSelected = selectedOptions.includes(OTHER_OPTION_LABEL);
 
     return (
-      <label
+      <section
         className="grid w-full min-w-0 gap-4 rounded border border-slate-200 bg-white p-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]"
         key={field.key}
       >
@@ -1276,9 +1332,12 @@ export function AIInputBriefPanel() {
           <span className="mt-1 block text-sm leading-6 text-slate-600">
             {field.helper[locale]}
           </span>
-          <div className="mt-3 flex max-w-full flex-wrap gap-2">
-            {field.suggestions.map((suggestion) => {
-              const isSelected = selectedSuggestions.includes(suggestion);
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex max-w-full flex-wrap gap-2">
+            {options.map((suggestion) => {
+              const isSelected = selectedOptions.includes(suggestion);
 
               return (
                 <button
@@ -1290,7 +1349,7 @@ export function AIInputBriefPanel() {
                   key={suggestion}
                   onClick={(event) => {
                     event.preventDefault();
-                    toggleSuggestion(field.key, suggestion);
+                    toggleSuggestion(field, suggestion);
                   }}
                   type="button"
                 >
@@ -1299,15 +1358,17 @@ export function AIInputBriefPanel() {
               );
             })}
           </div>
+          {isOtherSelected ? (
+            <textarea
+              className="mt-3 min-h-24 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+              onChange={(event) => updateOtherText(field, event.target.value)}
+              placeholder={field.placeholder[locale]}
+              rows={field.rows}
+              value={otherText}
+            />
+          ) : null}
         </div>
-        <textarea
-          className="min-h-32 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
-          onChange={(event) => updateBriefField(field.key, event.target.value)}
-          placeholder={field.placeholder[locale]}
-          rows={field.rows}
-          value={brief[field.key]}
-        />
-      </label>
+      </section>
     );
   }
 
@@ -1354,7 +1415,7 @@ export function AIInputBriefPanel() {
         {[
           { id: "manual" as const, label: "Manual Input", disabled: false },
           { id: "import-file" as const, label: "Import File", disabled: false },
-          { id: "voice" as const, label: "Voice Input", disabled: true }
+          { id: "voice" as const, label: "Voice Input — Coming soon", disabled: false }
         ].map((mode) => (
           <button
             className={`rounded border px-3 py-2 text-sm font-semibold ${
@@ -1368,7 +1429,6 @@ export function AIInputBriefPanel() {
             type="button"
           >
             {mode.label}
-            {mode.disabled ? " - coming soon" : ""}
           </button>
         ))}
       </div>
@@ -1381,14 +1441,27 @@ export function AIInputBriefPanel() {
           <div className="w-full min-w-0 rounded border border-slate-200 bg-slate-50 p-4">
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-slate-950">
-                Related information
+                Related systems
               </h3>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                Split systems by audience and keep data/documents separate for a cleaner draft PTR.
+                Customer-facing, internal, and third-party systems are captured separately.
               </p>
             </div>
             <div className="grid w-full min-w-0 gap-4">
-              {relatedBriefFields.map(renderBriefField)}
+              {systemBriefFields.map(renderBriefField)}
+            </div>
+          </div>
+          <div className="w-full min-w-0 rounded border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-slate-950">
+                Data / Documents
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Keep data, documents, forms, and records separate from systems.
+              </p>
+            </div>
+            <div className="grid w-full min-w-0 gap-4">
+              {dataDocumentBriefFields.map(renderBriefField)}
             </div>
           </div>
         </div>
@@ -1409,7 +1482,7 @@ export function AIInputBriefPanel() {
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
               Current MVP keeps selected files local unless real AI/cloud mode is explicitly enabled.
-              File content is not parsed or uploaded in this phase.
+              Supported files are parsed locally for Draft PTR preview before Apply.
             </p>
           </div>
           <button

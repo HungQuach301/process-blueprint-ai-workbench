@@ -1184,7 +1184,7 @@ export function ProcessTaskRegister() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              className="btn btn-primary"
               onClick={saveTasks}
               type="button"
             >
@@ -1359,7 +1359,7 @@ export function ProcessTaskRegister() {
               </div>
               <div className="flex max-w-full flex-wrap gap-2">
                 <button
-                  className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  className="btn btn-success"
                   disabled={importPreview.errors.length > 0}
                   onClick={applyImport}
                   type="button"

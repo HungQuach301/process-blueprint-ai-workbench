@@ -400,21 +400,21 @@ export function AIProviderSettingsPanel() {
       actions={
         <>
           <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="btn btn-ai"
             onClick={testConnection}
             type="button"
           >
             {isTesting ? text.testing : text.test}
           </button>
           <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="btn btn-secondary"
             onClick={resetSettings}
             type="button"
           >
             {text.reset}
           </button>
           <button
-            className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="btn btn-primary"
             onClick={saveSettings}
             type="button"
           >
@@ -436,7 +436,7 @@ export function AIProviderSettingsPanel() {
             <button
               className={`min-h-44 rounded border p-4 text-left transition ${
                 isSelected
-                  ? "border-slate-950 bg-slate-950 text-white"
+                  ? "border-violet-300 bg-violet-600 text-white shadow-md"
                   : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
               }`}
               key={card.id}

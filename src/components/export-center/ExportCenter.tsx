@@ -1935,14 +1935,14 @@ export function ExportCenter() {
   }
 
   return (
-    <section className="rounded border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 p-4">
+    <section className="surface-card overflow-hidden">
+      <div className="border-b border-slate-200 bg-slate-50/70 p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
+            <p className="status-badge status-badge-success">
               Export Center
             </p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-950">
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">
               Output Package ZIP
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -1960,7 +1960,7 @@ export function ExportCenter() {
               Generate all artifacts
             </button>
             <button
-              className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="btn btn-primary"
               disabled={isDownloading}
               onClick={downloadZip}
               type="button"
@@ -1968,14 +1968,14 @@ export function ExportCenter() {
               {isDownloading ? "Äang táº¡o ZIP..." : "Download ZIP"}
             </button>
             <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="btn btn-secondary"
               onClick={downloadAuditLog}
               type="button"
             >
               Export Audit Log JSON
             </button>
             <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="btn btn-secondary"
               onClick={downloadAIRunHistory}
               type="button"
             >
@@ -2032,7 +2032,7 @@ export function ExportCenter() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="btn btn-secondary"
               onClick={refreshAIRunHistory}
               type="button"
             >
@@ -2248,7 +2248,7 @@ export function ExportCenter() {
                 Generate BRD from Notes
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-primary"
                 disabled={!brdPreview}
                 onClick={downloadBRDJson}
                 type="button"
@@ -2272,7 +2272,7 @@ export function ExportCenter() {
                 Generate SRS from Notes
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-primary"
                 disabled={!srsPreview}
                 onClick={downloadSRSJson}
                 type="button"
@@ -2296,7 +2296,7 @@ export function ExportCenter() {
                 Generate Stories from BRD
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-primary"
                 disabled={!userStoryPreview}
                 onClick={downloadUserStoriesJson}
                 type="button"
@@ -2312,7 +2312,7 @@ export function ExportCenter() {
                 {isGeneratingAcceptanceCriteria ? "Generating AC..." : "Generate Acceptance Criteria"}
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-primary"
                 disabled={!acceptanceCriteriaPreview}
                 onClick={downloadAcceptanceCriteriaJson}
                 type="button"
@@ -2336,7 +2336,7 @@ export function ExportCenter() {
                 Generate MVP Slicing
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-primary"
                 disabled={!productScopeReviewPreview}
                 onClick={downloadProductScopeReviewJson}
                 type="button"
@@ -2359,7 +2359,7 @@ export function ExportCenter() {
                 Generate Product Delivery Draft
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-primary"
                 disabled={!productDeliveryDraft}
                 onClick={downloadProductDeliveryMarkdown}
                 type="button"
@@ -2516,7 +2516,7 @@ export function ExportCenter() {
                       </p>
                     ) : null}
                     <button
-                      className="mt-3 rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                      className="btn btn-ai mt-3 text-xs"
                       disabled={!result.result || result.validationStatus !== "passed"}
                       onClick={() => useExportCompareResult(result)}
                       type="button"
@@ -2964,7 +2964,7 @@ export function ExportCenter() {
                 Preview Product Delivery Coding Pack
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-primary"
                 disabled={isDownloadingAICodingPack}
                 onClick={downloadAICodingPackZip}
                 type="button"
@@ -3025,3 +3025,4 @@ export function ExportCenter() {
     </section>
   );
 }
+

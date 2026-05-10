@@ -1012,7 +1012,7 @@ export function QAPanel({
                 {text.selectSafe}
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-success text-xs"
                 disabled={selectedRecommendations.length === 0}
                 onClick={applySelectedRecommendations}
                 type="button"
@@ -1183,7 +1183,7 @@ export function QAPanel({
                 <p className="mt-2 text-xs text-rose-700">{result.error}</p>
               ) : null}
               <button
-                className="mt-3 rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-ai mt-3 text-xs"
                 disabled={result.recommendations.length === 0}
                 onClick={() => useCompareResult(result)}
                 type="button"
@@ -1308,7 +1308,7 @@ export function QAPanel({
                                   </span>
                                 </label>
                                 <button
-                                  className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                                  className="btn btn-ai w-fit text-xs"
                                   onClick={() =>
                                     setPendingRecommendation({
                                       issue,
@@ -1451,7 +1451,7 @@ export function QAPanel({
                 Cancel
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                className="btn btn-success"
                 onClick={confirmSingleRecommendation}
                 type="button"
               >
@@ -1523,7 +1523,7 @@ export function QAPanel({
                 Cancel
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-success"
                 disabled={pendingBatchPreview.applicableCount === 0}
                 onClick={confirmBatchRecommendations}
                 type="button"

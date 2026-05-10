@@ -1701,7 +1701,7 @@ export function AIInputBriefPanel() {
                 <button
                   className={`max-w-full whitespace-normal rounded-full border px-3 py-1 text-left text-xs font-medium ${
                     isSelected
-                      ? "border-slate-900 bg-slate-900 text-white"
+                      ? "border-blue-300 bg-blue-600 text-white shadow-sm"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
                   }`}
                   key={suggestion}
@@ -1749,7 +1749,7 @@ export function AIInputBriefPanel() {
             {t("inputBrief.resetBrief", locale)}
           </button>
           <button
-            className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="btn btn-primary"
             onClick={generateDraftPtr}
             type="button"
           >
@@ -1778,7 +1778,7 @@ export function AIInputBriefPanel() {
           <button
             className={`rounded border px-3 py-2 text-sm font-semibold ${
               briefMode === mode.id
-                ? "border-slate-900 bg-slate-900 text-white"
+                ? "border-violet-300 bg-violet-600 text-white shadow-sm"
                 : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
             } disabled:cursor-not-allowed disabled:opacity-50`}
             disabled={mode.disabled}
@@ -2066,7 +2066,7 @@ export function AIInputBriefPanel() {
                 </p>
               </div>
               <button
-                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                className="btn btn-ai w-fit text-xs"
                 onClick={() => void generateDraftPtrFromDocxExtraction()}
                 type="button"
               >
@@ -2134,7 +2134,7 @@ export function AIInputBriefPanel() {
                 </p>
               </div>
               <button
-                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                className="btn btn-success w-fit text-xs"
                 onClick={() => void generateDraftPtrFromPdfExtraction()}
                 type="button"
               >

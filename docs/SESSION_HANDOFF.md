@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-10
+2026-05-11
 
 ## Current branch
 
@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Applied visual design system polish for MVP1-AI RC2.
+- Added global design tokens for primary blue, AI purple, success green, warning amber, danger red, and neutral slate.
+- Added shared `btn`, semantic button variants, status badge, soft panel, and surface card styles.
+- Replaced heavy black primary action buttons with semantic primary, AI, and success button styles across the main RC2 modules.
+- Improved shared module cards through `SessionFrame` with softer background, clearer header spacing, 8px radius, and subtle shadow.
+- Improved the left sidebar with grouped modules and active section state.
+- Improved the top workspace header with product title treatment, MVP1-AI RC badge, AI provider/status badge, and artifact readiness summary.
+- Kept the polish UI-only: no business logic, generator behavior, AI route, provider adapter, schema, API key handling, or auto-apply behavior was changed.
 - Improved QA recommendation safety UX for MVP1-AI RC2.
 - Graph-changing recommendations are now hidden by default behind the Advanced structure changes option.
 - Renamed the graph-changing toggle to user-friendly EN/VI copy: `Show advanced structure changes` / `Hiển thị thay đổi cấu trúc nâng cao`.
@@ -191,6 +199,18 @@ Complete Module 2 + Module 3 with full real AI support.
 - `docs/AI_SKILL_REGISTRY.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/SESSION_HANDOFF.md`
+- `src/app/globals.css`
+- `src/components/AppShell.tsx`
+- `src/components/Navigation.tsx`
+- `src/components/layout/SessionFrame.tsx`
+- `src/components/ai-settings/AIProviderSettingsPanel.tsx`
+- `src/components/input-brief/AIInputBriefPanel.tsx`
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/export-center/ExportCenter.tsx`
 - `src/components/bpmn-output/D01BpmnOutput.tsx`
 - `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
 - `src/components/template-library/TemplateLibraryEditor.tsx`

@@ -23,6 +23,26 @@ const releaseNavigationSections = navigationSections.filter(
 
 export function AppShell() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
+  const artifactCount = releaseNavigationSections.filter(
+    (section) =>
+      section.id === "d01-bpmn-preview" ||
+      section.id === "d02-service-blueprint-preview" ||
+      section.id === "export-center"
+  ).length;
+  const headerText = {
+    aiStatus:
+      locale === "vi"
+        ? "AI: server route / mock an toàn"
+        : "AI: server route / mock-safe",
+    artifactSummary:
+      locale === "vi"
+        ? `${artifactCount} đầu ra artifact sẵn sàng`
+        : `${artifactCount} artifact outputs ready`,
+    aiModeLabel: locale === "vi" ? "Chế độ AI" : "AI mode",
+    aiModeValue: locale === "vi" ? "Draft / Preview / Apply" : "Draft / Preview / Apply",
+    sourceLabel: locale === "vi" ? "Nguồn dữ liệu chuẩn" : "Source of truth",
+    releaseLabel: locale === "vi" ? "Phạm vi release" : "Release scope"
+  };
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -39,10 +59,11 @@ export function AppShell() {
         <Navigation locale={locale} sections={releaseNavigationSections} />
 
         <section className="min-w-0 max-w-full flex-1">
-          <header className="mb-6 border-b border-slate-200 pb-5">
+          <header className="surface-card mb-6 overflow-hidden">
+            <div className="border-b border-slate-200 bg-white p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+                <p className="status-badge status-badge-primary">
                   {t("session.mvpSkeleton", locale)}
                 </p>
                 <h1 className="mt-2 text-3xl font-semibold text-slate-950">
@@ -53,21 +74,47 @@ export function AppShell() {
                 </p>
               </div>
 
-              <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
-                {t("common.language", locale)}
-                <select
-                  className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  onChange={(event) => switchLocale(event.target.value as Locale)}
-                  value={locale}
-                >
-                  <option value="vi">{t("common.vietnamese", locale)}</option>
-                  <option value="en">{t("common.english", locale)}</option>
-                </select>
-              </label>
+              <div className="flex flex-col gap-3 lg:items-end">
+                <div className="flex flex-wrap gap-2">
+                  <span className="status-badge status-badge-ai">
+                    {headerText.aiStatus}
+                  </span>
+                  <span className="status-badge status-badge-success">
+                    {headerText.artifactSummary}
+                  </span>
+                </div>
+
+                <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
+                  {t("common.language", locale)}
+                  <select
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                    onChange={(event) => switchLocale(event.target.value as Locale)}
+                    value={locale}
+                  >
+                    <option value="vi">{t("common.vietnamese", locale)}</option>
+                    <option value="en">{t("common.english", locale)}</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            </div>
+            <div className="grid gap-3 bg-slate-50/80 p-4 sm:grid-cols-3">
+              <div className="soft-panel p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{headerText.aiModeLabel}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{headerText.aiModeValue}</p>
+              </div>
+              <div className="soft-panel p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{headerText.sourceLabel}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">Process Task Register</p>
+              </div>
+              <div className="soft-panel p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{headerText.releaseLabel}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">MVP1-AI RC2</p>
+              </div>
             </div>
           </header>
 
-          <div className="grid min-w-0 gap-4">
+          <div className="grid min-w-0 gap-5">
             <div className="min-w-0 max-w-full" id="ai-settings">
               <AIProviderSettingsPanel />
             </div>

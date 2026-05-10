@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import type { NavigationSection } from "@/lib/sample-data/navigation-sections";
 import { t, type Locale, type TranslationKey } from "@/lib/i18n";
 
@@ -19,35 +22,116 @@ const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>
 };
 
 const helperByLocale: Record<Locale, string> = {
-  vi: "Các khu vực làm việc",
+  vi: "Khu vực làm việc",
   en: "Navigation sections"
 };
 
+const groupLabels: Record<Locale, Record<"setup" | "modeling" | "outputs", string>> = {
+  vi: {
+    setup: "Thiết lập",
+    modeling: "Mô hình quy trình",
+    outputs: "Đầu ra"
+  },
+  en: {
+    setup: "Setup",
+    modeling: "Process modeling",
+    outputs: "Outputs"
+  }
+};
+
+const groupBySectionId: Record<string, keyof typeof groupLabels.en> = {
+  "ai-settings": "setup",
+  "input-brief": "modeling",
+  "template-library": "modeling",
+  "process-task-register": "modeling",
+  "d01-bpmn-preview": "outputs",
+  "d02-service-blueprint-preview": "outputs",
+  "export-center": "outputs"
+};
+
 export function Navigation({ locale, sections }: NavigationProps) {
+  const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id ?? "");
+
+  const groupedSections = useMemo(() => {
+    return sections.reduce<Record<string, NavigationSection[]>>((groups, section) => {
+      const group = groupBySectionId[section.id] ?? "outputs";
+      groups[group] = [...(groups[group] ?? []), section];
+      return groups;
+    }, {});
+  }, [sections]);
+
+  useEffect(() => {
+    const updateActiveSection = () => {
+      const visibleSection = sections
+        .map((section) => {
+          const element = document.getElementById(section.id);
+          return element
+            ? { id: section.id, top: Math.abs(element.getBoundingClientRect().top - 96) }
+            : null;
+        })
+        .filter((section): section is { id: string; top: number } => Boolean(section))
+        .sort((left, right) => left.top - right.top)[0];
+
+      if (visibleSection?.id) {
+        setActiveSectionId(visibleSection.id);
+      }
+    };
+
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("hashchange", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("hashchange", updateActiveSection);
+    };
+  }, [sections]);
+
   return (
-    <aside className="sticky top-6 hidden h-fit w-72 shrink-0 rounded border border-slate-200 bg-white p-4 md:block">
-      <div className="mb-4">
+    <aside className="surface-card sticky top-6 hidden h-fit w-72 shrink-0 p-4 md:block">
+      <div className="mb-5 border-b border-slate-200 pb-4">
         <p className="text-sm font-semibold text-slate-950">Workbench</p>
         <p className="mt-1 text-sm text-slate-500">{helperByLocale[locale]}</p>
       </div>
 
       <nav aria-label="Workbench sections">
-        <ol className="space-y-1">
-          {sections.map((section) => {
-            const navKey = navKeyBySectionId[section.id];
+        {(["setup", "modeling", "outputs"] as const).map((group) => {
+          const groupSections = groupedSections[group] ?? [];
 
-            return (
-              <li key={section.id}>
-                <a
-                  className="block rounded px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                  href={`#${section.id}`}
-                >
-                  {navKey ? t(navKey, locale) : section.label}
-                </a>
-              </li>
-            );
-          })}
-        </ol>
+          if (groupSections.length === 0) {
+            return null;
+          }
+
+          return (
+            <div className="mb-5 last:mb-0" key={group}>
+              <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                {groupLabels[locale][group]}
+              </p>
+              <ol className="space-y-1">
+                {groupSections.map((section) => {
+                  const navKey = navKeyBySectionId[section.id];
+                  const isActive = activeSectionId === section.id;
+
+                  return (
+                    <li key={section.id}>
+                      <a
+                        className={`block rounded-md border px-3 py-2 text-sm font-semibold transition ${
+                          isActive
+                            ? "border-blue-200 bg-blue-50 text-blue-800 shadow-sm"
+                            : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950"
+                        }`}
+                        href={`#${section.id}`}
+                        onClick={() => setActiveSectionId(section.id)}
+                      >
+                        {navKey ? t(navKey, locale) : section.label}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

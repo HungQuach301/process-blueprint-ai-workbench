@@ -115,13 +115,13 @@ export const processModelingPromptPacks: AIPromptPack[] = [
     description:
       "Review TemplateProfile fit for D01 BPMN or D02 Service Blueprint.",
     outputContract:
-      "{ recommendations: TemplateRecommendation[], qualityScore?: TemplateQualityScore } with matching templateId.",
+      "{ recommendations: TemplateRecommendation[], qualityScore?: TemplateQualityScore, warnings?: string[], assumptions?: string[] } with matching templateId.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Review template metadata and rules only. Do not modify D01/D02 generators and do not apply template patches automatically."
+          "Review template metadata and rules only. Check BPMN template fit, Service Blueprint template fit, mandatory fields, lane or row rules, connector and layout risks, and business domain or process type fit. Return review-only TemplateRecommendation objects, qualityScore when possible, warnings, and assumptions. Do not modify D01/D02 generators and do not apply template patches automatically."
       }
     ]
   },

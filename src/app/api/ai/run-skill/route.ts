@@ -765,7 +765,9 @@ function createMockTemplateReviewResponse({
   const validation = validateTemplateReviewOutput(
     {
       recommendations: response.recommendations,
-      qualityScore: response.qualityScore
+      qualityScore: response.qualityScore,
+      warnings: response.warnings,
+      assumptions: response.assumptions
     },
     selectedTemplate
   );
@@ -800,7 +802,9 @@ function createMockTemplateReviewResponse({
     skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
     result: {
       recommendations: validation.recommendations,
-      qualityScore: validation.qualityScore
+      qualityScore: validation.qualityScore,
+      warnings: validation.warnings,
+      assumptions: validation.assumptions
     },
     meta: {
       orchestrationVersion: ORCHESTRATION_VERSION,

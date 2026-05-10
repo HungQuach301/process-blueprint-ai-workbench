@@ -89,6 +89,9 @@ const templateHubText = {
     save: "Save",
     reset: "Reset",
     recommendations: "Template QA Recommendations",
+    aiTemplateReview: "AI Template Review",
+    reviewWarnings: "Warnings",
+    reviewAssumptions: "Assumptions",
     reviewRequired: "Human review required. No template change is auto-applied.",
     starterPack: "Banking Starter Pack and saved templates",
     outputType: "Output type",
@@ -427,6 +430,12 @@ export function TemplateLibraryEditor() {
     useState<TemplateRecommendation[]>([]);
   const [templateQualityScore, setTemplateQualityScore] =
     useState<TemplateQualityScore | null>(null);
+  const [templateReviewWarnings, setTemplateReviewWarnings] = useState<string[]>(
+    []
+  );
+  const [templateReviewAssumptions, setTemplateReviewAssumptions] = useState<
+    string[]
+  >([]);
   const [realAITemplateReviewEnabled, setRealAITemplateReviewEnabled] =
     useState(false);
   const [isReviewingTemplate, setIsReviewingTemplate] = useState(false);
@@ -593,6 +602,8 @@ export function TemplateLibraryEditor() {
     setSelectedD02TemplateId(sampleServiceBlueprintTemplateProfile.id);
     setTemplateReviewRecommendations([]);
     setTemplateQualityScore(null);
+    setTemplateReviewWarnings([]);
+    setTemplateReviewAssumptions([]);
     window.localStorage.removeItem(TEMPLATES_STORAGE_KEY);
     window.localStorage.removeItem(D01_STORAGE_KEY);
     window.localStorage.removeItem(D02_STORAGE_KEY);
@@ -652,6 +663,8 @@ export function TemplateLibraryEditor() {
     setIsReviewingTemplate(true);
     setTemplateReviewRecommendations([]);
     setTemplateQualityScore(null);
+    setTemplateReviewWarnings([]);
+    setTemplateReviewAssumptions([]);
 
     if (!confirmRealAICallIfNeeded(realAITemplateReviewEnabled)) {
       setIsReviewingTemplate(false);
@@ -685,6 +698,8 @@ export function TemplateLibraryEditor() {
         result?: {
           recommendations?: TemplateRecommendation[];
           qualityScore?: TemplateQualityScore;
+          warnings?: string[];
+          assumptions?: string[];
         };
         error?: string;
         validationErrors?: string[];
@@ -711,6 +726,8 @@ export function TemplateLibraryEditor() {
 
       setTemplateReviewRecommendations(data.result?.recommendations ?? []);
       setTemplateQualityScore(data.result?.qualityScore ?? null);
+      setTemplateReviewWarnings(data.result?.warnings ?? []);
+      setTemplateReviewAssumptions(data.result?.assumptions ?? []);
       setMessage(
         `${data.mode === "provider-backed" ? "Real" : "Mock"} Template QA returned ${
           data.result?.recommendations?.length ?? 0
@@ -723,7 +740,9 @@ export function TemplateLibraryEditor() {
         externalApiCalled: data.meta?.externalApiCalled === true,
         extraMetadata: {
           recommendationCount: data.result?.recommendations?.length ?? 0,
-          hasQualityScore: Boolean(data.result?.qualityScore)
+          hasQualityScore: Boolean(data.result?.qualityScore),
+          warningCount: data.result?.warnings?.length ?? 0,
+          assumptionCount: data.result?.assumptions?.length ?? 0
         }
       });
     } catch {
@@ -809,11 +828,43 @@ export function TemplateLibraryEditor() {
 
       {templateQualityScore ? (
         <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <p className="text-xs font-semibold uppercase text-emerald-700">
+            AI Template Review
+          </p>
           <p className="font-semibold">
             Template quality score: {templateQualityScore.score}/
             {templateQualityScore.maxScore}
           </p>
           <p className="mt-1">{templateQualityScore.summary}</p>
+        </div>
+      ) : null}
+
+      {templateReviewWarnings.length > 0 || templateReviewAssumptions.length > 0 ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {templateReviewWarnings.length > 0 ? (
+            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="font-semibold">
+                {locale === "vi" ? "Cáº£nh bÃ¡o" : "Warnings"}
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {templateReviewWarnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {templateReviewAssumptions.length > 0 ? (
+            <div className="rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+              <p className="font-semibold">
+                {locale === "vi" ? "Giáº£ Ä‘á»‹nh" : "Assumptions"}
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {templateReviewAssumptions.map((assumption) => (
+                  <li key={assumption}>{assumption}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

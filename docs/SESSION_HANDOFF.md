@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed Template Hub AI Template Review output contract.
+- Expanded Template Review response validation to include `warnings` and `assumptions` alongside `TemplateRecommendation[]` and quality score.
+- Strengthened mock/local Template Review to check BPMN fit, Service Blueprint fit, mandatory fields, lane/row rules, connector/layout risks, and business domain/process type fit.
+- Updated Template Hub UI to display AI Template Review quality score, warnings, assumptions, and recommendations as review-only output.
+- Preserved no auto-apply for template recommendations; users must still edit/save templates explicitly.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for completed Template Hub AI Template Review behavior.
 - Added AI artifact review for generated D01 BPMN and D02 Service Blueprint outputs.
 - Added `artifact-review` to AI Skill Registry V2 with Product AI/OpenAI/Claude/Mock support.
 - Added `ArtifactReviewResponse` validation for PTR `QARecommendation[]`, template `TemplateRecommendation[]`, and artifact warnings.
@@ -85,14 +91,18 @@ Complete Module 2 + Module 3 with full real AI support.
 - `src/components/task-register/ProcessTaskRegister.tsx`
 - `src/components/bpmn-output/D01BpmnOutput.tsx`
 - `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
 - `src/components/qa-panel/QAPanel.tsx`
 - `src/app/api/ai/run-skill/route.ts`
 - `src/lib/ai/ai-qa-types.ts`
 - `src/lib/ai/ai-qa-service.ts`
+- `src/lib/ai/ai-template-review-service.ts`
+- `src/lib/ai/ai-template-review-types.ts`
 - `src/lib/ai/skill-schemas.ts`
 - `src/lib/ai/skill-registry-v2.ts`
 - `src/lib/ai/prompt-packs.ts`
 - `src/lib/recommendation-engine/qa-recommendation-schema.ts`
+- `src/lib/template-recommendation-engine/template-recommendation-schema.ts`
 - `docs/AI_SKILL_REGISTRY.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/SESSION_HANDOFF.md`
@@ -121,6 +131,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Important decisions made
 
+- Template Hub AI Template Review remains display/review-only in this slice; even low-risk template recommendations are not applied automatically.
+- Template Review output now includes warnings and assumptions as first-class review metadata.
 - AI artifact review is read-only for generated BPMN/draw.io XML; any fix must be represented as a PTR QA recommendation or Template recommendation.
 - `artifact-review` uses general `ENABLE_REAL_AI` for provider-backed execution and mock/local fallback otherwise.
 - Artifact review UI currently previews counts and warnings to keep D01/D02 output panels uncluttered; deeper recommendation handoff to QA Panel/Template Hub is a later slice.

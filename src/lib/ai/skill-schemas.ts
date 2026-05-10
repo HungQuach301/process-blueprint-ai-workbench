@@ -733,7 +733,9 @@ export function validateAISkillOutput(
       ok: true,
       value: {
         recommendations: validation.recommendations satisfies TemplateRecommendation[],
-        qualityScore: validation.qualityScore
+        qualityScore: validation.qualityScore,
+        warnings: validation.warnings,
+        assumptions: validation.assumptions
       },
       errors: []
     };

@@ -378,6 +378,16 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Current blockers
 
+## RC4 Template Hub gallery redesign update - 2026-05-11
+
+- Polished Template Hub into a clearer template gallery with progressive disclosure.
+- Kept the existing four tabs: Current templates, Browse templates, Template review, and Editor, while reducing global header actions that made the module feel like an admin config page.
+- Made Current templates show D01/D02 selections with compatibility/status signals and contextual quick actions for browse, preview, and editor.
+- Made Browse templates easier to scan with gallery cards showing only name, output type, domain, process type, status, short tags, Preview, and compatible Use D01/D02 actions.
+- Moved fields count, version, notation standard, mandatory fields, and raw rule JSON into collapsed details/advanced drawers.
+- Kept Template Review no-auto-apply, Provider Compare advanced/off by default, Basic editor first, and Advanced JSON rules collapsed by default.
+- Kept the change UI-only: no TemplateProfile schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
+
 ## RC4 lightweight guidance blocks update - 2026-05-11
 
 - Added concise collapsible "How it works" guidance blocks for Process Modeling, Template Hub, Product Delivery, and AI Development Handoff.

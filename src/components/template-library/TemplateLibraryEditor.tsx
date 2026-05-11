@@ -84,6 +84,20 @@ const templateHubText = {
     templateReviewHelper: "Chạy rà soát và xem đề xuất. Không có đề xuất nào được áp dụng tự động.",
     editorTabHelper: "Chỉnh mẫu đã chọn. Quy tắc JSON chi tiết nằm trong chế độ nâng cao.",
     changeTemplate: "Đổi mẫu",
+    quickActions: "Thao tác nhanh",
+    currentD01Template: "Template D01 hiện tại",
+    currentD02Template: "Template D02 hiện tại",
+    openEditor: "Mở editor",
+    galleryTitle: "Thư viện template",
+    filterBar: "Bộ lọc",
+    compatible: "Tương thích",
+    fieldsCount: "Số trường",
+    version: "Phiên bản",
+    notationStandard: "Chuẩn ký pháp",
+    rawRules: "Quy tắc thô",
+    templateName: "Tên template",
+    templateType: "Loại template",
+    noResults: "Không có template phù hợp với bộ lọc.",
     previewTemplate: "Xem mẫu",
     runTemplateQA: "Chạy Template QA",
     running: "Đang chạy...",
@@ -155,6 +169,20 @@ const templateHubText = {
     templateReviewHelper: "Run review and inspect recommendations. Recommendations are never auto-applied.",
     editorTabHelper: "Edit the selected template. Detailed JSON/rules stay in Advanced mode.",
     changeTemplate: "Change template",
+    quickActions: "Quick actions",
+    currentD01Template: "Current D01 template",
+    currentD02Template: "Current D02 template",
+    openEditor: "Open editor",
+    galleryTitle: "Template gallery",
+    filterBar: "Filter bar",
+    compatible: "Compatible",
+    fieldsCount: "Fields count",
+    version: "Version",
+    notationStandard: "Notation standard",
+    rawRules: "Raw rules",
+    templateName: "Template name",
+    templateType: "Template type",
+    noResults: "No templates match the current filters.",
     previewTemplate: "Preview template",
     runTemplateQA: "Run Template QA",
     running: "Running...",
@@ -823,15 +851,6 @@ export function TemplateLibraryEditor() {
     );
   }
 
-  function previewActiveTemplate() {
-    if (!activeDraft) {
-      setMessage("No template selected for preview.");
-      return;
-    }
-
-    setPreviewTemplateId(activeDraft.id);
-  }
-
   async function runTemplateReview() {
     if (!activeDraft) {
       setMessage(
@@ -1151,28 +1170,6 @@ export function TemplateLibraryEditor() {
       actions={
         <>
           <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={changeTemplate}
-            type="button"
-          >
-            {text.changeTemplate}
-          </button>
-          <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={previewActiveTemplate}
-            type="button"
-          >
-            {text.previewTemplate}
-          </button>
-          <button
-            className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isReviewingTemplate}
-            onClick={runTemplateReview}
-            type="button"
-          >
-            {isReviewingTemplate ? text.running : text.runTemplateQA}
-          </button>
-          <button
             className="btn btn-primary"
             onClick={saveTemplates}
             type="button"
@@ -1240,28 +1237,61 @@ export function TemplateLibraryEditor() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {[
             {
-              label: "D01 BPMN",
+              label: text.currentD01Template,
+              outputLabel: "D01 BPMN",
               draft: selectedD01Draft,
-              browseAction: () => setActiveTab("browse")
+              browseAction: () => setActiveTab("browse"),
+              isCompatible: selectedD01Draft ? isBpmnCompatibleTemplate(selectedD01Draft) : false
             },
             {
-              label: "D02 Service Blueprint",
+              label: text.currentD02Template,
+              outputLabel: "D02 Service Blueprint",
               draft: selectedD02Draft,
-              browseAction: () => setActiveTab("browse")
+              browseAction: () => setActiveTab("browse"),
+              isCompatible: selectedD02Draft
+                ? isServiceBlueprintCompatibleTemplate(selectedD02Draft)
+                : false
             }
           ].map((item) => (
-            <section className="rounded border border-slate-200 bg-white p-4" key={item.label}>
-              <p className="text-xs font-semibold uppercase text-slate-500">
-                {item.label}
-              </p>
-              <h3 className="mt-2 text-base font-semibold text-slate-950">
-                {item.draft?.name ?? text.noTemplateSelected}
-              </h3>
+            <section className="rounded border border-slate-200 bg-white p-4 shadow-sm" key={item.label}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-500">
+                    {item.label}
+                  </p>
+                  <h3 className="mt-2 text-base font-semibold text-slate-950">
+                    {item.draft?.name ?? text.noTemplateSelected}
+                  </h3>
+                </div>
+                <span
+                  className={`rounded px-2 py-1 text-xs font-semibold ${
+                    item.isCompatible
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {item.isCompatible ? text.compatible : text.notClassified}
+                </span>
+              </div>
               {item.draft ? (
-                <div className="mt-3">
-                  <TemplateSummary draft={item.draft} text={text} />
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                  <span className="rounded bg-slate-100 px-2 py-1">
+                    {item.outputLabel}
+                  </span>
+                  <span className="rounded bg-slate-100 px-2 py-1">
+                    {item.draft.businessDomain || text.notClassified}
+                  </span>
+                  <span className="rounded bg-slate-100 px-2 py-1">
+                    {item.draft.processType || text.notClassified}
+                  </span>
+                  <span className="rounded bg-slate-100 px-2 py-1">
+                    {text.status}: {item.draft.status}
+                  </span>
                 </div>
               ) : null}
+              <p className="mt-4 text-xs font-semibold uppercase text-slate-500">
+                {text.quickActions}
+              </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
@@ -1279,6 +1309,18 @@ export function TemplateLibraryEditor() {
                     {text.preview}
                   </button>
                 ) : null}
+                {item.draft ? (
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      setActiveTemplateId(item.draft?.id ?? activeTemplateId);
+                      setActiveTab("editor");
+                    }}
+                    type="button"
+                  >
+                    {text.openEditor}
+                  </button>
+                ) : null}
               </div>
             </section>
           ))}
@@ -1287,9 +1329,17 @@ export function TemplateLibraryEditor() {
 
       {activeTab === "browse" ? (
         <div id="template-hub-list" className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-950">
-            {text.starterPack}
-          </p>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">
+                {text.galleryTitle}
+              </p>
+              <p className="text-xs text-slate-500">{text.starterPack}</p>
+            </div>
+            <p className="text-xs font-semibold uppercase text-slate-500">
+              {text.filterBar}
+            </p>
+          </div>
           <div className="mt-3 grid gap-3 md:grid-cols-5">
             {[
               { key: "outputType", label: text.outputType, options: filterOptions.outputType },
@@ -1332,11 +1382,12 @@ export function TemplateLibraryEditor() {
 
               return (
                 <article
-                  className={`rounded border bg-white p-4 ${
+                  className={`overflow-hidden rounded border bg-white shadow-sm ${
                     isActive ? "border-slate-950" : "border-slate-200"
                   }`}
                   key={draft.id}
                 >
+                  <div className="border-b border-slate-100 bg-white p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <button
                       className="min-w-0 text-left"
@@ -1363,7 +1414,7 @@ export function TemplateLibraryEditor() {
                     </button>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <button
-                        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                         onClick={() => setPreviewTemplateId(draft.id)}
                         type="button"
                       >
@@ -1398,29 +1449,62 @@ export function TemplateLibraryEditor() {
                       {tags.length > 0 ? tags.join(", ") : text.notClassified}
                     </p>
                   </div>
+                  </div>
 
-                  <details className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  <details className="bg-slate-50 px-4 py-3 text-sm text-slate-700">
                     <summary className="cursor-pointer font-semibold text-slate-950">
                       {text.details}
                     </summary>
-                    <div className="mt-3">
-                      <TemplateSummary draft={draft} text={text} />
-                      <p className="mt-3 text-xs text-slate-500">
-                        {draft.type} | v{draft.version} | {draft.notationStandard || text.notClassified}
-                      </p>
-                      <p className="mt-2 text-xs text-slate-500">
+                    <div className="mt-3 grid gap-3">
+                      <div className="grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                        <p>
+                          <span className="font-semibold text-slate-900">{text.fieldsCount}:</span>{" "}
+                          {draft.mandatoryFields.split(/\r?\n/).filter(Boolean).length}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-slate-900">{text.version}:</span>{" "}
+                          {draft.version}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-slate-900">{text.notationStandard}:</span>{" "}
+                          {draft.notationStandard || text.notClassified}
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-500">
                         {text.mandatoryFields}:{" "}
                         {draft.mandatoryFields
                           .split(/\r?\n/)
                           .filter(Boolean)
                           .join(", ") || text.none}
                       </p>
+                      <details className="rounded border border-slate-200 bg-white p-3">
+                        <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                          {text.rawRules}
+                        </summary>
+                        <div className="mt-3 grid gap-3">
+                          {ruleFields.map((field) => (
+                            <div key={field.key}>
+                              <p className="text-xs font-semibold text-slate-600">
+                                {field.label}
+                              </p>
+                              <pre className="mt-1 max-h-36 overflow-auto rounded bg-slate-950 p-3 text-xs text-slate-100">
+                                {draft[field.key]}
+                              </pre>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
                     </div>
                   </details>
                 </article>
               );
             })}
           </div>
+          {filteredDrafts.length === 0 ? (
+            <div className="mt-4 rounded border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
+              {text.noResults}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -1649,7 +1733,7 @@ export function TemplateLibraryEditor() {
             <div className="mt-4 grid gap-4">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Template name
+                {text.templateName}
                 <input
                   className="rounded border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
                   onChange={(event) => updateDraft("name", event.target.value)}
@@ -1657,7 +1741,7 @@ export function TemplateLibraryEditor() {
                 />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Template type
+                {text.templateType}
                 <select
                   className="rounded border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
                   onChange={(event) =>
@@ -1670,7 +1754,7 @@ export function TemplateLibraryEditor() {
                 </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Version
+                {text.version}
                 <input
                   className="rounded border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
                   onChange={(event) => updateDraft("version", event.target.value)}
@@ -1678,7 +1762,7 @@ export function TemplateLibraryEditor() {
                 />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Status
+                {text.status}
                 <select
                   className="rounded border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900"
                   onChange={(event) =>

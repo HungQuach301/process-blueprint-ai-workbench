@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 1 header and navigation cleanup.
+- Removed the horizontal module menu from the sticky header so primary navigation now relies on the sidebar/section order.
+- Removed noisy AI status/provider/data-mode chips from the header and hero surface; AI mode/data mode remain available in AI Connection Center and the compact footer summary.
+- Enforced the visible module/page order: Dashboard, AI Connection Center, AI Input Brief, Process Task Register, QA Engine, Generate D01 BPMN XML, Generate D02 Service Blueprint, Template Hub, Product Delivery, and Output Package ZIP.
+- Kept this RC6 cleanup UI-only: no AI provider route/adapter, provider secret handling, data model, canonical schema, D01/D02 generator, recommendation apply workflow, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 final visual consistency pass.
 - Tightened Dashboard spacing and reused shared section/card styling while keeping Quick Start, Banking Starter Pack, and Recent AI Runs out of the default dashboard.
 - Normalized Template Hub guide/current-template cards with shared Advanced, compact card, button, badge, and empty-state styling so the module stays lighter by default.

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import {
-  AITrustStatus,
   getAITrustSummary,
   type AITrustStatusResponse
 } from "@/components/ai-status/AITrustStatus";
@@ -16,25 +15,8 @@ import { ProductDeliveryCore } from "@/components/product-delivery/ProductDelive
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
 import { WorkspaceDashboard } from "@/components/workspace/WorkspaceDashboard";
-import { getLocale, setLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
+import { getLocale, setLocale, t, type Locale } from "@/lib/i18n";
 import { navigationSections } from "@/lib/sample-data/navigation-sections";
-
-const moduleTabs: Array<{
-  id: string;
-  labelKey: TranslationKey;
-  href: string;
-}> = [
-  { id: "workspace", labelKey: "shell.moduleDashboard", href: "#workspace" },
-  { id: "ai-settings", labelKey: "shell.moduleAIConnectionCenter", href: "#ai-settings" },
-  { id: "input-brief", labelKey: "shell.moduleAIInputBrief", href: "#input-brief" },
-  { id: "process-task-register", labelKey: "shell.moduleProcessTaskRegister", href: "#process-task-register" },
-  { id: "qa-panel", labelKey: "shell.moduleQAEngine", href: "#qa-panel" },
-  { id: "d01-bpmn-preview", labelKey: "shell.moduleD01BpmnXml", href: "#d01-bpmn-preview" },
-  { id: "d02-service-blueprint-preview", labelKey: "shell.moduleD02ServiceBlueprint", href: "#d02-service-blueprint-preview" },
-  { id: "template-library", labelKey: "shell.moduleTemplateHub", href: "#template-library" },
-  { id: "product-delivery", labelKey: "shell.moduleProductDelivery", href: "#product-delivery" },
-  { id: "export-center", labelKey: "shell.moduleOutputPackageZip", href: "#export-center" }
-];
 
 const processModelingGuide = {
   vi: {
@@ -106,7 +88,7 @@ export function AppShell() {
   return (
     <main className="app-shell min-h-screen w-full max-w-full overflow-x-hidden">
       <header className="app-menubar sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 lg:px-6">
+        <div className="mx-auto flex w-full max-w-7xl px-4 py-3 lg:px-6">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <a className="flex min-w-0 items-center gap-3" href="#workspace">
               <span className="product-mark">PB</span>
@@ -121,7 +103,6 @@ export function AppShell() {
             </a>
 
             <div className="flex flex-wrap items-center gap-2">
-              <AITrustStatus compact locale={locale} status={aiStatus} />
               <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
                 {t("shell.language", locale)}
                 <select
@@ -135,14 +116,6 @@ export function AppShell() {
               </label>
             </div>
           </div>
-
-          <nav aria-label="Module tabs" className="flex gap-2 overflow-x-auto pb-1">
-            {moduleTabs.map((tab) => (
-              <a className="module-tab" href={tab.href} key={tab.id}>
-                {t(tab.labelKey, locale)}
-              </a>
-            ))}
-          </nav>
         </div>
       </header>
 
@@ -165,9 +138,6 @@ export function AppShell() {
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-2 lg:justify-end">
-                  <AITrustStatus compact locale={locale} status={aiStatus} />
-                </div>
               </div>
             </div>
 

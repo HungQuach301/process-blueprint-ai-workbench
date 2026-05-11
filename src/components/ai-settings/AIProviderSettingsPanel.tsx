@@ -34,7 +34,10 @@ type AIStatusResponse = {
   realAIQAEnabled?: boolean;
   realAITemplateReviewEnabled?: boolean;
   providerStatus?: "configured" | "not configured" | "mock-only";
+  displayStatus?: ProviderDisplayStatus;
   provider?: ServerProviderId;
+  effectiveProvider?: ServerProviderId;
+  fallbackActive?: boolean;
   providers?: ProviderStatusItem[];
   dataUsageMode?: DataUsageMode;
   model?: string;
@@ -122,42 +125,48 @@ const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: string }> = [
 
 const textByLocale = {
   vi: {
-    title: "Trung tam ket noi AI",
+    title: "Trung tâm kết nối AI",
     description:
-      "Chon provider, kiem tra ket noi va quan ly cau hinh AI khong nhay cam.",
-    save: "Luu thiet lap",
-    reset: "Reset",
-    test: "Test connection",
-    testing: "Dang test...",
-    status: "Trang thai",
-    selected: "Dang chon",
-    configured: "Da cau hinh",
-    missingEnv: "Thieu env",
-    disabled: "Dang tat",
-    available: "Kha dung",
-    dataWarning: "Canh bao du lieu",
+      "Chọn provider, kiểm tra kết nối và quản lý cấu hình AI không nhạy cảm.",
+    save: "Lưu thiết lập",
+    reset: "Đặt lại",
+    test: "Kiểm tra kết nối",
+    testing: "Đang kiểm tra...",
+    status: "Trạng thái",
+    selected: "Đang chọn",
+    configured: "Đã cấu hình",
+    missingEnv: "Thiếu env",
+    disabled: "Đang tắt",
+    available: "Khả dụng",
+    dataWarning: "Cảnh báo dữ liệu",
     dataWarningBody:
-      "Cloud AI chi duoc goi qua server-side route. Khong nhap hoac hien thi API key trong browser.",
-    currentMode: "Che do hien tai",
+      "Cloud AI chỉ được gọi qua route server-side. Không nhập hoặc hiển thị API key trong browser.",
+    currentMode: "Chế độ hiện tại",
     flags: "Feature flags",
     serverProvider: "Provider server",
     dataMode: "Data mode server",
     model: "Model",
-    advanced: "Advanced Settings",
-    show: "Hien",
-    hide: "An",
-    defaultProvider: "Default provider",
-    capability: "Default model/capability",
-    allowCloud: "Allow cloud AI",
-    requireApproval: "Require approval",
-    dataUsageMode: "Data usage mode",
-    organizationNote: "Organization note",
-    organizationPlaceholder: "Ghi chu tenant/to chuc tuy chon",
-    perSkillOverride: "Per-skill override",
-    inheritDefault: "Theo default provider",
-    saved: "Da luu preferences khong chua secret vao localStorage.",
-    resetDone: "Da reset ve local/mock va local-only.",
-    changed: "Co thay doi chua luu."
+    advanced: "Thiết lập nâng cao",
+    show: "Hiện",
+    hide: "Ẩn",
+    defaultProvider: "Provider mặc định",
+    capability: "Năng lực model mặc định",
+    allowCloud: "Cho phép cloud AI",
+    requireApproval: "Yêu cầu phê duyệt",
+    dataUsageMode: "Chế độ sử dụng dữ liệu",
+    organizationNote: "Ghi chú tổ chức",
+    organizationPlaceholder: "Ghi chú tenant/tổ chức tùy chọn",
+    perSkillOverride: "Ghi đè theo skill",
+    inheritDefault: "Theo provider mặc định",
+    saved: "Đã lưu preference không chứa secret vào localStorage.",
+    resetDone: "Đã đặt lại về local/mock và local-only.",
+    changed: "Có thay đổi chưa lưu.",
+    mockModeSummary: "Local/mock, không gọi provider bên ngoài.",
+    realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
+    modelPlaceholder: "Tên hiển thị tùy chọn",
+    effectiveProvider: "Provider thuc thi",
+    fallbackActive: "Fallback local/mock dang hoat dong vi provider da chon chua san sang.",
+    selectedStatus: "Trang thai provider da chon"
   },
   en: {
     title: "AI Connection Center",
@@ -195,7 +204,13 @@ const textByLocale = {
     inheritDefault: "Use default provider",
     saved: "Saved non-secret preferences to localStorage.",
     resetDone: "Reset to local/mock and local-only.",
-    changed: "Unsaved changes."
+    changed: "Unsaved changes.",
+    mockModeSummary: "Local/mock mode, no external provider call.",
+    realModeSummary: "Real AI via the selected provider. Data may be processed in the cloud according to server configuration.",
+    modelPlaceholder: "Optional display name only",
+    effectiveProvider: "Effective provider",
+    fallbackActive: "Local/mock fallback is active because the selected provider is not ready.",
+    selectedStatus: "Selected provider status"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -284,6 +299,8 @@ export function AIProviderSettingsPanel() {
     serverStatus.realAIQAEnabled === true ||
     serverStatus.realAITemplateReviewEnabled === true;
   const selectedServerProvider = serverStatus.provider ?? "mock";
+  const effectiveServerProvider =
+    serverStatus.effectiveProvider ?? selectedServerProvider;
   const providerStatuses = useMemo(
     () => serverStatus.providers ?? [],
     [serverStatus.providers]
@@ -383,21 +400,21 @@ export function AIProviderSettingsPanel() {
       actions={
         <>
           <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="btn btn-ai"
             onClick={testConnection}
             type="button"
           >
             {isTesting ? text.testing : text.test}
           </button>
           <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="btn btn-secondary"
             onClick={resetSettings}
             type="button"
           >
             {text.reset}
           </button>
           <button
-            className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="btn btn-primary"
             onClick={saveSettings}
             type="button"
           >
@@ -419,7 +436,7 @@ export function AIProviderSettingsPanel() {
             <button
               className={`min-h-44 rounded border p-4 text-left transition ${
                 isSelected
-                  ? "border-slate-950 bg-slate-950 text-white"
+                  ? "border-violet-300 bg-violet-600 text-white shadow-md"
                   : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
               }`}
               key={card.id}
@@ -475,7 +492,10 @@ export function AIProviderSettingsPanel() {
               {text.currentMode}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {realAIEnabled ? "Real AI" : "Mock/local"}
+              {realAIEnabled ? "Real AI" : "Local/mock"}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {realAIEnabled ? text.realModeSummary : text.mockModeSummary}
             </p>
           </div>
           <div>
@@ -484,6 +504,12 @@ export function AIProviderSettingsPanel() {
             </p>
             <p className="mt-1 font-semibold text-slate-950">
               {serverStatus.provider ?? "mock"}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {text.selectedStatus}:{" "}
+              {serverStatus.displayStatus
+                ? getStatusText(serverStatus.displayStatus, locale)
+                : "-"}
             </p>
           </div>
           <div>
@@ -501,8 +527,16 @@ export function AIProviderSettingsPanel() {
             <p className="mt-1 font-semibold text-slate-950">
               {serverStatus.model || settings.modelName || "-"}
             </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {text.effectiveProvider}: {effectiveServerProvider}
+            </p>
           </div>
         </div>
+        {serverStatus.fallbackActive ? (
+          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            {text.fallbackActive}
+          </p>
+        ) : null}
         <p className="mt-3 text-xs text-slate-500">
           {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
         </p>
@@ -602,7 +636,8 @@ export function AIProviderSettingsPanel() {
                       modelName: event.target.value
                     })
                   }
-                  placeholder="optional display name only"
+                  aria-label={text.model}
+                  placeholder={text.modelPlaceholder}
                   type="text"
                   value={settings.modelName ?? ""}
                 />

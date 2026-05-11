@@ -9,13 +9,14 @@ type BpmnPreviewProps = {
 };
 
 type CanvasService = {
-  zoom: (mode: "fit-viewport") => void;
+  zoom: (mode?: "fit-viewport" | number) => number | void;
 };
 
 export function BpmnPreview({ xml }: BpmnPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<NavigatedViewer | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   useEffect(() => {
     if (!containerRef.current) {
@@ -56,7 +57,10 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
           return;
         }
 
-        viewer.get<CanvasService>("canvas").zoom("fit-viewport");
+        const nextZoom = viewer.get<CanvasService>("canvas").zoom("fit-viewport");
+        if (typeof nextZoom === "number") {
+          setZoomLevel(nextZoom);
+        }
         setErrorMessage("");
       })
       .catch((error: unknown) => {
@@ -84,19 +88,57 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
       return;
     }
 
-    viewer.get<CanvasService>("canvas").zoom("fit-viewport");
+    const nextZoom = viewer.get<CanvasService>("canvas").zoom("fit-viewport");
+    if (typeof nextZoom === "number") {
+      setZoomLevel(nextZoom);
+    }
+  }
+
+  function zoomBy(delta: number) {
+    const viewer = viewerRef.current;
+
+    if (!viewer || !xml.trim()) {
+      setErrorMessage("ChÆ°a cÃ³ BPMN XML Ä‘á»ƒ zoom.");
+      return;
+    }
+
+    const canvas = viewer.get<CanvasService>("canvas");
+    const currentZoom = canvas.zoom();
+    const nextZoom = Math.min(
+      2,
+      Math.max(0.25, (typeof currentZoom === "number" ? currentZoom : zoomLevel) + delta)
+    );
+
+    canvas.zoom(nextZoom);
+    setZoomLevel(nextZoom);
   }
 
   return (
     <SessionFrame
       actions={
-        <button
-          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={fitToViewport}
-          type="button"
-        >
-          Fit to viewport
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className="btn btn-secondary"
+            onClick={fitToViewport}
+            type="button"
+          >
+            Fit
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => zoomBy(-0.1)}
+            type="button"
+          >
+            Zoom -
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => zoomBy(0.1)}
+            type="button"
+          >
+            Zoom +
+          </button>
+        </div>
       }
       description="Preview chỉ đọc từ XML đã generate. Chưa có chỉnh sửa trực quan ở bước này."
       title="Xem trước BPMN"

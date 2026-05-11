@@ -270,21 +270,21 @@ export function D01BpmnOutput() {
       actions={
         <>
             <button
-              className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              className="btn btn-primary"
               onClick={generateXml}
               type="button"
             >
               Generate D01 BPMN
             </button>
             <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="btn btn-secondary"
               onClick={downloadBpmn}
               type="button"
             >
               Download .bpmn
             </button>
             <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="btn btn-ai"
               disabled={isReviewing || !xml.trim()}
               onClick={reviewBpmnWithAI}
               type="button"
@@ -324,6 +324,11 @@ export function D01BpmnOutput() {
           </div>
         ) : null}
 
+        <details className="rounded border border-slate-200 bg-slate-50">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+            Advanced / View BPMN XML
+          </summary>
+          <div className="border-t border-slate-200 p-4">
         <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
           XML đã generate
           <textarea
@@ -332,6 +337,8 @@ export function D01BpmnOutput() {
             value={xml}
           />
         </label>
+          </div>
+        </details>
     </SessionFrame>
   );
 }

@@ -76,6 +76,17 @@ const ptrText = {
     suggestSplitTask: "Suggest split complex task",
     generateInputOutput: "Generate missing input/output",
     suggestInteractionChannel: "Suggest customerInteractionType/channel",
+    clearSelection: "Bỏ chọn",
+    selectedRowsCount: "Dòng đã chọn",
+    bulkActions: "Hành động hàng loạt",
+    rowActions: "Thao tác",
+    duplicateRow: "Nhân bản",
+    deleteRow: "Xóa",
+    simpleMode: "Simple",
+    advancedMode: "Advanced",
+    saved: "Saved",
+    unsaved: "Unsaved changes",
+    saving: "Saving",
     selectRows: "Chọn dòng",
     selectedRows: "dòng đã chọn",
     oneRow: "Một dòng = một task/gateway/event/data interaction.",
@@ -108,6 +119,17 @@ const ptrText = {
     suggestSplitTask: "Suggest split complex task",
     generateInputOutput: "Generate missing input/output",
     suggestInteractionChannel: "Suggest customerInteractionType/channel",
+    clearSelection: "Clear selection",
+    selectedRowsCount: "Selected rows",
+    bulkActions: "Bulk actions",
+    rowActions: "Actions",
+    duplicateRow: "Duplicate",
+    deleteRow: "Delete",
+    simpleMode: "Simple",
+    advancedMode: "Advanced",
+    saved: "Saved",
+    unsaved: "Unsaved changes",
+    saving: "Saving",
     selectRows: "Select rows",
     selectedRows: "selected rows",
     oneRow: "One row = one task, gateway, event, or data interaction.",
@@ -177,6 +199,21 @@ const visibleColumns: EditableColumn[] = [
   { key: "reviewStatus", label: "Trạng thái review", minWidth: "160px" },
   { key: "comment", label: "Ghi chú", minWidth: "220px" }
 ];
+
+const simpleColumnKeys: Array<keyof ProcessTask> = [
+  "stepId",
+  "rowType",
+  "bpmnType",
+  "phase",
+  "actor",
+  "system",
+  "taskName",
+  "defaultNextStep",
+  "reviewStatus"
+];
+
+type ColumnMode = "simple" | "advanced";
+type SaveState = "saved" | "unsaved" | "saving";
 
 const excelColumns: Array<Pick<EditableColumn, "key" | "label">> = [
   { key: "id", label: "ID" },
@@ -547,8 +584,12 @@ export function ProcessTaskRegister() {
   const [isPtrAIMenuOpen, setIsPtrAIMenuOpen] = useState(false);
   const [isRunningPtrAI, setIsRunningPtrAI] = useState(false);
   const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(() => new Set());
+  const [columnMode, setColumnMode] = useState<ColumnMode>("simple");
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [openRowActionTaskId, setOpenRowActionTaskId] = useState<string | null>(null);
   const [ptrAiIssues, setPtrAiIssues] = useState<QaIssue[]>([]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const saveStateTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -565,6 +606,7 @@ export function ProcessTaskRegister() {
 
         if (Array.isArray(parsedTasks)) {
           setTasks(parsedTasks as ProcessTask[]);
+          markSaved();
           return true;
         }
       } catch {
@@ -587,6 +629,9 @@ export function ProcessTaskRegister() {
 
     return () => {
       window.removeEventListener(PROCESS_TASKS_EVENT, loadSavedTasks);
+      if (saveStateTimeoutRef.current) {
+        window.clearTimeout(saveStateTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -632,8 +677,38 @@ export function ProcessTaskRegister() {
     () => tasks.filter((task) => selectedStepIds.has(task.stepId)),
     [selectedStepIds, tasks]
   );
+  const displayedColumns = useMemo(
+    () =>
+      columnMode === "simple"
+        ? visibleColumns.filter((column) => simpleColumnKeys.includes(column.key))
+        : visibleColumns,
+    [columnMode]
+  );
   const activeSampleProcess = getSampleProcess(selectedSampleProcessId);
   const text = ptrText[locale];
+  const saveStateStyles: Record<SaveState, string> = {
+    saved: "status-badge status-badge-success",
+    unsaved: "status-badge status-badge-warning",
+    saving: "status-badge status-badge-primary"
+  };
+
+  function markUnsaved() {
+    if (saveStateTimeoutRef.current) {
+      window.clearTimeout(saveStateTimeoutRef.current);
+      saveStateTimeoutRef.current = null;
+    }
+
+    setSaveState("unsaved");
+  }
+
+  function markSaved() {
+    if (saveStateTimeoutRef.current) {
+      window.clearTimeout(saveStateTimeoutRef.current);
+      saveStateTimeoutRef.current = null;
+    }
+
+    setSaveState("saved");
+  }
 
   function focusIssueRow(stepId: string) {
     setHighlightedStepId(stepId);
@@ -820,6 +895,7 @@ export function ProcessTaskRegister() {
       )
     );
     markGeneratedArtifactsStale();
+    markUnsaved();
     setSaveMessage("Có thay đổi chưa lưu.");
   }
 
@@ -831,6 +907,7 @@ export function ProcessTaskRegister() {
       ])
     );
     markGeneratedArtifactsStale();
+    markUnsaved();
     setSaveMessage("Đã thêm dòng mới. Bấm Lưu để giữ sau khi refresh.");
   }
 
@@ -855,6 +932,7 @@ export function ProcessTaskRegister() {
       ]);
     });
     markGeneratedArtifactsStale();
+    markUnsaved();
     setSaveMessage("Đã nhân bản dòng. Bấm Lưu để giữ sau khi refresh.");
   }
 
@@ -863,12 +941,18 @@ export function ProcessTaskRegister() {
       persistTasks(currentTasks.filter((_, taskIndex) => taskIndex !== index))
     );
     markGeneratedArtifactsStale();
+    markUnsaved();
     setSaveMessage("Đã xóa dòng. Bấm Lưu để giữ sau khi refresh.");
   }
 
   function saveTasks() {
+    setSaveState("saving");
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
     markGeneratedArtifactsStale();
+    saveStateTimeoutRef.current = window.setTimeout(() => {
+      setSaveState("saved");
+      saveStateTimeoutRef.current = null;
+    }, 350);
     setSaveMessage("Đã lưu vào localStorage.");
   }
 
@@ -879,6 +963,7 @@ export function ProcessTaskRegister() {
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, selectedSampleProcessId);
     markGeneratedArtifactsStale();
+    markSaved();
     setSaveMessage(`Đã reset về dữ liệu mẫu ${activeSampleProcess.label}.`);
   }
 
@@ -905,6 +990,7 @@ export function ProcessTaskRegister() {
     setImportPreview(null);
     setHighlightedStepId(null);
     markGeneratedArtifactsStale();
+    markSaved();
     setSaveMessage(`Đã chuyển sang dữ liệu mẫu ${nextSampleProcess.label}.`);
   }
 
@@ -933,6 +1019,7 @@ export function ProcessTaskRegister() {
       )
     );
     markGeneratedArtifactsStale();
+    markUnsaved();
     setSaveMessage(
       updatedCount > 0
         ? `Đã auto-suggest ${updatedCount} interaction/channel field. Giá trị user đã chọn không bị ghi đè.`
@@ -1111,6 +1198,7 @@ export function ProcessTaskRegister() {
       }
     });
     setImportPreview(null);
+    markSaved();
     setSaveMessage("Đã apply Excel import, lưu vào localStorage và đánh dấu D01/D02 stale.");
   }
 
@@ -1125,6 +1213,7 @@ export function ProcessTaskRegister() {
 
       setTasks(persistTasks(nextTasks));
       markGeneratedArtifactsStale();
+      markUnsaved();
       saveAuditLogEntry({
         action: "apply_recommendation",
         status: "success",
@@ -1151,6 +1240,7 @@ export function ProcessTaskRegister() {
 
       setTasks(persistTasks(nextTasks));
       markGeneratedArtifactsStale();
+      markUnsaved();
       saveAuditLogEntry({
         action: "apply_recommendation",
         status: "success",
@@ -1183,8 +1273,11 @@ export function ProcessTaskRegister() {
       <SessionFrame
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <span className={saveStateStyles[saveState]}>
+              {text[saveState]}
+            </span>
             <button
-              className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+              className="btn btn-primary"
               onClick={saveTasks}
               type="button"
             >
@@ -1295,39 +1388,81 @@ export function ProcessTaskRegister() {
                   ))}
                 </select>
               </label>
+              <div className="flex rounded-md border border-slate-200 bg-white p-1">
+                <button
+                  className={`rounded px-3 py-1.5 text-sm font-semibold ${
+                    columnMode === "simple"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                  onClick={() => setColumnMode("simple")}
+                  type="button"
+                >
+                  {text.simpleMode}
+                </button>
+                <button
+                  className={`rounded px-3 py-1.5 text-sm font-semibold ${
+                    columnMode === "advanced"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                  onClick={() => setColumnMode("advanced")}
+                  type="button"
+                >
+                  {text.advancedMode}
+                </button>
+              </div>
               <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
                 onClick={autoSuggestInteractionFields}
                 type="button"
               >
                 {text.autoSuggest}
               </button>
-              <div className="relative">
-                <button
-                  className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400"
-                  disabled={isRunningPtrAI || selectedTasks.length === 0}
-                  onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
-                  type="button"
-                >
-                  {isRunningPtrAI
-                    ? text.aiRunning
-                    : `${text.aiAssistant} (${selectedTasks.length})`}
-                </button>
-                {isPtrAIMenuOpen ? (
-                  <div className="absolute left-0 z-20 mt-2 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
-                    {ptrAIAssistantActions.map((action) => (
-                      <button
-                        className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
-                        disabled={isRunningPtrAI}
-                        key={action.id}
-                        onClick={() => void runPtrAIAssistantAction(action.id)}
-                        type="button"
-                      >
-                        {text[action.textKey]}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+            </div>
+            <div className="mt-4 rounded-md border border-blue-100 bg-blue-50/70 p-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                    {text.bulkActions}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {text.selectedRowsCount}: {selectedTasks.length}
+                  </p>
+                </div>
+                <div className="relative flex flex-wrap gap-2">
+                  <button
+                    className="btn btn-ai"
+                    disabled={isRunningPtrAI || selectedTasks.length === 0}
+                    onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
+                    type="button"
+                  >
+                    {isRunningPtrAI ? text.aiRunning : text.aiAssistant}
+                  </button>
+                  {isPtrAIMenuOpen ? (
+                    <div className="absolute left-0 top-11 z-30 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                      {ptrAIAssistantActions.map((action) => (
+                        <button
+                          className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                          disabled={isRunningPtrAI}
+                          key={action.id}
+                          onClick={() => void runPtrAIAssistantAction(action.id)}
+                          type="button"
+                        >
+                          {text[action.textKey]}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <button
+                    className="btn btn-secondary"
+                    disabled={selectedTasks.length === 0}
+                    onClick={() => setSelectedStepIds(new Set())}
+                    type="button"
+                  >
+                    {text.clearSelection}
+                  </button>
+                </div>
               </div>
             </div>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
@@ -1359,7 +1494,7 @@ export function ProcessTaskRegister() {
               </div>
               <div className="flex max-w-full flex-wrap gap-2">
                 <button
-                  className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  className="btn btn-success"
                   disabled={importPreview.errors.length > 0}
                   onClick={applyImport}
                   type="button"
@@ -1464,11 +1599,14 @@ export function ProcessTaskRegister() {
           </div>
         ) : null}
 
-        <div className="w-full max-w-full min-w-0 overflow-x-auto rounded border border-slate-200 bg-white">
+        <div
+          className="w-full max-w-full min-w-0 overflow-auto rounded border border-slate-200 bg-white"
+          style={{ maxHeight: "70vh" }}
+        >
           <table className="w-max min-w-full border-collapse text-left text-sm">
-            <thead className="bg-slate-100 text-slate-700">
+            <thead className="sticky top-0 z-30 bg-slate-100 text-slate-700 shadow-sm">
               <tr>
-                <th className="sticky left-0 z-20 w-12 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                <th className="sticky left-0 top-0 z-50 w-12 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
                   <input
                     aria-label={text.selectRows}
                     checked={tasks.length > 0 && selectedStepIds.size === tasks.length}
@@ -1477,20 +1615,26 @@ export function ProcessTaskRegister() {
                     type="checkbox"
                   />
                 </th>
-                <th className="sticky left-12 z-10 w-14 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                <th className="sticky left-12 top-0 z-40 w-14 border-b border-r border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
                   #
                 </th>
-                {visibleColumns.map((column) => (
+                {displayedColumns.map((column) => (
                   <th
-                    className="border-b border-r border-slate-200 px-3 py-3 font-semibold"
+                    className={`border-b border-r border-slate-200 px-3 py-3 font-semibold ${
+                      column.key === "stepId"
+                        ? "sticky left-[6.5rem] top-0 z-40 bg-slate-100"
+                        : column.key === "taskName"
+                          ? "sticky left-[13.375rem] top-0 z-40 bg-slate-100"
+                          : ""
+                    }`}
                     key={column.key}
                     style={{ minWidth: column.minWidth }}
                   >
                     {column.label}
                   </th>
                 ))}
-                <th className="sticky right-0 z-10 w-44 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
-                  Thao tác
+                <th className="sticky right-0 top-0 z-40 w-24 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                  {text.rowActions}
                 </th>
               </tr>
             </thead>
@@ -1517,7 +1661,7 @@ export function ProcessTaskRegister() {
                   <td className="sticky left-12 z-10 border-b border-r border-slate-200 bg-inherit px-3 py-2 font-medium text-slate-600">
                     {index + 1}
                   </td>
-                  {visibleColumns.map((column) => {
+                  {displayedColumns.map((column) => {
                     const cellValue = String(getCellValue(task, column.key));
                     const options = getSelectOptions(column.key, cellValue, task);
                     const hasInvalidValue = isInvalidSelectValue(column.key, cellValue, task);
@@ -1528,7 +1672,13 @@ export function ProcessTaskRegister() {
 
                     return (
                       <td
-                        className="border-b border-r border-slate-200 p-1"
+                        className={`border-b border-r border-slate-200 p-1 ${
+                          column.key === "stepId"
+                            ? "sticky left-[6.5rem] z-20 bg-inherit"
+                            : column.key === "taskName"
+                              ? "sticky left-[13.375rem] z-20 bg-inherit shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]"
+                              : ""
+                        }`}
                         key={column.key}
                         style={{ minWidth: column.minWidth }}
                       >
@@ -1570,22 +1720,43 @@ export function ProcessTaskRegister() {
                       </td>
                     );
                   })}
-                  <td className="sticky right-0 z-10 border-b border-l border-slate-200 bg-inherit p-2">
-                    <div className="flex gap-2">
+                  <td className="sticky right-0 z-20 border-b border-l border-slate-200 bg-inherit p-2">
+                    <div className="relative">
                       <button
-                        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                        onClick={() => duplicateRow(index)}
+                        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        onClick={() =>
+                          setOpenRowActionTaskId((currentTaskId) =>
+                            currentTaskId === task.id ? null : task.id
+                          )
+                        }
                         type="button"
                       >
-                        Nhân bản
+                        ...
                       </button>
-                      <button
-                        className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
-                        onClick={() => deleteRow(index)}
-                        type="button"
-                      >
-                        Xóa
-                      </button>
+                      {openRowActionTaskId === task.id ? (
+                        <div className="absolute right-0 z-40 mt-2 w-32 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                          <button
+                            className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                            onClick={() => {
+                              duplicateRow(index);
+                              setOpenRowActionTaskId(null);
+                            }}
+                            type="button"
+                          >
+                            {text.duplicateRow}
+                          </button>
+                          <button
+                            className="block w-full rounded px-3 py-2 text-left text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              deleteRow(index);
+                              setOpenRowActionTaskId(null);
+                            }}
+                            type="button"
+                          >
+                            {text.deleteRow}
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   </td>
                 </tr>

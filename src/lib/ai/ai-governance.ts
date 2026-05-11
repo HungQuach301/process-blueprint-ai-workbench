@@ -149,6 +149,9 @@ export function logAICallAudit({
   validationPassed,
   tokenUsage,
   warnings,
+  errorType,
+  validationErrors,
+  suggestedNextAction,
   extraMetadata
 }: {
   skillId: string;
@@ -167,6 +170,9 @@ export function logAICallAudit({
     totalTokens?: number;
   };
   warnings?: string[];
+  errorType?: string;
+  validationErrors?: string[];
+  suggestedNextAction?: string;
   extraMetadata?: Record<string, string | number | boolean | null | undefined>;
 }) {
   const settings = readAIProviderSettings();
@@ -195,6 +201,18 @@ export function logAICallAudit({
       tokenUsage,
       warnings,
       externalApiCalled: externalApiCalled === true,
+      errorType,
+      safeErrorMessage: errorMessage,
+      validationErrors,
+      validationStatus:
+        validationPassed === true
+          ? "valid"
+          : validationPassed === false
+            ? "invalid"
+            : success
+              ? "not applicable"
+              : "skipped",
+      suggestedNextAction,
       errorMessage,
       ...extraMetadata
     }

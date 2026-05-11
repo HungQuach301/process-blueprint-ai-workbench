@@ -88,8 +88,8 @@ const templateHubText = {
     useD02: "Dùng cho D02",
     editor: "Template editor",
     editorHelper: "Basic mode chỉ hiển thị metadata. JSON rules nằm trong Advanced mode.",
-    basicMode: "Basic mode",
-    advancedMode: "Advanced mode: JSON rules",
+    basicMode: "Chế độ cơ bản",
+    advancedMode: "Chế độ nâng cao: JSON rules",
     hide: "Ẩn",
     show: "Hiện",
     notClassified: "Chưa phân loại",
@@ -730,7 +730,7 @@ export function TemplateLibraryEditor() {
         };
         error?: string;
         validationErrors?: string[];
-        meta?: { externalApiCalled?: boolean };
+        meta?: { externalApiCalled?: boolean; providerId?: string };
       };
 
       if (!response.ok || !data.ok) {
@@ -756,7 +756,11 @@ export function TemplateLibraryEditor() {
       setTemplateReviewWarnings(data.result?.warnings ?? []);
       setTemplateReviewAssumptions(data.result?.assumptions ?? []);
       setMessage(
-        `${data.mode === "provider-backed" ? "Real" : "Mock"} Template QA returned ${
+        `${
+          data.mode === "provider-backed"
+            ? `Real provider ${data.meta?.providerId ?? "AI"}`
+            : "Mock/local"
+        } Template QA returned ${
           data.result?.recommendations?.length ?? 0
         } recommendation(s). No template change was auto-applied.`
       );
@@ -1000,7 +1004,7 @@ export function TemplateLibraryEditor() {
             {isReviewingTemplate ? text.running : text.runTemplateQA}
           </button>
           <button
-            className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="btn btn-primary"
             onClick={saveTemplates}
             type="button"
           >
@@ -1120,7 +1124,7 @@ export function TemplateLibraryEditor() {
                 <p className="mt-2 text-xs text-rose-700">{result.error}</p>
               ) : null}
               <button
-                className="mt-3 rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn btn-ai mt-3 text-xs"
                 disabled={result.validationStatus !== "passed"}
                 onClick={() => useCompareResult(result)}
                 type="button"

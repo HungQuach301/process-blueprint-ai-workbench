@@ -43,6 +43,7 @@ export type AIRunRecord = {
   timestamp: string;
   latencyMs?: number;
   validationPassed?: boolean;
+  validationStatus: "valid" | "invalid" | "skipped" | "not applicable";
   tokenUsage?: {
     inputTokens?: number;
     outputTokens?: number;
@@ -51,6 +52,10 @@ export type AIRunRecord = {
   externalApiCalled: boolean;
   warnings: string[];
   requestId?: string;
+  errorType?: string;
+  safeErrorMessage?: string;
+  validationErrorSummary?: string;
+  suggestedNextAction?: string;
 };
 
 function readEntries(): AuditLogEntry[] {
@@ -168,28 +173,126 @@ function metadataTokenUsage(metadata: Record<string, unknown> | undefined) {
   };
 }
 
+function normalizeValidationStatus(
+  metadata: Record<string, unknown> | undefined,
+  entryStatus: AuditLogEntry["status"]
+): AIRunRecord["validationStatus"] {
+  const explicitStatus = metadataString(metadata, ["validationStatus"]);
+
+  if (
+    explicitStatus === "valid" ||
+    explicitStatus === "invalid" ||
+    explicitStatus === "skipped" ||
+    explicitStatus === "not applicable"
+  ) {
+    return explicitStatus;
+  }
+
+  const validationPassed = metadataBoolean(metadata, ["validationPassed"]);
+
+  if (validationPassed === true) {
+    return "valid";
+  }
+
+  if (validationPassed === false) {
+    return "invalid";
+  }
+
+  return entryStatus === "failure" ? "skipped" : "not applicable";
+}
+
+function summarizeValidationErrors(
+  metadata: Record<string, unknown> | undefined
+) {
+  const validationErrors = metadataStringArray(metadata, [
+    "validationErrors",
+    "validationErrorSummary"
+  ]);
+
+  if (validationErrors.length === 0) {
+    return "";
+  }
+
+  const visibleErrors = validationErrors.slice(0, 3).join("; ");
+  const remainingCount = validationErrors.length - 3;
+
+  return remainingCount > 0
+    ? `${visibleErrors}; +${remainingCount} more`
+    : visibleErrors;
+}
+
+function getSuggestedNextAction(
+  metadata: Record<string, unknown> | undefined,
+  entryStatus: AuditLogEntry["status"]
+) {
+  const explicitAction = metadataString(metadata, ["suggestedNextAction"]);
+
+  if (explicitAction) {
+    return explicitAction;
+  }
+
+  const errorType = metadataString(metadata, ["errorType", "errorCode"]);
+  const validationStatus = normalizeValidationStatus(metadata, entryStatus);
+  const provider = metadataString(metadata, ["providerId", "provider"]);
+  const externalApiCalled =
+    metadataBoolean(metadata, ["externalApiCalled"]) ?? false;
+
+  if (entryStatus === "success") {
+    return "Review the preview before applying or exporting.";
+  }
+
+  if (validationStatus === "invalid") {
+    return "Review the validation summary, adjust source data or prompt context, then run the skill again.";
+  }
+
+  if (
+    errorType.includes("provider") ||
+    (!externalApiCalled && provider !== "mock")
+  ) {
+    return "Check server-side provider env and feature flags, or rerun with Local/Mock fallback.";
+  }
+
+  return "Retry after reviewing the safe error message and input context.";
+}
+
 export function loadAIRunHistory(): AIRunRecord[] {
   return loadAuditLog()
     .filter((entry) => entry.action === "ai_call")
-    .map((entry) => ({
-      id: entry.id,
-      skillId: metadataString(entry.metadata, ["skillId"], "unknown-skill"),
-      provider: metadataString(
+    .map((entry) => {
+      const externalApiCalled =
+        metadataBoolean(entry.metadata, ["externalApiCalled"]) ?? false;
+      const provider = metadataString(
         entry.metadata,
         ["providerId", "provider", "providerMode"],
         "unknown-provider"
-      ),
-      model: metadataString(entry.metadata, ["model"], ""),
-      status: entry.status,
-      timestamp: entry.timestamp,
-      latencyMs: metadataNumber(entry.metadata, ["latencyMs"]),
-      validationPassed: metadataBoolean(entry.metadata, ["validationPassed"]),
-      tokenUsage: metadataTokenUsage(entry.metadata),
-      externalApiCalled:
-        metadataBoolean(entry.metadata, ["externalApiCalled"]) ?? false,
-      warnings: metadataStringArray(entry.metadata, ["warnings", "warning"]),
-      requestId: metadataString(entry.metadata, ["requestId"])
-    }));
+      );
+      const effectiveProvider =
+        provider !== "mock" && !externalApiCalled ? `${provider} -> fallback/mock` : provider;
+      const safeErrorMessage = metadataString(entry.metadata, [
+        "safeErrorMessage",
+        "errorMessage"
+      ]);
+
+      return {
+        id: entry.id,
+        skillId: metadataString(entry.metadata, ["skillId"], "unknown-skill"),
+        provider: effectiveProvider,
+        model: metadataString(entry.metadata, ["model"], ""),
+        status: entry.status,
+        timestamp: entry.timestamp,
+        latencyMs: metadataNumber(entry.metadata, ["latencyMs"]),
+        validationPassed: metadataBoolean(entry.metadata, ["validationPassed"]),
+        validationStatus: normalizeValidationStatus(entry.metadata, entry.status),
+        tokenUsage: metadataTokenUsage(entry.metadata),
+        externalApiCalled,
+        warnings: metadataStringArray(entry.metadata, ["warnings", "warning"]),
+        requestId: metadataString(entry.metadata, ["requestId"]),
+        errorType: metadataString(entry.metadata, ["errorType", "errorCode"]),
+        safeErrorMessage,
+        validationErrorSummary: summarizeValidationErrors(entry.metadata),
+        suggestedNextAction: getSuggestedNextAction(entry.metadata, entry.status)
+      };
+    });
 }
 
 export function saveAuditLogEntry(

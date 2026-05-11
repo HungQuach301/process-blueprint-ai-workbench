@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-10
+2026-05-11
 
 ## Current branch
 
@@ -18,6 +18,58 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Polished File Intake and AI Development Handoff Pack UX for MVP1-AI RC2.
+- Added clearer File Intake supported-format guidance: text-based PDF, DOCX, and XLSX are supported locally; Image/OCR/Voice intake is coming soon.
+- Made selected File Intake rows show file name, file type, processing status, next step, Generate Draft PTR, and Clear file actions.
+- Kept File Intake stale preview/draft clearing when a new file is selected or removed.
+- Renamed the user-facing AI Coding Pack section to `AI Development Handoff Pack` while keeping technical files such as `AGENTS.md`, `CLAUDE.md`, cursor rules, and `spec.json` visible in included-file details.
+- Added non-technical handoff copy explaining that the package can be sent to a development team or used with Codex, Claude Code, and Cursor.
+- Preserved preview-before-download behavior, server-side AI route usage, mock/local fallback, no browser API key exposure, and no auto-apply behavior.
+- Improved D01 BPMN, D02 Service Blueprint, and Export Center preview UX for MVP1-AI RC2.
+- Kept visual previews prominent for D01 BPMN and D02 Service Blueprint.
+- Added BPMN preview Fit, Zoom -, and Zoom + controls using the existing `bpmn-js` viewer canvas.
+- Moved raw BPMN XML and draw.io XML into closed-by-default Advanced / View XML sections for technical users.
+- Kept XML download actions available and did not modify D01/D02 generator logic.
+- Kept Export Center artifact status cards visible in the primary flow.
+- Moved AI Run History into an Advanced collapsible area and removed its export action from the primary header action group so it no longer visually dominates package export.
+- Preserved AI audit metadata behavior, no browser API key exposure, and no auto-apply behavior.
+- Improved Process Task Register table UX for MVP1-AI RC2.
+- Added Simple / Advanced column mode without changing the `ProcessTask` schema.
+- Added sticky table header inside the table scroll area.
+- Kept checkbox, row number, `stepId`, and `taskName` usable during horizontal scroll where feasible.
+- Added clearer selected row count and a bulk action area for PTR AI Assistant and clear selection.
+- Moved per-row Duplicate/Delete actions into a compact row action menu with locale-aware labels.
+- Added visible save state feedback: `Saved`, `Unsaved changes`, and `Saving`.
+- Preserved existing save/add/duplicate/delete/import/export behavior and kept AI output review/apply rules unchanged.
+- Applied visual design system polish for MVP1-AI RC2.
+- Added global design tokens for primary blue, AI purple, success green, warning amber, danger red, and neutral slate.
+- Added shared `btn`, semantic button variants, status badge, soft panel, and surface card styles.
+- Replaced heavy black primary action buttons with semantic primary, AI, and success button styles across the main RC2 modules.
+- Improved shared module cards through `SessionFrame` with softer background, clearer header spacing, 8px radius, and subtle shadow.
+- Improved the left sidebar with grouped modules and active section state.
+- Improved the top workspace header with product title treatment, MVP1-AI RC badge, AI provider/status badge, and artifact readiness summary.
+- Kept the polish UI-only: no business logic, generator behavior, AI route, provider adapter, schema, API key handling, or auto-apply behavior was changed.
+- Improved QA recommendation safety UX for MVP1-AI RC2.
+- Graph-changing recommendations are now hidden by default behind the Advanced structure changes option.
+- Renamed the graph-changing toggle to user-friendly EN/VI copy: `Show advanced structure changes` / `Hiển thị thay đổi cấu trúc nâng cao`.
+- Replaced per-card direct apply wording with `Preview change`; recommendations still require preview/confirmation before apply.
+- Tightened Select safe so it excludes graph-changing, high-risk, high-impact, and medium-impact recommendations unless the existing medium opt-in is enabled.
+- Recommendation cards now expose confidence, risk, affected steps, and change summary for easier review.
+- QA issues are grouped as Critical, Warnings, Suggestions, and Advanced structure changes.
+- Improved AI provider status and AI Run History for MVP1-AI RC2.
+- AI Connection Center now receives selected provider status, effective provider, and fallback-active metadata from `/api/ai/run-skill`.
+- Product AI/OpenAI/Claude missing-env or disabled states now clearly surface local/mock fallback instead of implying a successful external provider call.
+- AI Run History now derives explicit validation states: `valid`, `invalid`, `skipped`, and `not applicable`.
+- AI Run History rows now show skill, provider, model, status, validation status, external API flag, latency, tokens, and timestamp.
+- Failure or warning rows now have expandable safe details: error type, safe error message, validation summary, provider request id, warnings, and suggested next action.
+- AI history remains metadata-only; full prompt text and full model output are still not stored.
+- Fixed MVP1-AI RC2 release-facing P0 UI blockers.
+- Removed the visible Workspace placeholder card and duplicate QA Panel placeholder card from the main page flow.
+- Made the left navigation locale-aware and filtered hidden placeholder-only sections from release navigation.
+- Replaced the `MVP Skeleton` eyebrow with an MVP1-AI release candidate label.
+- Updated AI Input Brief and AI Connection Center copy so mock mode clearly says local/mock with no external provider call, while real AI mode shows provider/cloud-processing warning copy.
+- Normalized QA Panel AI run labels to `Run AI QA` / `Run mock QA` and removed release-facing placeholder wording from recommendation warnings.
+- Updated navigation sample metadata so hidden/ready sections no longer carry `Placeholder` release status.
 - Added optional Provider Compare mode for selected AI skills.
 - Added server-side `providerId` override support to `/api/ai/run-skill`; provider selection still stays server-side and continues to enforce feature flags, data mode, provider config, allowed providers, schema validation, quality gates, mock/local fallback, and safe audit metadata.
 - Added Provider Compare UI for Product Delivery BRD generation, User Story generation, and AI Coding Pack generation in Export Center.
@@ -156,6 +208,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 - `src/components/task-register/ProcessTaskRegister.tsx`
 - `src/components/export-center/ExportCenter.tsx`
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `docs/SESSION_HANDOFF.md`
+- `src/components/preview/BpmnPreview.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/export-center/ExportCenter.tsx`
+- `docs/SESSION_HANDOFF.md`
 - `src/lib/models/product-delivery.ts`
 - `src/lib/generators/product-delivery-generator.ts`
 - `src/lib/ai/skill-schemas.ts`
@@ -170,6 +229,18 @@ Complete Module 2 + Module 3 with full real AI support.
 - `docs/AI_SKILL_REGISTRY.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `docs/SESSION_HANDOFF.md`
+- `src/app/globals.css`
+- `src/components/AppShell.tsx`
+- `src/components/Navigation.tsx`
+- `src/components/layout/SessionFrame.tsx`
+- `src/components/ai-settings/AIProviderSettingsPanel.tsx`
+- `src/components/input-brief/AIInputBriefPanel.tsx`
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/export-center/ExportCenter.tsx`
 - `src/components/bpmn-output/D01BpmnOutput.tsx`
 - `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
 - `src/components/template-library/TemplateLibraryEditor.tsx`

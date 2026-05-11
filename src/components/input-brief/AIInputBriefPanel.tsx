@@ -128,9 +128,16 @@ const inputBriefUiText = {
     remove: "Xóa",
     unsupportedSummary: "Phát hiện file chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Voice/OCR/Image chưa được hỗ trợ.",
     other: "Khác",
-    realAIMode: "Chế độ Real AI",
-    mockMode: "Chế độ mock",
-    checkingAIMode: "Đang kiểm tra AI mode..."
+    realAIMode: "Real AI qua provider",
+    mockMode: "Local/mock, không gọi provider bên ngoài",
+    checkingAIMode: "Đang kiểm tra chế độ AI...",
+    cloudWarning: "Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
+    aiCancelled: "Đã hủy gọi Real AI. Bản nháp chưa được tạo.",
+    realAIRunning: "Real AI: đang gọi provider qua route server-side...",
+    mockRunning: "Local/mock: đang tạo bản nháp, không gọi provider bên ngoài.",
+    mockDone: "Local/mock: đã tạo bản nháp PTR. Không gọi provider bên ngoài.",
+    draftBlocked: "Không thể tạo bản nháp PTR",
+    draftRows: "dòng"
   },
   en: {
     generateWithAI: "Generate with AI",
@@ -145,6 +152,10 @@ const inputBriefUiText = {
     voiceComingSoon: "Voice Input is coming soon. No recording, upload, or external processing is implemented in this step.",
     fileIntake: "File Intake",
     fileIntakeHelper: "Files are processed locally for Draft PTR preview before Apply.",
+    supportedFormatsTitle: "Supported formats",
+    supportedFormats: "Text-based PDF, DOCX, and XLSX are supported for local Draft PTR generation.",
+    comingSoonFormats: "Image/OCR/Voice intake is coming soon.",
+    nextStep: "Next step",
     clearFiles: "Clear files",
     selectLocalFiles: "Select local files",
     reselectAfterRefresh: "Please select the file again after browser refresh to run extraction.",
@@ -165,9 +176,16 @@ const inputBriefUiText = {
     remove: "Remove",
     unsupportedSummary: "Unsupported file type detected. Supported formats are .xlsx, .docx, and .pdf. Voice/OCR/Image extraction is not supported yet.",
     other: "Other",
-    realAIMode: "Real AI mode",
-    mockMode: "Mock mode",
-    checkingAIMode: "Checking AI mode..."
+    realAIMode: "Real AI via provider",
+    mockMode: "Local/mock, no external provider call",
+    checkingAIMode: "Checking AI mode...",
+    cloudWarning: "Data may be processed in the cloud according to server configuration.",
+    aiCancelled: "Real AI call cancelled. No draft was created.",
+    realAIRunning: "Real AI: calling the provider through the server-side route...",
+    mockRunning: "Local/mock: generating a draft with no external provider call.",
+    mockDone: "Local/mock: generated Draft PTR. No external provider call.",
+    draftBlocked: "Cannot generate Draft PTR",
+    draftRows: "row(s)"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -540,6 +558,28 @@ function isImageIntakeFile(file: Pick<IntakeFileMetadata, "fileName" | "fileType
   );
 }
 
+function getFileDraftActionLabel(file: IntakeFileMetadata, generateLabel: string) {
+  if (file.status === "unsupported") {
+    return isImageIntakeFile(file)
+      ? "Image/OCR intake is coming soon."
+      : "This file type is not supported yet.";
+  }
+
+  if (file.status === "pending-extraction") {
+    return "Processing locally...";
+  }
+
+  if (file.status === "extracted") {
+    return "Draft PTR preview is ready for review.";
+  }
+
+  if (file.status === "failed") {
+    return "Processing failed. Clear the file or choose another file.";
+  }
+
+  return `${generateLabel} to create a reviewable preview.`;
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [briefMode, setBriefMode] = useState<BriefMode>("manual");
@@ -560,6 +600,7 @@ export function AIInputBriefPanel() {
   const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [aiProvider, setAiProvider] = useState("mock");
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
 
@@ -637,14 +678,17 @@ export function AIInputBriefPanel() {
         });
         const data = (await response.json()) as {
           realAIEnabled?: boolean;
+          provider?: string;
         };
 
         if (active) {
           setRealAIEnabled(data.realAIEnabled === true);
+          setAiProvider(data.provider ?? "mock");
         }
       } catch {
         if (active) {
           setRealAIEnabled(false);
+          setAiProvider("mock");
         }
       } finally {
         if (active) {
@@ -895,27 +939,48 @@ export function AIInputBriefPanel() {
     }
   }
 
-  async function extractDocxFile(file: File) {
+  async function generateDraftPtrFromDocxFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
     clearDraftPreview();
-    setMessage("Dang extract DOCX local trong browser. Khong upload file.");
+    setMessage("Dang extract DOCX local va tao Draft PTR. Khong upload file.");
 
     try {
       const result = await extractTextFromDocx(file);
 
       setDocxExtraction(result);
       updateIntakeFileStatus(file, "extracted");
-      setMessage(
-        `Da extract DOCX local: ${result.rawText.length} ky tu, ${result.detectedSteps.length} step goi y.`
-      );
+      await generateDraftPtrViaSkill({
+        skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+        payload: {
+          fileName: file.name,
+          fileType:
+            file.type ||
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          extractedText: result.rawText,
+          extractionWarnings: [
+            ...result.assumptions,
+            ...result.openQuestions
+          ],
+          detectedActors: result.detectedActors,
+          detectedSystems: result.detectedSystems,
+          detectedDataObjects: result.detectedDataObjects,
+          detectedSteps: result.detectedSteps,
+          inputLanguage: locale,
+          outputLanguage: locale
+        },
+        sourceLabel: `DOCX ${file.name}`
+      });
     } catch (error) {
       updateIntakeFileStatus(file, "failed");
       setDocxExtraction(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors([]);
       setMessage(
         error instanceof Error
-          ? `DOCX extraction failed: ${error.message}`
-          : "DOCX extraction failed."
+          ? `DOCX Draft PTR generation failed: ${error.message}`
+          : "DOCX Draft PTR generation failed."
       );
     }
   }
@@ -955,16 +1020,12 @@ export function AIInputBriefPanel() {
     const generationMode = realAIEnabled ? "real-ai" : "mock";
 
     if (realAIEnabled && !confirmRealAICallIfNeeded(true)) {
-      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      setMessage(uiText.aiCancelled);
       return null;
     }
 
     setIsGeneratingWithAI(true);
-    setMessage(
-      realAIEnabled
-        ? `Real AI mode: dang goi server-side skill ${skillId}...`
-        : `Mock mode: dang goi server-side skill ${skillId}...`
-    );
+    setMessage(realAIEnabled ? uiText.realAIRunning : uiText.mockRunning);
     saveAuditLogEntry({
       action: "generate_ai_draft",
       status: "success",
@@ -1358,7 +1419,7 @@ export function AIInputBriefPanel() {
     }
 
     if (!confirmRealAICallIfNeeded(realAIEnabled)) {
-      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      setMessage(uiText.aiCancelled);
       return;
     }
 
@@ -1421,13 +1482,13 @@ export function AIInputBriefPanel() {
         }
       });
       setMessage(
-        `Mock mode: Ä‘Ã£ táº¡o draft PTR local ${response.draftProcessTasks.length} dÃ²ng. KhÃ´ng gá»i external API.`
+        `${uiText.mockDone} ${response.draftProcessTasks.length} ${uiText.draftRows}.`
       );
       return;
     }
 
     setIsGeneratingWithAI(true);
-    setMessage("Real AI mode: Ä‘ang gá»i server-side AI provider...");
+    setMessage(uiText.realAIRunning);
 
     try {
       const routeResponse = await fetch("/api/ai/run-skill", {
@@ -1687,7 +1748,7 @@ export function AIInputBriefPanel() {
                 <button
                   className={`max-w-full whitespace-normal rounded-full border px-3 py-1 text-left text-xs font-medium ${
                     isSelected
-                      ? "border-slate-900 bg-slate-900 text-white"
+                      ? "border-blue-300 bg-blue-600 text-white shadow-sm"
                       : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
                   }`}
                   key={suggestion}
@@ -1735,7 +1796,7 @@ export function AIInputBriefPanel() {
             {t("inputBrief.resetBrief", locale)}
           </button>
           <button
-            className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            className="btn btn-primary"
             onClick={generateDraftPtr}
             type="button"
           >
@@ -1764,7 +1825,7 @@ export function AIInputBriefPanel() {
           <button
             className={`rounded border px-3 py-2 text-sm font-semibold ${
               briefMode === mode.id
-                ? "border-slate-900 bg-slate-900 text-white"
+                ? "border-violet-300 bg-violet-600 text-white shadow-sm"
                 : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
             } disabled:cursor-not-allowed disabled:opacity-50`}
             disabled={mode.disabled}
@@ -1885,6 +1946,24 @@ export function AIInputBriefPanel() {
           />
         </label>
 
+        <div className="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <p className="font-semibold">
+            {"supportedFormatsTitle" in uiText
+              ? uiText.supportedFormatsTitle
+              : "Supported formats"}
+          </p>
+          <p className="mt-1">
+            {"supportedFormats" in uiText
+              ? uiText.supportedFormats
+              : "Text-based PDF, DOCX, and XLSX are supported for local Draft PTR generation."}
+          </p>
+          <p className="mt-1 text-slate-500">
+            {"comingSoonFormats" in uiText
+              ? uiText.comingSoonFormats
+              : "Image/OCR/Voice intake is coming soon."}
+          </p>
+        </div>
+
         {intakeFiles.length > 0 && selectedFileObjects.length === 0 ? (
           <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             {uiText.reselectAfterRefresh}
@@ -1923,6 +2002,10 @@ export function AIInputBriefPanel() {
                       >
                         {file.status}
                       </span>
+                      <p className="mt-1 max-w-72 whitespace-normal text-xs text-slate-500">
+                        {"nextStep" in uiText ? `${uiText.nextStep}: ` : "Next step: "}
+                        {getFileDraftActionLabel(file, uiText.generateDraftPtr)}
+                      </p>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       {file.fileName.toLowerCase().endsWith(".xlsx") &&
@@ -1947,7 +2030,7 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          {uiText.extract}
+                          {uiText.generateDraftPtr}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".docx") &&
                         file.status !== "unsupported" ? (
@@ -1962,7 +2045,7 @@ export function AIInputBriefPanel() {
                             );
 
                             if (selectedFile) {
-                              void extractDocxFile(selectedFile);
+                              void generateDraftPtrFromDocxFile(selectedFile);
                             } else {
                               setMessage(
                                 uiText.reselectAfterRefresh
@@ -1971,7 +2054,7 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          {uiText.extract}
+                          {uiText.generateDraftPtr}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".pdf") &&
                         file.status !== "unsupported" ? (
@@ -2009,7 +2092,7 @@ export function AIInputBriefPanel() {
                         onClick={() => removeSelectedFile(file)}
                         type="button"
                       >
-                        {uiText.remove}
+                        Clear file
                       </button>
                     </td>
                   </tr>
@@ -2052,7 +2135,7 @@ export function AIInputBriefPanel() {
                 </p>
               </div>
               <button
-                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                className="btn btn-ai w-fit text-xs"
                 onClick={() => void generateDraftPtrFromDocxExtraction()}
                 type="button"
               >
@@ -2120,7 +2203,7 @@ export function AIInputBriefPanel() {
                 </p>
               </div>
               <button
-                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                className="btn btn-success w-fit text-xs"
                 onClick={() => void generateDraftPtrFromPdfExtraction()}
                 type="button"
               >
@@ -2153,7 +2236,7 @@ export function AIInputBriefPanel() {
         <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
           {aiModeLoaded
             ? realAIEnabled
-              ? uiText.realAIMode
+              ? `${uiText.realAIMode}: ${aiProvider}. ${uiText.cloudWarning}`
               : uiText.mockMode
             : uiText.checkingAIMode}
         </span>
@@ -2162,7 +2245,7 @@ export function AIInputBriefPanel() {
 
       {blockingErrors.length > 0 ? (
         <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <p className="font-semibold">Khong the tao Draft PTR</p>
+          <p className="font-semibold">{uiText.draftBlocked}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {blockingErrors.map((error) => (
               <li key={error}>{error}</li>

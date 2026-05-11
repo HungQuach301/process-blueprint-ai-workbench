@@ -200,6 +200,35 @@ textarea {
   padding: 1rem;
 }
 
+.compact-card {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  background: #ffffff;
+  padding: 0.875rem;
+}
+
+.action-card {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  background: #ffffff;
+  padding: 0.875rem;
+}
+
+.action-card-ai {
+  border-color: var(--color-ai-purple-border);
+  background: var(--color-ai-purple-soft);
+}
+
+.button-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.button-list .btn {
+  width: 100%;
+  justify-content: center;
+}
+
 .advanced-panel {
   border: 1px solid #e2e8f0;
   border-radius: var(--radius-card);

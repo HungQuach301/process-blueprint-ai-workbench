@@ -2259,7 +2259,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-slate-200 bg-slate-50/70 p-5">
+      <div className="section-header p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="status-badge status-badge-success">
@@ -2280,7 +2280,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           </div>
 
           {isExportView ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="section-actions">
               <button
                 className="btn btn-secondary"
                 onClick={generateAllArtifacts}
@@ -2354,15 +2354,15 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           ["Process Task Register", readiness.processTaskRegister],
           ["Template Profile", readiness.templateProfile]
         ].map(([label, status]) => (
-          <div className="rounded border border-slate-200 p-3" key={String(label)}>
+          <div className="compact-card" key={String(label)}>
             <p className="text-sm font-semibold text-slate-950">{label}</p>
             <p
-              className={`mt-1 text-sm ${
+              className={`mt-2 status-badge ${
                 status === "fresh"
-                  ? "text-emerald-700"
+                  ? "status-badge-success"
                   : status === "stale"
-                    ? "text-amber-700"
-                    : "text-slate-500"
+                    ? "status-badge-warning"
+                    : "status-badge-neutral"
               }`}
             >
               {status === "fresh"
@@ -2381,8 +2381,8 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
         ))}
       </div>
 
-      <details className="border-t border-slate-200 bg-slate-50/60">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700">
+      <details className="advanced-panel mx-4 mb-4">
+        <summary>
           {locale === "vi" ? "Nâng cao / Lịch sử chạy AI" : "Advanced / AI Run History"} ({aiRunHistory.length})
         </summary>
       <div className="border-t border-slate-200 bg-white p-4">
@@ -2656,7 +2656,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                       : "Not generated"
                 }
               ].map((status) => (
-                <div className="rounded border border-slate-200 bg-white px-3 py-2" key={status.label}>
+                <div className="compact-card px-3 py-2" key={status.label}>
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                     {status.label}
                   </p>
@@ -2724,7 +2724,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 { vi: "Gói bàn giao phát triển", en: "AI Development Handoff Pack" }
               ].map((capability) => (
                 <div
-                  className="rounded border border-slate-200 bg-white px-3 py-2 font-medium text-slate-700"
+                  className="compact-card px-3 py-2 font-medium text-slate-700"
                   key={capability.en}
                 >
                   {capability[locale]}
@@ -2732,7 +2732,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               ))}
             </div>
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
-              <div className="rounded border border-blue-100 bg-blue-50/60 p-3">
+              <div className="action-card">
                 <p className="text-sm font-semibold text-blue-950">
                   {locale === "vi" ? "Tạo" : "Generate"}
                 </p>
@@ -2752,9 +2752,9 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                   <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-blue-950">
                     {locale === "vi" ? "Tác vụ tạo khác" : "More generate actions"}
                   </summary>
-                  <div className="grid gap-2 border-t border-blue-100 p-3">
+                  <div className="button-list border-t border-blue-100 p-3">
                     <button
-                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="btn btn-ai text-sm"
                       disabled={isGeneratingBRD}
                       onClick={() => void generateBRDPreview("ptr-to-brd")}
                       type="button"
@@ -2768,7 +2768,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                           : "Generate BRD from PTR"}
                     </button>
                     <button
-                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="btn btn-ai text-sm"
                       disabled={isGeneratingBRD}
                       onClick={() => void generateBRDPreview("notes-to-brd")}
                       type="button"
@@ -2776,7 +2776,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                       {locale === "vi" ? "Tạo BRD từ ghi chú" : "Generate BRD from Notes"}
                     </button>
                     <button
-                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="btn btn-ai text-sm"
                       disabled={isGeneratingSRS}
                       onClick={() => void generateSRSPreview("brd-to-srs")}
                       type="button"
@@ -2790,7 +2790,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                           : "Generate SRS"}
                     </button>
                     <button
-                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="btn btn-ai text-sm"
                       disabled={isGeneratingSRS}
                       onClick={() => void generateSRSPreview("notes-to-srs")}
                       type="button"
@@ -2798,7 +2798,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                       {locale === "vi" ? "Tạo SRS từ ghi chú" : "Generate SRS from Notes"}
                     </button>
                     <button
-                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="btn btn-ai text-sm"
                       disabled={isGeneratingUserStories}
                       onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
                       type="button"
@@ -2812,7 +2812,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                           : "Generate User Stories"}
                     </button>
                     <button
-                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="btn btn-ai text-sm"
                       disabled={isGeneratingUserStories}
                       onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
                       type="button"
@@ -2820,7 +2820,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                       {locale === "vi" ? "Tạo User Stories từ BRD" : "Generate User Stories from BRD"}
                     </button>
                     <button
-                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className="btn btn-ai text-sm"
                       disabled={isGeneratingAcceptanceCriteria}
                       onClick={() => void generateAcceptanceCriteriaPreview()}
                       type="button"
@@ -2837,7 +2837,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </details>
               </div>
 
-              <div className="rounded border border-purple-100 bg-purple-50/60 p-3">
+              <div className="action-card action-card-ai">
                 <p className="text-sm font-semibold text-purple-950">
                   {locale === "vi" ? "Rà soát" : "Review"}
                 </p>
@@ -2846,9 +2846,9 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     ? "Chạy QA, rà soát phạm vi và cắt MVP dưới dạng preview; không tự áp dụng."
                     : "Run QA, scope review, and MVP slicing as previews; nothing is auto-applied."}
                 </p>
-                <div className="mt-3 grid gap-2">
+                <div className="button-list mt-3">
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    className="btn btn-ai text-sm"
                     disabled={isGeneratingRequirementQA}
                     onClick={() => void generateRequirementQAPreview()}
                     type="button"
@@ -2862,7 +2862,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                         : "Run Requirement QA"}
                   </button>
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    className="btn btn-ai text-sm"
                     disabled={isGeneratingProductScopeReview}
                     onClick={() => void generateProductScopeReviewPreview("product-scope-review")}
                     type="button"
@@ -2876,7 +2876,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                         : "Review Product Scope"}
                   </button>
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    className="btn btn-ai text-sm"
                     disabled={isGeneratingProductScopeReview}
                     onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
                     type="button"
@@ -2886,7 +2886,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </div>
               </div>
 
-              <div className="rounded border border-emerald-100 bg-emerald-50/60 p-3">
+              <div className="action-card">
                 <p className="text-sm font-semibold text-emerald-950">
                   {locale === "vi" ? "Xuất" : "Export"}
                 </p>
@@ -2895,9 +2895,9 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     ? "Tải artifact đã có preview dưới dạng JSON, Markdown hoặc ZIP handoff."
                     : "Download previewed artifacts as JSON, Markdown, or handoff ZIP."}
                 </p>
-                <div className="mt-3 grid gap-2">
+                <div className="button-list mt-3">
                   <button
-                    className="btn btn-primary justify-center"
+                    className="btn btn-secondary"
                     disabled={!brdPreview}
                     onClick={downloadBRDJson}
                     type="button"
@@ -2905,7 +2905,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải BRD JSON" : "Download BRD JSON"}
                   </button>
                   <button
-                    className="btn btn-primary justify-center"
+                    className="btn btn-secondary"
                     disabled={!srsPreview}
                     onClick={downloadSRSJson}
                     type="button"
@@ -2913,7 +2913,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải SRS JSON" : "Download SRS JSON"}
                   </button>
                   <button
-                    className="btn btn-primary justify-center"
+                    className="btn btn-secondary"
                     disabled={!userStoryPreview}
                     onClick={downloadUserStoriesJson}
                     type="button"
@@ -2921,7 +2921,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải Stories JSON" : "Download Stories JSON"}
                   </button>
                   <button
-                    className="btn btn-primary justify-center"
+                    className="btn btn-secondary"
                     disabled={!acceptanceCriteriaPreview}
                     onClick={downloadAcceptanceCriteriaJson}
                     type="button"
@@ -2929,7 +2929,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải AC JSON" : "Download AC JSON"}
                   </button>
                   <button
-                    className="btn btn-primary justify-center"
+                    className="btn btn-secondary"
                     disabled={!productScopeReviewPreview}
                     onClick={downloadProductScopeReviewJson}
                     type="button"
@@ -2937,7 +2937,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải Scope JSON" : "Download Scope JSON"}
                   </button>
                   <button
-                    className="btn btn-primary justify-center"
+                    className="btn btn-secondary"
                     disabled={!productDeliveryDraft}
                     onClick={downloadProductDeliveryMarkdown}
                     type="button"
@@ -2945,7 +2945,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {text.downloadProductDeliveryMarkdown}
                   </button>
                   <button
-                    className="btn btn-primary justify-center"
+                    className="btn btn-secondary"
                     disabled={isDownloadingAICodingPack}
                     onClick={downloadAICodingPackZip}
                     type="button"
@@ -2959,8 +2959,8 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </div>
               </div>
             </div>
-            <details className="mt-4 rounded border border-slate-200 bg-slate-50">
-              <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-slate-700">
+            <details className="advanced-panel mt-4">
+              <summary>
                 {locale === "vi" ? "Nâng cao / So sánh nhà cung cấp" : "Advanced / Provider Compare"}
               </summary>
               <div className="border-t border-slate-200 p-3">
@@ -3135,7 +3135,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             </details>
           </div>
 
-          <div className="rounded border border-slate-200 bg-slate-50 p-3">
+          <div className="compact-card bg-slate-50">
             <p className="text-sm font-semibold text-slate-950">
               {locale === "vi" ? "Bản nháp bao gồm" : "Draft includes"}
             </p>
@@ -3732,7 +3732,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             </div>
           </div>
 
-          <div className="rounded border border-slate-200 bg-slate-50 p-3">
+          <div className="compact-card bg-slate-50">
             <p className="text-sm font-semibold text-slate-950">
               {text.includedFiles}
             </p>

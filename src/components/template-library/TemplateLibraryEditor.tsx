@@ -1177,7 +1177,7 @@ export function TemplateLibraryEditor() {
             {text.save}
           </button>
           <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="btn btn-secondary"
             onClick={resetTemplates}
             type="button"
           >
@@ -1213,17 +1213,17 @@ export function TemplateLibraryEditor() {
 
       {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
 
-      <details className="mt-4 rounded border border-violet-100 bg-violet-50/60 p-4 text-sm text-violet-950">
-        <summary className="cursor-pointer font-semibold">
+      <details className="advanced-panel mt-4">
+        <summary>
           {text.howItWorks}
         </summary>
-        <div className="mt-3 grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 border-t border-slate-200 p-3 md:grid-cols-3">
           {[
             { title: text.guideStep1Title, body: text.guideStep1Body },
             { title: text.guideStep2Title, body: text.guideStep2Body },
             { title: text.guideStep3Title, body: text.guideStep3Body }
           ].map((step, index) => (
-            <div className="rounded border border-violet-100 bg-white/80 p-3" key={step.title}>
+            <div className="compact-card" key={step.title}>
               <p className="text-xs font-bold uppercase text-violet-700">
                 {index + 1}. {step.title}
               </p>
@@ -1253,7 +1253,7 @@ export function TemplateLibraryEditor() {
                 : false
             }
           ].map((item) => (
-            <section className="rounded border border-slate-200 bg-white p-4 shadow-sm" key={item.label}>
+            <section className="compact-card shadow-sm" key={item.label}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase text-slate-500">
@@ -1264,10 +1264,10 @@ export function TemplateLibraryEditor() {
                   </h3>
                 </div>
                 <span
-                  className={`rounded px-2 py-1 text-xs font-semibold ${
+                  className={`status-badge ${
                     item.isCompatible
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-amber-50 text-amber-700"
+                      ? "status-badge-success"
+                      : "status-badge-warning"
                   }`}
                 >
                   {item.isCompatible ? text.compatible : text.notClassified}
@@ -1294,7 +1294,7 @@ export function TemplateLibraryEditor() {
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
-                  className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="btn btn-secondary text-xs"
                   onClick={item.browseAction}
                   type="button"
                 >
@@ -1302,7 +1302,7 @@ export function TemplateLibraryEditor() {
                 </button>
                 {item.draft ? (
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    className="btn btn-secondary text-xs"
                     onClick={() => setPreviewTemplateId(item.draft?.id ?? null)}
                     type="button"
                   >
@@ -1311,7 +1311,7 @@ export function TemplateLibraryEditor() {
                 ) : null}
                 {item.draft ? (
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    className="btn btn-secondary text-xs"
                     onClick={() => {
                       setActiveTemplateId(item.draft?.id ?? activeTemplateId);
                       setActiveTab("editor");
@@ -1501,7 +1501,7 @@ export function TemplateLibraryEditor() {
             })}
           </div>
           {filteredDrafts.length === 0 ? (
-            <div className="mt-4 rounded border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-600">
+            <div className="empty-state mt-4">
               {text.noResults}
             </div>
           ) : null}

@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 final visual consistency pass.
+- Tightened Dashboard spacing and reused shared section/card styling while keeping Quick Start, Banking Starter Pack, and Recent AI Runs out of the default dashboard.
+- Normalized Template Hub guide/current-template cards with shared Advanced, compact card, button, badge, and empty-state styling so the module stays lighter by default.
+- Refined Product Delivery action hierarchy: one primary Generate draft action, AI generation/review actions use AI styling, and export actions no longer appear as a dense stack of primary buttons.
+- Kept Output Package ZIP focused on final package/export status with AI Run History still inside Advanced.
+- Kept this RC5 visual pass UI-only: no data model, canonical schema, AI provider route/adapter, D01/D02 generator, recommendation confirmation/apply workflow, browser secret handling, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 final i18n and copy cleanup.
 - Reviewed the visible RC5 module order from Dashboard through Output Package ZIP for obvious mixed-language labels, helper text, buttons, and status copy.
 - Cleaned Vietnamese UI copy in AI status, AI Connection Center, AI Input Brief, QA Engine, Product Delivery, and Output Package ZIP where English terms were not required.

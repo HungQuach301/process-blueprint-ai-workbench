@@ -403,18 +403,18 @@ export function WorkspaceDashboard({ aiStatus, locale }: WorkspaceDashboardProps
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-slate-200 bg-white p-6">
+      <div className="section-header p-5">
         <p className="status-badge status-badge-primary">{labels.eyebrow}</p>
-        <div className="mt-4 grid gap-5 lg:grid-cols-[1.45fr_0.9fr] lg:items-end">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_0.85fr] lg:items-end">
           <div>
-            <h2 className="max-w-4xl text-3xl font-semibold leading-tight text-slate-950">
+            <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-slate-950">
               {labels.heroTitle}
             </h2>
             <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
               {labels.heroSubtitle}
             </p>
           </div>
-          <div className="rounded-md border border-blue-100 bg-blue-50/70 p-4">
+          <div className="compact-card bg-blue-50/70">
             <div className="grid gap-2 text-sm font-semibold text-blue-950">
               {[
                 labels.journeyBrief,
@@ -439,7 +439,7 @@ export function WorkspaceDashboard({ aiStatus, locale }: WorkspaceDashboardProps
       </div>
 
       <div className="bg-slate-50/70 p-4">
-        <div className="soft-panel p-4">
+        <div className="compact-card">
           <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
             {labels.recommendedNextAction}
           </p>
@@ -462,7 +462,7 @@ export function WorkspaceDashboard({ aiStatus, locale }: WorkspaceDashboardProps
         <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           {statusCards.map((card) => (
             <article
-              className="rounded-md border border-slate-200 bg-white p-4"
+              className="compact-card"
               key={card.title}
             >
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">

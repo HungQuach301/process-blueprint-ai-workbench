@@ -100,7 +100,12 @@ const previewLabels = {
 
 const inputBriefUiText = {
   vi: {
-    generateWithAI: "Tạo bằng AI",
+    generateDraftPtrWithAI: "Tạo PTR nháp bằng AI",
+    generateDraftPtrLocalMock: "Tạo PTR nháp local/mock",
+    generateDraftPtrPrimary: "Tạo PTR nháp",
+    enableRealAIToGenerate: "Bật Real AI để tạo bằng AI",
+    realAIGenerationHelper: "AI sẽ gọi skill input-brief-to-ptr qua route phía máy chủ. Kết quả chỉ là bản nháp để rà soát.",
+    localMockGenerationHelper: "Chế độ local/mock không gọi nhà cung cấp bên ngoài. Kết quả chỉ là bản nháp để rà soát.",
     generating: "Đang tạo...",
     manualInput: "Nhập thủ công",
     importFile: "Nhập tệp",
@@ -148,7 +153,12 @@ const inputBriefUiText = {
     draftRows: "dòng"
   },
   en: {
-    generateWithAI: "Generate with AI",
+    generateDraftPtrWithAI: "Generate Draft PTR with AI",
+    generateDraftPtrLocalMock: "Generate local/mock Draft PTR",
+    generateDraftPtrPrimary: "Generate Draft PTR",
+    enableRealAIToGenerate: "Enable Real AI to generate with AI",
+    realAIGenerationHelper: "AI calls the input-brief-to-ptr skill through the server-side route. The result is a review-only draft.",
+    localMockGenerationHelper: "Local/mock mode does not call an external provider. The result is a review-only draft.",
     generating: "Generating...",
     manualInput: "Manual Input",
     importFile: "Import File",
@@ -1953,6 +1963,18 @@ export function AIInputBriefPanel() {
     );
   }
 
+  const localDraftButtonLabel = realAIEnabled
+    ? uiText.generateDraftPtrLocalMock
+    : uiText.generateDraftPtrPrimary;
+  const aiDraftButtonLabel = realAIEnabled
+    ? uiText.generateDraftPtrWithAI
+    : uiText.enableRealAIToGenerate;
+  const generationHelperText = aiModeLoaded
+    ? realAIEnabled
+      ? uiText.realAIGenerationHelper
+      : uiText.localMockGenerationHelper
+    : uiText.checkingAIMode;
+
   return (
     <SessionFrame
       actions={
@@ -1971,21 +1993,50 @@ export function AIInputBriefPanel() {
           >
             {t("inputBrief.resetBrief", locale)}
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={generateDraftPtr}
-            type="button"
-          >
-            {t("inputBrief.generateDraftProcessTaskRegister", locale)}
-          </button>
-          <button
-            className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isGeneratingWithAI}
-            onClick={generateDraftPtrWithAI}
-            type="button"
-          >
-            {isGeneratingWithAI ? uiText.generating : uiText.generateWithAI}
-          </button>
+          <div className="flex max-w-full flex-col gap-1">
+            <div className="flex flex-wrap gap-2">
+              {realAIEnabled ? (
+                <>
+                  <button
+                    className="btn btn-ai"
+                    disabled={isGeneratingWithAI}
+                    onClick={generateDraftPtrWithAI}
+                    type="button"
+                  >
+                    {isGeneratingWithAI ? uiText.generating : aiDraftButtonLabel}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    disabled={isGeneratingWithAI}
+                    onClick={generateDraftPtr}
+                    type="button"
+                  >
+                    {localDraftButtonLabel}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="btn btn-primary"
+                    onClick={generateDraftPtr}
+                    type="button"
+                  >
+                    {localDraftButtonLabel}
+                  </button>
+                  <button
+                    className="rounded border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled
+                    type="button"
+                  >
+                    {aiDraftButtonLabel}
+                  </button>
+                </>
+              )}
+            </div>
+            <p className="max-w-xl text-xs leading-5 text-slate-500">
+              {generationHelperText}
+            </p>
+          </div>
         </>
       }
       bodyClassName="p-4"

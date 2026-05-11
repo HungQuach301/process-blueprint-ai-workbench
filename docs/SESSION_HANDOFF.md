@@ -6,7 +6,7 @@
 
 ## Current branch
 
-`feature/mvp1-ai-rc5-release-cleanup`
+`feature/mvp1-ai-rc6-final-ux-ai-hardening`
 
 ## Current product phase
 
@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 2 AI Input Brief generation-action clarity cleanup.
+- Clarified the Manual Input draft actions so Real AI mode shows `Tạo PTR nháp bằng AI` / `Generate Draft PTR with AI` as the primary AI action and keeps `Tạo PTR nháp local/mock` / `Generate local/mock Draft PTR` as the secondary local path.
+- Clarified mock/local mode so the primary action is `Tạo PTR nháp` / `Generate Draft PTR`, with helper text stating no external provider is called and the AI action disabled until Real AI is enabled.
+- Preserved the existing `input-brief-to-ptr` server-side route flow, schema validation, Draft PTR preview, explicit Replace/Append approval, local/mock fallback behavior, audit logging, and no-auto-apply rule.
+- Kept this RC6 cleanup UI/copy-only: no AI provider route/adapter, provider secrets, data model, canonical schema, D01/D02 generator, or provider execution logic was changed.
 - Completed RC6 Block 1 header and navigation cleanup.
 - Removed the horizontal module menu from the sticky header so primary navigation now relies on the sidebar/section order.
 - Removed noisy AI status/provider/data-mode chips from the header and hero surface; AI mode/data mode remain available in AI Connection Center and the compact footer summary.

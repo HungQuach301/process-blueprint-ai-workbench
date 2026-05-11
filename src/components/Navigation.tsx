@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { NavigationSection } from "@/lib/sample-data/navigation-sections";
 import { t, type Locale, type TranslationKey } from "@/lib/i18n";
 
@@ -8,12 +8,6 @@ type NavigationProps = {
   locale: Locale;
   sections: NavigationSection[];
 };
-
-type NavigationGroup =
-  | "setup"
-  | "process-modeling"
-  | "product-delivery"
-  | "export-audit";
 
 const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>> = {
   workspace: "nav.workspace",
@@ -28,50 +22,8 @@ const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>
   "export-center": "nav.exportCenter"
 };
 
-const groupOrder: NavigationGroup[] = [
-  "setup",
-  "process-modeling",
-  "product-delivery",
-  "export-audit"
-];
-
-const groupLabelKey: Record<NavigationGroup, TranslationKey> = {
-  setup: "shell.sidebarSetup",
-  "process-modeling": "shell.sidebarProcessModeling",
-  "product-delivery": "shell.sidebarProductDelivery",
-  "export-audit": "shell.sidebarExportAudit"
-};
-
-const groupBySectionId: Record<string, NavigationGroup> = {
-  workspace: "setup",
-  "ai-settings": "setup",
-  "input-brief": "process-modeling",
-  "process-task-register": "process-modeling",
-  "d01-bpmn-preview": "process-modeling",
-  "d02-service-blueprint-preview": "process-modeling",
-  "template-library": "process-modeling",
-  "product-delivery": "product-delivery",
-  "export-center": "export-audit"
-};
-
 export function Navigation({ locale, sections }: NavigationProps) {
   const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id ?? "");
-
-  const groupedSections = useMemo(() => {
-    return sections.reduce<Record<NavigationGroup, NavigationSection[]>>(
-      (groups, section) => {
-        const group = groupBySectionId[section.id] ?? "export-audit";
-        groups[group] = [...groups[group], section];
-        return groups;
-      },
-      {
-        setup: [],
-        "process-modeling": [],
-        "product-delivery": [],
-        "export-audit": []
-      }
-    );
-  }, [sections]);
 
   useEffect(() => {
     const updateActiveSection = () => {
@@ -112,39 +64,27 @@ export function Navigation({ locale, sections }: NavigationProps) {
       </div>
 
       <nav aria-label="Workbench sections">
-        {groupOrder.map((group) => {
-          const groupSections = groupedSections[group];
+        <ol className="space-y-1">
+          {sections.map((section, index) => {
+            const navKey = navKeyBySectionId[section.id];
+            const isActive = activeSectionId === section.id;
 
-          if (groupSections.length === 0) {
-            return null;
-          }
-
-          return (
-            <div className="mb-5 last:mb-0" key={group}>
-              <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                {t(groupLabelKey[group], locale)}
-              </p>
-              <ol className="space-y-1">
-                {groupSections.map((section) => {
-                  const navKey = navKeyBySectionId[section.id];
-                  const isActive = activeSectionId === section.id;
-
-                  return (
-                    <li key={section.id}>
-                      <a
-                        className={`sidebar-link ${isActive ? "sidebar-link-active" : ""}`}
-                        href={`#${section.id}`}
-                        onClick={() => setActiveSectionId(section.id)}
-                      >
-                        {navKey ? t(navKey, locale) : section.label}
-                      </a>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          );
-        })}
+            return (
+              <li key={section.id}>
+                <a
+                  className={`sidebar-link ${isActive ? "sidebar-link-active" : ""}`}
+                  href={`#${section.id}`}
+                  onClick={() => setActiveSectionId(section.id)}
+                >
+                  <span className="mr-2 text-xs font-semibold text-slate-400">
+                    {index + 1}
+                  </span>
+                  {navKey ? t(navKey, locale) : section.label}
+                </a>
+              </li>
+            );
+          })}
+        </ol>
       </nav>
     </aside>
   );

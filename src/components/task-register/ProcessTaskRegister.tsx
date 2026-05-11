@@ -1454,15 +1454,6 @@ export function ProcessTaskRegister() {
 
   return (
     <>
-      <QAPanel
-        issues={displayQaIssues}
-        processTasks={tasks}
-        onApplyRecommendation={applyRecommendation}
-        onApplyRecommendations={applyRecommendations}
-        onDownloadReport={downloadQaReport}
-        onIssueClick={focusIssueRow}
-      />
-
       <SessionFrame
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -1983,6 +1974,17 @@ export function ProcessTaskRegister() {
           </table>
         </div>
       </SessionFrame>
+
+      <div className="mt-5 scroll-mt-36" id="qa-panel">
+        <QAPanel
+          issues={displayQaIssues}
+          processTasks={tasks}
+          onApplyRecommendation={applyRecommendation}
+          onApplyRecommendations={applyRecommendations}
+          onDownloadReport={downloadQaReport}
+          onIssueClick={focusIssueRow}
+        />
+      </div>
 
       {detailTask ? (
         <div

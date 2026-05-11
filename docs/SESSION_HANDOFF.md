@@ -6,7 +6,7 @@
 
 ## Current branch
 
-`feature/mvp1-ai-rc4-ux-redesign`
+`feature/mvp1-ai-rc5-release-cleanup`
 
 ## Current product phase
 
@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 Dashboard and navigation cleanup.
+- Reordered the header and sidebar modules into the release workflow order: Dashboard, AI Connection Center, AI Input Brief, Process Task Register, QA Engine, Generate D01 BPMN XML, Generate D02 Service Blueprint, Template Hub, Product Delivery, and Output Package ZIP.
+- Simplified Dashboard by removing the visible Quick Start, Banking Starter Pack, and Recent AI Runs sections while keeping workspace summary, AI status, artifact/process/product/export status, and recommended next action.
+- Kept Banking Starter Pack in Template Hub and kept AI Run History in the Output Package ZIP / Export Center advanced audit surface.
+- Moved the QA Engine surface after the Process Task Register table in the page flow while preserving the existing recommendation preview/confirmation/apply workflow.
+- Kept this RC5 cleanup UI-only: no data model, canonical schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
 - Completed the final MVP1-AI RC4 visual consistency pass.
 - Added shared UI primitives for section headers, action rows, status messages, empty states, advanced panels, and raw previews.
 - Normalized `SessionFrame` header/action spacing so major modules share a more consistent SaaS workbench frame.

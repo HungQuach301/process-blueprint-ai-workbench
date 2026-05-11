@@ -19,20 +19,21 @@ import { WorkspaceDashboard } from "@/components/workspace/WorkspaceDashboard";
 import { getLocale, setLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
 import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
-const releaseNavigationSections = navigationSections.filter(
-  (section) => section.id !== "qa-panel"
-);
-
 const moduleTabs: Array<{
   id: string;
   labelKey: TranslationKey;
   href: string;
 }> = [
-  { id: "workspace", labelKey: "shell.moduleWorkspace", href: "#workspace" },
-  { id: "process-modeling", labelKey: "shell.moduleProcessModeling", href: "#input-brief" },
+  { id: "workspace", labelKey: "shell.moduleDashboard", href: "#workspace" },
+  { id: "ai-settings", labelKey: "shell.moduleAIConnectionCenter", href: "#ai-settings" },
+  { id: "input-brief", labelKey: "shell.moduleAIInputBrief", href: "#input-brief" },
+  { id: "process-task-register", labelKey: "shell.moduleProcessTaskRegister", href: "#process-task-register" },
+  { id: "qa-panel", labelKey: "shell.moduleQAEngine", href: "#qa-panel" },
+  { id: "d01-bpmn-preview", labelKey: "shell.moduleD01BpmnXml", href: "#d01-bpmn-preview" },
+  { id: "d02-service-blueprint-preview", labelKey: "shell.moduleD02ServiceBlueprint", href: "#d02-service-blueprint-preview" },
+  { id: "template-library", labelKey: "shell.moduleTemplateHub", href: "#template-library" },
   { id: "product-delivery", labelKey: "shell.moduleProductDelivery", href: "#product-delivery" },
-  { id: "templates", labelKey: "shell.moduleTemplates", href: "#template-library" },
-  { id: "export-audit", labelKey: "shell.moduleExportAudit", href: "#export-center" }
+  { id: "export-center", labelKey: "shell.moduleOutputPackageZip", href: "#export-center" }
 ];
 
 const processModelingGuide = {
@@ -146,7 +147,7 @@ export function AppShell() {
       </header>
 
       <div className="mx-auto flex w-full max-w-7xl min-w-0 gap-6 px-4 py-6 lg:px-6">
-        <Navigation locale={locale} sections={releaseNavigationSections} />
+        <Navigation locale={locale} sections={navigationSections} />
 
         <section className="min-w-0 max-w-full flex-1">
           <header className="surface-card mb-6 overflow-hidden">
@@ -227,10 +228,6 @@ export function AppShell() {
               <AIInputBriefPanel />
             </div>
 
-            <div className="min-w-0 max-w-full scroll-mt-36" id="template-library">
-              <TemplateLibraryEditor />
-            </div>
-
             <div className="min-w-0 max-w-full scroll-mt-36" id="process-task-register">
               <ProcessTaskRegister />
             </div>
@@ -241,6 +238,10 @@ export function AppShell() {
 
             <div className="min-w-0 max-w-full scroll-mt-36" id="d02-service-blueprint-preview">
               <D02ServiceBlueprintOutput />
+            </div>
+
+            <div className="min-w-0 max-w-full scroll-mt-36" id="template-library">
+              <TemplateLibraryEditor />
             </div>
 
             <div className="min-w-0 max-w-full scroll-mt-36" id="product-delivery">

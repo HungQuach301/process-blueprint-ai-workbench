@@ -8,8 +8,8 @@ export type NavigationSection = {
 export const navigationSections: NavigationSection[] = [
   {
     id: "workspace",
-    label: "Workspace",
-    description: "Dashboard for workspace status, next actions, and recent AI runs.",
+    label: "Dashboard",
+    description: "Dashboard for workspace status and next actions.",
     status: "Ready"
   },
   {
@@ -20,14 +20,8 @@ export const navigationSections: NavigationSection[] = [
   },
   {
     id: "input-brief",
-    label: "Input Brief",
+    label: "AI Input Brief",
     description: "Enter structured process notes and context.",
-    status: "Ready"
-  },
-  {
-    id: "template-library",
-    label: "Template Hub",
-    description: "Reusable process blueprint templates.",
     status: "Ready"
   },
   {
@@ -38,20 +32,26 @@ export const navigationSections: NavigationSection[] = [
   },
   {
     id: "qa-panel",
-    label: "QA Panel",
-    description: "QA review is embedded in Process Task Register.",
-    status: "Hidden"
+    label: "QA Engine",
+    description: "Review process quality and AI recommendations.",
+    status: "Ready"
   },
   {
     id: "d01-bpmn-preview",
-    label: "D01 BPMN Preview",
-    description: "Preview of the BPMN process diagram.",
+    label: "Generate D01 BPMN XML",
+    description: "Generate and preview the D01 BPMN XML output.",
     status: "Ready"
   },
   {
     id: "d02-service-blueprint-preview",
-    label: "D02 Service Blueprint Preview",
-    description: "Preview of the service blueprint output.",
+    label: "Generate D02 Service Blueprint",
+    description: "Generate and preview the D02 Service Blueprint output.",
+    status: "Ready"
+  },
+  {
+    id: "template-library",
+    label: "Template Hub",
+    description: "Reusable process blueprint templates.",
     status: "Ready"
   },
   {
@@ -62,8 +62,8 @@ export const navigationSections: NavigationSection[] = [
   },
   {
     id: "export-center",
-    label: "Export Center",
-    description: "Export completed blueprint deliverables.",
+    label: "Output Package ZIP",
+    description: "Export completed blueprint deliverables and audit history.",
     status: "Ready"
   }
 ];

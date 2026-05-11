@@ -2216,8 +2216,8 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             <h2 className="mt-2 text-xl font-semibold text-slate-950">
               {isProductDeliveryView
                 ? locale === "vi"
-                  ? "Hồ sơ sản phẩm"
-                  : "Product Delivery Core"
+                  ? "Bàn giao sản phẩm"
+                  : "Product Delivery"
                 : locale === "vi"
                   ? "Gói ZIP đầu ra"
                   : "Output Package ZIP"}
@@ -2256,6 +2256,34 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
         </div>
 
         {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+
+        {isProductDeliveryView ? (
+          <nav
+            aria-label="Product Delivery sections"
+            className="mt-4 flex gap-2 overflow-x-auto pb-1"
+          >
+            {[
+              {
+                href: "#product-delivery-overview",
+                label: locale === "vi" ? "Tổng quan" : "Overview"
+              },
+              { href: "#product-delivery-brd", label: "BRD" },
+              { href: "#product-delivery-srs", label: "SRS" },
+              { href: "#product-delivery-stories", label: "User Stories" },
+              { href: "#product-delivery-acceptance", label: "Acceptance Criteria" },
+              { href: "#product-delivery-scope", label: "Scope/MVP" },
+              { href: "#product-delivery-handoff", label: text.aiDevelopmentHandoffPack }
+            ].map((section) => (
+              <a
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800"
+                href={section.href}
+                key={section.href}
+              >
+                {section.label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
       </div>
 
       <div className={isExportView ? "contents" : "hidden"}>
@@ -2472,7 +2500,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       </div>
 
       <div className={isProductDeliveryView ? "contents" : "hidden"}>
-      <div className="border-t border-slate-200 p-4">
+      <div className="border-t border-slate-200 p-4" id="product-delivery-overview">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
@@ -2480,8 +2508,8 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
               {locale === "vi"
-                ? "Bản nháp BRD, SRS, user stories và acceptance criteria"
-                : "Draft BRD, SRS, user stories, and acceptance criteria"}
+                ? "Tổng quan hồ sơ bàn giao sản phẩm"
+                : "Product Delivery overview"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {text.productDeliveryDescription}
@@ -2505,6 +2533,77 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 ))}
               </div>
             </details>
+            <div className="mt-4 grid gap-2 md:grid-cols-3">
+              {[
+                {
+                  label: "BRD",
+                  value: brdPreview
+                    ? locale === "vi"
+                      ? "Đã có preview"
+                      : "Preview ready"
+                    : locale === "vi"
+                      ? "Chưa tạo"
+                      : "Not generated"
+                },
+                {
+                  label: "SRS",
+                  value: srsPreview
+                    ? locale === "vi"
+                      ? "Đã có preview"
+                      : "Preview ready"
+                    : locale === "vi"
+                      ? "Chưa tạo"
+                      : "Not generated"
+                },
+                {
+                  label: "User Stories",
+                  value: userStoryPreview
+                    ? locale === "vi"
+                      ? `${userStoryPreview.userStorySet.stories.length} story`
+                      : `${userStoryPreview.userStorySet.stories.length} stories`
+                    : locale === "vi"
+                      ? "Chưa tạo"
+                      : "Not generated"
+                },
+                {
+                  label: "Acceptance Criteria",
+                  value: acceptanceCriteriaPreview
+                    ? `${acceptanceCriteriaPreview.acceptanceCriteria.criteria.length}`
+                    : locale === "vi"
+                      ? "Chưa tạo"
+                      : "Not generated"
+                },
+                {
+                  label: "Scope/MVP",
+                  value: productScopeReviewPreview
+                    ? locale === "vi"
+                      ? "Đã có preview"
+                      : "Preview ready"
+                    : locale === "vi"
+                      ? "Chưa tạo"
+                      : "Not generated"
+                },
+                {
+                  label: text.aiDevelopmentHandoffPack,
+                  value: aiCodingPack
+                    ? locale === "vi"
+                      ? "Đã có preview"
+                      : "Preview ready"
+                    : locale === "vi"
+                      ? "Chưa tạo"
+                      : "Not generated"
+                }
+              ].map((status) => (
+                <div className="rounded border border-slate-200 bg-white px-3 py-2" key={status.label}>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {status.label}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {status.value}
+                  </p>
+                </div>
+              ))}
+            </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
@@ -3054,8 +3153,19 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           </div>
         ) : null}
 
+        {!brdPreview ? (
+          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-brd">
+            <p className="text-sm font-semibold text-slate-950">BRD</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {locale === "vi"
+                ? "Chưa có preview BRD. Dùng action card Generate ở phần Tổng quan để tạo BRD từ PTR hoặc ghi chú."
+                : "No BRD preview yet. Use the Generate action card in Overview to create BRD from PTR or notes."}
+            </p>
+          </div>
+        ) : null}
+
         {brdPreview ? (
-          <div className="mt-4 rounded border border-slate-200 bg-white">
+          <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-brd">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
                 {locale === "vi" ? "Preview: bản nháp BRD có cấu trúc" : "Preview: Structured BRD draft"}
@@ -3104,8 +3214,19 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           </div>
         ) : null}
 
+        {!srsPreview ? (
+          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-srs">
+            <p className="text-sm font-semibold text-slate-950">SRS</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {locale === "vi"
+                ? "Chưa có preview SRS. Tạo BRD hoặc chuẩn bị PTR/ghi chú rồi chạy Generate SRS."
+                : "No SRS preview yet. Generate BRD or prepare PTR/notes, then run Generate SRS."}
+            </p>
+          </div>
+        ) : null}
+
         {srsPreview ? (
-          <div className="mt-4 rounded border border-slate-200 bg-white">
+          <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-srs">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
                 {locale === "vi" ? "Preview: bản nháp SRS có cấu trúc" : "Preview: Structured SRS draft"}
@@ -3154,8 +3275,19 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           </div>
         ) : null}
 
+        {!userStoryPreview ? (
+          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-stories">
+            <p className="text-sm font-semibold text-slate-950">User Stories</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {locale === "vi"
+                ? "Chưa có preview User Stories. Tạo từ SRS hoặc BRD khi đã có đủ ngữ cảnh."
+                : "No User Stories preview yet. Generate them from SRS or BRD when enough context is ready."}
+            </p>
+          </div>
+        ) : null}
+
         {userStoryPreview ? (
-          <div className="mt-4 rounded border border-slate-200 bg-white">
+          <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-stories">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
                 {locale === "vi" ? "Preview: bản nháp user stories có cấu trúc" : "Preview: Structured user stories draft"}
@@ -3208,8 +3340,19 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           </div>
         ) : null}
 
+        {!acceptanceCriteriaPreview ? (
+          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-acceptance">
+            <p className="text-sm font-semibold text-slate-950">Acceptance Criteria</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {locale === "vi"
+                ? "Chưa có preview Acceptance Criteria. Tạo User Stories trước, sau đó tạo tiêu chí kiểm thử."
+                : "No Acceptance Criteria preview yet. Generate User Stories first, then create testable criteria."}
+            </p>
+          </div>
+        ) : null}
+
         {acceptanceCriteriaPreview ? (
-          <div className="mt-4 rounded border border-slate-200 bg-white">
+          <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-acceptance">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
                 {locale === "vi" ? "Preview: bản nháp acceptance criteria có cấu trúc" : "Preview: Structured acceptance criteria draft"}
@@ -3280,8 +3423,19 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           </div>
         ) : null}
 
+        {!productScopeReviewPreview ? (
+          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-scope">
+            <p className="text-sm font-semibold text-slate-950">Scope Review / MVP Slicing</p>
+            <p className="mt-1 text-sm text-slate-600">
+              {locale === "vi"
+                ? "Chưa có preview Scope/MVP. Chạy Review Product Scope hoặc Generate MVP Slicing trong action card Review/Generate."
+                : "No Scope/MVP preview yet. Run Review Product Scope or Generate MVP Slicing from the Review/Generate cards."}
+            </p>
+          </div>
+        ) : null}
+
         {productScopeReviewPreview ? (
-          <div className="mt-4 rounded border border-slate-200 bg-white">
+          <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-scope">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
                 {locale === "vi" ? "Preview: review phạm vi sản phẩm và MVP slicing" : "Preview: Product scope review and MVP slicing"}
@@ -3397,7 +3551,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
         ) : null}
       </div>
 
-      <div className="border-t border-slate-200 p-4">
+      <div className="border-t border-slate-200 p-4" id="product-delivery-handoff">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">

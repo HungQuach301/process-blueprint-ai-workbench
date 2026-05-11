@@ -24,6 +24,7 @@ const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>
   "qa-panel": "nav.qaPanel",
   "d01-bpmn-preview": "nav.d01BpmnPreview",
   "d02-service-blueprint-preview": "nav.d02ServiceBlueprintPreview",
+  "product-delivery": "shell.moduleProductDelivery",
   "export-center": "nav.exportCenter"
 };
 
@@ -52,14 +53,6 @@ const groupBySectionId: Record<string, NavigationGroup> = {
   "product-delivery": "product-delivery",
   "export-center": "export-audit"
 };
-
-const productDeliveryLinks = [
-  {
-    id: "product-delivery",
-    labelKey: "shell.productDeliveryFlow" as const,
-    href: "#product-delivery"
-  }
-];
 
 export function Navigation({ locale, sections }: NavigationProps) {
   const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id ?? "");
@@ -121,9 +114,8 @@ export function Navigation({ locale, sections }: NavigationProps) {
       <nav aria-label="Workbench sections">
         {groupOrder.map((group) => {
           const groupSections = groupedSections[group];
-          const extraLinks = group === "product-delivery" ? productDeliveryLinks : [];
 
-          if (groupSections.length === 0 && extraLinks.length === 0) {
+          if (groupSections.length === 0) {
             return null;
           }
 
@@ -133,19 +125,6 @@ export function Navigation({ locale, sections }: NavigationProps) {
                 {t(groupLabelKey[group], locale)}
               </p>
               <ol className="space-y-1">
-                {extraLinks.map((link) => (
-                  <li key={link.id}>
-                    <a
-                      className={`sidebar-link ${
-                        activeSectionId === "product-delivery" ? "sidebar-link-active-ai" : ""
-                      }`}
-                      href={link.href}
-                      onClick={() => setActiveSectionId("product-delivery")}
-                    >
-                      {t(link.labelKey, locale)}
-                    </a>
-                  </li>
-                ))}
                 {groupSections.map((section) => {
                   const navKey = navKeyBySectionId[section.id];
                   const isActive = activeSectionId === section.id;

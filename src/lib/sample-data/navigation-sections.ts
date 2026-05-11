@@ -55,6 +55,12 @@ export const navigationSections: NavigationSection[] = [
     status: "Ready"
   },
   {
+    id: "product-delivery",
+    label: "Product Delivery",
+    description: "Generate BRD, SRS, user stories, acceptance criteria, and AI handoff drafts.",
+    status: "Ready"
+  },
+  {
     id: "export-center",
     label: "Export Center",
     description: "Export completed blueprint deliverables.",

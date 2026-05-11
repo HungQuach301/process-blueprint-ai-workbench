@@ -378,6 +378,16 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Current blockers
 
+## RC4 Product Delivery dedicated module update - 2026-05-11
+
+- Promoted Product Delivery into the navigation section list so it appears as a real primary sidebar module, aligned with the existing top menubar tab.
+- Reframed the Product Delivery surface as a dedicated page instead of an Export Center subsection.
+- Added Product Delivery section navigation for Overview, BRD, SRS, User Stories, Acceptance Criteria, Scope/MVP, and AI Development Handoff Pack.
+- Added overview status cards for Product Delivery artifacts and lightweight empty states for artifact sections before previews exist.
+- Kept the existing Generate, Review, and Export grouped action cards and preserved all generation, review, download, ZIP, and audit logging behavior.
+- Kept Export Center focused on output package ZIP, artifact statuses, audit log export, and AI Run History export.
+- No data model, canonical schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
+
 ## RC4 Template Hub gallery redesign update - 2026-05-11
 
 - Polished Template Hub into a clearer template gallery with progressive disclosure.

@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Hardened AI provider secret boundaries before MVP1-AI release by marking provider/orchestration files as server-only.
+- Added `import "server-only";` to the provider factory, OpenAI provider, Claude provider, Product AI provider, and `/api/ai/run-skill` route entrypoint so files that read provider env secrets or instantiate provider calls cannot be imported into client bundles.
+- Verified the intended boundary remains: browser components use `/api/ai/run-skill` and sanitized metadata only; provider secrets remain server-side.
+- Kept this hardening behavior-preserving: no provider request logic, fallback behavior, AI skill logic, schema, UI, D01/D02 generator, recommendation apply workflow, or `NEXT_PUBLIC_*` secret variable was changed.
 - Completed RC6 Block 8 AI setup docs and environment example cleanup for OpenAI, Claude, Product AI, and mock/local fallback.
 - Updated `.env.example` with RC6 preferred server-side env names: `AI_DEFAULT_PROVIDER`, `AI_ALLOW_CLOUD`, `AI_REQUIRE_APPROVAL`, `OPENAI_DEFAULT_MODEL`, `CLAUDE_DEFAULT_MODEL`, `PRODUCT_AI_BASE_URL`, and `PRODUCT_AI_DEFAULT_MODEL`, while keeping legacy runtime aliases for compatibility.
 - Added provider-factory alias support so the new RC6 env names work through the existing server-side provider adapter path without exposing API keys in browser code.

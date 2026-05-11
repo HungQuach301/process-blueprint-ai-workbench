@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createClaudeProvider } from "@/lib/ai/providers/claude-provider";
 import { createMockProvider } from "@/lib/ai/providers/mock-provider";
 import { createOpenAIProvider } from "@/lib/ai/providers/openai-provider";
@@ -27,12 +29,25 @@ export function normalizeAIProviderId(value: string | undefined): AIProviderId {
   return "openai";
 }
 
+function firstConfiguredValue(...values: Array<string | undefined>) {
+  return values.find((value) => value?.trim()) || "";
+}
+
 function getDefaultModel() {
   return process.env.AI_MODEL || "";
 }
 
 export function getConfiguredAIProviderId() {
-  return normalizeAIProviderId(process.env.AI_PROVIDER);
+  return normalizeAIProviderId(
+    firstConfiguredValue(process.env.AI_DEFAULT_PROVIDER, process.env.AI_PROVIDER)
+  );
+}
+
+function getProductAIEndpoint() {
+  return firstConfiguredValue(
+    process.env.PRODUCT_AI_BASE_URL,
+    process.env.PRODUCT_AI_ENDPOINT
+  );
 }
 
 export function isAIProviderConfigured(providerId = getConfiguredAIProviderId()) {
@@ -41,18 +56,30 @@ export function isAIProviderConfigured(providerId = getConfiguredAIProviderId())
       return true;
     case "product-ai":
       return Boolean(
-        process.env.PRODUCT_AI_ENDPOINT &&
-          (process.env.PRODUCT_AI_MODEL || getDefaultModel())
+        getProductAIEndpoint() &&
+          firstConfiguredValue(
+            process.env.PRODUCT_AI_DEFAULT_MODEL,
+            process.env.PRODUCT_AI_MODEL,
+            getDefaultModel()
+          )
       );
     case "openai":
       return Boolean(
         process.env.OPENAI_API_KEY &&
-          (process.env.OPENAI_MODEL || getDefaultModel())
+          firstConfiguredValue(
+            process.env.OPENAI_DEFAULT_MODEL,
+            process.env.OPENAI_MODEL,
+            getDefaultModel()
+          )
       );
     case "claude":
       return Boolean(
         process.env.ANTHROPIC_API_KEY &&
-          (process.env.CLAUDE_MODEL || getDefaultModel())
+          firstConfiguredValue(
+            process.env.CLAUDE_DEFAULT_MODEL,
+            process.env.CLAUDE_MODEL,
+            getDefaultModel()
+          )
       );
   }
 }
@@ -73,11 +100,23 @@ export function getConfiguredAIModel(providerId = getConfiguredAIProviderId()) {
     case "mock":
       return process.env.MOCK_AI_MODEL || "mock-local";
     case "product-ai":
-      return process.env.PRODUCT_AI_MODEL || getDefaultModel();
+      return firstConfiguredValue(
+        process.env.PRODUCT_AI_DEFAULT_MODEL,
+        process.env.PRODUCT_AI_MODEL,
+        getDefaultModel()
+      );
     case "openai":
-      return process.env.OPENAI_MODEL || getDefaultModel();
+      return firstConfiguredValue(
+        process.env.OPENAI_DEFAULT_MODEL,
+        process.env.OPENAI_MODEL,
+        getDefaultModel()
+      );
     case "claude":
-      return process.env.CLAUDE_MODEL || getDefaultModel();
+      return firstConfiguredValue(
+        process.env.CLAUDE_DEFAULT_MODEL,
+        process.env.CLAUDE_MODEL,
+        getDefaultModel()
+      );
   }
 }
 
@@ -91,7 +130,7 @@ export function createConfiguredAIProvider(
       });
     case "product-ai":
       return createProductAIProvider({
-        endpoint: process.env.PRODUCT_AI_ENDPOINT || "",
+        endpoint: getProductAIEndpoint(),
         apiKey: process.env.PRODUCT_AI_API_KEY || "",
         model: getConfiguredAIModel(providerId)
       });

@@ -378,6 +378,15 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Current blockers
 
+## RC4 Workspace guided dashboard update - 2026-05-11
+
+- Redesigned Workspace into a guided RC4 dashboard for new users.
+- Added a clear hero journey from brief/file/template to PTR, D01 BPMN/D02 Service Blueprint, Product Delivery, and AI Development Handoff Pack.
+- Added six Quick Start cards: Start from brief, Import file, Use banking template, Review process quality, Generate product delivery draft, and Export AI handoff pack.
+- Expanded Workspace status cards to cover AI/provider, PTR row count, QA issue summary, D01/D02 artifact status, Product Delivery activity, and Export/Handoff package status.
+- Added a Banking Starter Pack preview with five banking templates and Preview/Use template CTAs.
+- Kept the change UI-only: no data model, canonical schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
+
 ## RC4 i18n cleanup update - 2026-05-11
 
 - Cleaned the base Vietnamese dictionary and removed default bilingual labels from the global shell, module navigation, and Input Brief dictionary entries.

@@ -48,6 +48,7 @@ type QAReviewTab =
   | "suggestions"
   | "recommendations"
   | "advanced";
+type PendingBatchKind = "selected" | "safe" | "all";
 
 type AIQACompareResult = {
   id: string;
@@ -70,7 +71,7 @@ const compareProviders: Array<{ id: CompareProviderId; label: Record<Locale, str
 
 const qaPanelText = {
   vi: {
-    title: "Bảng kiểm tra QA",
+    title: "QA Engine",
     description: "QA tự chạy lại khi dữ liệu trong bảng thay đổi. Chọn vấn đề để nhảy tới dòng liên quan nếu còn tồn tại.",
     downloadReport: "Tải báo cáo QA",
     recommendationToolbar: "Thanh đề xuất",
@@ -78,15 +79,17 @@ const qaPanelText = {
     selected: "đã chọn",
     safeHelper: "An toàn = độ tin cậy cao, rủi ro thấp và chỉ đổi trường đơn giản. Đề xuất đổi cấu trúc luồng không được chọn mặc định.",
     selectSafe: "Chọn đề xuất an toàn",
-    applySelected: "Xem trước mục đã chọn",
+    applySelected: "Áp dụng mục đã chọn",
     more: "Thêm",
     clearSelection: "Xóa lựa chọn",
-    applyAllSafe: "Xem trước đề xuất an toàn",
+    applyAllSafe: "Áp dụng tất cả đề xuất an toàn",
+    applyAllRecommendations: "Áp dụng tất cả đề xuất",
     exportFeedback: "Xuất phản hồi JSON",
     clearLocalFeedback: "Xóa phản hồi cục bộ",
-    running: "Đang chạy AI QA...",
-    runReal: "Chạy AI QA",
-    runMock: "Chạy QA mô phỏng",
+    running: "Đang tạo gợi ý bằng AI...",
+    generateAIRecommendations: "Tạo gợi ý bằng AI",
+    mockLocalStatus: "Mock/local: tạo gợi ý bằng route server-side, không gọi provider bên ngoài.",
+    realAIStatus: "Real AI: tạo gợi ý bằng route server-side và provider đã cấu hình.",
     showOnlySafe: "Chỉ hiện đề xuất an toàn",
     includeMedium: "Bao gồm mức trung bình",
     includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
@@ -120,6 +123,14 @@ const qaPanelText = {
     confirmRecommendation: "Xác nhận đề xuất QA",
     confirmBatchRecommendations: "Xác nhận nhóm đề xuất",
     applySelectedRecommendations: "Áp dụng đề xuất đã chọn",
+    applyAllRecommendationsTitle: "Áp dụng tất cả đề xuất",
+    batchMode: "Kiểu áp dụng",
+    batchModeSelected: "Mục đã chọn",
+    batchModeSafe: "Tất cả đề xuất an toàn",
+    batchModeAll: "Tất cả đề xuất",
+    highRiskRecommendations: "Đề xuất rủi ro cao",
+    graphChangingRecommendations: "Đề xuất đổi cấu trúc luồng",
+    applyAllWarning: "Bạn đang xem trước tất cả đề xuất, bao gồm đề xuất rủi ro cao hoặc đổi cấu trúc luồng nếu có. Không có thay đổi nào được áp dụng cho đến khi bạn xác nhận.",
     target: "Bước đích",
     field: "Trường",
     oldValue: "Giá trị cũ",
@@ -141,7 +152,7 @@ const qaPanelText = {
     none: "Không có"
   },
   en: {
-    title: "QA Panel",
+    title: "QA Engine",
     description: "QA reruns automatically when table data changes. Click an issue to jump to the related row when it still exists.",
     downloadReport: "Download QA Report",
     recommendationToolbar: "Recommendation toolbar",
@@ -149,15 +160,17 @@ const qaPanelText = {
     selected: "selected",
     safeHelper: "Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.",
     selectSafe: "Select safe",
-    applySelected: "Preview selected",
+    applySelected: "Apply selected",
     more: "More",
     clearSelection: "Clear selection",
-    applyAllSafe: "Preview safe recommendations",
+    applyAllSafe: "Apply all safe",
+    applyAllRecommendations: "Apply all recommendations",
     exportFeedback: "Export feedback JSON",
     clearLocalFeedback: "Clear local feedback",
-    running: "Running AI QA...",
-    runReal: "Run AI QA",
-    runMock: "Run mock QA",
+    running: "Generating AI recommendations...",
+    generateAIRecommendations: "Generate AI recommendations",
+    mockLocalStatus: "Mock/local: generating recommendations through the server-side route with no external provider call.",
+    realAIStatus: "Real AI: generating recommendations through the server-side route and configured provider.",
     showOnlySafe: "Show only safe recommendations",
     includeMedium: "Include medium confidence/impact",
     includeGraph: "Show advanced structure changes",
@@ -191,6 +204,14 @@ const qaPanelText = {
     confirmRecommendation: "Confirm QA recommendation",
     confirmBatchRecommendations: "Confirm batch recommendations",
     applySelectedRecommendations: "Apply selected recommendations",
+    applyAllRecommendationsTitle: "Apply all recommendations",
+    batchMode: "Apply mode",
+    batchModeSelected: "Selected",
+    batchModeSafe: "All safe",
+    batchModeAll: "All recommendations",
+    highRiskRecommendations: "High-risk recommendations",
+    graphChangingRecommendations: "Graph-changing recommendations",
+    applyAllWarning: "You are previewing every recommendation, including high-risk or graph-changing recommendations when present. Nothing is applied until you confirm.",
     target: "Target",
     field: "Field",
     oldValue: "Old value",
@@ -391,6 +412,8 @@ export function QAPanel({
     recommendation: QARecommendation;
   } | null>(null);
   const [pendingBatchRecommendations, setPendingBatchRecommendations] = useState<QARecommendation[] | null>(null);
+  const [pendingBatchKind, setPendingBatchKind] =
+    useState<PendingBatchKind>("selected");
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState<Set<string>>(() => new Set());
   const [showOnlySafe, setShowOnlySafe] = useState(false);
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
@@ -501,6 +524,7 @@ export function QAPanel({
     canSelectAsSafeRecommendation(entry.recommendation, includeMediumConfidence)
   );
   const safeRecommendations = safeRecommendationEntries.map((entry) => entry.recommendation);
+  const allRecommendations = recommendationEntries.map((entry) => entry.recommendation);
   const existingRuleRecommendations = useMemo(
     () => issues.flatMap((issue) => issue.recommendations ?? []),
     [issues]
@@ -620,6 +644,24 @@ export function QAPanel({
   const pendingBatchPreview = pendingBatchRecommendations
     ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
     : null;
+  const pendingBatchHighRiskCount = pendingBatchRecommendations?.filter(
+    (recommendation) => recommendation.riskLevel === "high"
+  ).length ?? 0;
+  const pendingBatchGraphChangingCount = pendingBatchRecommendations?.filter(
+    isAdvancedStructureRecommendation
+  ).length ?? 0;
+  const pendingBatchTitle =
+    pendingBatchKind === "all"
+      ? text.applyAllRecommendationsTitle
+      : pendingBatchKind === "safe"
+        ? text.applyAllSafe
+        : text.applySelectedRecommendations;
+  const pendingBatchModeLabel =
+    pendingBatchKind === "all"
+      ? text.batchModeAll
+      : pendingBatchKind === "safe"
+        ? text.batchModeSafe
+        : text.batchModeSelected;
 
   function isRecommendationVisibleInActiveGroup(
     recommendation: QARecommendation,
@@ -673,6 +715,7 @@ export function QAPanel({
       return;
     }
 
+    setPendingBatchKind("selected");
     setPendingBatchRecommendations(selectedRecommendations);
   }
 
@@ -681,7 +724,17 @@ export function QAPanel({
       return;
     }
 
+    setPendingBatchKind("safe");
     setPendingBatchRecommendations(safeRecommendations);
+  }
+
+  function applyAllRecommendations() {
+    if (allRecommendations.length === 0) {
+      return;
+    }
+
+    setPendingBatchKind("all");
+    setPendingBatchRecommendations(allRecommendations);
   }
 
   function downloadFeedbackJson() {
@@ -1078,6 +1131,7 @@ export function QAPanel({
       }
     ]);
     setPendingBatchRecommendations(null);
+    setPendingBatchKind("selected");
   }
 
   function confirmSingleRecommendation() {
@@ -1122,6 +1176,7 @@ export function QAPanel({
     ]);
     onApplyRecommendations(pendingBatchRecommendations);
     setPendingBatchRecommendations(null);
+    setPendingBatchKind("selected");
     clearSelection();
   }
 
@@ -1203,6 +1258,22 @@ export function QAPanel({
               >
                 {text.applySelected} ({selectedRecommendations.length})
               </button>
+              <button
+                className="btn btn-success text-xs"
+                disabled={safeRecommendations.length === 0}
+                onClick={applyAllSafeRecommendations}
+                type="button"
+              >
+                {text.applyAllSafe} ({safeRecommendations.length})
+              </button>
+              <button
+                className="btn btn-ai text-xs"
+                disabled={allRecommendations.length === 0}
+                onClick={applyAllRecommendations}
+                type="button"
+              >
+                {text.applyAllRecommendations} ({allRecommendations.length})
+              </button>
               <div className="relative">
                 <button
                   className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
@@ -1223,17 +1294,6 @@ export function QAPanel({
                       type="button"
                     >
                       {text.clearSelection}
-                    </button>
-                    <button
-                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={safeRecommendations.length === 0}
-                      onClick={() => {
-                        applyAllSafeRecommendations();
-                        setIsMoreMenuOpen(false);
-                      }}
-                      type="button"
-                    >
-                      {text.applyAllSafe}
                     </button>
                     <button
                       className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -1268,12 +1328,11 @@ export function QAPanel({
               onClick={runAiQa}
               type="button"
             >
-              {isRunningAIQA
-                ? text.running
-                : realAIQAEnabled
-                  ? text.runReal
-                  : text.runMock}
+              {isRunningAIQA ? text.running : text.generateAIRecommendations}
             </button>
+            <span className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-semibold text-sky-800">
+              {realAIQAEnabled ? text.realAIStatus : text.mockLocalStatus}
+            </span>
             <label className="flex items-center gap-2">
               <input
                 checked={compareModeEnabled}
@@ -1731,10 +1790,13 @@ export function QAPanel({
               {text.confirmBatchRecommendations}
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              {text.applySelectedRecommendations}
+              {pendingBatchTitle}
             </h3>
             <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+              <p>{text.batchMode}: {pendingBatchModeLabel}</p>
               <p>{text.recommendations}: {pendingBatchPreview.selectedCount}</p>
+              <p>{text.highRiskRecommendations}: {pendingBatchHighRiskCount}</p>
+              <p>{text.graphChangingRecommendations}: {pendingBatchGraphChangingCount}</p>
               <p>{text.willApply}: {pendingBatchPreview.applicableCount}</p>
               <p>{text.skippedDueToConflicts}: {pendingBatchPreview.skippedCount}</p>
               <p>{text.affectedTasks}: {pendingBatchPreview.affectedTaskCount}</p>
@@ -1750,6 +1812,17 @@ export function QAPanel({
                   : text.none}
               </p>
             </div>
+
+            {pendingBatchKind === "all" ? (
+              <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-900">
+                  {text.warnings}
+                </p>
+                <p className="mt-1 text-sm text-amber-800">
+                  {text.applyAllWarning}
+                </p>
+              </div>
+            ) : null}
 
             {pendingBatchPreview.conflicts.length > 0 ? (
               <div className="mt-4 rounded border border-red-200 bg-red-50 p-3">

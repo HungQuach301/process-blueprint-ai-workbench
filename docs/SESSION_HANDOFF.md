@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 QA Engine recommendation-action cleanup.
+- Renamed the QA surface title to `QA Engine` and added the clear `Generate AI recommendations` / `Tạo gợi ý bằng AI` action while keeping the existing `ai-process-qa` server-side route/provider-adapter flow.
+- Made mock/local status explicit beside the AI recommendation action so users can see when no external provider call is used.
+- Added visible recommendation actions for Apply selected, Apply all safe, and Apply all recommendations; all three still open preview/confirmation before apply.
+- Added Apply all recommendations confirmation details for total recommendations, high-risk count, graph-changing count, affected steps, conflicts, warnings, and an explicit all-recommendations warning.
+- Preserved Select safe safeguards so graph-changing/high-risk recommendations are not selected by default, while keeping explicit Apply all available after confirmation.
+- Kept this RC5 cleanup UI/workflow-only: no recommendation schema, ProcessTask model, AI provider route/adapter, D01/D02 generator, browser secret handling, feedback logging, audit logging, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 AI Input Brief Draft PTR visibility cleanup.
 - Hid Draft PTR validation/errors until the user explicitly starts a Generate Draft PTR / Generate with AI / file or notes draft generation action.
 - Kept the Draft PTR preview hidden until draft rows exist, renamed the preview heading to `Bản nháp Process Task Register` / `Draft Process Register`, and preserved explicit Replace/Append approval before applying.

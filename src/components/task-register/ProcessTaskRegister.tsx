@@ -140,6 +140,24 @@ const ptrText = {
   }
 } satisfies Record<Locale, Record<string, string>>;
 
+const ptrDetailText = {
+  vi: {
+    viewDetails: "Xem chi tiết",
+    rowDetails: "Chi tiết dòng",
+    rowDetailsDescription:
+      "Xem toàn bộ trường của dòng này mà không cần chuyển sang chế độ Nâng cao.",
+    closeDetails: "Đóng",
+    emptyValue: "Chưa có dữ liệu"
+  },
+  en: {
+    viewDetails: "Details",
+    rowDetails: "Row details",
+    rowDetailsDescription: "Review every field for this row without switching to Advanced mode.",
+    closeDetails: "Close",
+    emptyValue: "Not set"
+  }
+} satisfies Record<Locale, Record<string, string>>;
+
 type EditableColumn = {
   key: keyof ProcessTask;
   label: string;
@@ -150,6 +168,73 @@ type SelectOption = {
   value: string;
   label: string;
 };
+
+const processTaskColumnLabels = {
+  vi: {
+    id: "ID",
+    stepId: "Mã bước",
+    parentStepId: "Mã bước cha",
+    rowType: "Loại dòng",
+    bpmnType: "Loại BPMN",
+    taskNature: "Tính chất công việc",
+    phase: "Giai đoạn",
+    group: "Nhóm",
+    customerInteractionType: "Loại tương tác khách hàng",
+    channel: "Kênh",
+    actor: "Người thực hiện",
+    actorLane: "Lane người dùng",
+    system: "Hệ thống",
+    systemLane: "Lane hệ thống",
+    dataObject: "Đối tượng dữ liệu",
+    dataAction: "Thao tác dữ liệu",
+    taskName: "Tên công việc",
+    input: "Đầu vào",
+    output: "Đầu ra",
+    defaultNextStep: "Bước tiếp theo",
+    conditionQuestion: "Câu hỏi điều kiện",
+    yesNextStep: "Nếu Có",
+    noNextStep: "Nếu Không",
+    exception: "Ngoại lệ",
+    exceptionHandling: "Xử lý ngoại lệ",
+    sla: "SLA",
+    riskControl: "Rủi ro/Kiểm soát",
+    sourceRef: "Nguồn tham chiếu",
+    reviewStatus: "Trạng thái review",
+    comment: "Ghi chú"
+  },
+  en: {
+    id: "ID",
+    stepId: "Step ID",
+    parentStepId: "Parent step ID",
+    rowType: "Row type",
+    bpmnType: "BPMN type",
+    taskNature: "Task nature",
+    phase: "Phase",
+    group: "Group",
+    customerInteractionType: "Customer interaction type",
+    channel: "Channel",
+    actor: "Actor",
+    actorLane: "Actor lane",
+    system: "System",
+    systemLane: "System lane",
+    dataObject: "Data object",
+    dataAction: "Data action",
+    taskName: "Task name",
+    input: "Input",
+    output: "Output",
+    defaultNextStep: "Next step",
+    conditionQuestion: "Condition question",
+    yesNextStep: "If Yes",
+    noNextStep: "If No",
+    exception: "Exception",
+    exceptionHandling: "Exception handling",
+    sla: "SLA",
+    riskControl: "Risk/Control",
+    sourceRef: "Source reference",
+    reviewStatus: "Review status",
+    comment: "Comment"
+  }
+} satisfies Record<Locale, Record<keyof ProcessTask, string>>;
 
 type SampleProcessId = "sme-online-loan" | "corporate-account-opening";
 
@@ -202,12 +287,10 @@ const visibleColumns: EditableColumn[] = [
 
 const simpleColumnKeys: Array<keyof ProcessTask> = [
   "stepId",
-  "rowType",
-  "bpmnType",
-  "phase",
+  "taskName",
   "actor",
   "system",
-  "taskName",
+  "phase",
   "defaultNextStep",
   "reviewStatus"
 ];
@@ -591,6 +674,7 @@ export function ProcessTaskRegister() {
   const [columnMode, setColumnMode] = useState<ColumnMode>("simple");
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [openRowActionTaskId, setOpenRowActionTaskId] = useState<string | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [ptrAiIssues, setPtrAiIssues] = useState<QaIssue[]>([]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const saveStateTimeoutRef = useRef<number | null>(null);
@@ -671,6 +755,12 @@ export function ProcessTaskRegister() {
     });
   }, [tasks]);
 
+  useEffect(() => {
+    if (detailTaskId && !tasks.some((task) => task.id === detailTaskId)) {
+      setDetailTaskId(null);
+    }
+  }, [detailTaskId, tasks]);
+
   const gatewayCount = useMemo(
     () => tasks.filter((task) => task.rowType === "gateway").length,
     [tasks]
@@ -686,14 +776,28 @@ export function ProcessTaskRegister() {
     [selectedStepIds, tasks]
   );
   const displayedColumns = useMemo(
-    () =>
-      columnMode === "simple"
-        ? visibleColumns.filter((column) => simpleColumnKeys.includes(column.key))
-        : visibleColumns,
-    [columnMode]
+    () => {
+      const baseColumns =
+        columnMode === "advanced"
+          ? visibleColumns
+          : simpleColumnKeys
+              .map((key) => visibleColumns.find((column) => column.key === key))
+              .filter((column): column is EditableColumn => Boolean(column));
+
+      return baseColumns.map((column) => ({
+        ...column,
+        label: processTaskColumnLabels[locale][column.key]
+      }));
+    },
+    [columnMode, locale]
+  );
+  const detailTask = useMemo(
+    () => tasks.find((task) => task.id === detailTaskId) ?? null,
+    [detailTaskId, tasks]
   );
   const activeSampleProcess = getSampleProcess(selectedSampleProcessId);
   const text = ptrText[locale];
+  const detailText = ptrDetailText[locale];
   const saveStateStyles: Record<SaveState, string> = {
     saved: "status-badge status-badge-success",
     unsaved: "status-badge status-badge-warning",
@@ -1792,7 +1896,17 @@ export function ProcessTaskRegister() {
                         ...
                       </button>
                       {openRowActionTaskId === task.id ? (
-                        <div className="absolute right-0 z-40 mt-2 w-32 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                        <div className="absolute right-0 z-40 mt-2 w-36 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                          <button
+                            className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                            onClick={() => {
+                              setDetailTaskId(task.id);
+                              setOpenRowActionTaskId(null);
+                            }}
+                            type="button"
+                          >
+                            {detailText.viewDetails}
+                          </button>
                           <button
                             className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
                             onClick={() => {
@@ -1823,6 +1937,62 @@ export function ProcessTaskRegister() {
           </table>
         </div>
       </SessionFrame>
+
+      {detailTask ? (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex justify-end bg-slate-950/30"
+          role="dialog"
+        >
+          <button
+            aria-label={detailText.closeDetails}
+            className="flex-1 cursor-default"
+            onClick={() => setDetailTaskId(null)}
+            type="button"
+          />
+          <aside className="h-full w-full max-w-xl overflow-y-auto border-l border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                  {detailTask.stepId}
+                </p>
+                <h3 className="mt-1 text-xl font-semibold text-slate-950">
+                  {detailText.rowDetails}
+                </h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  {detailText.rowDetailsDescription}
+                </p>
+              </div>
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => setDetailTaskId(null)}
+                type="button"
+              >
+                {detailText.closeDetails}
+              </button>
+            </div>
+            <dl className="mt-5 grid gap-3">
+              {excelColumns.map((column) => {
+                const value = String(getCellValue(detailTask, column.key)).trim();
+
+                return (
+                  <div
+                    className="rounded border border-slate-200 bg-slate-50 p-3"
+                    key={column.key}
+                  >
+                    <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {processTaskColumnLabels[locale][column.key]}
+                    </dt>
+                    <dd className="mt-1 whitespace-pre-wrap break-words text-sm font-medium text-slate-900">
+                      {value || detailText.emptyValue}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </aside>
+        </div>
+      ) : null}
     </>
   );
 }

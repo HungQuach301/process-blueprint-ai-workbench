@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved Process Task Register for both non-technical and technical users in MVP1-AI RC3.
+- Tightened Simple mode to the requested business-readable columns: Step ID, Task name, Actor, System, Phase, Next step, and Review status.
+- Kept Advanced mode as the full technical column set without changing the `ProcessTask` schema.
+- Added a per-row Details drawer so users can inspect all Process Task fields without making the main Simple mode table visually dense.
+- Preserved existing Add/Edit/Duplicate/Delete/Save/import/export behavior, sticky header/key columns, visible save state, server-side AI boundaries, and no AI auto-apply behavior.
 - Redesigned QA Panel into a clearer user-friendly review workflow for MVP1-AI RC3.
 - Added QA summary cards for Critical, Warnings, Suggestions, and Recommendations plus a recommended next action message.
 - Added review tabs for Critical, Warnings, Suggestions, Recommendations, and Advanced structure changes.

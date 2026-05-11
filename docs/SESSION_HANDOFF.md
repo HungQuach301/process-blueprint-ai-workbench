@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved Process Task Register table UX for MVP1-AI RC2.
+- Added Simple / Advanced column mode without changing the `ProcessTask` schema.
+- Added sticky table header inside the table scroll area.
+- Kept checkbox, row number, `stepId`, and `taskName` usable during horizontal scroll where feasible.
+- Added clearer selected row count and a bulk action area for PTR AI Assistant and clear selection.
+- Moved per-row Duplicate/Delete actions into a compact row action menu with locale-aware labels.
+- Added visible save state feedback: `Saved`, `Unsaved changes`, and `Saving`.
+- Preserved existing save/add/duplicate/delete/import/export behavior and kept AI output review/apply rules unchanged.
 - Applied visual design system polish for MVP1-AI RC2.
 - Added global design tokens for primary blue, AI purple, success green, warning amber, danger red, and neutral slate.
 - Added shared `btn`, semantic button variants, status badge, soft panel, and surface card styles.
@@ -185,6 +193,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 - `src/components/task-register/ProcessTaskRegister.tsx`
 - `src/components/export-center/ExportCenter.tsx`
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `docs/SESSION_HANDOFF.md`
 - `src/lib/models/product-delivery.ts`
 - `src/lib/generators/product-delivery-generator.ts`
 - `src/lib/ai/skill-schemas.ts`

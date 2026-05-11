@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 7 real AI provider coverage audit for OpenAI, Claude, Product AI, and mock/local fallback.
+- Added `docs/AI_REAL_PROVIDER_COVERAGE_RC6.md` with per-skill coverage for Input Brief, File Intake, chat/notes draft PTR, PTR AI Assistant, QA Engine, D01/D02 artifact review, Template Review, Product Delivery generation/review skills, Requirement QA, and AI Coding Pack handoff.
+- Confirmed by code inspection that active real-AI-ready skills route through `/api/ai/run-skill`, use server-side provider adapters, validate inputs/outputs, keep preview/recommendation/review surfaces, and avoid browser API key exposure.
+- Documented RC6 limitations: D01/D02 use shared `artifact-review`, `ptr-to-ai-coding-pack` remains deterministic/legacy in the active UI, Product AI depends on endpoint contract, and planned skills remain out of real-provider coverage.
+- Kept this RC6 audit documentation-only: no provider adapter, AI route, schema, data model, D01/D02 generator, UI behavior, or AI auto-apply workflow was changed.
 - Completed RC6 Block 6 Product Delivery horizontal card cleanup.
 - Reworked the Product Delivery overview into a responsive card grid with Summary, Generate, Review, Export, and AI Development Handoff surfaces.
 - Kept `Generate Product Delivery Draft` as the primary Generate action and left BRD/SRS/User Stories/Acceptance Criteria generation inside the existing More generate actions disclosure.

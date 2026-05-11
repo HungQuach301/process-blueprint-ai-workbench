@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Redesigned Template Hub with progressive disclosure for MVP1-AI RC3.
+- Split Template Hub into four user-facing tabs: Current templates, Browse templates, Template review, and Editor.
+- Simplified template browse cards to show only key scan fields: name, output type, domain, process type, status, and short recommended tags.
+- Moved detailed metadata, mandatory fields, and rule-oriented information into expandable details/preview surfaces.
+- Limited `Use D01` actions to BPMN-compatible templates and `Use D02` actions to Service Blueprint-compatible templates.
+- Moved Template Review Provider Compare into an Advanced section, keeping it off by default and preserving no auto-apply behavior.
+- Kept the template editor out of the main browse flow and preserved the existing `TemplateProfile` schema, AI route, provider handling, and D01/D02 generator behavior.
 - Completed MVP1-AI RC3 i18n cleanup across the app shell, File Intake/Input Brief, AI Connection Center, QA Panel, Process Task Register, Product Delivery, and Export Center surfaces.
 - Ensured locale-sensitive user-facing copy now renders English-only for `en` and Vietnamese-only for `vi`, while keeping canonical enum/internal values and technical artifact names such as `AGENTS.md`, `CLAUDE.md`, cursor rules, and `spec.json` unchanged.
 - Localized remaining romanized Vietnamese and mixed-language status/action messages in File Intake, Draft PTR generation, PTR import/export/recommendation flows, Provider Compare, Product Delivery previews, AI Run History, and AI Development Handoff Pack details.

@@ -42,6 +42,7 @@ const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
+type TemplateHubTab = "current" | "browse" | "review" | "editor";
 
 type TemplateCompareResult = {
   id: string;
@@ -68,6 +69,13 @@ const templateHubText = {
   vi: {
     title: "Trung tâm template",
     description: "Quản lý template dùng lại cho D01 BPMN và D02 Service Blueprint. Template QA chỉ tạo recommendation, không auto-apply.",
+    currentTemplates: "Template hiện tại",
+    browseTemplates: "Duyệt template",
+    templateReview: "Template review",
+    currentTemplatesHelper: "Xem nhanh template đang dùng cho D01 và D02 trước khi đổi.",
+    browseTemplatesHelper: "Duyệt thư viện bằng card gọn. Metadata chi tiết nằm trong phần mở rộng.",
+    templateReviewHelper: "Chạy review và xem recommendation. Không có recommendation nào được áp dụng tự động.",
+    editorTabHelper: "Chỉnh template đã chọn. JSON/rule chi tiết nằm trong Advanced mode.",
     changeTemplate: "Đổi template",
     previewTemplate: "Xem template",
     runTemplateQA: "Chạy Template QA",
@@ -75,6 +83,9 @@ const templateHubText = {
     save: "Lưu",
     reset: "Reset",
     recommendations: "Recommendation từ Template QA",
+    aiTemplateReview: "AI Template Review",
+    reviewWarnings: "Cảnh báo",
+    reviewAssumptions: "Giả định",
     reviewRequired: "Cần người dùng review. Không có thay đổi template nào được auto-apply.",
     starterPack: "Banking Starter Pack và template đã lưu",
     outputType: "Loại output",
@@ -86,6 +97,23 @@ const templateHubText = {
     preview: "Xem trước",
     useD01: "Dùng cho D01",
     useD02: "Dùng cho D02",
+    details: "Chi tiết",
+    recommendedFor: "Phù hợp cho",
+    selected: "Đang chọn",
+    notCompatibleD01: "Không tương thích D01",
+    notCompatibleD02: "Không tương thích D02",
+    advancedProviderCompare: "Nâng cao: Provider Compare",
+    providerCompareHelper: "Tùy chọn và mặc định tắt. So sánh provider chỉ để chọn output review; không auto-apply recommendation.",
+    enableCompareMode: "Bật chế độ so sánh",
+    compareTemplateReview: "So sánh Template Review",
+    comparing: "Đang so sánh...",
+    costWarning: "Nhiều provider có thể làm tăng chi phí AI.",
+    useThisOutput: "Dùng output này",
+    qualityScore: "Điểm chất lượng template",
+    confidence: "Độ tin cậy",
+    warnings: "Cảnh báo",
+    assumptions: "Giả định",
+    affectedFields: "Field bị ảnh hưởng",
     editor: "Template editor",
     editorHelper: "Basic mode chỉ hiển thị metadata. JSON rules nằm trong Advanced mode.",
     basicMode: "Chế độ cơ bản",
@@ -105,6 +133,13 @@ const templateHubText = {
   en: {
     title: "Template Hub",
     description: "Manage reusable profiles for D01 BPMN and D02 Service Blueprint. Template QA creates recommendations only; it never auto-applies changes.",
+    currentTemplates: "Current templates",
+    browseTemplates: "Browse templates",
+    templateReview: "Template review",
+    currentTemplatesHelper: "Quickly see the templates currently used for D01 and D02 before changing them.",
+    browseTemplatesHelper: "Browse the library with simplified cards. Detailed metadata stays in expandable details.",
+    templateReviewHelper: "Run review and inspect recommendations. Recommendations are never auto-applied.",
+    editorTabHelper: "Edit the selected template. Detailed JSON/rules stay in Advanced mode.",
     changeTemplate: "Change template",
     previewTemplate: "Preview template",
     runTemplateQA: "Run Template QA",
@@ -126,6 +161,23 @@ const templateHubText = {
     preview: "Preview",
     useD01: "Use D01",
     useD02: "Use D02",
+    details: "Details",
+    recommendedFor: "Recommended for",
+    selected: "Selected",
+    notCompatibleD01: "Not D01-compatible",
+    notCompatibleD02: "Not D02-compatible",
+    advancedProviderCompare: "Advanced: Provider Compare",
+    providerCompareHelper: "Optional and off by default. Compare providers only to choose a review output; no recommendation is auto-applied.",
+    enableCompareMode: "Enable compare mode",
+    compareTemplateReview: "Compare Template Review",
+    comparing: "Comparing...",
+    costWarning: "Multiple providers may increase AI cost.",
+    useThisOutput: "Use this output",
+    qualityScore: "Template quality score",
+    confidence: "Confidence",
+    warnings: "Warnings",
+    assumptions: "Assumptions",
+    affectedFields: "Affected fields",
     editor: "Template editor",
     editorHelper: "Basic mode shows metadata. Advanced mode contains JSON rules.",
     basicMode: "Basic mode",
@@ -391,44 +443,66 @@ function findTemplate(drafts: TemplateDraft[], templateId: string) {
   return drafts.find((draft) => draft.id === templateId);
 }
 
+function isBpmnCompatibleTemplate(draft: TemplateDraft) {
+  return (
+    draft.type === "bpmn" ||
+    draft.outputType === "BPMN" ||
+    draft.notationStandard === "BPMN 2.0"
+  );
+}
+
+function isServiceBlueprintCompatibleTemplate(draft: TemplateDraft) {
+  return (
+    draft.type === "serviceBlueprint" ||
+    draft.outputType === "Service Blueprint" ||
+    draft.notationStandard === "Service Blueprint"
+  );
+}
+
 function markGeneratedArtifactsStale() {
   window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
   window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "stale");
   window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
 }
 
-function TemplateSummary({ draft }: { draft: TemplateDraft }) {
+function TemplateSummary({
+  draft,
+  text
+}: {
+  draft: TemplateDraft;
+  text: (typeof templateHubText)["vi"];
+}) {
   const tags = parseTags(draft.tags);
 
   return (
     <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
       <p>
-        <span className="font-semibold text-slate-900">Output:</span>{" "}
-        {draft.outputType || "Not classified"}
+        <span className="font-semibold text-slate-900">{text.outputType}:</span>{" "}
+        {draft.outputType || text.notClassified}
       </p>
       <p>
-        <span className="font-semibold text-slate-900">Domain:</span>{" "}
-        {draft.businessDomain || "Not classified"}
+        <span className="font-semibold text-slate-900">{text.businessDomain}:</span>{" "}
+        {draft.businessDomain || text.notClassified}
       </p>
       <p>
-        <span className="font-semibold text-slate-900">Process:</span>{" "}
-        {draft.processType || "Not classified"}
+        <span className="font-semibold text-slate-900">{text.processType}:</span>{" "}
+        {draft.processType || text.notClassified}
       </p>
       <p>
-        <span className="font-semibold text-slate-900">Scope:</span>{" "}
-        {draft.scopeType || "Not classified"}
+        <span className="font-semibold text-slate-900">{text.scope}:</span>{" "}
+        {draft.scopeType || text.notClassified}
       </p>
       <p>
-        <span className="font-semibold text-slate-900">Status:</span>{" "}
+        <span className="font-semibold text-slate-900">{text.status}:</span>{" "}
         {draft.status}
       </p>
       <p>
-        <span className="font-semibold text-slate-900">Fields:</span>{" "}
+        <span className="font-semibold text-slate-900">{text.mandatoryFields}:</span>{" "}
         {draft.mandatoryFields.split(/\r?\n/).filter(Boolean).length}
       </p>
       {tags.length > 0 ? (
         <p className="sm:col-span-2">
-          <span className="font-semibold text-slate-900">Tags:</span>{" "}
+          <span className="font-semibold text-slate-900">{text.tags}:</span>{" "}
           {tags.join(", ")}
         </p>
       ) : null}
@@ -467,6 +541,7 @@ export function TemplateLibraryEditor() {
   const [compareResults, setCompareResults] = useState<TemplateCompareResult[]>([]);
   const [isRunningCompare, setIsRunningCompare] = useState(false);
   const [advancedModeOpen, setAdvancedModeOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TemplateHubTab>("current");
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(
     null
   );
@@ -584,6 +659,34 @@ export function TemplateLibraryEditor() {
       }),
     [drafts, filters]
   );
+  const selectedD01Draft = findTemplate(drafts, selectedD01TemplateId);
+  const selectedD02Draft = findTemplate(drafts, selectedD02TemplateId);
+  const tabItems: Array<{
+    id: TemplateHubTab;
+    label: string;
+    helper: string;
+  }> = [
+    {
+      id: "current",
+      label: text.currentTemplates,
+      helper: text.currentTemplatesHelper
+    },
+    {
+      id: "browse",
+      label: text.browseTemplates,
+      helper: text.browseTemplatesHelper
+    },
+    {
+      id: "review",
+      label: text.templateReview,
+      helper: text.templateReviewHelper
+    },
+    {
+      id: "editor",
+      label: text.editor,
+      helper: text.editorTabHelper
+    }
+  ];
 
   function updateDraft(field: keyof TemplateDraft, value: string) {
     if (!activeDraft) {
@@ -596,7 +699,11 @@ export function TemplateLibraryEditor() {
       )
     );
     markGeneratedArtifactsStale();
-    setMessage("There are unsaved template changes.");
+    setMessage(
+      locale === "vi"
+        ? "Có thay đổi template chưa lưu."
+        : "There are unsaved template changes."
+    );
   }
 
   function saveTemplates() {
@@ -610,7 +717,11 @@ export function TemplateLibraryEditor() {
       window.localStorage.setItem(D01_STORAGE_KEY, selectedD01TemplateId);
       window.localStorage.setItem(D02_STORAGE_KEY, selectedD02TemplateId);
       markGeneratedArtifactsStale();
-      setMessage("Saved template profiles and D01/D02 selections.");
+      setMessage(
+        locale === "vi"
+          ? "Đã lưu template profile và lựa chọn D01/D02."
+          : "Saved template profiles and D01/D02 selections."
+      );
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -635,28 +746,67 @@ export function TemplateLibraryEditor() {
     window.localStorage.removeItem(D01_STORAGE_KEY);
     window.localStorage.removeItem(D02_STORAGE_KEY);
     markGeneratedArtifactsStale();
-    setMessage("Reset to sample and banking starter templates.");
+    setMessage(
+      locale === "vi"
+        ? "Đã reset về sample và banking starter templates."
+        : "Reset to sample and banking starter templates."
+    );
   }
 
   function useForD01(templateId: string) {
+    const targetDraft = findTemplate(drafts, templateId);
+
+    if (!targetDraft || !isBpmnCompatibleTemplate(targetDraft)) {
+      setMessage(
+        locale === "vi"
+          ? "Template này không tương thích với D01 BPMN."
+          : "This template is not compatible with D01 BPMN."
+      );
+      return;
+    }
+
     setSelectedD01TemplateId(templateId);
     window.localStorage.setItem(D01_STORAGE_KEY, templateId);
     markGeneratedArtifactsStale();
-    setMessage("Selected template for D01 BPMN.");
+    setMessage(
+      locale === "vi"
+        ? "Đã chọn template cho D01 BPMN."
+        : "Selected template for D01 BPMN."
+    );
   }
 
   function useForD02(templateId: string) {
+    const targetDraft = findTemplate(drafts, templateId);
+
+    if (!targetDraft || !isServiceBlueprintCompatibleTemplate(targetDraft)) {
+      setMessage(
+        locale === "vi"
+          ? "Template này không tương thích với D02 Service Blueprint."
+          : "This template is not compatible with D02 Service Blueprint."
+      );
+      return;
+    }
+
     setSelectedD02TemplateId(templateId);
     window.localStorage.setItem(D02_STORAGE_KEY, templateId);
     markGeneratedArtifactsStale();
-    setMessage("Selected template for D02 Service Blueprint.");
+    setMessage(
+      locale === "vi"
+        ? "Đã chọn template cho D02 Service Blueprint."
+        : "Selected template for D02 Service Blueprint."
+    );
   }
 
   function changeTemplate() {
     const target = document.getElementById("template-hub-list");
 
+    setActiveTab("browse");
     target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    setMessage("Choose a template card, then set it for D01 or D02.");
+    setMessage(
+      locale === "vi"
+        ? "Chọn một template card, sau đó đặt cho D01 hoặc D02."
+        : "Choose a template card, then set it for D01 or D02."
+    );
   }
 
   function previewActiveTemplate() {
@@ -670,7 +820,11 @@ export function TemplateLibraryEditor() {
 
   async function runTemplateReview() {
     if (!activeDraft) {
-      setMessage("No template selected for review.");
+      setMessage(
+        locale === "vi"
+          ? "Chưa chọn template để review."
+          : "No template selected for review."
+      );
       return;
     }
 
@@ -688,6 +842,7 @@ export function TemplateLibraryEditor() {
     }
 
     setIsReviewingTemplate(true);
+    setActiveTab("review");
     setTemplateReviewRecommendations([]);
     setTemplateQualityScore(null);
     setTemplateReviewWarnings([]);
@@ -1023,317 +1178,441 @@ export function TemplateLibraryEditor() {
       description={text.description}
       title={text.title}
     >
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase text-slate-500">
-            D01 BPMN
-          </p>
-          <p className="mt-1 text-sm font-semibold text-slate-950">
-            {findTemplateName(drafts, selectedD01TemplateId)}
-          </p>
-        </div>
-        <div className="rounded border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase text-slate-500">
-            D02 Service Blueprint
-          </p>
-          <p className="mt-1 text-sm font-semibold text-slate-950">
-            {findTemplateName(drafts, selectedD02TemplateId)}
-          </p>
+      <div className="rounded border border-slate-200 bg-slate-50 p-1">
+        <div className="grid gap-1 md:grid-cols-4">
+          {tabItems.map((tab) => (
+            <button
+              className={`rounded px-3 py-2 text-left text-sm font-semibold ${
+                activeTab === tab.id
+                  ? "bg-white text-slate-950 shadow-sm"
+                  : "text-slate-600 hover:bg-white/70"
+              }`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              type="button"
+            >
+              <span className="block">{tab.label}</span>
+              <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">
+                {tab.helper}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
       {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
 
-      <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-950">
-              Provider Compare
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">
-              Optional and off by default. Compare only selected providers; no
-              template recommendation is auto-applied.
-            </p>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              checked={compareModeEnabled}
-              onChange={(event) => setCompareModeEnabled(event.target.checked)}
-              type="checkbox"
-            />
-            Enable compare mode
-          </label>
-        </div>
-        {compareModeEnabled ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-700">
-            {compareProviders.map((provider) => (
-              <label className="flex items-center gap-2" key={provider.id}>
-                <input
-                  checked={compareProviderIds.includes(provider.id)}
-                  onChange={() => toggleCompareProvider(provider.id)}
-                  type="checkbox"
-                />
-                {provider.label}
-              </label>
-            ))}
-            <button
-              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isRunningCompare}
-              onClick={() => void runTemplateReviewCompare()}
-              type="button"
-            >
-              {isRunningCompare ? "Comparing..." : "Compare Template Review"}
-            </button>
-            {compareProviderIds.length > 1 ? (
-              <span className="text-xs text-amber-700">
-                Multiple providers may increase AI cost.
-              </span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-
-      {compareResults.length > 0 ? (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {compareResults.map((result) => (
-            <div className="rounded border border-slate-200 bg-white p-3" key={result.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-950">
-                    {result.providerId}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Model: {result.model || "n/a"}
-                  </p>
-                </div>
-                <span
-                  className={`rounded px-2 py-1 text-xs font-semibold ${
-                    result.validationStatus === "passed"
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-rose-50 text-rose-700"
-                  }`}
-                >
-                  {result.validationStatus}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-slate-700">{result.summary}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Confidence: {result.confidence} | Warnings: {result.warnings.length}
+      {activeTab === "current" ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {[
+            {
+              label: "D01 BPMN",
+              draft: selectedD01Draft,
+              browseAction: () => setActiveTab("browse")
+            },
+            {
+              label: "D02 Service Blueprint",
+              draft: selectedD02Draft,
+              browseAction: () => setActiveTab("browse")
+            }
+          ].map((item) => (
+            <section className="rounded border border-slate-200 bg-white p-4" key={item.label}>
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                {item.label}
               </p>
-              {result.error ? (
-                <p className="mt-2 text-xs text-rose-700">{result.error}</p>
+              <h3 className="mt-2 text-base font-semibold text-slate-950">
+                {item.draft?.name ?? text.noTemplateSelected}
+              </h3>
+              {item.draft ? (
+                <div className="mt-3">
+                  <TemplateSummary draft={item.draft} text={text} />
+                </div>
               ) : null}
-              <button
-                className="btn btn-ai mt-3 text-xs"
-                disabled={result.validationStatus !== "passed"}
-                onClick={() => useCompareResult(result)}
-                type="button"
-              >
-                Use this output
-              </button>
-            </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  onClick={item.browseAction}
+                  type="button"
+                >
+                  {text.changeTemplate}
+                </button>
+                {item.draft ? (
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => setPreviewTemplateId(item.draft?.id ?? null)}
+                    type="button"
+                  >
+                    {text.preview}
+                  </button>
+                ) : null}
+              </div>
+            </section>
           ))}
         </div>
       ) : null}
 
-      {templateQualityScore ? (
-        <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          <p className="text-xs font-semibold uppercase text-emerald-700">
-            AI Template Review
+      {activeTab === "browse" ? (
+        <div id="template-hub-list" className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-semibold text-slate-950">
+            {text.starterPack}
           </p>
-          <p className="font-semibold">
-            Template quality score: {templateQualityScore.score}/
-            {templateQualityScore.maxScore}
-          </p>
-          <p className="mt-1">{templateQualityScore.summary}</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-5">
+            {[
+              { key: "outputType", label: text.outputType, options: filterOptions.outputType },
+              { key: "businessDomain", label: text.businessDomain, options: filterOptions.businessDomain },
+              { key: "processType", label: text.processType, options: filterOptions.processType },
+              { key: "scopeType", label: text.scope, options: filterOptions.scopeType },
+              { key: "status", label: text.status, options: filterOptions.status }
+            ].map((filter) => (
+              <label className="grid gap-1 text-xs font-semibold text-slate-600" key={filter.key}>
+                {filter.label}
+                <select
+                  className="rounded border border-slate-300 bg-white px-2 py-2 text-sm font-normal text-slate-800"
+                  onChange={(event) =>
+                    setFilters((currentFilters) => ({
+                      ...currentFilters,
+                      [filter.key]: event.target.value
+                    }))
+                  }
+                  value={filters[filter.key as keyof typeof filters]}
+                >
+                  <option value="">{text.all}</option>
+                  {filter.options.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 xl:grid-cols-2">
+            {filteredDrafts.map((draft) => {
+              const isActive = draft.id === activeTemplateId;
+              const isSelectedD01 = draft.id === selectedD01TemplateId;
+              const isSelectedD02 = draft.id === selectedD02TemplateId;
+              const isD01Compatible = isBpmnCompatibleTemplate(draft);
+              const isD02Compatible = isServiceBlueprintCompatibleTemplate(draft);
+              const tags = parseTags(draft.tags).slice(0, 3);
+
+              return (
+                <article
+                  className={`rounded border bg-white p-4 ${
+                    isActive ? "border-slate-950" : "border-slate-200"
+                  }`}
+                  key={draft.id}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <button
+                      className="min-w-0 text-left"
+                      onClick={() => setActiveTemplateId(draft.id)}
+                      type="button"
+                    >
+                      <span className="block text-sm font-semibold text-slate-950">
+                        {draft.name}
+                      </span>
+                      <span className="mt-2 flex flex-wrap gap-2 text-xs text-slate-600">
+                        <span className="rounded bg-slate-100 px-2 py-1">
+                          {draft.outputType || text.notClassified}
+                        </span>
+                        <span className="rounded bg-slate-100 px-2 py-1">
+                          {draft.businessDomain || text.notClassified}
+                        </span>
+                        <span className="rounded bg-slate-100 px-2 py-1">
+                          {draft.processType || text.notClassified}
+                        </span>
+                        <span className="rounded bg-emerald-50 px-2 py-1 font-semibold text-emerald-700">
+                          {draft.status}
+                        </span>
+                      </span>
+                    </button>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <button
+                        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        onClick={() => setPreviewTemplateId(draft.id)}
+                        type="button"
+                      >
+                        {text.preview}
+                      </button>
+                      {isD01Compatible ? (
+                        <button
+                          className="rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                          onClick={() => useForD01(draft.id)}
+                          type="button"
+                        >
+                          {isSelectedD01 ? `${text.selected}: D01` : text.useD01}
+                        </button>
+                      ) : null}
+                      {isD02Compatible ? (
+                        <button
+                          className="rounded border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100"
+                          onClick={() => useForD02(draft.id)}
+                          type="button"
+                        >
+                          {isSelectedD02 ? `${text.selected}: D02` : text.useD02}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 text-sm text-slate-600">
+                    <p>
+                      <span className="font-semibold text-slate-900">
+                        {text.recommendedFor}:
+                      </span>{" "}
+                      {tags.length > 0 ? tags.join(", ") : text.notClassified}
+                    </p>
+                  </div>
+
+                  <details className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                    <summary className="cursor-pointer font-semibold text-slate-950">
+                      {text.details}
+                    </summary>
+                    <div className="mt-3">
+                      <TemplateSummary draft={draft} text={text} />
+                      <p className="mt-3 text-xs text-slate-500">
+                        {draft.type} | v{draft.version} | {draft.notationStandard || text.notClassified}
+                      </p>
+                      <p className="mt-2 text-xs text-slate-500">
+                        {text.mandatoryFields}:{" "}
+                        {draft.mandatoryFields
+                          .split(/\r?\n/)
+                          .filter(Boolean)
+                          .join(", ") || text.none}
+                      </p>
+                    </div>
+                  </details>
+                </article>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
-      {templateReviewWarnings.length > 0 || templateReviewAssumptions.length > 0 ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          {templateReviewWarnings.length > 0 ? (
-            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              <p className="font-semibold">
-                {locale === "vi" ? "Cáº£nh bÃ¡o" : "Warnings"}
-              </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                {templateReviewWarnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {templateReviewAssumptions.length > 0 ? (
-            <div className="rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-              <p className="font-semibold">
-                {locale === "vi" ? "Giáº£ Ä‘á»‹nh" : "Assumptions"}
-              </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                {templateReviewAssumptions.map((assumption) => (
-                  <li key={assumption}>{assumption}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {templateReviewRecommendations.length > 0 ? (
-        <div className="mt-4 rounded border border-indigo-200 bg-indigo-50 p-3">
-          <p className="text-sm font-semibold text-indigo-950">
-            {text.recommendations}
-          </p>
-          <p className="mt-1 text-sm text-indigo-900">
-            {text.reviewRequired}
-          </p>
-          <div className="mt-3 grid gap-3">
-            {templateReviewRecommendations.map((recommendation) => (
-              <div
-                className="rounded border border-indigo-200 bg-white p-3 text-sm"
-                key={recommendation.id}
+      {activeTab === "review" ? (
+        <div className="mt-4 grid gap-4">
+          <div className="rounded border border-indigo-200 bg-indigo-50 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-indigo-950">
+                  {text.templateReview}
+                </p>
+                <p className="mt-1 text-sm text-indigo-900">
+                  {activeDraft?.name ?? text.noTemplateSelected}
+                </p>
+                <p className="mt-1 text-xs text-indigo-800">
+                  {text.reviewRequired}
+                </p>
+              </div>
+              <button
+                className="btn btn-ai w-fit"
+                disabled={isReviewingTemplate}
+                onClick={runTemplateReview}
+                type="button"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-900">
-                    source: {recommendation.source ?? "ai"}
-                  </span>
-                  <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                    {recommendation.type}
-                  </span>
-                  <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                    risk: {recommendation.riskLevel}
-                  </span>
+                {isReviewingTemplate ? text.running : text.runTemplateQA}
+              </button>
+            </div>
+          </div>
+
+          <details className="rounded border border-slate-200 bg-slate-50 p-4">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-950">
+              {text.advancedProviderCompare}
+            </summary>
+            <div className="mt-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <p className="text-xs leading-5 text-slate-600">
+                  {text.providerCompareHelper}
+                </p>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    checked={compareModeEnabled}
+                    onChange={(event) => setCompareModeEnabled(event.target.checked)}
+                    type="checkbox"
+                  />
+                  {text.enableCompareMode}
+                </label>
+              </div>
+              {compareModeEnabled ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                  {compareProviders.map((provider) => (
+                    <label className="flex items-center gap-2" key={provider.id}>
+                      <input
+                        checked={compareProviderIds.includes(provider.id)}
+                        onChange={() => toggleCompareProvider(provider.id)}
+                        type="checkbox"
+                      />
+                      {provider.label}
+                    </label>
+                  ))}
+                  <button
+                    className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={isRunningCompare}
+                    onClick={() => void runTemplateReviewCompare()}
+                    type="button"
+                  >
+                    {isRunningCompare ? text.comparing : text.compareTemplateReview}
+                  </button>
+                  {compareProviderIds.length > 1 ? (
+                    <span className="text-xs text-amber-700">
+                      {text.costWarning}
+                    </span>
+                  ) : null}
                 </div>
-                <p className="mt-2 font-semibold text-slate-950">
-                  {recommendation.title}
-                </p>
-                <p className="mt-1 text-slate-700">
-                  {recommendation.description}
-                </p>
-                <p className="mt-2 text-xs text-slate-500">
-                  Affected fields: {recommendation.affectedFields.join(", ")}
-                </p>
-                {recommendation.warnings?.length ? (
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-700">
-                    {recommendation.warnings.map((warning) => (
+              ) : null}
+            </div>
+          </details>
+
+          {compareResults.length > 0 ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {compareResults.map((result) => (
+                <div className="rounded border border-slate-200 bg-white p-3" key={result.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {result.providerId}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Model: {result.model || "n/a"}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded px-2 py-1 text-xs font-semibold ${
+                        result.validationStatus === "passed"
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-rose-50 text-rose-700"
+                      }`}
+                    >
+                      {result.validationStatus}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-700">{result.summary}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {text.confidence}: {result.confidence} | {text.warnings}:{" "}
+                    {result.warnings.length}
+                  </p>
+                  {result.error ? (
+                    <p className="mt-2 text-xs text-rose-700">{result.error}</p>
+                  ) : null}
+                  <button
+                    className="btn btn-ai mt-3 text-xs"
+                    disabled={result.validationStatus !== "passed"}
+                    onClick={() => useCompareResult(result)}
+                    type="button"
+                  >
+                    {text.useThisOutput}
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {templateQualityScore ? (
+            <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+              <p className="text-xs font-semibold uppercase text-emerald-700">
+                {text.aiTemplateReview}
+              </p>
+              <p className="font-semibold">
+                {text.qualityScore}: {templateQualityScore.score}/
+                {templateQualityScore.maxScore}
+              </p>
+              <p className="mt-1">{templateQualityScore.summary}</p>
+            </div>
+          ) : null}
+
+          {templateReviewWarnings.length > 0 || templateReviewAssumptions.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {templateReviewWarnings.length > 0 ? (
+                <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <p className="font-semibold">{text.warnings}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {templateReviewWarnings.map((warning) => (
                       <li key={warning}>{warning}</li>
                     ))}
                   </ul>
-                ) : null}
+                </div>
+              ) : null}
+              {templateReviewAssumptions.length > 0 ? (
+                <div className="rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                  <p className="font-semibold">{text.assumptions}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {templateReviewAssumptions.map((assumption) => (
+                      <li key={assumption}>{assumption}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {templateReviewRecommendations.length > 0 ? (
+            <div className="rounded border border-indigo-200 bg-indigo-50 p-3">
+              <p className="text-sm font-semibold text-indigo-950">
+                {text.recommendations}
+              </p>
+              <p className="mt-1 text-sm text-indigo-900">
+                {text.reviewRequired}
+              </p>
+              <div className="mt-3 grid gap-3">
+                {templateReviewRecommendations.map((recommendation) => (
+                  <div
+                    className="rounded border border-indigo-200 bg-white p-3 text-sm"
+                    key={recommendation.id}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded bg-indigo-100 px-2 py-1 text-xs font-semibold text-indigo-900">
+                        source: {recommendation.source ?? "ai"}
+                      </span>
+                      <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                        {recommendation.type}
+                      </span>
+                      <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                        risk: {recommendation.riskLevel}
+                      </span>
+                    </div>
+                    <p className="mt-2 font-semibold text-slate-950">
+                      {recommendation.title}
+                    </p>
+                    <p className="mt-1 text-slate-700">
+                      {recommendation.description}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      {text.affectedFields}: {recommendation.affectedFields.join(", ")}
+                    </p>
+                    {recommendation.warnings?.length ? (
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-700">
+                        {recommendation.warnings.map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      <div id="template-hub-list" className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm font-semibold text-slate-950">
-          {text.starterPack}
-        </p>
-        <div className="mt-3 grid gap-3 md:grid-cols-5">
-          {[
-            { key: "outputType", label: text.outputType, options: filterOptions.outputType },
-            { key: "businessDomain", label: text.businessDomain, options: filterOptions.businessDomain },
-            { key: "processType", label: text.processType, options: filterOptions.processType },
-            { key: "scopeType", label: text.scope, options: filterOptions.scopeType },
-            { key: "status", label: text.status, options: filterOptions.status }
-          ].map((filter) => (
-            <label className="grid gap-1 text-xs font-semibold text-slate-600" key={filter.key}>
-              {filter.label}
-              <select
-                className="rounded border border-slate-300 bg-white px-2 py-2 text-sm font-normal text-slate-800"
-                onChange={(event) =>
-                  setFilters((currentFilters) => ({
-                    ...currentFilters,
-                    [filter.key]: event.target.value
-                  }))
-                }
-                value={filters[filter.key as keyof typeof filters]}
-              >
-                <option value="">{text.all}</option>
-                {filter.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-
-        <div className="mt-4 grid gap-3 xl:grid-cols-2">
-          {filteredDrafts.map((draft) => {
-            const isActive = draft.id === activeTemplateId;
-
-            return (
-              <article
-                className={`rounded border bg-white p-4 ${
-                  isActive ? "border-slate-950" : "border-slate-200"
-                }`}
-                key={draft.id}
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <button
-                    className="min-w-0 text-left"
-                    onClick={() => setActiveTemplateId(draft.id)}
-                    type="button"
-                  >
-                    <span className="block text-sm font-semibold text-slate-950">
-                      {draft.name}
-                    </span>
-                    <span className="mt-1 block text-xs text-slate-500">
-                      {draft.type} | v{draft.version} | {draft.status}
-                    </span>
-                  </button>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <button
-                      className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      onClick={() => setPreviewTemplateId(draft.id)}
-                      type="button"
-                    >
-                      {text.preview}
-                    </button>
-                    <button
-                      className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      onClick={() => useForD01(draft.id)}
-                      type="button"
-                    >
-                      {text.useD01}
-                    </button>
-                    <button
-                      className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      onClick={() => useForD02(draft.id)}
-                      type="button"
-                    >
-                      {text.useD02}
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-3">
-                  <TemplateSummary draft={draft} />
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="mt-4 rounded border border-slate-200 bg-white p-4">
-        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-950">
-              {text.editor}
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
-              {text.editorHelper}
-            </p>
+      {activeTab === "editor" ? (
+        <div className="mt-4 rounded border border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">
+                {text.editor}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                {text.editorHelper}
+              </p>
+            </div>
+            <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
+              {text.basicMode}
+            </span>
           </div>
-          <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
-            {text.basicMode}
-          </span>
-        </div>
 
-        {activeDraft ? (
-          <div className="mt-4 grid gap-4">
+          {activeDraft ? (
+            <div className="mt-4 grid gap-4">
             <div className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 Template name
@@ -1459,7 +1738,8 @@ export function TemplateLibraryEditor() {
         ) : (
           <p className="mt-4 text-sm text-slate-600">{text.noTemplateSelected}</p>
         )}
-      </div>
+        </div>
+      ) : null}
 
       {previewDraft ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
@@ -1482,7 +1762,7 @@ export function TemplateLibraryEditor() {
               </button>
             </div>
             <div className="mt-4">
-              <TemplateSummary draft={previewDraft} />
+              <TemplateSummary draft={previewDraft} text={text} />
             </div>
             <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <p className="font-semibold text-slate-950">{text.rulePreview}</p>

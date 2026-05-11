@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved Process Task Register UX for MVP1-AI RC4.
+- Kept Simple mode focused on business-readable columns while adding clearer Simple/Advanced helper text.
+- Improved the bulk action area with selected row count shown against total rows and a quick action to select rows with `needsReview` status.
+- Kept Advanced mode as the full technical field set and preserved the existing row detail drawer for full-row inspection.
+- Improved row action accessibility while preserving Add/Edit/Duplicate/Delete/Save/import/export behavior.
+- Kept the `ProcessTask` schema, D01/D02 generators, AI provider logic, and AI recommendation preview/approval flow unchanged.
 - Implemented the MVP1-AI RC4 App Shell + Theme polish block.
 - Updated the global header/top menubar with `Process Blueprint AI Workbench`, RC4 version label, primary module tabs, AI status badge, data mode badge, and language selector.
 - Reworked the contextual sidebar grouping into Setup, Process Modeling, Product Delivery, and Export & Audit.

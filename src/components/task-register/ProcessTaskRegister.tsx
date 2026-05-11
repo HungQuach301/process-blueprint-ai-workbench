@@ -78,12 +78,20 @@ const ptrText = {
     suggestInteractionChannel: "Gợi ý customerInteractionType/channel",
     clearSelection: "Bỏ chọn",
     selectedRowsCount: "Dòng đã chọn",
+    selectionSummaryPrefix: "Đã chọn",
+    selectionSummaryConnector: "trên",
+    rowsLabel: "dòng",
     bulkActions: "Hành động hàng loạt",
+    selectNeedsReview: "Chọn dòng cần rà soát",
+    noNeedsReviewRows: "Không có dòng nào đang cần rà soát.",
     rowActions: "Thao tác",
+    rowActionMenu: "Mở menu thao tác dòng",
     duplicateRow: "Nhân bản",
     deleteRow: "Xóa",
     simpleMode: "Đơn giản",
     advancedMode: "Nâng cao",
+    simpleModeHelper: "Chế độ Đơn giản chỉ hiện các cột nghiệp vụ dễ đọc.",
+    advancedModeHelper: "Chế độ Nâng cao hiện toàn bộ trường kỹ thuật của ProcessTask.",
     saved: "Đã lưu",
     unsaved: "Có thay đổi chưa lưu",
     saving: "Đang lưu",
@@ -121,12 +129,20 @@ const ptrText = {
     suggestInteractionChannel: "Suggest customerInteractionType/channel",
     clearSelection: "Clear selection",
     selectedRowsCount: "Selected rows",
+    selectionSummaryPrefix: "Selected",
+    selectionSummaryConnector: "of",
+    rowsLabel: "rows",
     bulkActions: "Bulk actions",
+    selectNeedsReview: "Select needs-review rows",
+    noNeedsReviewRows: "No rows currently need review.",
     rowActions: "Actions",
+    rowActionMenu: "Open row action menu",
     duplicateRow: "Duplicate",
     deleteRow: "Delete",
     simpleMode: "Simple",
     advancedMode: "Advanced",
+    simpleModeHelper: "Simple mode shows business-readable columns only.",
+    advancedModeHelper: "Advanced mode shows the full technical ProcessTask field set.",
     saved: "Saved",
     unsaved: "Unsaved changes",
     saving: "Saving",
@@ -798,6 +814,8 @@ export function ProcessTaskRegister() {
   const activeSampleProcess = getSampleProcess(selectedSampleProcessId);
   const text = ptrText[locale];
   const detailText = ptrDetailText[locale];
+  const modeHelper =
+    columnMode === "simple" ? text.simpleModeHelper : text.advancedModeHelper;
   const saveStateStyles: Record<SaveState, string> = {
     saved: "status-badge status-badge-success",
     unsaved: "status-badge status-badge-warning",
@@ -848,6 +866,19 @@ export function ProcessTaskRegister() {
       currentStepIds.size === tasks.length
         ? new Set()
         : new Set(tasks.map((task) => task.stepId))
+    );
+  }
+
+  function selectNeedsReviewRows() {
+    const needsReviewStepIds = tasks
+      .filter((task) => task.reviewStatus === "needsReview")
+      .map((task) => task.stepId);
+
+    setSelectedStepIds(new Set(needsReviewStepIds));
+    setSaveMessage(
+      needsReviewStepIds.length > 0
+        ? `${text.selectedRowsCount}: ${needsReviewStepIds.length}`
+        : text.noNeedsReviewRows
     );
   }
 
@@ -1574,6 +1605,9 @@ export function ProcessTaskRegister() {
                   {text.advancedMode}
                 </button>
               </div>
+              <p className="max-w-md text-sm text-slate-600">
+                {modeHelper}
+              </p>
               <button
                 className="btn btn-secondary"
                 onClick={autoSuggestInteractionFields}
@@ -1589,10 +1623,18 @@ export function ProcessTaskRegister() {
                     {text.bulkActions}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {text.selectedRowsCount}: {selectedTasks.length}
+                    {text.selectionSummaryPrefix} {selectedTasks.length}{" "}
+                    {text.selectionSummaryConnector} {tasks.length} {text.rowsLabel}
                   </p>
                 </div>
                 <div className="relative flex flex-wrap gap-2">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={selectNeedsReviewRows}
+                    type="button"
+                  >
+                    {text.selectNeedsReview}
+                  </button>
                   <button
                     className="btn btn-ai"
                     disabled={isRunningPtrAI || selectedTasks.length === 0}
@@ -1889,6 +1931,7 @@ export function ProcessTaskRegister() {
                     <div className="relative">
                       <button
                         className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        aria-label={`${text.rowActionMenu}: ${task.stepId}`}
                         onClick={() =>
                           setOpenRowActionTaskId((currentTaskId) =>
                             currentTaskId === task.id ? null : task.id
@@ -1962,6 +2005,9 @@ export function ProcessTaskRegister() {
                 <h3 className="mt-1 text-xl font-semibold text-slate-950">
                   {detailText.rowDetails}
                 </h3>
+                <p className="mt-1 text-sm font-semibold text-slate-700">
+                  {detailTask.taskName || detailText.emptyValue}
+                </p>
                 <p className="mt-2 text-sm text-slate-600">
                   {detailText.rowDetailsDescription}
                 </p>

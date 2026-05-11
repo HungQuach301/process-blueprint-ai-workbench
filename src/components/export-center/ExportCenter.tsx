@@ -2563,7 +2563,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
 
       <div className={isProductDeliveryView ? "contents" : "hidden"}>
       <div className="border-t border-slate-200 p-4" id="product-delivery-overview">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
+        <div className="space-y-4">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
               {text.productDelivery}
@@ -2595,7 +2595,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 ))}
               </div>
             </details>
-            <div className="mt-4 grid gap-2 md:grid-cols-3">
+            <div className="hidden">
               {[
                 {
                   label: "BRD",
@@ -2713,7 +2713,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 />
               </label>
             </div>
-            <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div className="hidden">
               {[
                 { vi: "BRD", en: "BRD" },
                 { vi: "SRS", en: "SRS" },
@@ -2731,7 +2731,89 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </div>
               ))}
             </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="action-card bg-slate-50">
+                <p className="text-sm font-semibold text-slate-950">
+                  {locale === "vi" ? "Tổng quan" : "Summary"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  {locale === "vi"
+                    ? "Trạng thái preview của các artifact chính trong hồ sơ bàn giao."
+                    : "Preview status for the main artifacts in the delivery pack."}
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {[
+                    {
+                      label: "BRD",
+                      value: brdPreview
+                        ? locale === "vi"
+                          ? "Đã có preview"
+                          : "Preview ready"
+                        : locale === "vi"
+                          ? "Chưa tạo"
+                          : "Not generated"
+                    },
+                    {
+                      label: "SRS",
+                      value: srsPreview
+                        ? locale === "vi"
+                          ? "Đã có preview"
+                          : "Preview ready"
+                        : locale === "vi"
+                          ? "Chưa tạo"
+                          : "Not generated"
+                    },
+                    {
+                      label: "Stories",
+                      value: userStoryPreview
+                        ? `${userStoryPreview.userStorySet.stories.length}`
+                        : locale === "vi"
+                          ? "Chưa tạo"
+                          : "Not generated"
+                    },
+                    {
+                      label: "AC",
+                      value: acceptanceCriteriaPreview
+                        ? `${acceptanceCriteriaPreview.acceptanceCriteria.criteria.length}`
+                        : locale === "vi"
+                          ? "Chưa tạo"
+                          : "Not generated"
+                    },
+                    {
+                      label: "Scope/MVP",
+                      value: productScopeReviewPreview
+                        ? locale === "vi"
+                          ? "Đã có preview"
+                          : "Preview ready"
+                        : locale === "vi"
+                          ? "Chưa tạo"
+                          : "Not generated"
+                    },
+                    {
+                      label: "Handoff",
+                      value: aiCodingPack
+                        ? locale === "vi"
+                          ? "Đã có preview"
+                          : "Preview ready"
+                        : locale === "vi"
+                          ? "Chưa tạo"
+                          : "Not generated"
+                    }
+                  ].map((status) => (
+                    <div
+                      className="rounded border border-slate-200 bg-white px-3 py-2"
+                      key={status.label}
+                    >
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        {status.label}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                        {status.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="action-card">
                 <p className="text-sm font-semibold text-blue-950">
                   {locale === "vi" ? "Tạo" : "Generate"}
@@ -2892,8 +2974,8 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
                 <p className="mt-1 text-xs leading-5 text-emerald-900/80">
                   {locale === "vi"
-                    ? "Tải artifact đã có preview dưới dạng JSON, Markdown hoặc ZIP handoff."
-                    : "Download previewed artifacts as JSON, Markdown, or handoff ZIP."}
+                    ? "Tải artifact đã có preview dưới dạng JSON hoặc Markdown."
+                    : "Download previewed artifacts as JSON or Markdown."}
                 </p>
                 <div className="button-list mt-3">
                   <button
@@ -2944,6 +3026,26 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                   >
                     {text.downloadProductDeliveryMarkdown}
                   </button>
+                </div>
+              </div>
+
+              <div className="action-card action-card-ai">
+                <p className="text-sm font-semibold text-purple-950">
+                  {text.aiDevelopmentHandoffPack}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-purple-900/80">
+                  {locale === "vi"
+                    ? "Xem trước gói bàn giao, kiểm tra file bao gồm, rồi tải ZIP khi sẵn sàng."
+                    : "Preview the handoff pack, check included files, then download ZIP when ready."}
+                </p>
+                <div className="button-list mt-3">
+                  <button
+                    className="btn btn-ai text-sm"
+                    onClick={() => void previewProductDeliveryAICodingPack()}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Xem trước Handoff Pack" : "Preview Handoff Pack"}
+                  </button>
                   <button
                     className="btn btn-secondary"
                     disabled={isDownloadingAICodingPack}
@@ -2957,6 +3059,20 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                         : "Download AI Handoff Pack ZIP"}
                   </button>
                 </div>
+                <details className="mt-3 rounded border border-purple-100 bg-white/80">
+                  <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-purple-950">
+                    {text.includedFiles}
+                  </summary>
+                  <ul className="border-t border-purple-100 p-3 text-xs leading-5 text-purple-900/80">
+                    <li>AGENTS.md</li>
+                    <li>CLAUDE.md</li>
+                    <li>cursor-rules.md</li>
+                    <li>spec.json</li>
+                    <li>acceptance-criteria.md</li>
+                    <li>implementation-plan.md</li>
+                    <li>test-plan.md</li>
+                  </ul>
+                </details>
               </div>
             </div>
             <details className="advanced-panel mt-4">
@@ -3135,7 +3251,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             </details>
           </div>
 
-          <div className="compact-card bg-slate-50">
+          <div className="hidden">
             <p className="text-sm font-semibold text-slate-950">
               {locale === "vi" ? "Bản nháp bao gồm" : "Draft includes"}
             </p>

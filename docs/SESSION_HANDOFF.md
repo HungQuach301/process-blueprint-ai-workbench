@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 6 Product Delivery horizontal card cleanup.
+- Reworked the Product Delivery overview into a responsive card grid with Summary, Generate, Review, Export, and AI Development Handoff surfaces.
+- Kept `Generate Product Delivery Draft` as the primary Generate action and left BRD/SRS/User Stories/Acceptance Criteria generation inside the existing More generate actions disclosure.
+- Split AI Handoff into its own card with preview, ZIP download, and included-file summary so Export stays focused on previewed JSON/Markdown artifacts.
+- Kept this RC6 cleanup UI-only: no Product Delivery AI skill logic, provider route/adapter, provider secrets, data model, canonical schema, D01/D02 generator, or AI auto-apply behavior was changed.
 - Completed RC6 Block 5 D01/D02 artifact review routing to QA Engine.
 - Kept `Review BPMN with AI` and `Review Service Blueprint with AI` on the existing server-side `artifact-review` skill route with ProcessTask data, selected template, generated XML, and rule QA issues as input.
 - Routed returned PTR `QARecommendation[]` into QA Engine via the existing recommendation preview/confirmation/apply workflow instead of leaving counts only in D01/D02 panels.

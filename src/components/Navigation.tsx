@@ -29,7 +29,7 @@ const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>
 };
 
 const helperByLocale: Record<Locale, string> = {
-  vi: "Contextual module navigation",
+  vi: "Điều hướng theo module",
   en: "Contextual module navigation"
 };
 
@@ -43,11 +43,11 @@ const groupOrder: NavigationGroup[] = [
 
 const groupLabels: Record<Locale, Record<NavigationGroup, string>> = {
   vi: {
-    workspace: "Workspace",
-    "process-modeling": "Process Modeling",
-    "product-delivery": "Product Delivery",
-    templates: "Templates",
-    "export-audit": "Export & Audit"
+    workspace: "Không gian làm việc",
+    "process-modeling": "Mô hình quy trình",
+    "product-delivery": "Hồ sơ sản phẩm",
+    templates: "Mẫu",
+    "export-audit": "Xuất & kiểm toán"
   },
   en: {
     workspace: "Workspace",
@@ -71,7 +71,10 @@ const groupBySectionId: Record<string, NavigationGroup> = {
 const productDeliveryLinks = [
   {
     id: "product-delivery",
-    label: "Product Delivery flows",
+    label: {
+      vi: "Luồng hồ sơ sản phẩm",
+      en: "Product Delivery flows"
+    },
     href: "#export-center"
   }
 ];
@@ -126,7 +129,9 @@ export function Navigation({ locale, sections }: NavigationProps) {
   return (
     <aside className="surface-card sticky top-28 hidden h-fit w-72 shrink-0 p-4 md:block">
       <div className="mb-5 border-b border-slate-200 pb-4">
-        <p className="text-sm font-semibold text-slate-950">Module map</p>
+        <p className="text-sm font-semibold text-slate-950">
+          {locale === "vi" ? "Bản đồ module" : "Module map"}
+        </p>
         <p className="mt-1 text-sm text-slate-500">{helperByLocale[locale]}</p>
       </div>
 
@@ -156,7 +161,7 @@ export function Navigation({ locale, sections }: NavigationProps) {
                       href={link.href}
                       onClick={() => setActiveSectionId("export-center")}
                     >
-                      {link.label}
+                      {link.label[locale]}
                     </a>
                   </li>
                 ))}

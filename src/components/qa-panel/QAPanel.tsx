@@ -64,29 +64,29 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
 
 const qaPanelText = {
   vi: {
-    title: "Bang kiem tra QA",
-    description: "QA chay lai tu dong khi du lieu trong bang thay doi. Chon issue de nhay toi dong lien quan neu con ton tai.",
-    downloadReport: "Tai bao cao QA",
-    recommendationToolbar: "Thanh de xuat",
-    recommendations: "de xuat",
+    title: "Bảng kiểm tra QA",
+    description: "QA tự chạy lại khi dữ liệu trong bảng thay đổi. Chọn issue để nhảy tới dòng liên quan nếu còn tồn tại.",
+    downloadReport: "Tải báo cáo QA",
+    recommendationToolbar: "Thanh đề xuất",
+    recommendations: "đề xuất",
     selected: "đã chọn",
-    safeHelper: "An toan = do tin cay cao, rui ro thap va chi doi truong don gian. De xuat doi graph khong duoc chon mac dinh.",
-    selectSafe: "Chon de xuat an toan",
-    applySelected: "Ap dung muc da chon",
+    safeHelper: "An toàn = độ tin cậy cao, rủi ro thấp và chỉ đổi trường đơn giản. Đề xuất đổi graph không được chọn mặc định.",
+    selectSafe: "Chọn đề xuất an toàn",
+    applySelected: "Áp dụng mục đã chọn",
     more: "Thêm",
     clearSelection: "Xóa lựa chọn",
-    applyAllSafe: "Ap dung tat ca de xuat an toan",
-    exportFeedback: "Xuat feedback JSON",
+    applyAllSafe: "Áp dụng tất cả đề xuất an toàn",
+    exportFeedback: "Xuất feedback JSON",
     clearLocalFeedback: "Xóa feedback local",
     running: "Đang chạy AI QA...",
-    runReal: "Chay AI QA",
-    runMock: "Chay mock QA",
-    showOnlySafe: "Chi hien de xuat an toan",
-    includeMedium: "Bao gom muc trung binh",
+    runReal: "Chạy AI QA",
+    runMock: "Chạy mock QA",
+    showOnlySafe: "Chỉ hiện đề xuất an toàn",
+    includeMedium: "Bao gồm mức trung bình",
     includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
-    providerCompare: "So sanh provider",
-    totalIssues: "Tong so issue",
-    noRecommendations: "Chua co de xuat tu dong.",
+    providerCompare: "So sánh provider",
+    totalIssues: "Tổng số issue",
+    noRecommendations: "Chưa có đề xuất tự động.",
     hiddenAdvanced: "Thay đổi cấu trúc nâng cao đang được ẩn.",
     automaticRecommendations: "Gợi ý tự động",
     suggestedFix: "Cách sửa",
@@ -762,20 +762,32 @@ export function QAPanel({
         : []
     );
     clearSelection();
-    setAiQaMessage(`Selected ${result.providerId} output for AI QA preview.`);
+    setAiQaMessage(
+      locale === "vi"
+        ? `Đã chọn output từ ${result.providerId} để preview AI QA.`
+        : `Selected ${result.providerId} output for AI QA preview.`
+    );
   }
 
   async function runAiQa() {
     if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
-      setAiQaMessage("Da huy goi Real AI QA. Khong co recommendation nao duoc tao.");
+      setAiQaMessage(
+        locale === "vi"
+          ? "Đã hủy gọi Real AI QA. Không có recommendation nào được tạo."
+          : "Real AI QA call cancelled. No recommendation was created."
+      );
       return;
     }
 
     setIsRunningAIQA(true);
     setAiQaMessage(
       realAIQAEnabled
-        ? "Running real AI QA through the server route..."
-        : "Running mock AI QA. Real AI QA is disabled."
+        ? locale === "vi"
+          ? "Đang chạy Real AI QA qua route server-side..."
+          : "Running real AI QA through the server route..."
+        : locale === "vi"
+          ? "Đang chạy mock AI QA. Real AI QA đang tắt."
+          : "Running mock AI QA. Real AI QA is disabled."
     );
 
     try {

@@ -59,34 +59,34 @@ const ptrText = {
     more: "Thêm",
     addRow: "Thêm dòng",
     resetSample: "Reset mẫu",
-    exportExcel: "Export Excel",
-    importExcel: "Import Excel",
+    exportExcel: "Xuất Excel",
+    importExcel: "Nhập Excel",
     downloadExcelTemplate: "Tải Excel template",
-    exportJson: "Export JSON",
+    exportJson: "Xuất JSON",
     sample: "Mẫu",
-    autoSuggest: "Auto-suggest interaction fields",
-    aiAssistant: "AI Assistant",
+    autoSuggest: "Tự gợi ý trường tương tác",
+    aiAssistant: "Trợ lý AI",
     aiNoSelection: "Chọn ít nhất một dòng trước khi chạy AI Assistant.",
     aiRunning: "Đang chạy AI Assistant...",
     aiNoRecommendations: "AI Assistant không trả recommendation nào cho các dòng đã chọn.",
     aiRecommendationsReady: "AI Assistant đã tạo recommendation trong QA Panel.",
-    normalizeRows: "Normalize selected rows",
-    inferActorSystemLane: "Infer missing actor/system/lane",
-    improveTaskWording: "Improve task wording",
-    suggestSplitTask: "Suggest split complex task",
-    generateInputOutput: "Generate missing input/output",
-    suggestInteractionChannel: "Suggest customerInteractionType/channel",
+    normalizeRows: "Chuẩn hóa dòng đã chọn",
+    inferActorSystemLane: "Suy luận actor/system/lane còn thiếu",
+    improveTaskWording: "Cải thiện cách viết task",
+    suggestSplitTask: "Gợi ý tách task phức tạp",
+    generateInputOutput: "Tạo input/output còn thiếu",
+    suggestInteractionChannel: "Gợi ý customerInteractionType/channel",
     clearSelection: "Bỏ chọn",
     selectedRowsCount: "Dòng đã chọn",
     bulkActions: "Hành động hàng loạt",
     rowActions: "Thao tác",
     duplicateRow: "Nhân bản",
     deleteRow: "Xóa",
-    simpleMode: "Simple",
-    advancedMode: "Advanced",
-    saved: "Saved",
-    unsaved: "Unsaved changes",
-    saving: "Saving",
+    simpleMode: "Đơn giản",
+    advancedMode: "Nâng cao",
+    saved: "Đã lưu",
+    unsaved: "Có thay đổi chưa lưu",
+    saving: "Đang lưu",
     selectRows: "Chọn dòng",
     selectedRows: "dòng đã chọn",
     oneRow: "Một dòng = một task/gateway/event/data interaction.",
@@ -556,12 +556,16 @@ function persistTasks(nextTasks: ProcessTask[]) {
   return nextTasks;
 }
 
-function formatRecommendationApplyError(error: unknown) {
+function formatRecommendationApplyError(error: unknown, locale: Locale) {
   if (error instanceof RecommendationApplyValidationError) {
-    return `Không apply recommendation. ${error.messages.join(" ")}`;
+    return locale === "vi"
+      ? `Không thể áp dụng recommendation. ${error.messages.join(" ")}`
+      : `Could not apply recommendation. ${error.messages.join(" ")}`;
   }
 
-  return "Không apply recommendation vì dữ liệu sau apply không hợp lệ.";
+  return locale === "vi"
+    ? "Không thể áp dụng recommendation vì dữ liệu sau khi áp dụng không hợp lệ."
+    : "Could not apply recommendation because the data after applying is invalid.";
 }
 
 function isEmptyInteractionType(task: ProcessTask) {
@@ -610,7 +614,11 @@ export function ProcessTaskRegister() {
           return true;
         }
       } catch {
-        setSaveMessage("Dữ liệu đã lưu không hợp lệ. Đang dùng dữ liệu mẫu.");
+        setSaveMessage(
+          locale === "vi"
+            ? "Dữ liệu đã lưu không hợp lệ. Đang dùng dữ liệu mẫu."
+            : "Saved data is invalid. Sample data is being used."
+        );
       }
 
       return false;
@@ -829,7 +837,9 @@ export function ProcessTaskRegister() {
           severity: "suggestion",
           message: `${text.aiAssistant}: ${text[ptrAIAssistantActions.find((action) => action.id === actionId)?.textKey ?? "aiAssistant"]}`,
           suggestedFix:
-            "Review the AI recommendations in this panel, then apply selected items only after confirmation.",
+            locale === "vi"
+              ? "Review đề xuất AI trong panel này, sau đó chỉ áp dụng các mục đã chọn sau khi xác nhận."
+              : "Review the AI recommendations in this panel, then apply selected items only after confirmation.",
           recommendations
         }
       ]);
@@ -853,7 +863,11 @@ export function ProcessTaskRegister() {
       });
     } catch {
       setPtrAiIssues([]);
-      setSaveMessage("PTR AI Assistant request failed. No change was applied.");
+      setSaveMessage(
+        locale === "vi"
+          ? "Yêu cầu PTR AI Assistant thất bại. Chưa áp dụng thay đổi nào."
+          : "PTR AI Assistant request failed. No change was applied."
+      );
       saveAuditLogEntry({
         action: "ai_call",
         status: "failure",
@@ -896,7 +910,7 @@ export function ProcessTaskRegister() {
     );
     markGeneratedArtifactsStale();
     markUnsaved();
-    setSaveMessage("Có thay đổi chưa lưu.");
+    setSaveMessage(text.unsaved);
   }
 
   function addRow() {
@@ -908,7 +922,11 @@ export function ProcessTaskRegister() {
     );
     markGeneratedArtifactsStale();
     markUnsaved();
-    setSaveMessage("Đã thêm dòng mới. Bấm Lưu để giữ sau khi refresh.");
+    setSaveMessage(
+      locale === "vi"
+        ? "Đã thêm dòng mới. Bấm Lưu để giữ sau khi refresh."
+        : "Added a new row. Click Save to keep it after refresh."
+    );
   }
 
   function duplicateRow(index: number) {
@@ -933,7 +951,11 @@ export function ProcessTaskRegister() {
     });
     markGeneratedArtifactsStale();
     markUnsaved();
-    setSaveMessage("Đã nhân bản dòng. Bấm Lưu để giữ sau khi refresh.");
+    setSaveMessage(
+      locale === "vi"
+        ? "Đã nhân bản dòng. Bấm Lưu để giữ sau khi refresh."
+        : "Duplicated the row. Click Save to keep it after refresh."
+    );
   }
 
   function deleteRow(index: number) {
@@ -942,7 +964,11 @@ export function ProcessTaskRegister() {
     );
     markGeneratedArtifactsStale();
     markUnsaved();
-    setSaveMessage("Đã xóa dòng. Bấm Lưu để giữ sau khi refresh.");
+    setSaveMessage(
+      locale === "vi"
+        ? "Đã xóa dòng. Bấm Lưu để giữ sau khi refresh."
+        : "Deleted the row. Click Save to keep it after refresh."
+    );
   }
 
   function saveTasks() {
@@ -953,7 +979,9 @@ export function ProcessTaskRegister() {
       setSaveState("saved");
       saveStateTimeoutRef.current = null;
     }, 350);
-    setSaveMessage("Đã lưu vào localStorage.");
+    setSaveMessage(
+      locale === "vi" ? "Đã lưu vào localStorage." : "Saved to localStorage."
+    );
   }
 
   function resetTasks() {
@@ -964,7 +992,11 @@ export function ProcessTaskRegister() {
     window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, selectedSampleProcessId);
     markGeneratedArtifactsStale();
     markSaved();
-    setSaveMessage(`Đã reset về dữ liệu mẫu ${activeSampleProcess.label}.`);
+    setSaveMessage(
+      locale === "vi"
+        ? `Đã reset về dữ liệu mẫu ${activeSampleProcess.label}.`
+        : `Reset to sample data ${activeSampleProcess.label}.`
+    );
   }
 
   function switchSampleProcess(sampleId: string) {
@@ -975,7 +1007,9 @@ export function ProcessTaskRegister() {
     }
 
     const shouldReplace = window.confirm(
-      `Thay bảng hiện tại bằng dữ liệu mẫu ${nextSampleProcess.label}?`
+      locale === "vi"
+        ? `Thay bảng hiện tại bằng dữ liệu mẫu ${nextSampleProcess.label}?`
+        : `Replace the current table with sample data ${nextSampleProcess.label}?`
     );
 
     if (!shouldReplace) {
@@ -991,7 +1025,11 @@ export function ProcessTaskRegister() {
     setHighlightedStepId(null);
     markGeneratedArtifactsStale();
     markSaved();
-    setSaveMessage(`Đã chuyển sang dữ liệu mẫu ${nextSampleProcess.label}.`);
+    setSaveMessage(
+      locale === "vi"
+        ? `Đã chuyển sang dữ liệu mẫu ${nextSampleProcess.label}.`
+        : `Switched to sample data ${nextSampleProcess.label}.`
+    );
   }
 
   function autoSuggestInteractionFields() {
@@ -1125,7 +1163,11 @@ export function ProcessTaskRegister() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setSaveMessage("Da export Process Task Register hien tai ra JSON.");
+    setSaveMessage(
+      locale === "vi"
+        ? "Đã export Process Task Register hiện tại ra JSON."
+        : "Exported the current Process Task Register to JSON."
+    );
   }
 
   async function downloadExcelTemplate() {
@@ -1157,8 +1199,12 @@ export function ProcessTaskRegister() {
       setImportPreview(preview);
       setSaveMessage(
         preview.errors.length > 0
-          ? "Excel import có lỗi. Vui lòng kiểm tra preview trước khi apply."
-          : "Đã đọc file Excel. Kiểm tra preview rồi bấm Apply Import để cập nhật bảng."
+          ? locale === "vi"
+            ? "Import Excel có lỗi. Vui lòng kiểm tra bản xem trước trước khi áp dụng."
+            : "Excel import has errors. Review the preview before applying."
+          : locale === "vi"
+          ? "Đã đọc file Excel. Kiểm tra bản xem trước rồi bấm Apply Import để cập nhật bảng."
+          : "Excel file loaded. Review the preview, then click Apply Import to update the table."
       );
     } catch (error) {
       setImportPreview({
@@ -1183,7 +1229,11 @@ export function ProcessTaskRegister() {
 
   function applyImport() {
     if (!importPreview || importPreview.errors.length > 0) {
-      setSaveMessage("Không thể apply import khi còn lỗi.");
+      setSaveMessage(
+        locale === "vi"
+          ? "Không thể áp dụng import khi còn lỗi."
+          : "Cannot apply the import while errors remain."
+      );
       return;
     }
 
@@ -1199,7 +1249,11 @@ export function ProcessTaskRegister() {
     });
     setImportPreview(null);
     markSaved();
-    setSaveMessage("Đã apply Excel import, lưu vào localStorage và đánh dấu D01/D02 stale.");
+    setSaveMessage(
+      locale === "vi"
+        ? "Đã áp dụng import Excel, lưu vào localStorage và đánh dấu D01/D02 stale."
+        : "Applied the Excel import, saved to localStorage, and marked D01/D02 stale."
+    );
   }
 
   function cancelImport() {
@@ -1225,10 +1279,12 @@ export function ProcessTaskRegister() {
         }
       });
       setSaveMessage(
-        `Đã apply recommendation "${recommendation.title}" và đánh dấu D01/D02 stale.`
+        locale === "vi"
+          ? `Đã áp dụng recommendation "${recommendation.title}" và đánh dấu D01/D02 stale.`
+          : `Applied recommendation "${recommendation.title}" and marked D01/D02 stale.`
       );
     } catch (error) {
-      setSaveMessage(formatRecommendationApplyError(error));
+      setSaveMessage(formatRecommendationApplyError(error, locale));
     }
   }
 
@@ -1252,10 +1308,12 @@ export function ProcessTaskRegister() {
         }
       });
       setSaveMessage(
-        `Đã apply ${preview.applicableCount} recommendation(s), skip ${preview.skippedCount} conflict(s), và đánh dấu D01/D02 stale.`
+        locale === "vi"
+          ? `Đã áp dụng ${preview.applicableCount} recommendation, bỏ qua ${preview.skippedCount} conflict, và đánh dấu D01/D02 stale.`
+          : `Applied ${preview.applicableCount} recommendation(s), skipped ${preview.skippedCount} conflict(s), and marked D01/D02 stale.`
       );
     } catch (error) {
-      setSaveMessage(formatRecommendationApplyError(error));
+      setSaveMessage(formatRecommendationApplyError(error, locale));
     }
   }
 

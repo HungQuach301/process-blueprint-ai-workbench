@@ -6,7 +6,7 @@
 
 ## Current branch
 
-`feature/m2-m3-full-ai`
+`feature/mvp1-ai-ux-redesign-rc3`
 
 ## Current product phase
 
@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed MVP1-AI RC3 i18n cleanup across the app shell, File Intake/Input Brief, AI Connection Center, QA Panel, Process Task Register, Product Delivery, and Export Center surfaces.
+- Ensured locale-sensitive user-facing copy now renders English-only for `en` and Vietnamese-only for `vi`, while keeping canonical enum/internal values and technical artifact names such as `AGENTS.md`, `CLAUDE.md`, cursor rules, and `spec.json` unchanged.
+- Localized remaining romanized Vietnamese and mixed-language status/action messages in File Intake, Draft PTR generation, PTR import/export/recommendation flows, Provider Compare, Product Delivery previews, AI Run History, and AI Development Handoff Pack details.
+- Kept the change UI-copy only: no data model, canonical schema, D01/D02 generator, provider adapter, browser secret handling, or AI auto-apply behavior was changed.
 - Created a polished MVP1-AI RC3 app shell.
 - Added a sticky global header/menubar with product mark, product name, module tabs, AI status badge, artifact readiness badge, and language selector.
 - Reworked the contextual sidebar into module groups: Workspace, Process Modeling, Product Delivery, Templates, and Export & Audit.

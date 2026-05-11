@@ -61,8 +61,8 @@ const previewLabels = {
     confidence: "Độ tin cậy",
     assumptions: "Giả định",
     openQuestions: "Câu hỏi cần làm rõ",
-    qualityGateWarnings: "Canh bao Quality Gate",
-    qualityIssues: "Van de chat luong",
+    qualityGateWarnings: "Cảnh báo Quality Gate",
+    qualityIssues: "Vấn đề chất lượng",
     replaceCurrentPtr: "Thay PTR hiện tại",
     appendToCurrentPtr: "Thêm vào PTR hiện tại",
     cancelDraft: "Hủy draft",
@@ -111,7 +111,11 @@ const inputBriefUiText = {
     dataDocumentsHelper: "Giữ dữ liệu, tài liệu, biểu mẫu và hồ sơ tách khỏi hệ thống.",
     voiceComingSoon: "Tính năng nhập giọng nói sắp có. MVP1 chưa ghi âm, upload hoặc xử lý bên ngoài.",
     fileIntake: "Nhập file",
-    fileIntakeHelper: "File được xử lý local để tạo draft PTR preview trước khi Apply.",
+    fileIntakeHelper: "File được xử lý local để tạo preview Draft PTR trước khi áp dụng.",
+    supportedFormatsTitle: "Định dạng hỗ trợ",
+    supportedFormats: "PDF dạng text, DOCX và XLSX được hỗ trợ để tạo Draft PTR local.",
+    comingSoonFormats: "Image/OCR/Voice intake sẽ có sau.",
+    nextStep: "Bước tiếp theo",
     clearFiles: "Xóa file",
     selectLocalFiles: "Chọn file local",
     reselectAfterRefresh: "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất.",
@@ -558,26 +562,40 @@ function isImageIntakeFile(file: Pick<IntakeFileMetadata, "fileName" | "fileType
   );
 }
 
-function getFileDraftActionLabel(file: IntakeFileMetadata, generateLabel: string) {
+function getFileDraftActionLabel(
+  file: IntakeFileMetadata,
+  generateLabel: string,
+  locale: Locale
+) {
   if (file.status === "unsupported") {
     return isImageIntakeFile(file)
-      ? "Image/OCR intake is coming soon."
-      : "This file type is not supported yet.";
+      ? locale === "vi"
+        ? "Image/OCR intake sẽ có sau."
+        : "Image/OCR intake is coming soon."
+      : locale === "vi"
+        ? "Loại file này chưa được hỗ trợ."
+        : "This file type is not supported yet.";
   }
 
   if (file.status === "pending-extraction") {
-    return "Processing locally...";
+    return locale === "vi" ? "Đang xử lý local..." : "Processing locally...";
   }
 
   if (file.status === "extracted") {
-    return "Draft PTR preview is ready for review.";
+    return locale === "vi"
+      ? "Preview Draft PTR đã sẵn sàng để review."
+      : "Draft PTR preview is ready for review.";
   }
 
   if (file.status === "failed") {
-    return "Processing failed. Clear the file or choose another file.";
+    return locale === "vi"
+      ? "Xử lý thất bại. Hãy xóa file hoặc chọn file khác."
+      : "Processing failed. Clear the file or choose another file.";
   }
 
-  return `${generateLabel} to create a reviewable preview.`;
+  return locale === "vi"
+    ? `${generateLabel} để tạo preview có thể review.`
+    : `${generateLabel} to create a reviewable preview.`;
 }
 
 export function AIInputBriefPanel() {
@@ -840,10 +858,16 @@ export function AIInputBriefPanel() {
     setIntakeFiles(nextFileMetadata);
     setMessage(
       unsupportedImageCount > 0
-        ? `${unsupportedImageCount} image file không được hỗ trợ. OCR/Image extraction chưa có trong MVP1; không upload file.`
+        ? locale === "vi"
+          ? `${unsupportedImageCount} file hình ảnh chưa được hỗ trợ. OCR/hình ảnh sẽ có ở phiên bản sau; file không được upload.`
+          : `${unsupportedImageCount} image file is not supported yet. OCR/image extraction is coming soon; files are not uploaded.`
         : unsupportedCount > 0
-        ? `${unsupportedCount} file không được hỗ trợ. Chỉ hỗ trợ .xlsx, .docx, .pdf. Không upload file.`
-        : `Đã chọn ${nextFileMetadata.length} file. File chỉ xử lý local trong browser, không upload.`
+        ? locale === "vi"
+          ? `${unsupportedCount} file chưa được hỗ trợ. Hiện chỉ hỗ trợ .xlsx, .docx và PDF dạng text. File không được upload.`
+          : `${unsupportedCount} file is not supported. Supported formats are .xlsx, .docx, and text-based PDF. Files are not uploaded.`
+        : locale === "vi"
+        ? `Đã chọn ${nextFileMetadata.length} file. File chỉ được xử lý local trong trình duyệt, không upload.`
+        : `Selected ${nextFileMetadata.length} file(s). Files are processed locally in the browser and are not uploaded.`
     );
   }
 
@@ -853,7 +877,11 @@ export function AIInputBriefPanel() {
     clearFileExtractionPreviews();
     clearDraftPreview();
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
-    setMessage("Da xoa file intake metadata local.");
+    setMessage(
+      locale === "vi"
+        ? "Đã xóa metadata file intake local."
+        : "Cleared local file intake metadata."
+    );
   }
 
   function removeSelectedFile(fileToRemove: IntakeFileMetadata) {
@@ -877,7 +905,11 @@ export function AIInputBriefPanel() {
     );
     clearFileExtractionPreviews();
     clearDraftPreview();
-    setMessage("Đã remove file và clear preview/draft liên quan.");
+    setMessage(
+      locale === "vi"
+        ? "Đã xóa file và preview/draft liên quan."
+        : "Removed the file and cleared the related preview/draft."
+    );
   }
 
   function updateIntakeFileStatus(
@@ -898,7 +930,11 @@ export function AIInputBriefPanel() {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
     clearDraftPreview();
-    setMessage("Dang extract Excel local trong browser. Khong upload file.");
+    setMessage(
+      locale === "vi"
+        ? "Đang trích xuất Excel local trong trình duyệt. File không được upload."
+        : "Extracting Excel locally in the browser. The file is not uploaded."
+    );
 
     try {
       const preview = await extractDraftTasksFromExcel(file);
@@ -907,14 +943,24 @@ export function AIInputBriefPanel() {
       setDraftTasks(preview.draftTasks);
       setDraftMeta({
         draftProcessTasks: preview.draftTasks,
-        assumptions: [
-          "Draft was extracted locally from an Excel workbook.",
-          "Rows are not applied until the user confirms Apply."
-        ],
+        assumptions:
+          locale === "vi"
+            ? [
+                "Bản nháp được trích xuất local từ Excel workbook.",
+                "Các dòng chưa được áp dụng cho tới khi người dùng xác nhận áp dụng."
+              ]
+            : [
+                "Draft was extracted locally from an Excel workbook.",
+                "Rows are not applied until the user confirms Apply."
+              ],
         openQuestions:
           preview.warnings.length > 0
             ? preview.warnings
-            : ["Review extracted rows before applying to PTR."],
+            : [
+                locale === "vi"
+                  ? "Hãy review các dòng đã trích xuất trước khi áp dụng vào PTR."
+                  : "Review extracted rows before applying to PTR."
+              ],
         qualityIssues: preview.warnings,
         qualityGateWarnings: preview.warnings,
         sourceSummary: `Excel extraction from ${file.name}, sheet ${preview.detectedSheet}.`,
@@ -924,7 +970,9 @@ export function AIInputBriefPanel() {
       });
       updateIntakeFileStatus(file, "extracted");
       setMessage(
-        `Da extract ${preview.draftTasks.length} draft task tu sheet ${preview.detectedSheet}. Hay review truoc khi Apply.`
+        locale === "vi"
+          ? `Đã trích xuất ${preview.draftTasks.length} draft task từ sheet ${preview.detectedSheet}. Hãy review trước khi áp dụng.`
+          : `Extracted ${preview.draftTasks.length} draft task(s) from sheet ${preview.detectedSheet}. Review before applying.`
       );
     } catch (error) {
       updateIntakeFileStatus(file, "failed");
@@ -943,7 +991,11 @@ export function AIInputBriefPanel() {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
     clearDraftPreview();
-    setMessage("Dang extract DOCX local va tao Draft PTR. Khong upload file.");
+    setMessage(
+      locale === "vi"
+        ? "Đang trích xuất DOCX local và tạo Draft PTR. File không được upload."
+        : "Extracting DOCX locally and generating Draft PTR. The file is not uploaded."
+    );
 
     try {
       const result = await extractTextFromDocx(file);
@@ -989,14 +1041,22 @@ export function AIInputBriefPanel() {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
     clearDraftPreview();
-    setMessage("Dang extract PDF text local trong browser. Khong upload file.");
+    setMessage(
+      locale === "vi"
+        ? "Đang trích xuất text từ PDF local trong trình duyệt. File không được upload."
+        : "Extracting PDF text locally in the browser. The file is not uploaded."
+    );
 
     try {
       const result = await extractTextFromPdf(file);
 
       setPdfExtraction(result);
       updateIntakeFileStatus(file, "extracted");
-      setMessage(`Da extract PDF local: ${result.rawText.length} ky tu.`);
+      setMessage(
+        locale === "vi"
+          ? `Đã trích xuất PDF local: ${result.rawText.length} ký tự.`
+          : `Extracted PDF locally: ${result.rawText.length} characters.`
+      );
     } catch (error) {
       updateIntakeFileStatus(file, "failed");
       setPdfExtraction(null);
@@ -1128,7 +1188,10 @@ export function AIInputBriefPanel() {
         saveAuditLogEntry({
           action: "generate_ai_draft",
           status: "failure",
-          summary: "Draft PTR khong dat Quality Gate.",
+          summary:
+            locale === "vi"
+              ? "Draft PTR không đạt Quality Gate."
+              : "Draft PTR did not pass the Quality Gate.",
           metadata: {
             mode: generationMode,
             skillId,
@@ -1139,14 +1202,21 @@ export function AIInputBriefPanel() {
         logAICallAudit({
           skillId,
           success: false,
-          errorMessage: "Draft PTR khong dat Quality Gate.",
+          errorMessage:
+            locale === "vi"
+              ? "Draft PTR không đạt Quality Gate."
+              : "Draft PTR did not pass the Quality Gate.",
           realAIEnabled,
           externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
         });
         setDraftTasks([]);
         setDraftMeta(null);
         setBlockingErrors(errors);
-        setMessage("Draft PTR khong dat Quality Gate.");
+        setMessage(
+          locale === "vi"
+            ? "Draft PTR không đạt Quality Gate."
+            : "Draft PTR did not pass the Quality Gate."
+        );
         return null;
       }
 
@@ -1188,7 +1258,9 @@ export function AIInputBriefPanel() {
         }
       });
       setMessage(
-        `${generationMode}: da tao draft PTR ${validation.value.draftProcessTasks.length} dong tu ${sourceLabel}. Hay review truoc khi Apply.`
+        locale === "vi"
+          ? `${generationMode}: đã tạo draft PTR ${validation.value.draftProcessTasks.length} dòng từ ${sourceLabel}. Hãy review trước khi áp dụng.`
+          : `${generationMode}: generated ${validation.value.draftProcessTasks.length} draft PTR row(s) from ${sourceLabel}. Review before applying.`
       );
       return nextDraftMeta;
     } catch {
@@ -1257,7 +1329,11 @@ export function AIInputBriefPanel() {
 
   function generateDraftPtrFromDocxExtraction() {
     if (!docxExtraction) {
-      setMessage("Chua co DOCX extraction de tao Draft PTR.");
+      setMessage(
+        locale === "vi"
+          ? "Chưa có dữ liệu trích xuất DOCX để tạo Draft PTR."
+          : "No DOCX extraction is available to generate Draft PTR."
+      );
       return;
     }
 
@@ -1286,7 +1362,11 @@ export function AIInputBriefPanel() {
 
   function generateDraftPtrFromPdfExtraction() {
     if (!pdfExtraction) {
-      setMessage("Chưa có PDF extraction để tạo Draft PTR.");
+      setMessage(
+        locale === "vi"
+          ? "Chưa có dữ liệu trích xuất PDF để tạo Draft PTR."
+          : "No PDF extraction is available to generate Draft PTR."
+      );
       return;
     }
 
@@ -1312,8 +1392,16 @@ export function AIInputBriefPanel() {
     if (chatNotes.trim().length < 20) {
       setDraftTasks([]);
       setDraftMeta(null);
-      setBlockingErrors(["Notes must contain enough text to generate a Draft PTR."]);
-      setMessage("Chat/notes text is too short to generate Draft PTR.");
+      setBlockingErrors([
+        locale === "vi"
+          ? "Ghi chú cần đủ nội dung để tạo Draft PTR."
+          : "Notes must contain enough text to generate a Draft PTR."
+      ]);
+      setMessage(
+        locale === "vi"
+          ? "Nội dung chat/ghi chú quá ngắn để tạo Draft PTR."
+          : "Chat/notes text is too short to generate Draft PTR."
+      );
       return;
     }
 
@@ -1356,7 +1444,11 @@ export function AIInputBriefPanel() {
       setDraftTasks([]);
       setDraftMeta(null);
       setBlockingErrors(errors);
-      setMessage("Brief chua du thong tin de tao Draft PTR.");
+      setMessage(
+        locale === "vi"
+          ? "Brief chưa đủ thông tin để tạo Draft PTR."
+          : "The brief does not have enough information to generate Draft PTR."
+      );
       return;
     }
 
@@ -1372,7 +1464,11 @@ export function AIInputBriefPanel() {
       setDraftTasks([]);
       setDraftMeta(null);
       setBlockingErrors(errors);
-      setMessage("Draft PTR khong dat Quality Gate.");
+      setMessage(
+        locale === "vi"
+          ? "Draft PTR không đạt Quality Gate."
+          : "Draft PTR did not pass the Quality Gate."
+      );
       return;
     }
 
@@ -1388,7 +1484,9 @@ export function AIInputBriefPanel() {
     setDraftTasks(nextResponse.draftProcessTasks);
     setDraftMeta(nextResponse);
     setMessage(
-      `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
+      locale === "vi"
+        ? `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
+        : `Generated Draft PTR with local mock mode: ${response.draftProcessTasks.length} row(s). No external API was called.`
     );
   }
 
@@ -1414,7 +1512,11 @@ export function AIInputBriefPanel() {
       setDraftTasks([]);
       setDraftMeta(null);
       setBlockingErrors(errors);
-      setMessage("Brief chua du thong tin de tao Draft PTR.");
+      setMessage(
+        locale === "vi"
+          ? "Brief chưa đủ thông tin để tạo Draft PTR."
+          : "The brief does not have enough information to generate Draft PTR."
+      );
       return;
     }
 
@@ -1447,7 +1549,11 @@ export function AIInputBriefPanel() {
         setDraftTasks([]);
         setDraftMeta(null);
         setBlockingErrors(errors);
-        setMessage("Draft PTR khong dat Quality Gate.");
+        setMessage(
+          locale === "vi"
+            ? "Draft PTR không đạt Quality Gate."
+            : "Draft PTR did not pass the Quality Gate."
+        );
         return;
       }
 
@@ -1579,7 +1685,10 @@ export function AIInputBriefPanel() {
         saveAuditLogEntry({
           action: "generate_ai_draft",
           status: "failure",
-          summary: "Draft PTR khong dat Quality Gate.",
+          summary:
+            locale === "vi"
+              ? "Draft PTR không đạt Quality Gate."
+              : "Draft PTR did not pass the Quality Gate.",
           metadata: {
             mode: "real-ai",
             externalApiCalled: data.meta?.externalApiCalled ?? true,
@@ -1589,14 +1698,21 @@ export function AIInputBriefPanel() {
         logAICallAudit({
           skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
           success: false,
-          errorMessage: "Draft PTR khong dat Quality Gate.",
+          errorMessage:
+            locale === "vi"
+              ? "Draft PTR không đạt Quality Gate."
+              : "Draft PTR did not pass the Quality Gate.",
           realAIEnabled: true,
           externalApiCalled: data.meta?.externalApiCalled ?? true
         });
         setDraftTasks([]);
         setDraftMeta(null);
         setBlockingErrors(errors);
-        setMessage("Draft PTR khong dat Quality Gate.");
+        setMessage(
+          locale === "vi"
+            ? "Draft PTR không đạt Quality Gate."
+            : "Draft PTR did not pass the Quality Gate."
+        );
         return;
       }
 
@@ -1632,7 +1748,9 @@ export function AIInputBriefPanel() {
         }
       });
       setMessage(
-        `Real AI mode: Ä‘Ã£ táº¡o draft PTR há»£p lá»‡ ${validation.value.draftProcessTasks.length} dÃ²ng. HÃ£y review trÆ°á»›c khi Apply.`
+        locale === "vi"
+          ? `Real AI mode: đã tạo draft PTR hợp lệ ${validation.value.draftProcessTasks.length} dòng. Hãy review trước khi áp dụng.`
+          : `Real AI mode: generated ${validation.value.draftProcessTasks.length} valid draft PTR row(s). Review before applying.`
       );
     } catch {
       logAICallAudit({
@@ -1660,14 +1778,26 @@ export function AIInputBriefPanel() {
 
   function applyDraftPtr(mode: "replace" | "append") {
     if (draftTasks.length === 0) {
-      setMessage("Chưa có draft PTR để apply.");
+      setMessage(
+        locale === "vi"
+          ? "Chưa có draft PTR để áp dụng."
+          : "No draft PTR is available to apply."
+      );
       return;
     }
 
     const actionLabel =
-      mode === "replace" ? "thay thế" : "append vào cuối";
+      locale === "vi"
+        ? mode === "replace"
+          ? "thay thế"
+          : "thêm vào cuối"
+        : mode === "replace"
+        ? "replace"
+        : "append to";
     const confirmed = window.confirm(
-      `Apply draft PTR sẽ ${actionLabel} Process Task Register hiện tại. Bạn muốn tiếp tục?`
+      locale === "vi"
+        ? `Áp dụng draft PTR sẽ ${actionLabel} Process Task Register hiện tại. Bạn muốn tiếp tục?`
+        : `Applying the draft PTR will ${actionLabel} the current Process Task Register. Continue?`
     );
 
     if (!confirmed) {
@@ -1693,14 +1823,18 @@ export function AIInputBriefPanel() {
         finalRowCount: nextTasks.length
       }
     });
-    setMessage("Đã apply draft PTR vào Process Task Register. QA sẽ chạy lại theo dữ liệu mới.");
+    setMessage(
+      locale === "vi"
+        ? "Đã áp dụng draft PTR vào Process Task Register. QA sẽ chạy lại theo dữ liệu mới."
+        : "Applied the draft PTR to the Process Task Register. QA will rerun against the new data."
+    );
   }
 
   function cancelDraft() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
-    setMessage("Đã hủy draft preview.");
+    setMessage(locale === "vi" ? "Đã hủy preview bản nháp." : "Canceled draft preview.");
   }
 
   function resetBrief() {
@@ -1715,7 +1849,11 @@ export function AIInputBriefPanel() {
     setBlockingErrors([]);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
-    setMessage("Đã reset brief local và draft preview.");
+    setMessage(
+      locale === "vi"
+        ? "Đã đặt lại brief local và preview bản nháp."
+        : "Reset the local brief and draft preview."
+    );
   }
 
   const labels = previewLabels[locale];
@@ -1873,11 +2011,11 @@ export function AIInputBriefPanel() {
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-slate-950">
-                  {locale === "vi" ? "Chat / ghi chu" : "Chat / notes"}
+                  {locale === "vi" ? "Chat / ghi chú" : "Chat / notes"}
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
                   {locale === "vi"
-                    ? "Paste noi dung trao doi, ghi chu workshop hoac manual text de tao Draft PTR preview."
+                    ? "Dán nội dung trao đổi, ghi chú workshop hoặc text thủ công để tạo preview Draft PTR."
                     : "Paste chat, workshop notes, or manual text to generate a Draft PTR preview."}
                 </p>
               </div>
@@ -1888,7 +2026,7 @@ export function AIInputBriefPanel() {
                 type="button"
               >
                 {locale === "vi"
-                  ? "Tao Draft PTR tu ghi chu"
+                  ? "Tạo Draft PTR từ ghi chú"
                   : "Generate Draft PTR from notes"}
               </button>
             </div>
@@ -1897,7 +2035,7 @@ export function AIInputBriefPanel() {
               onChange={(event) => setChatNotes(event.target.value)}
               placeholder={
                 locale === "vi"
-                  ? "Vi du: Khach hang gui yeu cau mo tai khoan. RM kiem tra ho so. Ops tao CIF..."
+                  ? "Ví dụ: Khách hàng gửi yêu cầu mở tài khoản. RM kiểm tra hồ sơ. Ops tạo CIF..."
                   : "Example: Customer submits account opening request. RM checks documents. Ops creates CIF..."
               }
               value={chatNotes}
@@ -2004,7 +2142,7 @@ export function AIInputBriefPanel() {
                       </span>
                       <p className="mt-1 max-w-72 whitespace-normal text-xs text-slate-500">
                         {"nextStep" in uiText ? `${uiText.nextStep}: ` : "Next step: "}
-                        {getFileDraftActionLabel(file, uiText.generateDraftPtr)}
+                        {getFileDraftActionLabel(file, uiText.generateDraftPtr, locale)}
                       </p>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
@@ -2092,7 +2230,7 @@ export function AIInputBriefPanel() {
                         onClick={() => removeSelectedFile(file)}
                         type="button"
                       >
-                        Clear file
+                        {locale === "vi" ? "Xóa file" : "Clear file"}
                       </button>
                     </td>
                   </tr>
@@ -2104,17 +2242,33 @@ export function AIInputBriefPanel() {
 
         {excelPreview ? (
           <div className="mt-4 rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-            <p className="font-semibold">Excel extraction summary</p>
+            <p className="font-semibold">
+              {locale === "vi" ? "Tóm tắt trích xuất Excel" : "Excel extraction summary"}
+            </p>
             <p className="mt-1">
-              Sheet {excelPreview.detectedSheet} produced{" "}
-              <span className="font-semibold">
-                {excelPreview.draftTasks.length}
-              </span>{" "}
-              draft PTR row(s). Draft Preview is shown below for review before Apply.
+              {locale === "vi" ? (
+                <>
+                  Sheet {excelPreview.detectedSheet} tạo{" "}
+                  <span className="font-semibold">
+                    {excelPreview.draftTasks.length}
+                  </span>{" "}
+                  dòng draft PTR. Bản xem trước nằm bên dưới để review trước khi áp dụng.
+                </>
+              ) : (
+                <>
+                  Sheet {excelPreview.detectedSheet} produced{" "}
+                  <span className="font-semibold">
+                    {excelPreview.draftTasks.length}
+                  </span>{" "}
+                  draft PTR row(s). Draft Preview is shown below for review before Apply.
+                </>
+              )}
             </p>
             {excelPreview.warnings.length > 0 ? (
               <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
-                <p className="font-semibold">Warnings</p>
+                <p className="font-semibold">
+                  {locale === "vi" ? "Cảnh báo" : "Warnings"}
+                </p>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   {excelPreview.warnings.map((warning) => (
                     <li key={warning}>{warning}</li>
@@ -2129,9 +2283,13 @@ export function AIInputBriefPanel() {
           <div className="mt-4 rounded border border-violet-200 bg-violet-50 p-3 text-sm text-violet-950">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="font-semibold">DOCX extraction preview</p>
+                <p className="font-semibold">
+                  {locale === "vi" ? "Bản xem trước trích xuất DOCX" : "DOCX extraction preview"}
+                </p>
                 <p className="mt-1 text-violet-900">
-                  Local text extraction only. No file upload or external AI call.
+                  {locale === "vi"
+                    ? "Chỉ trích xuất text local. Không upload file hoặc gọi AI bên ngoài."
+                    : "Local text extraction only. No file upload or external AI call."}
                 </p>
               </div>
               <button
@@ -2145,42 +2303,60 @@ export function AIInputBriefPanel() {
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="rounded border border-violet-200 bg-white p-3">
-                <p className="font-semibold">Extraction summary</p>
-                <p className="mt-2">
-                  Extracted {docxExtraction.rawText.length} characters and{" "}
-                  {docxExtraction.detectedSteps.length} likely step(s).
+                <p className="font-semibold">
+                  {locale === "vi" ? "Tóm tắt trích xuất" : "Extraction summary"}
                 </p>
                 <p className="mt-2">
-                  Actors: {docxExtraction.detectedActors.join(", ") || "None"}
+                  {locale === "vi"
+                    ? `Đã trích xuất ${docxExtraction.rawText.length} ký tự và ${docxExtraction.detectedSteps.length} bước dự kiến.`
+                    : `Extracted ${docxExtraction.rawText.length} characters and ${docxExtraction.detectedSteps.length} likely step(s).`}
+                </p>
+                <p className="mt-2">
+                  {locale === "vi" ? "Actor" : "Actors"}:{" "}
+                  {docxExtraction.detectedActors.join(", ") ||
+                    (locale === "vi" ? "Không có" : "None")}
                 </p>
                 <p className="mt-1">
-                  Systems: {docxExtraction.detectedSystems.join(", ") || "None"}
+                  {locale === "vi" ? "Hệ thống" : "Systems"}:{" "}
+                  {docxExtraction.detectedSystems.join(", ") ||
+                    (locale === "vi" ? "Không có" : "None")}
                 </p>
                 <p className="mt-1">
-                  Data objects:{" "}
-                  {docxExtraction.detectedDataObjects.join(", ") || "None"}
+                  {locale === "vi" ? "Data object" : "Data objects"}:{" "}
+                  {docxExtraction.detectedDataObjects.join(", ") ||
+                    (locale === "vi" ? "Không có" : "None")}
                 </p>
                 <div className="mt-2">
-                  <p className="font-semibold">Detected steps</p>
+                  <p className="font-semibold">
+                    {locale === "vi" ? "Bước được phát hiện" : "Detected steps"}
+                  </p>
                   <ul className="mt-1 list-disc space-y-1 pl-5">
                     {docxExtraction.detectedSteps.slice(0, 10).map((step) => (
                       <li key={step}>{step}</li>
                     ))}
                     {docxExtraction.detectedSteps.length === 0 ? (
-                      <li>No step-like lines detected.</li>
+                      <li>
+                        {locale === "vi"
+                          ? "Không phát hiện dòng nào giống bước xử lý."
+                          : "No step-like lines detected."}
+                      </li>
                     ) : null}
                   </ul>
                 </div>
               </div>
 
               <div className="rounded border border-violet-200 bg-white p-3">
-                <p className="font-semibold">Assumptions</p>
+                <p className="font-semibold">
+                  {locale === "vi" ? "Giả định" : "Assumptions"}
+                </p>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   {docxExtraction.assumptions.map((assumption) => (
                     <li key={assumption}>{assumption}</li>
                   ))}
                 </ul>
-                <p className="mt-3 font-semibold">Open questions</p>
+                <p className="mt-3 font-semibold">
+                  {locale === "vi" ? "Câu hỏi mở" : "Open questions"}
+                </p>
                 <ul className="mt-1 list-disc space-y-1 pl-5">
                   {docxExtraction.openQuestions.map((question) => (
                     <li key={question}>{question}</li>
@@ -2195,7 +2371,9 @@ export function AIInputBriefPanel() {
           <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="font-semibold">PDF extraction summary</p>
+                <p className="font-semibold">
+                  {locale === "vi" ? "Tóm tắt trích xuất PDF" : "PDF extraction summary"}
+                </p>
                 <p className="mt-1 text-emerald-900">
                   {locale === "vi"
                     ? `Đã trích xuất ${pdfExtraction.rawText.length} ký tự bằng local text parsing. OCR chưa được hỗ trợ trong phase này.`

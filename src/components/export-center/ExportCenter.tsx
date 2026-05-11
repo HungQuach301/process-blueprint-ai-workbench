@@ -41,6 +41,7 @@ import {
   sampleServiceBlueprintTemplateProfile,
   sampleWorkspace
 } from "@/lib/sample-data/sme-online-loan";
+import { getLocale, type Locale } from "@/lib/i18n";
 
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
@@ -57,6 +58,7 @@ const D01_GENERATED_STATUS_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type ArtifactStatus = "fresh" | "stale" | "not_generated";
 
@@ -184,6 +186,57 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "mock", label: "Local/Mock" }
 ];
 
+const exportCenterText = {
+  vi: {
+    title: "Trung tâm xuất dữ liệu",
+    description:
+      "Tạo và đóng gói D01 BPMN, D02 Service Blueprint, JSON dữ liệu, báo cáo QA và audit metadata từ Process Task Register.",
+    generateAllArtifacts: "Tạo tất cả artifact",
+    generatingZip: "Đang tạo ZIP...",
+    downloadZip: "Tải ZIP",
+    productDelivery: "Hồ sơ sản phẩm",
+    productDeliveryDescription:
+      "Tạo bản nháp Product Delivery từ Process Task Register và context đã review. Tất cả output đều preview trước, chưa lưu vào Artifact Graph.",
+    optionalProjectContext: "Context dự án tùy chọn",
+    generateProductDeliveryDraft: "Tạo bản nháp Product Delivery",
+    downloadProductDeliveryMarkdown: "Tải Product Delivery Markdown",
+    aiDevelopmentHandoffPack: "Gói bàn giao phát triển bằng AI",
+    aiDevelopmentHandoffDescription:
+      "Gửi gói này cho đội phát triển hoặc dùng với Codex, Claude Code, Cursor. Gói biến PTR và Product Delivery đã review thành handoff có preview trước khi tải ZIP.",
+    previewPtrHandoffPack: "Preview gói handoff từ PTR",
+    previewProductDeliveryHandoffPack: "Preview gói handoff từ Product Delivery",
+    downloadHandoffPack: "Tải ZIP handoff",
+    generatingHandoffPack: "Đang tạo gói handoff...",
+    includedFiles: "File bao gồm",
+    localAuditLog: "Nhật ký audit local",
+    aiRunHistory: "Lịch sử chạy AI"
+  },
+  en: {
+    title: "Export Center",
+    description:
+      "Generate and package D01 BPMN, D02 Service Blueprint, data JSON, QA report, and audit metadata from the Process Task Register.",
+    generateAllArtifacts: "Generate all artifacts",
+    generatingZip: "Creating ZIP...",
+    downloadZip: "Download ZIP",
+    productDelivery: "Product Delivery",
+    productDeliveryDescription:
+      "Generate preview-first Product Delivery drafts from the Process Task Register and reviewed context. Outputs are not saved to an Artifact Graph.",
+    optionalProjectContext: "Optional project context",
+    generateProductDeliveryDraft: "Generate Product Delivery Draft",
+    downloadProductDeliveryMarkdown: "Download Product Delivery Markdown",
+    aiDevelopmentHandoffPack: "AI Development Handoff Pack",
+    aiDevelopmentHandoffDescription:
+      "Send this package to your development team or use it with Codex, Claude Code, Cursor. It turns the Process Task Register and reviewed Product Delivery artifacts into a previewed handoff before ZIP download.",
+    previewPtrHandoffPack: "Preview PTR Handoff Pack",
+    previewProductDeliveryHandoffPack: "Preview Product Delivery Handoff Pack",
+    downloadHandoffPack: "Download Handoff Pack ZIP",
+    generatingHandoffPack: "Creating handoff pack...",
+    includedFiles: "Included files",
+    localAuditLog: "Local Audit Log",
+    aiRunHistory: "AI Run History"
+  }
+} satisfies Record<Locale, Record<string, string>>;
+
 function mapCodingPackPreviewToRouteFiles(files: AICodingPackFiles) {
   return [
     { path: "AGENTS.md", content: files.agentsMd },
@@ -303,6 +356,7 @@ function mapRouteCodingPackFiles(
 }
 
 export function ExportCenter() {
+  const [locale, setActiveLocale] = useState<Locale>("vi");
   const [artifacts, setArtifacts] = useState<OutputArtifacts | null>(null);
   const [aiCodingPack, setAICodingPack] = useState<AICodingPackPreview | null>(
     null
@@ -346,6 +400,7 @@ export function ExportCenter() {
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
   const [exportPackageStatus, setExportPackageStatus] =
     useState<ArtifactStatus>("not_generated");
+  const text = exportCenterText[locale];
 
   function readArtifactStatus(key: string): ArtifactStatus {
     const status = window.localStorage.getItem(key);
@@ -363,6 +418,16 @@ export function ExportCenter() {
   }
 
   useEffect(() => {
+    setActiveLocale(getLocale());
+
+    function handleLocaleChange(event: Event) {
+      const localeDetail = (event as CustomEvent<{ locale?: Locale }>).detail;
+
+      if (localeDetail?.locale) {
+        setActiveLocale(localeDetail.locale);
+      }
+    }
+
     function handleArtifactStatusChange() {
       refreshArtifactStatuses();
 
@@ -373,9 +438,11 @@ export function ExportCenter() {
 
     refreshArtifactStatuses();
     refreshAIRunHistory();
+    window.addEventListener(LOCALE_EVENT, handleLocaleChange);
     window.addEventListener(ARTIFACT_STATUS_EVENT, handleArtifactStatusChange);
 
     return () => {
+      window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
       window.removeEventListener(ARTIFACT_STATUS_EVENT, handleArtifactStatusChange);
     };
   }, [artifacts]);
@@ -566,7 +633,11 @@ export function ExportCenter() {
     }
 
     if (compareProviderIds.length === 0) {
-      setMessage("Choose at least one provider before running Provider Compare.");
+      setMessage(
+        locale === "vi"
+          ? "Chọn ít nhất một provider trước khi chạy so sánh provider."
+          : "Choose at least one provider before running Provider Compare."
+      );
       return;
     }
 
@@ -578,12 +649,20 @@ export function ExportCenter() {
         .join("\n")
         .trim().length < 20
     ) {
-      setMessage("Add notes, context, source summary, or uploaded file text before comparing BRD from notes.");
+      setMessage(
+        locale === "vi"
+          ? "Thêm ghi chú, context, tóm tắt nguồn hoặc text trích xuất từ file trước khi so sánh BRD từ ghi chú."
+          : "Add notes, context, source summary, or uploaded file text before comparing BRD from notes."
+      );
       return;
     }
 
     if (kind === "userStories" && !srsPreview && !brdPreview && readProcessTasks().length === 0) {
-      setMessage("Generate SRS/BRD preview or ensure PTR has rows before comparing user stories.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview SRS/BRD hoặc bảo đảm PTR có dòng trước khi so sánh user stories."
+          : "Generate SRS/BRD preview or ensure PTR has rows before comparing user stories."
+      );
       return;
     }
 
@@ -595,7 +674,11 @@ export function ExportCenter() {
       !acceptanceCriteriaPreview &&
       readProcessTasks().length === 0
     ) {
-      setMessage("Generate Product Delivery artifacts or ensure PTR has rows before comparing AI Coding Pack.");
+      setMessage(
+        locale === "vi"
+          ? "Hãy tạo Product Delivery artifacts hoặc bảo đảm PTR có dòng trước khi so sánh AI Coding Pack."
+          : "Generate Product Delivery artifacts or ensure PTR has rows before comparing AI Coding Pack."
+      );
       return;
     }
 
@@ -603,23 +686,33 @@ export function ExportCenter() {
 
     if (compareProviderIds.length > 1 && usesCloudProvider) {
       const confirmed = window.confirm(
-        "Provider Compare will call multiple selected providers and may increase cost. Continue?"
+        locale === "vi"
+          ? "So sánh provider sẽ gọi nhiều provider đã chọn và có thể tăng chi phí AI. Tiếp tục?"
+          : "Provider Compare will call multiple selected providers and may increase cost. Continue?"
       );
 
       if (!confirmed) {
-        setMessage("Provider Compare cancelled. No preview was changed.");
+        setMessage(
+          locale === "vi"
+            ? "Đã hủy so sánh provider. Không thay đổi preview."
+            : "Provider Compare cancelled. No preview was changed."
+        );
         return;
       }
     }
 
     if (!confirmRealAICallIfNeeded(usesCloudProvider)) {
-      setMessage("Provider Compare cancelled by cloud AI consent check.");
+      setMessage(
+        locale === "vi"
+          ? "Đã hủy so sánh provider do chưa xác nhận gọi cloud AI."
+          : "Provider Compare cancelled by cloud AI consent check."
+      );
       return;
     }
 
     setIsRunningCompare(true);
     setCompareResults([]);
-    setMessage("Running Provider Compare...");
+    setMessage(locale === "vi" ? "Đang chạy so sánh provider..." : "Running Provider Compare...");
 
     const comparePayload =
       kind === "brd"
@@ -710,7 +803,11 @@ export function ExportCenter() {
 
     setCompareResults(nextResults);
     setIsRunningCompare(false);
-    setMessage("Provider Compare finished. Choose one output to preview further.");
+    setMessage(
+      locale === "vi"
+        ? "Đã hoàn tất so sánh provider. Chọn một output để xem tiếp."
+        : "Provider Compare finished. Choose one output to preview further."
+    );
   }
 
   function useExportCompareResult(result: ExportCompareResult) {
@@ -970,7 +1067,11 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
-      setMessage("Da tao preview BRD structured. Chua save/apply.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview BRD structured. Chưa lưu hoặc áp dụng."
+          : "Created structured BRD preview. Nothing was saved or applied."
+      );
     } catch (error) {
       setBRDPreview(null);
       logRouteAIRun({
@@ -981,8 +1082,12 @@ export function ExportCenter() {
       });
       setMessage(
         error instanceof Error
-          ? `Khong the tao BRD preview: ${error.message}`
-          : "Khong the tao BRD preview. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể tạo BRD preview: ${error.message}`
+            : `Could not create BRD preview: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo BRD preview. Vui lòng thử lại."
+            : "Could not create BRD preview. Please try again."
       );
     } finally {
       setIsGeneratingBRD(false);
@@ -1004,12 +1109,20 @@ export function ExportCenter() {
       .trim();
 
     if (skillId === "brd-to-srs" && !brdPreview && processTasks.length === 0) {
-      setMessage("Generate BRD preview or ensure PTR has rows before generating SRS.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview BRD hoặc bảo đảm PTR có dòng trước khi tạo SRS."
+          : "Generate BRD preview or ensure PTR has rows before generating SRS."
+      );
       return;
     }
 
     if (skillId === "notes-to-srs" && sourceText.length < 20 && !brdPreview) {
-      setMessage("Add notes, context, source summary, uploaded file text, or BRD preview before generating SRS from notes.");
+      setMessage(
+        locale === "vi"
+          ? "Thêm ghi chú, context, tóm tắt nguồn, text trích xuất từ file hoặc preview BRD trước khi tạo SRS từ ghi chú."
+          : "Add notes, context, source summary, uploaded file text, or BRD preview before generating SRS from notes."
+      );
       return;
     }
 
@@ -1075,7 +1188,11 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
-      setMessage("Da tao preview SRS structured. Chua save/apply.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview SRS structured. Chưa lưu hoặc áp dụng."
+          : "Created structured SRS preview. Nothing was saved or applied."
+      );
     } catch (error) {
       setSRSPreview(null);
       logRouteAIRun({
@@ -1086,8 +1203,12 @@ export function ExportCenter() {
       });
       setMessage(
         error instanceof Error
-          ? `Khong the tao SRS preview: ${error.message}`
-          : "Khong the tao SRS preview. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể tạo SRS preview: ${error.message}`
+            : `Could not create SRS preview: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo SRS preview. Vui lòng thử lại."
+            : "Could not create SRS preview. Please try again."
       );
     } finally {
       setIsGeneratingSRS(false);
@@ -1102,12 +1223,20 @@ export function ExportCenter() {
     const processTasks = readProcessTasks();
 
     if (skillId === "srs-to-user-stories" && !srsPreview && processTasks.length === 0) {
-      setMessage("Generate SRS preview or ensure PTR has rows before generating user stories.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview SRS hoặc bảo đảm PTR có dòng trước khi tạo user stories."
+          : "Generate SRS preview or ensure PTR has rows before generating user stories."
+      );
       return;
     }
 
     if (skillId === "brd-to-user-stories" && !brdPreview && processTasks.length === 0) {
-      setMessage("Generate BRD preview or ensure PTR has rows before generating user stories.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview BRD hoặc bảo đảm PTR có dòng trước khi tạo user stories."
+          : "Generate BRD preview or ensure PTR has rows before generating user stories."
+      );
       return;
     }
 
@@ -1173,7 +1302,11 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
-      setMessage("Da tao preview User Stories structured. Chua save/apply.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview User Stories structured. Chưa lưu hoặc áp dụng."
+          : "Created structured User Stories preview. Nothing was saved or applied."
+      );
     } catch (error) {
       setUserStoryPreview(null);
       setAcceptanceCriteriaPreview(null);
@@ -1187,8 +1320,12 @@ export function ExportCenter() {
       });
       setMessage(
         error instanceof Error
-          ? `Khong the tao User Stories preview: ${error.message}`
-          : "Khong the tao User Stories preview. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể tạo User Stories preview: ${error.message}`
+            : `Could not create User Stories preview: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo User Stories preview. Vui lòng thử lại."
+            : "Could not create User Stories preview. Please try again."
       );
     } finally {
       setIsGeneratingUserStories(false);
@@ -1201,7 +1338,11 @@ export function ExportCenter() {
     const processTasks = readProcessTasks();
 
     if (!userStoryPreview && processTasks.length === 0) {
-      setMessage("Generate user stories preview or ensure PTR has rows before generating acceptance criteria.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview user stories hoặc bảo đảm PTR có dòng trước khi tạo acceptance criteria."
+          : "Generate user stories preview or ensure PTR has rows before generating acceptance criteria."
+      );
       return;
     }
 
@@ -1265,7 +1406,11 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
-      setMessage("Da tao preview Acceptance Criteria structured. Chua save/apply.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview Acceptance Criteria structured. Chưa lưu hoặc áp dụng."
+          : "Created structured Acceptance Criteria preview. Nothing was saved or applied."
+      );
     } catch (error) {
       setAcceptanceCriteriaPreview(null);
       logRouteAIRun({
@@ -1278,8 +1423,12 @@ export function ExportCenter() {
       });
       setMessage(
         error instanceof Error
-          ? `Khong the tao Acceptance Criteria preview: ${error.message}`
-          : "Khong the tao Acceptance Criteria preview. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể tạo Acceptance Criteria preview: ${error.message}`
+            : `Could not create Acceptance Criteria preview: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo Acceptance Criteria preview. Vui lòng thử lại."
+            : "Could not create Acceptance Criteria preview. Please try again."
       );
     } finally {
       setIsGeneratingAcceptanceCriteria(false);
@@ -1302,7 +1451,11 @@ export function ExportCenter() {
       !productDeliveryNotes.trim() &&
       !productDeliveryFileText.trim()
     ) {
-      setMessage("Generate BRD/SRS/User Stories preview or add product context before scope review.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview BRD/SRS/User Stories hoặc thêm product context trước khi review scope."
+          : "Generate BRD/SRS/User Stories preview or add product context before scope review."
+      );
       return;
     }
 
@@ -1371,7 +1524,11 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
-      setMessage("Da tao preview Product Scope Review/MVP Slicing. Chua save/apply.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview Product Scope Review/MVP Slicing. Chưa lưu hoặc áp dụng."
+          : "Created Product Scope Review/MVP Slicing preview. Nothing was saved or applied."
+      );
     } catch (error) {
       setProductScopeReviewPreview(null);
       logRouteAIRun({
@@ -1384,8 +1541,12 @@ export function ExportCenter() {
       });
       setMessage(
         error instanceof Error
-          ? `Khong the tao Product Scope Review preview: ${error.message}`
-          : "Khong the tao Product Scope Review preview. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể tạo Product Scope Review preview: ${error.message}`
+            : `Could not create Product Scope Review preview: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo Product Scope Review preview. Vui lòng thử lại."
+            : "Could not create Product Scope Review preview. Please try again."
       );
     } finally {
       setIsGeneratingProductScopeReview(false);
@@ -1402,7 +1563,11 @@ export function ExportCenter() {
       !acceptanceCriteriaPreview &&
       !aiCodingPack
     ) {
-      setMessage("Generate BRD/SRS/User Stories/AC or AI Coding Pack preview before Requirement QA.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview BRD/SRS/User Stories/AC hoặc AI Coding Pack trước khi chạy Requirement QA."
+          : "Generate BRD/SRS/User Stories/AC or AI Coding Pack preview before Requirement QA."
+      );
       return;
     }
 
@@ -1475,7 +1640,11 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
-      setMessage("Da tao preview Requirement QA. Khong save/apply tu dong.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview Requirement QA. Không tự động lưu hoặc áp dụng."
+          : "Created Requirement QA preview. Nothing was saved or applied automatically."
+      );
     } catch (error) {
       setRequirementQAPreview(null);
       logRouteAIRun({
@@ -1488,8 +1657,12 @@ export function ExportCenter() {
       });
       setMessage(
         error instanceof Error
-          ? `Khong the tao Requirement QA preview: ${error.message}`
-          : "Khong the tao Requirement QA preview. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể tạo Requirement QA preview: ${error.message}`
+            : `Could not create Requirement QA preview: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo Requirement QA preview. Vui lòng thử lại."
+            : "Could not create Requirement QA preview. Please try again."
       );
     } finally {
       setIsGeneratingRequirementQA(false);
@@ -1564,7 +1737,11 @@ export function ExportCenter() {
       `AI_Run_History_${createTimestamp()}.json`,
       "application/json;charset=utf-8"
     );
-    setMessage("Da export AI Run History JSON.");
+    setMessage(
+      locale === "vi"
+        ? "Đã export lịch sử chạy AI dạng JSON."
+        : "Exported AI Run History JSON."
+    );
   }
 
   function previewAICodingPack() {
@@ -1575,13 +1752,21 @@ export function ExportCenter() {
         ...nextPack,
         sourceSkillId: "ptr-to-ai-coding-pack"
       });
-      setMessage("Da tao preview AI Coding Pack deterministic.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview AI Coding Pack deterministic."
+          : "Created deterministic AI Coding Pack preview."
+      );
     } catch (error) {
       setAICodingPack(null);
       setMessage(
         error instanceof Error
-          ? `Khong the tao AI Coding Pack: ${error.message}`
-          : "Khong the tao AI Coding Pack. Vui long kiem tra du lieu."
+          ? locale === "vi"
+            ? `Không thể tạo AI Coding Pack: ${error.message}`
+            : `Could not create AI Coding Pack: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo AI Coding Pack. Vui lòng kiểm tra dữ liệu."
+            : "Could not create AI Coding Pack. Please check the data."
       );
     }
   }
@@ -1591,13 +1776,21 @@ export function ExportCenter() {
       const nextDraft = buildProductDeliveryDraft();
 
       setProductDeliveryDraft(nextDraft);
-      setMessage("Da tao preview Product Delivery draft deterministic.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview Product Delivery draft deterministic."
+          : "Created deterministic Product Delivery draft preview."
+      );
     } catch (error) {
       setProductDeliveryDraft(null);
       setMessage(
         error instanceof Error
-          ? `Khong the tao Product Delivery draft: ${error.message}`
-          : "Khong the tao Product Delivery draft. Vui long kiem tra du lieu."
+          ? locale === "vi"
+            ? `Không thể tạo Product Delivery draft: ${error.message}`
+            : `Could not create Product Delivery draft: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo Product Delivery draft. Vui lòng kiểm tra dữ liệu."
+            : "Could not create Product Delivery draft. Please check the data."
       );
     }
   }
@@ -1605,7 +1798,11 @@ export function ExportCenter() {
   function downloadProductDeliveryMarkdown() {
     try {
       if (!productDeliveryDraft) {
-        setMessage("Generate Product Delivery preview before downloading.");
+        setMessage(
+          locale === "vi"
+            ? "Hãy tạo preview Product Delivery trước khi tải xuống."
+            : "Generate Product Delivery preview before downloading."
+        );
         return;
       }
 
@@ -1628,12 +1825,20 @@ export function ExportCenter() {
             productDeliveryDraft.draft.acceptanceCriteria.criteria.length
         }
       });
-      setMessage("Da export Product Delivery draft markdown.");
+      setMessage(
+        locale === "vi"
+          ? "Đã export Product Delivery draft markdown."
+          : "Exported Product Delivery draft markdown."
+      );
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? `Khong the export Product Delivery draft: ${error.message}`
-          : "Khong the export Product Delivery draft. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể export Product Delivery draft: ${error.message}`
+            : `Could not export Product Delivery draft: ${error.message}`
+          : locale === "vi"
+            ? "Không thể export Product Delivery draft. Vui lòng thử lại."
+            : "Could not export Product Delivery draft. Please try again."
       );
     }
   }
@@ -1650,7 +1855,11 @@ export function ExportCenter() {
       !acceptanceCriteriaPreview &&
       processTasks.length === 0
     ) {
-      setMessage("Generate BRD/SRS/User Stories/AC preview or ensure PTR has rows before AI Coding Pack.");
+      setMessage(
+        locale === "vi"
+          ? "Tạo preview BRD/SRS/User Stories/AC hoặc bảo đảm PTR có dòng trước khi tạo AI Coding Pack."
+          : "Generate BRD/SRS/User Stories/AC preview or ensure PTR has rows before AI Coding Pack."
+      );
       return;
     }
 
@@ -1724,7 +1933,11 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
-      setMessage("Da tao preview AI Coding Pack tu Product Delivery artifacts.");
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview AI Coding Pack từ Product Delivery artifacts."
+          : "Created AI Coding Pack preview from Product Delivery artifacts."
+      );
     } catch (error) {
       setAICodingPack(null);
       logRouteAIRun({
@@ -1737,15 +1950,19 @@ export function ExportCenter() {
       });
       setMessage(
         error instanceof Error
-          ? `Khong the tao Product Delivery AI Coding Pack: ${error.message}`
-          : "Khong the tao Product Delivery AI Coding Pack. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể tạo Product Delivery AI Coding Pack: ${error.message}`
+            : `Could not create Product Delivery AI Coding Pack: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo Product Delivery AI Coding Pack. Vui lòng thử lại."
+            : "Could not create Product Delivery AI Coding Pack. Please try again."
       );
     }
   }
 
   function downloadBRDJson() {
     if (!brdPreview) {
-      setMessage("Generate BRD preview before downloading.");
+      setMessage(locale === "vi" ? "Tạo preview BRD trước khi tải xuống." : "Generate BRD preview before downloading.");
       return;
     }
 
@@ -1765,12 +1982,12 @@ export function ExportCenter() {
         qualityIssueCount: brdPreview.brd.qualityIssues.length
       }
     });
-    setMessage("Da export BRD draft JSON.");
+    setMessage(locale === "vi" ? "Đã export BRD draft JSON." : "Exported BRD draft JSON.");
   }
 
   function downloadSRSJson() {
     if (!srsPreview) {
-      setMessage("Generate SRS preview before downloading.");
+      setMessage(locale === "vi" ? "Tạo preview SRS trước khi tải xuống." : "Generate SRS preview before downloading.");
       return;
     }
 
@@ -1793,12 +2010,12 @@ export function ExportCenter() {
         qualityIssueCount: srsPreview.srs.qualityIssues.length
       }
     });
-    setMessage("Da export SRS draft JSON.");
+    setMessage(locale === "vi" ? "Đã export SRS draft JSON." : "Exported SRS draft JSON.");
   }
 
   function downloadUserStoriesJson() {
     if (!userStoryPreview) {
-      setMessage("Generate User Stories preview before downloading.");
+      setMessage(locale === "vi" ? "Tạo preview User Stories trước khi tải xuống." : "Generate User Stories preview before downloading.");
       return;
     }
 
@@ -1819,12 +2036,12 @@ export function ExportCenter() {
         qualityIssueCount: userStoryPreview.userStorySet.qualityIssues.length
       }
     });
-    setMessage("Da export User Stories draft JSON.");
+    setMessage(locale === "vi" ? "Đã export User Stories draft JSON." : "Exported User Stories draft JSON.");
   }
 
   function downloadAcceptanceCriteriaJson() {
     if (!acceptanceCriteriaPreview) {
-      setMessage("Generate Acceptance Criteria preview before downloading.");
+      setMessage(locale === "vi" ? "Tạo preview Acceptance Criteria trước khi tải xuống." : "Generate Acceptance Criteria preview before downloading.");
       return;
     }
 
@@ -1846,12 +2063,12 @@ export function ExportCenter() {
           acceptanceCriteriaPreview.acceptanceCriteria.qualityIssues.length
       }
     });
-    setMessage("Da export Acceptance Criteria draft JSON.");
+    setMessage(locale === "vi" ? "Đã export Acceptance Criteria draft JSON." : "Exported Acceptance Criteria draft JSON.");
   }
 
   function downloadProductScopeReviewJson() {
     if (!productScopeReviewPreview) {
-      setMessage("Generate Product Scope Review preview before downloading.");
+      setMessage(locale === "vi" ? "Tạo preview Product Scope Review trước khi tải xuống." : "Generate Product Scope Review preview before downloading.");
       return;
     }
 
@@ -1875,7 +2092,7 @@ export function ExportCenter() {
           productScopeReviewPreview.scopeReview.qualityIssues.length
       }
     });
-    setMessage("Da export Product Scope Review draft JSON.");
+    setMessage(locale === "vi" ? "Đã export Product Scope Review draft JSON." : "Exported Product Scope Review draft JSON.");
   }
 
   async function downloadAICodingPackZip() {
@@ -1922,12 +2139,16 @@ export function ExportCenter() {
         }
       });
       setAICodingPack(currentPack);
-      setMessage("Da tao ZIP AI Coding Pack.");
+      setMessage(locale === "vi" ? "Đã tạo ZIP AI Coding Pack." : "Created AI Coding Pack ZIP.");
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? `Khong the download AI Coding Pack: ${error.message}`
-          : "Khong the download AI Coding Pack. Vui long thu lai."
+          ? locale === "vi"
+            ? `Không thể download AI Coding Pack: ${error.message}`
+            : `Could not download AI Coding Pack: ${error.message}`
+          : locale === "vi"
+            ? "Không thể download AI Coding Pack. Vui lòng thử lại."
+            : "Could not download AI Coding Pack. Please try again."
       );
     } finally {
       setIsDownloadingAICodingPack(false);
@@ -1940,14 +2161,13 @@ export function ExportCenter() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="status-badge status-badge-success">
-              Export Center
+              {text.title}
             </p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">
-              Output Package ZIP
+              {locale === "vi" ? "Gói ZIP đầu ra" : "Output Package ZIP"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Generate vÃ  Ä‘Ã³ng gÃ³i D01 BPMN, D02 Service Blueprint, JSON dá»¯ liá»‡u
-              vÃ  QA Report vÃ o má»™t file ZIP.
+              {text.description}
             </p>
           </div>
 
@@ -1957,7 +2177,7 @@ export function ExportCenter() {
               onClick={generateAllArtifacts}
               type="button"
             >
-              Generate all artifacts
+              {text.generateAllArtifacts}
             </button>
             <button
               className="btn btn-primary"
@@ -1965,7 +2185,7 @@ export function ExportCenter() {
               onClick={downloadZip}
               type="button"
             >
-              {isDownloading ? "Äang táº¡o ZIP..." : "Download ZIP"}
+              {isDownloading ? text.generatingZip : text.downloadZip}
             </button>
             <button
               className="btn btn-secondary"
@@ -2011,16 +2231,16 @@ export function ExportCenter() {
 
       <details className="border-t border-slate-200 bg-slate-50/60">
         <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700">
-          Advanced / AI Run History ({aiRunHistory.length})
+          {locale === "vi" ? "Nâng cao / Lịch sử chạy AI" : "Advanced / AI Run History"} ({aiRunHistory.length})
         </summary>
       <div className="border-t border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
-              Local Audit Log
+              {text.localAuditLog}
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              AI Run History
+              {text.aiRunHistory}
             </h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               Shows safe metadata for AI skill runs only. Prompt text and full
@@ -2040,7 +2260,7 @@ export function ExportCenter() {
               onClick={downloadAIRunHistory}
               type="button"
             >
-              Export history JSON
+              {locale === "vi" ? "Export lịch sử JSON" : "Export history JSON"}
             </button>
           </div>
         </div>
@@ -2053,13 +2273,19 @@ export function ExportCenter() {
                   <th className="px-3 py-2 font-semibold">Skill</th>
                   <th className="px-3 py-2 font-semibold">Provider</th>
                   <th className="px-3 py-2 font-semibold">Model</th>
-                  <th className="px-3 py-2 font-semibold">Status</th>
-                  <th className="px-3 py-2 font-semibold">Validation</th>
+                  <th className="px-3 py-2 font-semibold">
+                    {locale === "vi" ? "Trạng thái" : "Status"}
+                  </th>
+                  <th className="px-3 py-2 font-semibold">
+                    {locale === "vi" ? "Validation" : "Validation"}
+                  </th>
                   <th className="px-3 py-2 font-semibold">Latency</th>
                   <th className="px-3 py-2 font-semibold">External</th>
                   <th className="px-3 py-2 font-semibold">Tokens</th>
                   <th className="px-3 py-2 font-semibold">Timestamp</th>
-                  <th className="px-3 py-2 font-semibold">Details</th>
+                  <th className="px-3 py-2 font-semibold">
+                    {locale === "vi" ? "Chi tiết" : "Details"}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
@@ -2171,8 +2397,9 @@ export function ExportCenter() {
           </div>
         ) : (
           <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-            No AI run records yet. Run a Module 2 or Module 3 AI skill to
-            populate this local history.
+            {locale === "vi"
+              ? "Chưa có bản ghi chạy AI. Chạy AI skill ở Module 2 hoặc Module 3 để cập nhật lịch sử local này."
+              : "No AI run records yet. Run a Module 2 or Module 3 AI skill to populate this local history."}
           </div>
         )}
       </div>
@@ -2182,48 +2409,59 @@ export function ExportCenter() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
-              Product Delivery
+              {text.productDelivery}
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              Draft BRD, SRS, user stories, and acceptance criteria
+              {locale === "vi"
+                ? "Bản nháp BRD, SRS, user stories và acceptance criteria"
+                : "Draft BRD, SRS, user stories, and acceptance criteria"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Deterministic MVP1 Product Delivery draft generated from Process
-              Task Register, saved AI Input Brief summary when available, and
-              optional notes. Structured output is schema-validated, previewed
-              first, then exported as markdown when ready.
+              {text.productDeliveryDescription}
             </p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
-                  Optional project context
+                  {text.optionalProjectContext}
                 </span>
                 <textarea
                   className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
                   onChange={(event) => setProductDeliveryContext(event.target.value)}
-                  placeholder="Example: MVP scope, target users, business objective, delivery constraints..."
+                  placeholder={
+                    locale === "vi"
+                      ? "Ví dụ: phạm vi MVP, người dùng mục tiêu, mục tiêu kinh doanh, ràng buộc delivery..."
+                      : "Example: MVP scope, target users, business objective, delivery constraints..."
+                  }
                   value={productDeliveryContext}
                 />
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
-                  Optional notes
+                  {locale === "vi" ? "Ghi chú tùy chọn" : "Optional notes"}
                 </span>
                 <textarea
                   className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
                   onChange={(event) => setProductDeliveryNotes(event.target.value)}
-                  placeholder="Paste workshop notes, BRD notes, assumptions, or stakeholder comments..."
+                  placeholder={
+                    locale === "vi"
+                      ? "Dán ghi chú workshop, ghi chú BRD, giả định hoặc nhận xét của stakeholder..."
+                      : "Paste workshop notes, BRD notes, assumptions, or stakeholder comments..."
+                  }
                   value={productDeliveryNotes}
                 />
               </label>
               <label className="block md:col-span-2">
                 <span className="text-sm font-medium text-slate-700">
-                  Optional uploaded file text
+                  {locale === "vi" ? "Text trích xuất từ file tùy chọn" : "Optional uploaded file text"}
                 </span>
                 <textarea
                   className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
                   onChange={(event) => setProductDeliveryFileText(event.target.value)}
-                  placeholder="Paste extracted PDF/DOCX text when available. Browser does not call external AI providers directly."
+                  placeholder={
+                    locale === "vi"
+                      ? "Dán text đã trích xuất từ PDF/DOCX khi có. Trình duyệt không gọi trực tiếp provider AI bên ngoài."
+                      : "Paste extracted PDF/DOCX text when available. Browser does not call external AI providers directly."
+                  }
                   value={productDeliveryFileText}
                 />
               </label>
@@ -2235,7 +2473,13 @@ export function ExportCenter() {
                 onClick={() => void generateBRDPreview("ptr-to-brd")}
                 type="button"
               >
-                {isGeneratingBRD ? "Generating BRD..." : "Generate BRD from PTR"}
+                {isGeneratingBRD
+                  ? locale === "vi"
+                    ? "Đang tạo BRD..."
+                    : "Generating BRD..."
+                  : locale === "vi"
+                  ? "Tạo BRD từ PTR"
+                  : "Generate BRD from PTR"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2243,7 +2487,7 @@ export function ExportCenter() {
                 onClick={() => void generateBRDPreview("notes-to-brd")}
                 type="button"
               >
-                Generate BRD from Notes
+                {locale === "vi" ? "Tạo BRD từ ghi chú" : "Generate BRD from Notes"}
               </button>
               <button
                 className="btn btn-primary"
@@ -2251,7 +2495,7 @@ export function ExportCenter() {
                 onClick={downloadBRDJson}
                 type="button"
               >
-                Download BRD JSON
+                {locale === "vi" ? "Tải BRD JSON" : "Download BRD JSON"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2259,7 +2503,13 @@ export function ExportCenter() {
                 onClick={() => void generateSRSPreview("brd-to-srs")}
                 type="button"
               >
-                {isGeneratingSRS ? "Generating SRS..." : "Generate SRS from BRD/PTR"}
+                {isGeneratingSRS
+                  ? locale === "vi"
+                    ? "Đang tạo SRS..."
+                    : "Generating SRS..."
+                  : locale === "vi"
+                  ? "Tạo SRS từ BRD/PTR"
+                  : "Generate SRS from BRD/PTR"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2267,7 +2517,7 @@ export function ExportCenter() {
                 onClick={() => void generateSRSPreview("notes-to-srs")}
                 type="button"
               >
-                Generate SRS from Notes
+                {locale === "vi" ? "Tạo SRS từ ghi chú" : "Generate SRS from Notes"}
               </button>
               <button
                 className="btn btn-primary"
@@ -2275,7 +2525,7 @@ export function ExportCenter() {
                 onClick={downloadSRSJson}
                 type="button"
               >
-                Download SRS JSON
+                {locale === "vi" ? "Tải SRS JSON" : "Download SRS JSON"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2283,7 +2533,13 @@ export function ExportCenter() {
                 onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
                 type="button"
               >
-                {isGeneratingUserStories ? "Generating Stories..." : "Generate Stories from SRS"}
+                {isGeneratingUserStories
+                  ? locale === "vi"
+                    ? "Đang tạo user story..."
+                    : "Generating Stories..."
+                  : locale === "vi"
+                  ? "Tạo user story từ SRS"
+                  : "Generate Stories from SRS"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2291,7 +2547,7 @@ export function ExportCenter() {
                 onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
                 type="button"
               >
-                Generate Stories from BRD
+                {locale === "vi" ? "Tạo user story từ BRD" : "Generate Stories from BRD"}
               </button>
               <button
                 className="btn btn-primary"
@@ -2299,7 +2555,7 @@ export function ExportCenter() {
                 onClick={downloadUserStoriesJson}
                 type="button"
               >
-                Download Stories JSON
+                {locale === "vi" ? "Tải Stories JSON" : "Download Stories JSON"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2307,7 +2563,13 @@ export function ExportCenter() {
                 onClick={() => void generateAcceptanceCriteriaPreview()}
                 type="button"
               >
-                {isGeneratingAcceptanceCriteria ? "Generating AC..." : "Generate Acceptance Criteria"}
+                {isGeneratingAcceptanceCriteria
+                  ? locale === "vi"
+                    ? "Đang tạo Acceptance Criteria..."
+                    : "Generating AC..."
+                  : locale === "vi"
+                  ? "Tạo Acceptance Criteria"
+                  : "Generate Acceptance Criteria"}
               </button>
               <button
                 className="btn btn-primary"
@@ -2315,7 +2577,7 @@ export function ExportCenter() {
                 onClick={downloadAcceptanceCriteriaJson}
                 type="button"
               >
-                Download AC JSON
+                {locale === "vi" ? "Tải AC JSON" : "Download AC JSON"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2323,7 +2585,13 @@ export function ExportCenter() {
                 onClick={() => void generateProductScopeReviewPreview("product-scope-review")}
                 type="button"
               >
-                {isGeneratingProductScopeReview ? "Reviewing Scope..." : "Review Product Scope"}
+                {isGeneratingProductScopeReview
+                  ? locale === "vi"
+                    ? "Đang review scope..."
+                    : "Reviewing Scope..."
+                  : locale === "vi"
+                  ? "Review Product Scope"
+                  : "Review Product Scope"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2331,7 +2599,7 @@ export function ExportCenter() {
                 onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
                 type="button"
               >
-                Generate MVP Slicing
+                {locale === "vi" ? "Tạo MVP Slicing" : "Generate MVP Slicing"}
               </button>
               <button
                 className="btn btn-primary"
@@ -2339,7 +2607,7 @@ export function ExportCenter() {
                 onClick={downloadProductScopeReviewJson}
                 type="button"
               >
-                Download Scope JSON
+                {locale === "vi" ? "Tải Scope JSON" : "Download Scope JSON"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
@@ -2347,14 +2615,20 @@ export function ExportCenter() {
                 onClick={() => void generateRequirementQAPreview()}
                 type="button"
               >
-                {isGeneratingRequirementQA ? "Running Requirement QA..." : "Run Requirement QA"}
+                {isGeneratingRequirementQA
+                  ? locale === "vi"
+                    ? "Đang chạy Requirement QA..."
+                    : "Running Requirement QA..."
+                  : locale === "vi"
+                  ? "Chạy Requirement QA"
+                  : "Run Requirement QA"}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={previewProductDeliveryDraft}
                 type="button"
               >
-                Generate Product Delivery Draft
+              {text.generateProductDeliveryDraft}
               </button>
               <button
                 className="btn btn-primary"
@@ -2362,19 +2636,19 @@ export function ExportCenter() {
                 onClick={downloadProductDeliveryMarkdown}
                 type="button"
               >
-                Download Product Delivery Markdown
+              {text.downloadProductDeliveryMarkdown}
               </button>
             </div>
             <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-950">
-                    Provider Compare
+                    {locale === "vi" ? "So sánh provider" : "Provider Compare"}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-slate-600">
-                    Optional and off by default. Compare selected providers for
-                    BRD, User Stories, or AI Coding Pack, then choose one output
-                    to preview further.
+                    {locale === "vi"
+                      ? "Tùy chọn và mặc định tắt. So sánh các provider đã chọn cho BRD, User Stories hoặc AI Coding Pack, sau đó chọn một output để xem tiếp."
+                      : "Optional and off by default. Compare selected providers for BRD, User Stories, or AI Coding Pack, then choose one output to preview further."}
                   </p>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -2383,7 +2657,7 @@ export function ExportCenter() {
                     onChange={(event) => setCompareModeEnabled(event.target.checked)}
                     type="checkbox"
                   />
-                  Enable compare mode
+                  {locale === "vi" ? "Bật chế độ so sánh" : "Enable compare mode"}
                 </label>
               </div>
               {compareModeEnabled ? (
@@ -2401,7 +2675,9 @@ export function ExportCenter() {
                     ))}
                     {compareProviderIds.length > 1 ? (
                       <span className="text-xs text-amber-700">
-                        Multiple providers may increase AI cost.
+                        {locale === "vi"
+                          ? "Nhiều provider có thể làm tăng chi phí AI."
+                          : "Multiple providers may increase AI cost."}
                       </span>
                     ) : null}
                   </div>
@@ -2417,7 +2693,7 @@ export function ExportCenter() {
                       }
                       type="button"
                     >
-                      Compare BRD from PTR
+                      {locale === "vi" ? "So sánh BRD từ PTR" : "Compare BRD from PTR"}
                     </button>
                     <button
                       className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -2430,7 +2706,7 @@ export function ExportCenter() {
                       }
                       type="button"
                     >
-                      Compare BRD from Notes
+                      {locale === "vi" ? "So sánh BRD từ ghi chú" : "Compare BRD from Notes"}
                     </button>
                     <button
                       className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -2443,7 +2719,7 @@ export function ExportCenter() {
                       }
                       type="button"
                     >
-                      Compare Stories from SRS
+                      {locale === "vi" ? "So sánh Stories từ SRS" : "Compare Stories from SRS"}
                     </button>
                     <button
                       className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -2456,7 +2732,7 @@ export function ExportCenter() {
                       }
                       type="button"
                     >
-                      Compare Stories from BRD
+                      {locale === "vi" ? "So sánh Stories từ BRD" : "Compare Stories from BRD"}
                     </button>
                     <button
                       className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
@@ -2469,7 +2745,13 @@ export function ExportCenter() {
                       }
                       type="button"
                     >
-                      {isRunningCompare ? "Comparing..." : "Compare AI Coding Pack"}
+                      {isRunningCompare
+                        ? locale === "vi"
+                          ? "Đang so sánh..."
+                          : "Comparing..."
+                        : locale === "vi"
+                        ? "So sánh AI Coding Pack"
+                        : "Compare AI Coding Pack"}
                     </button>
                   </div>
                 </div>
@@ -2505,7 +2787,8 @@ export function ExportCenter() {
                       {result.summary}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      Confidence: {result.confidence} | Warnings:{" "}
+                      {locale === "vi" ? "Độ tin cậy" : "Confidence"}: {result.confidence} |{" "}
+                      {locale === "vi" ? "Cảnh báo" : "Warnings"}:{" "}
                       {result.warnings.length}
                     </p>
                     {result.error ? (
@@ -2519,7 +2802,7 @@ export function ExportCenter() {
                       onClick={() => useExportCompareResult(result)}
                       type="button"
                     >
-                      Use this output
+                      {locale === "vi" ? "Dùng output này" : "Use this output"}
                     </button>
                   </div>
                 ))}
@@ -2529,22 +2812,22 @@ export function ExportCenter() {
 
           <div className="rounded border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-semibold text-slate-950">
-              Draft includes
+              {locale === "vi" ? "Bản nháp bao gồm" : "Draft includes"}
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
-              <li>Product scope</li>
-              <li>BRD outline</li>
-              <li>SRS outline</li>
-              <li>User stories</li>
-              <li>Acceptance criteria</li>
-              <li>Product scope review and MVP slicing</li>
-              <li>Requirement QA and trace coverage</li>
-              <li>Assumptions and open questions</li>
+              <li>{locale === "vi" ? "Phạm vi sản phẩm" : "Product scope"}</li>
+              <li>{locale === "vi" ? "Dàn ý BRD" : "BRD outline"}</li>
+              <li>{locale === "vi" ? "Dàn ý SRS" : "SRS outline"}</li>
+              <li>{locale === "vi" ? "User stories" : "User stories"}</li>
+              <li>{locale === "vi" ? "Acceptance criteria" : "Acceptance criteria"}</li>
+              <li>{locale === "vi" ? "Review product scope và MVP slicing" : "Product scope review and MVP slicing"}</li>
+              <li>{locale === "vi" ? "Requirement QA và trace coverage" : "Requirement QA and trace coverage"}</li>
+              <li>{locale === "vi" ? "Giả định và câu hỏi mở" : "Assumptions and open questions"}</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              No Artifact Graph is created in MVP1. User stories and acceptance
-              criteria are generated through server-side AI skill routes and
-              remain preview/export only.
+              {locale === "vi"
+                ? "MVP1 chưa tạo Artifact Graph. User stories và acceptance criteria được tạo qua AI skill route server-side và chỉ ở trạng thái preview/export."
+                : "No Artifact Graph is created in MVP1. User stories and acceptance criteria are generated through server-side AI skill routes and remain preview/export only."}
             </p>
           </div>
         </div>
@@ -2553,28 +2836,35 @@ export function ExportCenter() {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: Product Delivery draft
+                {locale === "vi" ? "Preview: bản nháp Product Delivery" : "Preview: Product Delivery draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {productDeliveryDraft.timestamp}. Step IDs are
-                preserved in stories and acceptance criteria.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${productDeliveryDraft.timestamp}. Step ID được giữ trong stories và acceptance criteria.`
+                  : `Generated at ${productDeliveryDraft.timestamp}. Step IDs are preserved in stories and acceptance criteria.`}
               </p>
             </div>
             <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-3">
               <div>
-                <p className="font-medium text-slate-950">Source steps</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Bước nguồn" : "Source steps"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {productDeliveryDraft.draft.sourceStepIds.length}
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">BRD sections</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Mục BRD" : "BRD sections"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {productDeliveryDraft.draft.brd.sections.length}
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">SRS requirements</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Yêu cầu SRS" : "SRS requirements"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     productDeliveryDraft.draft.srs.functionalRequirements
@@ -2583,14 +2873,16 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">User stories</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "User stories" : "User stories"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {productDeliveryDraft.draft.userStorySet.stories.length}
                 </p>
               </div>
               <div>
                 <p className="font-medium text-slate-950">
-                  Acceptance criteria
+                  {locale === "vi" ? "Acceptance criteria" : "Acceptance criteria"}
                 </p>
                 <p className="mt-1 text-slate-600">
                   {
@@ -2601,7 +2893,7 @@ export function ExportCenter() {
               </div>
               <div>
                 <p className="font-medium text-slate-950">
-                  Assumptions / Questions
+                  {locale === "vi" ? "Giả định / Câu hỏi" : "Assumptions / Questions"}
                 </p>
                 <p className="mt-1 text-slate-600">
                   {productDeliveryDraft.draft.assumptions.length} /{" "}
@@ -2619,16 +2911,19 @@ export function ExportCenter() {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: Structured BRD draft
+                {locale === "vi" ? "Preview: bản nháp BRD có cấu trúc" : "Preview: Structured BRD draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {brdPreview.timestamp} via {brdPreview.sourceSkillId}.
-                Preview only; not saved to an Artifact Graph.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${brdPreview.timestamp} qua ${brdPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  : `Generated at ${brdPreview.timestamp} via ${brdPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
             <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
               <div>
-                <p className="font-medium text-slate-950">Requirements</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Yêu cầu" : "Requirements"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {brdPreview.brd.businessRequirements.length}
                 </p>
@@ -2640,13 +2935,17 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Process refs</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Tham chiếu process" : "Process refs"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {brdPreview.brd.processReferences.length}
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Vấn đề chất lượng" : "Quality issues"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {brdPreview.brd.qualityIssues.length}
                 </p>
@@ -2662,16 +2961,19 @@ export function ExportCenter() {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: Structured SRS draft
+                {locale === "vi" ? "Preview: bản nháp SRS có cấu trúc" : "Preview: Structured SRS draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {srsPreview.timestamp} via {srsPreview.sourceSkillId}.
-                Preview only; not saved to an Artifact Graph.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${srsPreview.timestamp} qua ${srsPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  : `Generated at ${srsPreview.timestamp} via ${srsPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
             <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
               <div>
-                <p className="font-medium text-slate-950">Functional reqs</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Yêu cầu chức năng" : "Functional reqs"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {srsPreview.srs.functionalRequirements.length}
                 </p>
@@ -2683,13 +2985,17 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Systems</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Hệ thống" : "Systems"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {srsPreview.srs.systemsComponents.length}
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Vấn đề chất lượng" : "Quality issues"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {srsPreview.srs.qualityIssues.length}
                 </p>
@@ -2705,12 +3011,12 @@ export function ExportCenter() {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: Structured user stories draft
+                {locale === "vi" ? "Preview: bản nháp user stories có cấu trúc" : "Preview: Structured user stories draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {userStoryPreview.timestamp} via{" "}
-                {userStoryPreview.sourceSkillId}. Preview only; not saved to an
-                Artifact Graph.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${userStoryPreview.timestamp} qua ${userStoryPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  : `Generated at ${userStoryPreview.timestamp} via ${userStoryPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
             <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
@@ -2727,7 +3033,9 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Source steps</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Bước nguồn" : "Source steps"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     new Set(
@@ -2739,7 +3047,9 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Vấn đề chất lượng" : "Quality issues"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {userStoryPreview.userStorySet.qualityIssues.length}
                 </p>
@@ -2755,12 +3065,12 @@ export function ExportCenter() {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: Structured acceptance criteria draft
+                {locale === "vi" ? "Preview: bản nháp acceptance criteria có cấu trúc" : "Preview: Structured acceptance criteria draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {acceptanceCriteriaPreview.timestamp} via{" "}
-                {acceptanceCriteriaPreview.sourceSkillId}. Preview only; not
-                saved to an Artifact Graph.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${acceptanceCriteriaPreview.timestamp} qua ${acceptanceCriteriaPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  : `Generated at ${acceptanceCriteriaPreview.timestamp} via ${acceptanceCriteriaPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
             <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
@@ -2774,7 +3084,9 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Source stories</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Story nguồn" : "Source stories"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     new Set(
@@ -2786,7 +3098,9 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Source steps</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Bước nguồn" : "Source steps"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     new Set(
@@ -2798,7 +3112,9 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Quality issues</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Vấn đề chất lượng" : "Quality issues"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     acceptanceCriteriaPreview.acceptanceCriteria.qualityIssues
@@ -2821,29 +3137,35 @@ export function ExportCenter() {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: Product scope review and MVP slicing
+                {locale === "vi" ? "Preview: review phạm vi sản phẩm và MVP slicing" : "Preview: Product scope review and MVP slicing"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {productScopeReviewPreview.timestamp} via{" "}
-                {productScopeReviewPreview.sourceSkillId}. Preview only; not
-                saved to an Artifact Graph.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${productScopeReviewPreview.timestamp} qua ${productScopeReviewPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  : `Generated at ${productScopeReviewPreview.timestamp} via ${productScopeReviewPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
             <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
               <div>
-                <p className="font-medium text-slate-950">In scope</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Trong scope" : "In scope"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {productScopeReviewPreview.scopeReview.inScope.length}
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Out of scope</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Ngoài scope" : "Out of scope"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {productScopeReviewPreview.scopeReview.outOfScope.length}
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">MVP items</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Mục MVP" : "MVP items"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     productScopeReviewPreview.scopeReview.mvpSlice.items
@@ -2852,7 +3174,9 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Risks</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Rủi ro" : "Risks"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {productScopeReviewPreview.scopeReview.risks.length}
                 </p>
@@ -2868,12 +3192,12 @@ export function ExportCenter() {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: Requirement QA and trace coverage
+                {locale === "vi" ? "Preview: Requirement QA và trace coverage" : "Preview: Requirement QA and trace coverage"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {requirementQAPreview.timestamp} via{" "}
-                {requirementQAPreview.sourceSkillId}. Findings are draft
-                recommendations only; nothing is applied or saved.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${requirementQAPreview.timestamp} qua ${requirementQAPreview.sourceSkillId}. Finding chỉ là recommendation draft; chưa áp dụng hoặc lưu.`
+                  : `Generated at ${requirementQAPreview.timestamp} via ${requirementQAPreview.sourceSkillId}. Findings are draft recommendations only; nothing is applied or saved.`}
               </p>
             </div>
             <div className="grid gap-2 border-b border-slate-200 bg-slate-50 p-4 text-sm md:grid-cols-4">
@@ -2884,13 +3208,17 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">Draft patches</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Bản vá draft" : "Draft patches"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {requirementQAPreview.requirementQA.recommendations.length}
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">BRD gaps</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Gap BRD" : "BRD gaps"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     requirementQAPreview.requirementQA.coverage
@@ -2899,7 +3227,9 @@ export function ExportCenter() {
                 </p>
               </div>
               <div>
-                <p className="font-medium text-slate-950">SRS/story gaps</p>
+                <p className="font-medium text-slate-950">
+                  {locale === "vi" ? "Gap SRS/story" : "SRS/story gaps"}
+                </p>
                 <p className="mt-1 text-slate-600">
                   {
                     requirementQAPreview.requirementQA.coverage
@@ -2924,25 +3254,28 @@ export function ExportCenter() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
-              AI Development Handoff Pack
+              {text.aiDevelopmentHandoffPack}
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              Package reviewed requirements for development
+              {locale === "vi"
+                ? "Đóng gói yêu cầu đã review cho đội phát triển"
+                : "Package reviewed requirements for development"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Send this package to your development team or use it with Codex,
-              Claude Code, Cursor. It turns the Process Task Register and
-              reviewed Product Delivery artifacts into a previewed handoff
-              before ZIP download.
+              {text.aiDevelopmentHandoffDescription}
             </p>
             <label className="mt-4 block">
               <span className="text-sm font-medium text-slate-700">
-                Optional project context
+                {text.optionalProjectContext}
               </span>
               <textarea
                 className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
                 onChange={(event) => setProjectContext(event.target.value)}
-                placeholder="Example: Target repo, frontend/backend stack, coding constraints, team conventions..."
+                placeholder={
+                  locale === "vi"
+                    ? "Ví dụ: repo đích, stack frontend/backend, ràng buộc coding, quy ước team..."
+                    : "Example: Target repo, frontend/backend stack, coding constraints, team conventions..."
+                }
                 value={projectContext}
               />
             </label>
@@ -2952,14 +3285,14 @@ export function ExportCenter() {
                 onClick={previewAICodingPack}
                 type="button"
               >
-                Preview PTR Handoff Pack
+                {text.previewPtrHandoffPack}
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={() => void previewProductDeliveryAICodingPack()}
                 type="button"
               >
-                Preview Product Delivery Handoff Pack
+                {text.previewProductDeliveryHandoffPack}
               </button>
               <button
                 className="btn btn-primary"
@@ -2968,15 +3301,15 @@ export function ExportCenter() {
                 type="button"
               >
                 {isDownloadingAICodingPack
-                  ? "Dang tao handoff pack..."
-                  : "Download Handoff Pack ZIP"}
+                  ? text.generatingHandoffPack
+                  : text.downloadHandoffPack}
               </button>
             </div>
           </div>
 
           <div className="rounded border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-semibold text-slate-950">
-              Included files
+              {text.includedFiles}
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
               <li>AGENTS.md</li>
@@ -2988,11 +3321,9 @@ export function ExportCenter() {
               <li>test-plan.md</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Advanced details for technical users: AGENTS.md, CLAUDE.md,
-              cursor rules, and spec.json are kept in the package. Product
-              Delivery generation uses `user-stories-to-ai-coding-pack` through
-              `/api/ai/run-skill`, with mock/local fallback and schema
-              validation.
+              {locale === "vi"
+                ? "Chi tiết nâng cao cho người dùng kỹ thuật: AGENTS.md, CLAUDE.md, cursor rules và spec.json được giữ trong gói. Product Delivery dùng `user-stories-to-ai-coding-pack` qua `/api/ai/run-skill`, có fallback mock/local và schema validation."
+                : "Advanced details for technical users: AGENTS.md, CLAUDE.md, cursor rules, and spec.json are kept in the package. Product Delivery generation uses `user-stories-to-ai-coding-pack` through `/api/ai/run-skill`, with mock/local fallback and schema validation."}
             </p>
           </div>
         </div>
@@ -3004,9 +3335,13 @@ export function ExportCenter() {
                 Preview: spec.json
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Generated at {aiCodingPack.timestamp}
-                {aiCodingPack.sourceSkillId ? ` via ${aiCodingPack.sourceSkillId}` : ""}.
-                Step, story, and requirement refs are preserved where available.
+                {locale === "vi"
+                  ? `Đã tạo lúc ${aiCodingPack.timestamp}${
+                      aiCodingPack.sourceSkillId ? ` qua ${aiCodingPack.sourceSkillId}` : ""
+                    }. Step, story và requirement ref được giữ khi có.`
+                  : `Generated at ${aiCodingPack.timestamp}${
+                      aiCodingPack.sourceSkillId ? ` via ${aiCodingPack.sourceSkillId}` : ""
+                    }. Step, story, and requirement refs are preserved where available.`}
               </p>
             </div>
             {aiCodingPack.qualityIssues?.length ? (

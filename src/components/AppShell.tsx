@@ -26,12 +26,16 @@ type AIStatusResponse = {
   dataUsageMode?: string;
 };
 
-const moduleTabs = [
-  { id: "workspace", label: "Workspace", href: "#ai-settings" },
-  { id: "process-modeling", label: "Process Modeling", href: "#input-brief" },
-  { id: "product-delivery", label: "Product Delivery", href: "#export-center" },
-  { id: "templates", label: "Templates", href: "#template-library" },
-  { id: "export-audit", label: "Export & Audit", href: "#export-center" }
+const moduleTabs: Array<{
+  id: string;
+  label: Record<Locale, string>;
+  href: string;
+}> = [
+  { id: "workspace", label: { vi: "Không gian làm việc", en: "Workspace" }, href: "#ai-settings" },
+  { id: "process-modeling", label: { vi: "Mô hình quy trình", en: "Process Modeling" }, href: "#input-brief" },
+  { id: "product-delivery", label: { vi: "Hồ sơ sản phẩm", en: "Product Delivery" }, href: "#export-center" },
+  { id: "templates", label: { vi: "Mẫu", en: "Templates" }, href: "#template-library" },
+  { id: "export-audit", label: { vi: "Xuất & kiểm toán", en: "Export & Audit" }, href: "#export-center" }
 ];
 
 function hasRealAI(status: AIStatusResponse) {
@@ -46,7 +50,7 @@ function getAIStatusLabel(status: AIStatusResponse, locale: Locale) {
   const effectiveProvider = status.effectiveProvider ?? status.provider ?? "mock";
 
   if (status.fallbackActive) {
-    return "AI: local/mock fallback";
+    return locale === "vi" ? "AI: fallback local/mock" : "AI: local/mock fallback";
   }
 
   if (!hasRealAI(status) || effectiveProvider === "mock") {
@@ -59,12 +63,12 @@ function getAIStatusLabel(status: AIStatusResponse, locale: Locale) {
 function getAIModeValue(status: AIStatusResponse, locale: Locale) {
   if (!hasRealAI(status)) {
     return locale === "vi"
-      ? "Local/mock, preview first"
+      ? "Local/mock, xem trước trước khi áp dụng"
       : "Local/mock, preview first";
   }
 
   return locale === "vi"
-    ? "Server-side AI, preview first"
+    ? "AI server-side, xem trước trước khi áp dụng"
     : "Server-side AI, preview first";
 }
 
@@ -80,15 +84,16 @@ export function AppShell() {
   const headerText = {
     artifactSummary:
       locale === "vi"
-        ? `${artifactCount} artifact outputs ready`
+        ? `${artifactCount} đầu ra đã sẵn sàng`
         : `${artifactCount} artifact outputs ready`,
-    aiModeLabel: locale === "vi" ? "AI mode" : "AI mode",
-    sourceLabel: locale === "vi" ? "Source of truth" : "Source of truth",
-    releaseLabel: locale === "vi" ? "Release scope" : "Release scope",
-    dataModeLabel: locale === "vi" ? "Data mode" : "Data mode",
+    aiModeLabel: locale === "vi" ? "Chế độ AI" : "AI mode",
+    sourceLabel: locale === "vi" ? "Nguồn dữ liệu chuẩn" : "Source of truth",
+    releaseLabel: locale === "vi" ? "Phạm vi phát hành" : "Release scope",
+    dataModeLabel: locale === "vi" ? "Chế độ dữ liệu" : "Data mode",
+    privacyLabel: locale === "vi" ? "Quyền riêng tư" : "Privacy",
     footerPrivacy:
       locale === "vi"
-        ? "Local storage keeps preferences and draft metadata in this browser; API keys are never entered or displayed in the client."
+        ? "Local storage lưu tùy chọn và metadata bản nháp trong trình duyệt này; API key không được nhập hoặc hiển thị ở client."
         : "Local storage keeps preferences and draft metadata in this browser; API keys are never entered or displayed in the client."
   };
 
@@ -159,7 +164,7 @@ export function AppShell() {
           <nav aria-label="Module tabs" className="flex gap-2 overflow-x-auto pb-1">
             {moduleTabs.map((tab) => (
               <a className="module-tab" href={tab.href} key={tab.id}>
-                {tab.label}
+                {tab.label[locale]}
               </a>
             ))}
           </nav>
@@ -279,7 +284,7 @@ export function AppShell() {
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Privacy
+                  {headerText.privacyLabel}
                 </p>
                 <p className="mt-1 leading-5">{headerText.footerPrivacy}</p>
               </div>

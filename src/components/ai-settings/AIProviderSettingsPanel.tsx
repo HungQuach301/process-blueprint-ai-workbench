@@ -60,7 +60,7 @@ const providerCards: Array<{
     serverProviderId: "product-ai",
     title: "Product AI",
     description: {
-      vi: "AI cua san pham, chay qua endpoint server-side cau hinh bang env.",
+      vi: "AI của sản phẩm, chạy qua endpoint server-side được cấu hình bằng env.",
       en: "Managed product AI through the server-side endpoint configured by env."
     }
   },
@@ -69,7 +69,7 @@ const providerCards: Array<{
     serverProviderId: "openai",
     title: "OpenAI",
     description: {
-      vi: "OpenAI qua route server-side. Khong nhap API key trong trinh duyet.",
+      vi: "OpenAI qua route server-side. Không nhập API key trong trình duyệt.",
       en: "OpenAI through the server-side route. No browser API key entry."
     }
   },
@@ -78,7 +78,7 @@ const providerCards: Array<{
     serverProviderId: "claude",
     title: "Claude",
     description: {
-      vi: "Claude qua adapter server-side va bien moi truong rieng.",
+      vi: "Claude qua adapter server-side và biến môi trường riêng.",
       en: "Claude through the server-side adapter and server env."
     }
   },
@@ -87,7 +87,7 @@ const providerCards: Array<{
     serverProviderId: "mock",
     title: "Local / Mock",
     description: {
-      vi: "Mock/local fallback, khong goi provider ben ngoai.",
+      vi: "Fallback local/mock, không gọi provider bên ngoài.",
       en: "Mock/local fallback with no external provider call."
     }
   }
@@ -142,9 +142,9 @@ const textByLocale = {
     dataWarningBody:
       "Cloud AI chỉ được gọi qua route server-side. Không nhập hoặc hiển thị API key trong browser.",
     currentMode: "Chế độ hiện tại",
-    flags: "Feature flags",
+    flags: "Cờ tính năng",
     serverProvider: "Provider server",
-    dataMode: "Data mode server",
+    dataMode: "Chế độ dữ liệu server",
     model: "Model",
     advanced: "Thiết lập nâng cao",
     show: "Hiện",
@@ -164,9 +164,9 @@ const textByLocale = {
     mockModeSummary: "Local/mock, không gọi provider bên ngoài.",
     realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
     modelPlaceholder: "Tên hiển thị tùy chọn",
-    effectiveProvider: "Provider thuc thi",
-    fallbackActive: "Fallback local/mock dang hoat dong vi provider da chon chua san sang.",
-    selectedStatus: "Trang thai provider da chon"
+    effectiveProvider: "Provider thực thi",
+    fallbackActive: "Fallback local/mock đang hoạt động vì provider đã chọn chưa sẵn sàng.",
+    selectedStatus: "Trạng thái provider đã chọn"
   },
   en: {
     title: "AI Connection Center",

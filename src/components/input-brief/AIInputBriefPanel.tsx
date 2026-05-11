@@ -618,6 +618,8 @@ export function AIInputBriefPanel() {
   );
   const [draftTasks, setDraftTasks] = useState<ProcessTask[]>([]);
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
+  const [hasDraftGenerationAttempt, setHasDraftGenerationAttempt] =
+    useState(false);
   const [message, setMessage] = useState("");
   const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
   const [locale, setActiveLocale] = useState<Locale>("vi");
@@ -833,6 +835,14 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
+    setHasDraftGenerationAttempt(false);
+  }
+
+  function startDraftGenerationAttempt() {
+    setHasDraftGenerationAttempt(true);
+    setDraftTasks([]);
+    setDraftMeta(null);
+    setBlockingErrors([]);
   }
 
   function clearFileExtractionPreviews() {
@@ -933,7 +943,7 @@ export function AIInputBriefPanel() {
   async function extractExcelFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
-    clearDraftPreview();
+    startDraftGenerationAttempt();
     setMessage(
       locale === "vi"
         ? "Đang trích xuất Excel cục bộ trong trình duyệt. Tệp không được upload."
@@ -994,7 +1004,7 @@ export function AIInputBriefPanel() {
   async function generateDraftPtrFromDocxFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
-    clearDraftPreview();
+    startDraftGenerationAttempt();
     setMessage(
       locale === "vi"
         ? "Đang trích xuất DOCX cục bộ và tạo PTR nháp. Tệp không được upload."
@@ -1088,6 +1098,7 @@ export function AIInputBriefPanel() {
       return null;
     }
 
+    startDraftGenerationAttempt();
     setIsGeneratingWithAI(true);
     setMessage(realAIEnabled ? uiText.realAIRunning : uiText.mockRunning);
     saveAuditLogEntry({
@@ -1286,7 +1297,18 @@ export function AIInputBriefPanel() {
           validationPassed: false
         }
       });
-      setMessage("AI draft generation request failed. Draft was not applied.");
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors([
+        locale === "vi"
+          ? "Yêu cầu tạo bản nháp AI thất bại. Bản nháp chưa được áp dụng."
+          : "AI draft generation request failed. Draft was not applied."
+      ]);
+      setMessage(
+        locale === "vi"
+          ? "Yêu cầu tạo bản nháp AI thất bại. Bản nháp chưa được áp dụng."
+          : "AI draft generation request failed. Draft was not applied."
+      );
       return null;
     } finally {
       setIsGeneratingWithAI(false);
@@ -1296,7 +1318,7 @@ export function AIInputBriefPanel() {
   async function generateDraftPtrFromPdfFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
-    clearDraftPreview();
+    startDraftGenerationAttempt();
     setMessage(locale === "vi" ? "Đang trích xuất PDF cục bộ và tạo PTR nháp. Không upload tệp." : "Extracting PDF locally and generating Draft PTR. The file is not uploaded.");
 
     try {
@@ -1393,9 +1415,9 @@ export function AIInputBriefPanel() {
   }
 
   async function generateDraftPtrFromChatNotes() {
+    startDraftGenerationAttempt();
+
     if (chatNotes.trim().length < 20) {
-      setDraftTasks([]);
-      setDraftMeta(null);
       setBlockingErrors([
         locale === "vi"
           ? "Ghi chú cần đủ nội dung để tạo PTR nháp."
@@ -1428,6 +1450,8 @@ export function AIInputBriefPanel() {
   }
 
   function generateDraftPtr() {
+    startDraftGenerationAttempt();
+
     const structuredBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
@@ -1445,8 +1469,6 @@ export function AIInputBriefPanel() {
     if (!briefQualityGate.canPreview) {
       const errors = formatQualityGateErrorsVi(briefQualityGate);
 
-      setDraftTasks([]);
-      setDraftMeta(null);
       setBlockingErrors(errors);
       setMessage(
         locale === "vi"
@@ -1465,8 +1487,6 @@ export function AIInputBriefPanel() {
     if (!draftQualityGate.canPreview) {
       const errors = formatQualityGateErrorsVi(draftQualityGate);
 
-      setDraftTasks([]);
-      setDraftMeta(null);
       setBlockingErrors(errors);
       setMessage(
         locale === "vi"
@@ -1495,6 +1515,8 @@ export function AIInputBriefPanel() {
   }
 
   async function generateDraftPtrWithAI() {
+    startDraftGenerationAttempt();
+
     const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
@@ -1513,8 +1535,6 @@ export function AIInputBriefPanel() {
     if (!briefQualityGate.canPreview) {
       const errors = formatQualityGateErrorsVi(briefQualityGate);
 
-      setDraftTasks([]);
-      setDraftMeta(null);
       setBlockingErrors(errors);
       setMessage(
         locale === "vi"
@@ -1525,6 +1545,7 @@ export function AIInputBriefPanel() {
     }
 
     if (!confirmRealAICallIfNeeded(realAIEnabled)) {
+      clearDraftPreview();
       setMessage(uiText.aiCancelled);
       return;
     }
@@ -1774,7 +1795,18 @@ export function AIInputBriefPanel() {
           validationPassed: false
         }
       });
-      setMessage("AI draft generation request failed. Draft was not applied.");
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors([
+        locale === "vi"
+          ? "Yêu cầu tạo bản nháp AI thất bại. Bản nháp chưa được áp dụng."
+          : "AI draft generation request failed. Draft was not applied."
+      ]);
+      setMessage(
+        locale === "vi"
+          ? "Yêu cầu tạo bản nháp AI thất bại. Bản nháp chưa được áp dụng."
+          : "AI draft generation request failed. Draft was not applied."
+      );
     } finally {
       setIsGeneratingWithAI(false);
     }
@@ -1838,6 +1870,7 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
+    setHasDraftGenerationAttempt(false);
     setMessage(locale === "vi" ? "Đã hủy preview bản nháp." : "Canceled draft preview.");
   }
 
@@ -1851,6 +1884,7 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
+    setHasDraftGenerationAttempt(false);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage(
@@ -2425,7 +2459,7 @@ export function AIInputBriefPanel() {
         {message ? <span>{message}</span> : null}
       </div>
 
-      {blockingErrors.length > 0 ? (
+      {hasDraftGenerationAttempt && blockingErrors.length > 0 ? (
         <div className="status-message status-message-danger mt-4">
           <p className="font-semibold">{uiText.draftBlocked}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -2441,7 +2475,9 @@ export function AIInputBriefPanel() {
           <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h3 className="text-sm font-semibold text-slate-950">
-                {t("inputBrief.draftPreview", locale)}
+                {locale === "vi"
+                  ? "Bản nháp Process Task Register"
+                  : "Draft Process Register"}
               </h3>
               <p className="mt-1 text-sm text-slate-600">
                 {draftTasks.length} {locale === "vi" ? "dòng nháp" : "draft row(s)"}. {t("inputBrief.reviewBeforeApply", locale)}

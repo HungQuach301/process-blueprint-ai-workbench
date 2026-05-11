@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 AI Input Brief Draft PTR visibility cleanup.
+- Hid Draft PTR validation/errors until the user explicitly starts a Generate Draft PTR / Generate with AI / file or notes draft generation action.
+- Kept the Draft PTR preview hidden until draft rows exist, renamed the preview heading to `Bản nháp Process Task Register` / `Draft Process Register`, and preserved explicit Replace/Append approval before applying.
+- Cleared stale validation errors and draft previews when the brief, chat/notes, selected files, or reset/cancel actions change the source context.
+- Kept this RC5 cleanup UI-state only: no AI provider route/adapter, provider secrets, data model, Process Task Register schema, D01/D02 generator, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 AI Connection Center provider-card cleanup.
 - Simplified provider cards so each card shows provider name, short description, and server-derived status only.
 - Replaced noisy Mode/Selected/Real AI style badges in provider cards with a single selected-card border/highlight and small `Current provider` text.

@@ -371,17 +371,17 @@ export function D01BpmnOutput() {
       description={text.description}
       title={text.title}
     >
-      <p className="mb-4 text-sm font-medium uppercase text-slate-500">
+      <p className="section-kicker mb-4">
         {text.output}
       </p>
-      {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+      {message ? <p className="status-message mb-4">{message}</p> : null}
 
       <div className="mb-4">
         <BpmnPreview xml={xml} />
       </div>
 
       {reviewResult ? (
-        <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+        <div className="status-message mb-4">
           <p className="font-semibold text-slate-900">{text.aiReview}</p>
           <p className="mt-1">
             {text.ptrRecommendations}: {reviewResult.recommendations.length} ·{" "}
@@ -399,8 +399,8 @@ export function D01BpmnOutput() {
         </div>
       ) : null}
 
-      <details className="rounded border border-slate-200 bg-slate-50">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+      <details className="advanced-panel">
+        <summary>
           {text.advancedXml}
         </summary>
         <div className="border-t border-slate-200 p-4">

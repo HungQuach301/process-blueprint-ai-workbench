@@ -117,6 +117,27 @@ const qaPanelText = {
     previewChange: "Xem trước thay đổi",
     advancedHiddenHelper: "Đề xuất đổi cấu trúc luồng được tách riêng ở tab nâng cao và không được chọn bởi Select safe.",
     previewThenConfirm: "Preview trước; chỉ áp dụng sau khi xác nhận trong hộp thoại.",
+    confirmRecommendation: "Xác nhận đề xuất QA",
+    confirmBatchRecommendations: "Xác nhận nhóm đề xuất",
+    applySelectedRecommendations: "Áp dụng đề xuất đã chọn",
+    target: "Bước đích",
+    field: "Trường",
+    oldValue: "Giá trị cũ",
+    newValue: "Giá trị mới",
+    emptyValue: "(trống)",
+    newTaskRows: "Dòng công việc mới sẽ tạo",
+    cancel: "Hủy",
+    confirmApply: "Xác nhận áp dụng",
+    confirmApplyBatch: "Xác nhận áp dụng nhóm",
+    willApply: "Sẽ áp dụng",
+    skippedDueToConflicts: "Bỏ qua do xung đột",
+    affectedTasks: "Công việc bị ảnh hưởng",
+    fieldChanges: "Thay đổi trường",
+    newTasks: "Dòng mới",
+    connectionChanges: "Thay đổi liên kết",
+    affectedStepIds: "Step ID bị ảnh hưởng",
+    conflicts: "Xung đột",
+    conflictsSkipped: "Đề xuất bị xung đột sẽ được bỏ qua.",
     none: "Không có"
   },
   en: {
@@ -167,6 +188,27 @@ const qaPanelText = {
     previewChange: "Preview change",
     advancedHiddenHelper: "Flow-structure changes are separated into the advanced tab and are never selected by Select safe.",
     previewThenConfirm: "Preview first; apply only after confirmation in the dialog.",
+    confirmRecommendation: "Confirm QA recommendation",
+    confirmBatchRecommendations: "Confirm batch recommendations",
+    applySelectedRecommendations: "Apply selected recommendations",
+    target: "Target",
+    field: "Field",
+    oldValue: "Old value",
+    newValue: "New value",
+    emptyValue: "(empty)",
+    newTaskRows: "New task rows to create",
+    cancel: "Cancel",
+    confirmApply: "Confirm apply",
+    confirmApplyBatch: "Confirm apply batch",
+    willApply: "Will apply",
+    skippedDueToConflicts: "Skipped due to conflicts",
+    affectedTasks: "Affected tasks",
+    fieldChanges: "Field changes",
+    newTasks: "New tasks",
+    connectionChanges: "Connection changes",
+    affectedStepIds: "Affected step IDs",
+    conflicts: "Conflicts",
+    conflictsSkipped: "Conflicting recommendations will be skipped.",
     none: "None"
   }
 } satisfies Record<Locale, Record<string, string>>;
@@ -1581,8 +1623,8 @@ export function QAPanel({
       {pendingRecommendation ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded border border-slate-200 bg-white p-5 shadow-xl">
-            <p className="text-sm font-medium uppercase text-slate-500">
-              Confirm QA Recommendation
+            <p className="section-kicker">
+              {text.confirmRecommendation}
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
               {pendingRecommendation.recommendation.title}
@@ -1591,7 +1633,7 @@ export function QAPanel({
               {pendingRecommendation.recommendation.description}
             </p>
             <p className="mt-2 text-sm text-slate-500">
-              Target: {pendingRecommendation.recommendation.targetStepIds.join(", ")}
+              {text.target}: {pendingRecommendation.recommendation.targetStepIds.join(", ")}
             </p>
 
             {pendingChanges.length > 0 ? (
@@ -1603,13 +1645,13 @@ export function QAPanel({
                         stepId
                       </th>
                       <th className="border-b border-r border-slate-200 px-3 py-2">
-                        Field
+                        {text.field}
                       </th>
                       <th className="border-b border-r border-slate-200 px-3 py-2">
-                        Old value
+                        {text.oldValue}
                       </th>
                       <th className="border-b border-slate-200 px-3 py-2">
-                        New value
+                        {text.newValue}
                       </th>
                     </tr>
                   </thead>
@@ -1623,10 +1665,10 @@ export function QAPanel({
                           {change.field}
                         </td>
                         <td className="border-b border-r border-slate-200 px-3 py-2">
-                          {change.oldValue || "(trống)"}
+                          {change.oldValue || text.emptyValue}
                         </td>
                         <td className="border-b border-slate-200 px-3 py-2">
-                          {change.newValue || "(trống)"}
+                          {change.newValue || text.emptyValue}
                         </td>
                       </tr>
                     ))}
@@ -1638,7 +1680,7 @@ export function QAPanel({
             {pendingRecommendation.recommendation.newTasks?.length ? (
               <div className="mt-4 rounded border border-slate-200 p-3">
                 <p className="text-sm font-semibold text-slate-800">
-                  New task rows to create
+                  {text.newTaskRows}
                 </p>
                 <div className="mt-2 space-y-2">
                   {pendingRecommendation.recommendation.newTasks.map((task) => (
@@ -1653,7 +1695,7 @@ export function QAPanel({
 
             {pendingRecommendation.recommendation.warnings?.length ? (
               <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
-                <p className="text-sm font-semibold text-amber-800">Warnings</p>
+                <p className="text-sm font-semibold text-amber-800">{text.warnings}</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
                   {pendingRecommendation.recommendation.warnings.map((warning) => (
                     <li key={warning}>{warning}</li>
@@ -1664,18 +1706,18 @@ export function QAPanel({
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
                 onClick={() => rejectSingleRecommendation("user_cancelled")}
                 type="button"
               >
-                Cancel
+                {text.cancel}
               </button>
               <button
                 className="btn btn-success"
                 onClick={confirmSingleRecommendation}
                 type="button"
               >
-                Confirm Apply
+                {text.confirmApply}
               </button>
             </div>
           </div>
@@ -1685,47 +1727,47 @@ export function QAPanel({
       {pendingBatchRecommendations && pendingBatchPreview ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded border border-slate-200 bg-white p-5 shadow-xl">
-            <p className="text-sm font-medium uppercase text-slate-500">
-              Confirm Batch Recommendations
+            <p className="section-kicker">
+              {text.confirmBatchRecommendations}
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              Apply selected recommendations
+              {text.applySelectedRecommendations}
             </h3>
             <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-              <p>Recommendations: {pendingBatchPreview.selectedCount}</p>
-              <p>Will apply: {pendingBatchPreview.applicableCount}</p>
-              <p>Skipped due to conflicts: {pendingBatchPreview.skippedCount}</p>
-              <p>Affected tasks: {pendingBatchPreview.affectedTaskCount}</p>
-              <p>Field changes: {pendingBatchPreview.fieldChangeCount}</p>
-              <p>New tasks: {pendingBatchPreview.newTaskCount}</p>
-              <p>Connection changes: {pendingBatchPreview.connectionChangeCount}</p>
+              <p>{text.recommendations}: {pendingBatchPreview.selectedCount}</p>
+              <p>{text.willApply}: {pendingBatchPreview.applicableCount}</p>
+              <p>{text.skippedDueToConflicts}: {pendingBatchPreview.skippedCount}</p>
+              <p>{text.affectedTasks}: {pendingBatchPreview.affectedTaskCount}</p>
+              <p>{text.fieldChanges}: {pendingBatchPreview.fieldChangeCount}</p>
+              <p>{text.newTasks}: {pendingBatchPreview.newTaskCount}</p>
+              <p>{text.connectionChanges}: {pendingBatchPreview.connectionChangeCount}</p>
             </div>
             <div className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm font-semibold text-slate-800">Affected stepIds</p>
+              <p className="text-sm font-semibold text-slate-800">{text.affectedStepIds}</p>
               <p className="mt-1 break-words text-sm text-slate-600">
                 {pendingBatchPreview.affectedStepIds.length
                   ? pendingBatchPreview.affectedStepIds.join(", ")
-                  : "None"}
+                  : text.none}
               </p>
             </div>
 
             {pendingBatchPreview.conflicts.length > 0 ? (
               <div className="mt-4 rounded border border-red-200 bg-red-50 p-3">
-                <p className="text-sm font-semibold text-red-800">Conflicts</p>
+                <p className="text-sm font-semibold text-red-800">{text.conflicts}</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
                   {pendingBatchPreview.conflicts.map((conflict, index) => (
                     <li key={`${conflict.message}-${index}`}>{conflict.message}</li>
                   ))}
                 </ul>
                 <p className="mt-2 text-sm text-red-700">
-                  Conflicting recommendations will be skipped.
+                  {text.conflictsSkipped}
                 </p>
               </div>
             ) : null}
 
             {pendingBatchPreview.warnings.length > 0 ? (
               <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
-                <p className="text-sm font-semibold text-amber-800">Warnings</p>
+                <p className="text-sm font-semibold text-amber-800">{text.warnings}</p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
                   {pendingBatchPreview.warnings.map((warning, index) => (
                     <li key={`${warning}-${index}`}>{warning}</li>
@@ -1736,11 +1778,11 @@ export function QAPanel({
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
                 onClick={() => rejectBatchRecommendations("user_cancelled")}
                 type="button"
               >
-                Cancel
+                {text.cancel}
               </button>
               <button
                 className="btn btn-success"
@@ -1748,7 +1790,7 @@ export function QAPanel({
                 onClick={confirmBatchRecommendations}
                 type="button"
               >
-                Confirm Apply Batch
+                {text.confirmApplyBatch}
               </button>
             </div>
           </div>

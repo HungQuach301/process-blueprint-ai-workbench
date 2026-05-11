@@ -485,6 +485,10 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
   const text = exportCenterText[locale];
   const isExportView = view === "export";
   const isProductDeliveryView = view === "product-delivery";
+  const rawPreviewLabel =
+    locale === "vi" ? "Nâng cao / Xem nội dung raw" : "Advanced / View raw content";
+  const technicalDetailsLabel =
+    locale === "vi" ? "Nâng cao / Chi tiết kỹ thuật" : "Advanced / Technical details";
 
   function readArtifactStatus(key: string): ArtifactStatus {
     const status = window.localStorage.getItem(key);
@@ -2278,7 +2282,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           {isExportView ? (
             <div className="flex flex-wrap gap-2">
               <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
                 onClick={generateAllArtifacts}
                 type="button"
               >
@@ -3117,11 +3121,14 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               <li>{locale === "vi" ? "Requirement QA và độ phủ trace" : "Requirement QA and trace coverage"}</li>
               <li>{locale === "vi" ? "Giả định và câu hỏi mở" : "Assumptions and open questions"}</li>
             </ul>
-            <p className="mt-3 text-xs leading-5 text-slate-500">
+            <details className="advanced-panel mt-3">
+              <summary>{technicalDetailsLabel}</summary>
+              <p className="border-t border-slate-200 p-3 text-xs leading-5 text-slate-500">
               {locale === "vi"
                 ? "MVP1 chưa tạo Artifact Graph. User stories và acceptance criteria được tạo qua AI skill route phía máy chủ và chỉ ở trạng thái xem trước/xuất."
                 : "No Artifact Graph is created in MVP1. User stories and acceptance criteria are generated through server-side AI skill routes and remain preview/export only."}
-            </p>
+              </p>
+            </details>
           </div>
         </div>
 
@@ -3194,14 +3201,17 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
               </div>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
-              {productDeliveryDraft.draft.combinedMarkdown}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {productDeliveryDraft.draft.combinedMarkdown}
+              </pre>
+            </details>
           </div>
         ) : null}
 
         {!brdPreview ? (
-          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-brd">
+          <div className="empty-state mt-4" id="product-delivery-brd">
             <p className="text-sm font-semibold text-slate-950">BRD</p>
             <p className="mt-1 text-sm text-slate-600">
               {locale === "vi"
@@ -3255,14 +3265,17 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
               </div>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
-              {JSON.stringify(brdPreview.brd, null, 2)}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {JSON.stringify(brdPreview.brd, null, 2)}
+              </pre>
+            </details>
           </div>
         ) : null}
 
         {!srsPreview ? (
-          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-srs">
+          <div className="empty-state mt-4" id="product-delivery-srs">
             <p className="text-sm font-semibold text-slate-950">SRS</p>
             <p className="mt-1 text-sm text-slate-600">
               {locale === "vi"
@@ -3316,14 +3329,17 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
               </div>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
-              {JSON.stringify(srsPreview.srs, null, 2)}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {JSON.stringify(srsPreview.srs, null, 2)}
+              </pre>
+            </details>
           </div>
         ) : null}
 
         {!userStoryPreview ? (
-          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-stories">
+          <div className="empty-state mt-4" id="product-delivery-stories">
             <p className="text-sm font-semibold text-slate-950">User Stories</p>
             <p className="mt-1 text-sm text-slate-600">
               {locale === "vi"
@@ -3381,14 +3397,17 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
               </div>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
-              {JSON.stringify(userStoryPreview.userStorySet, null, 2)}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {JSON.stringify(userStoryPreview.userStorySet, null, 2)}
+              </pre>
+            </details>
           </div>
         ) : null}
 
         {!acceptanceCriteriaPreview ? (
-          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-acceptance">
+          <div className="empty-state mt-4" id="product-delivery-acceptance">
             <p className="text-sm font-semibold text-slate-950">Acceptance Criteria</p>
             <p className="mt-1 text-sm text-slate-600">
               {locale === "vi"
@@ -3460,18 +3479,21 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
               </div>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
-              {JSON.stringify(
-                acceptanceCriteriaPreview.acceptanceCriteria,
-                null,
-                2
-              )}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {JSON.stringify(
+                  acceptanceCriteriaPreview.acceptanceCriteria,
+                  null,
+                  2
+                )}
+              </pre>
+            </details>
           </div>
         ) : null}
 
         {!productScopeReviewPreview ? (
-          <div className="mt-4 rounded border border-dashed border-slate-300 bg-slate-50 p-4" id="product-delivery-scope">
+          <div className="empty-state mt-4" id="product-delivery-scope">
             <p className="text-sm font-semibold text-slate-950">Scope Review / MVP Slicing</p>
             <p className="mt-1 text-sm text-slate-600">
               {locale === "vi"
@@ -3530,9 +3552,12 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
               </div>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
-              {JSON.stringify(productScopeReviewPreview.scopeReview, null, 2)}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {JSON.stringify(productScopeReviewPreview.scopeReview, null, 2)}
+              </pre>
+            </details>
           </div>
         ) : null}
 
@@ -3591,9 +3616,12 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
               </div>
             </div>
-            <pre className="max-h-96 overflow-auto whitespace-pre-wrap p-4 text-xs leading-5 text-slate-700">
-              {JSON.stringify(requirementQAPreview.requirementQA, null, 2)}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {JSON.stringify(requirementQAPreview.requirementQA, null, 2)}
+              </pre>
+            </details>
           </div>
         ) : null}
       </div>
@@ -3648,14 +3676,14 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             </label>
             <div className="mt-3 flex flex-wrap gap-2">
               <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
                 onClick={previewAICodingPack}
                 type="button"
               >
                 {text.previewPtrHandoffPack}
               </button>
               <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
                 onClick={() => void previewProductDeliveryAICodingPack()}
                 type="button"
               >
@@ -3687,11 +3715,14 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               <li>implementation-plan.md</li>
               <li>test-plan.md</li>
             </ul>
-            <p className="mt-3 text-xs leading-5 text-slate-500">
+            <details className="advanced-panel mt-3">
+              <summary>{technicalDetailsLabel}</summary>
+              <p className="border-t border-slate-200 p-3 text-xs leading-5 text-slate-500">
               {locale === "vi"
                 ? "Chi tiết nâng cao cho người dùng kỹ thuật: AGENTS.md, CLAUDE.md, cursor rules và spec.json được giữ trong gói. Product Delivery dùng `user-stories-to-ai-coding-pack` qua `/api/ai/run-skill`, có fallback local/mô phỏng và schema validation."
                 : "Advanced details for technical users: AGENTS.md, CLAUDE.md, cursor rules, and spec.json are kept in the package. Product Delivery generation uses `user-stories-to-ai-coding-pack` through `/api/ai/run-skill`, with mock/local fallback and schema validation."}
-            </p>
+              </p>
+            </details>
           </div>
         </div>
 
@@ -3718,9 +3749,12 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 ))}
               </div>
             ) : null}
-            <pre className="max-h-96 overflow-auto p-4 text-xs leading-5 text-slate-700">
-              {aiCodingPack.files.specJson}
-            </pre>
+            <details className="advanced-panel">
+              <summary>{rawPreviewLabel}</summary>
+              <pre className="raw-preview">
+                {aiCodingPack.files.specJson}
+              </pre>
+            </details>
           </div>
         ) : null}
       </div>

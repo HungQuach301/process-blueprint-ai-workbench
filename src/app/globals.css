@@ -130,6 +130,106 @@ textarea {
     #ffffff;
 }
 
+.section-title {
+  color: var(--color-neutral-slate-strong);
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.75rem;
+}
+
+.section-description {
+  max-width: 56rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.55rem;
+}
+
+.section-actions {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.section-kicker {
+  color: var(--color-primary-blue-strong);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1rem;
+  text-transform: uppercase;
+}
+
+.status-message {
+  border: 1px solid var(--color-neutral-slate-border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.status-message-success {
+  border-color: var(--color-success-green-border);
+  background: var(--color-success-green-soft);
+  color: #047857;
+}
+
+.status-message-warning {
+  border-color: var(--color-warning-amber-border);
+  background: var(--color-warning-amber-soft);
+  color: #92400e;
+}
+
+.status-message-danger {
+  border-color: var(--color-danger-red-border);
+  background: var(--color-danger-red-soft);
+  color: #b91c1c;
+}
+
+.empty-state {
+  border: 1px dashed #cbd5e1;
+  border-radius: var(--radius-card);
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  padding: 1rem;
+}
+
+.advanced-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card);
+  background: #f8fafc;
+}
+
+.advanced-panel > summary {
+  cursor: pointer;
+  color: var(--color-neutral-slate-strong);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+}
+
+.advanced-panel > summary:hover {
+  background: #f1f5f9;
+}
+
+.raw-preview {
+  max-height: 24rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  border-top: 1px solid #e2e8f0;
+  padding: 1rem;
+  color: #334155;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.75rem;
+  line-height: 1.35rem;
+}
+
 .surface-card {
   border: 1px solid var(--color-neutral-slate-border);
   border-radius: var(--radius-card);

@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the final MVP1-AI RC4 visual consistency pass.
+- Added shared UI primitives for section headers, action rows, status messages, empty states, advanced panels, and raw previews.
+- Normalized `SessionFrame` header/action spacing so major modules share a more consistent SaaS workbench frame.
+- Polished D01 BPMN and D02 Service Blueprint surfaces with consistent section labels, status messages, review summaries, and Advanced raw XML panels without changing generator behavior.
+- Standardized File Intake action buttons and error/status messages while preserving supported-file handling, stale draft clearing, and draft preview/apply flow.
+- Moved Product Delivery raw markdown/JSON/spec previews behind Advanced panels so non-technical users see summary cards first and technical users can still inspect raw output.
+- Localized and visually normalized QA recommendation confirmation modals while preserving preview-before-apply, batch confirmation, feedback logging, and graph-changing recommendation safeguards.
+- Kept this RC4 pass UI-only: no data model, canonical schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
 - Improved AI trust UX and provider status clarity for MVP1-AI RC4.
 - Added a shared AI trust status component for the global shell and AI Connection Center, showing Mock/Real AI mode, selected/effective provider, data mode, and whether an external provider call is possible.
 - Updated the global header/hero/footer status surfaces to use the unified trust summary instead of separate local formatting.

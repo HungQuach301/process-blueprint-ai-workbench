@@ -33,23 +33,23 @@ export function SessionFrame({
   return (
     <section className="surface-card w-full max-w-full min-w-0 overflow-hidden">
       {hasHeader ? (
-        <div className="w-full max-w-full min-w-0 overflow-hidden border-b border-slate-200 bg-slate-50/70 p-5">
-          <div className="flex min-w-0 flex-wrap gap-3 lg:items-start lg:justify-between">
-            <div className="min-w-0">
+        <div className="section-header w-full max-w-full min-w-0 overflow-hidden p-5">
+          <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
               {title ? (
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="section-title">
                   {title}
                 </h2>
               ) : null}
               {description ? (
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+                <p className="section-description mt-2">
                   {description}
                 </p>
               ) : null}
             </div>
 
             {actions ? (
-              <div className="flex min-w-0 max-w-full flex-wrap gap-2">
+              <div className="section-actions lg:justify-end">
                 {actions}
               </div>
             ) : null}

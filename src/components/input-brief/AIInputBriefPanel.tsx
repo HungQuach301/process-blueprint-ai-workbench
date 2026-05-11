@@ -2153,7 +2153,7 @@ export function AIInputBriefPanel() {
                       {file.fileName.toLowerCase().endsWith(".xlsx") &&
                       file.status !== "unsupported" ? (
                         <button
-                          className="rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="btn btn-ai text-xs"
                           disabled={file.status === "pending-extraction"}
                           onClick={() => {
                             const selectedFile = selectedFileObjects.find(
@@ -2177,7 +2177,7 @@ export function AIInputBriefPanel() {
                       ) : file.fileName.toLowerCase().endsWith(".docx") &&
                         file.status !== "unsupported" ? (
                         <button
-                          className="rounded border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="btn btn-ai text-xs"
                           disabled={file.status === "pending-extraction"}
                           onClick={() => {
                             const selectedFile = selectedFileObjects.find(
@@ -2201,7 +2201,7 @@ export function AIInputBriefPanel() {
                       ) : file.fileName.toLowerCase().endsWith(".pdf") &&
                         file.status !== "unsupported" ? (
                         <button
-                          className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="btn btn-ai text-xs"
                           disabled={file.status === "pending-extraction"}
                           onClick={() => {
                             const selectedFile = selectedFileObjects.find(
@@ -2230,7 +2230,7 @@ export function AIInputBriefPanel() {
                         </span>
                       ) : null}
                       <button
-                        className="ml-2 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        className="btn btn-secondary ml-2 text-xs"
                         onClick={() => removeSelectedFile(file)}
                         type="button"
                       >
@@ -2403,7 +2403,7 @@ export function AIInputBriefPanel() {
         ) : null}
 
         {intakeFiles.some((file) => file.status === "unsupported") ? (
-          <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <p className="status-message status-message-danger mt-3">
             {uiText.unsupportedSummary}
           </p>
         ) : null}
@@ -2426,7 +2426,7 @@ export function AIInputBriefPanel() {
       </div>
 
       {blockingErrors.length > 0 ? (
-        <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <div className="status-message status-message-danger mt-4">
           <p className="font-semibold">{uiText.draftBlocked}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {blockingErrors.map((error) => (
@@ -2449,21 +2449,21 @@ export function AIInputBriefPanel() {
             </div>
             <div className="flex flex-wrap gap-2">
               <button
-                className="rounded border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+                className="btn btn-success"
                 onClick={() => applyDraftPtr("replace")}
                 type="button"
               >
                 {labels.replaceCurrentPtr}
               </button>
               <button
-                className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
+                className="btn btn-primary"
                 onClick={() => applyDraftPtr("append")}
                 type="button"
               >
                 {labels.appendToCurrentPtr}
               </button>
               <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
                 onClick={cancelDraft}
                 type="button"
               >

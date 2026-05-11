@@ -545,7 +545,7 @@ export function WorkspaceDashboard({ aiStatus, locale }: WorkspaceDashboardProps
                   </span>
                   <span>{step}</span>
                   {index < steps.length - 1 ? (
-                    <span className="ml-auto text-blue-400">→</span>
+                    <span className="ml-auto text-blue-400">-&gt;</span>
                   ) : null}
                 </div>
               ))}

@@ -11,12 +11,24 @@ import { ProductDeliveryCore } from "@/components/product-delivery/ProductDelive
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
 import { WorkspaceDashboard } from "@/components/workspace/WorkspaceDashboard";
-import { getLocale, setLocale, t, type Locale } from "@/lib/i18n";
+import { getLocale, setLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
 import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
 const releaseNavigationSections = navigationSections.filter(
   (section) => section.id !== "qa-panel"
 );
+
+const moduleTabs: Array<{
+  id: string;
+  labelKey: TranslationKey;
+  href: string;
+}> = [
+  { id: "workspace", labelKey: "shell.moduleWorkspace", href: "#workspace" },
+  { id: "process-modeling", labelKey: "shell.moduleProcessModeling", href: "#input-brief" },
+  { id: "product-delivery", labelKey: "shell.moduleProductDelivery", href: "#product-delivery" },
+  { id: "templates", labelKey: "shell.moduleTemplates", href: "#template-library" },
+  { id: "export-audit", labelKey: "shell.moduleExportAudit", href: "#export-center" }
+];
 
 type AIStatusResponse = {
   realAIEnabled?: boolean;
@@ -28,18 +40,6 @@ type AIStatusResponse = {
   dataUsageMode?: string;
 };
 
-const moduleTabs: Array<{
-  id: string;
-  label: Record<Locale, string>;
-  href: string;
-}> = [
-  { id: "workspace", label: { vi: "Không gian làm việc", en: "Workspace" }, href: "#workspace" },
-  { id: "process-modeling", label: { vi: "Mô hình quy trình", en: "Process Modeling" }, href: "#input-brief" },
-  { id: "product-delivery", label: { vi: "Hồ sơ sản phẩm", en: "Product Delivery" }, href: "#product-delivery" },
-  { id: "templates", label: { vi: "Mẫu", en: "Templates" }, href: "#template-library" },
-  { id: "export-audit", label: { vi: "Xuất & kiểm toán", en: "Export & Audit" }, href: "#export-center" }
-];
-
 function hasRealAI(status: AIStatusResponse) {
   return (
     status.realAIEnabled === true ||
@@ -48,56 +48,61 @@ function hasRealAI(status: AIStatusResponse) {
   );
 }
 
+function formatProviderName(provider: string) {
+  if (provider === "product-ai") {
+    return "Product AI";
+  }
+
+  if (provider === "openai") {
+    return "OpenAI";
+  }
+
+  if (provider === "claude") {
+    return "Claude";
+  }
+
+  return provider;
+}
+
 function getAIStatusLabel(status: AIStatusResponse, locale: Locale) {
   const effectiveProvider = status.effectiveProvider ?? status.provider ?? "mock";
 
   if (status.fallbackActive) {
-    return locale === "vi" ? "AI: fallback local/mock" : "AI: local/mock fallback";
+    return t("shell.aiLocalMockFallback", locale);
   }
 
   if (!hasRealAI(status) || effectiveProvider === "mock") {
-    return locale === "vi" ? "AI: local/mock" : "AI: local/mock";
+    return t("shell.aiLocalMock", locale);
   }
 
-  return `AI: ${effectiveProvider}`;
+  return `${t("shell.aiServerSide", locale)}: ${formatProviderName(effectiveProvider)}`;
 }
 
 function getAIModeValue(status: AIStatusResponse, locale: Locale) {
-  if (!hasRealAI(status)) {
-    return locale === "vi"
-      ? "Local/mock, xem trước trước khi áp dụng"
-      : "Local/mock, preview first";
+  if (!hasRealAI(status) || status.fallbackActive) {
+    return t("shell.aiLocalMock", locale);
   }
 
-  return locale === "vi"
-    ? "AI server-side, xem trước trước khi áp dụng"
-    : "Server-side AI, preview first";
+  return t("shell.aiServerSide", locale);
+}
+
+function getDataModeValue(status: AIStatusResponse, locale: Locale) {
+  switch (status.dataUsageMode) {
+    case "cloud-processing":
+      return t("shell.dataModeCloudProcessing", locale);
+    case "no-training":
+      return t("shell.dataModeNoTraining", locale);
+    case "organization-private-learning":
+      return t("shell.dataModePrivateLearning", locale);
+    case "local-only":
+    default:
+      return t("shell.dataModeLocalOnly", locale);
+  }
 }
 
 export function AppShell() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [aiStatus, setAIStatus] = useState<AIStatusResponse>({});
-  const artifactCount = releaseNavigationSections.filter(
-    (section) =>
-      section.id === "d01-bpmn-preview" ||
-      section.id === "d02-service-blueprint-preview" ||
-      section.id === "export-center"
-  ).length;
-  const headerText = {
-    artifactSummary:
-      locale === "vi"
-        ? `${artifactCount} đầu ra đã sẵn sàng`
-        : `${artifactCount} artifact outputs ready`,
-    aiModeLabel: locale === "vi" ? "Chế độ AI" : "AI mode",
-    sourceLabel: locale === "vi" ? "Nguồn dữ liệu chuẩn" : "Source of truth",
-    releaseLabel: locale === "vi" ? "Phạm vi phát hành" : "Release scope",
-    dataModeLabel: locale === "vi" ? "Chế độ dữ liệu" : "Data mode",
-    privacyLabel: locale === "vi" ? "Quyền riêng tư" : "Privacy",
-    footerPrivacy:
-      locale === "vi"
-        ? "Local storage lưu tùy chọn và metadata bản nháp trong trình duyệt này; API key không được nhập hoặc hiển thị ở client."
-        : "Local storage keeps preferences and draft metadata in this browser; API keys are never entered or displayed in the client."
-  };
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -125,19 +130,17 @@ export function AppShell() {
 
   return (
     <main className="app-shell min-h-screen w-full max-w-full overflow-x-hidden">
-      <header className="app-menubar sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+      <header className="app-menubar sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 lg:px-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <a className="flex min-w-0 items-center gap-3" href="#workspace">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-sm font-black text-white shadow-sm">
-                PB
-              </span>
+              <span className="product-mark">PB</span>
               <span className="min-w-0">
                 <span className="block text-xs font-bold uppercase tracking-wide text-slate-500">
-                  MVP1-AI RC3
+                  {t("shell.versionValue", locale)}
                 </span>
                 <span className="block truncate text-lg font-semibold text-slate-950">
-                  Process Blueprint AI Workbench
+                  {t("shell.productName", locale)}
                 </span>
               </span>
             </a>
@@ -146,11 +149,11 @@ export function AppShell() {
               <span className="status-badge status-badge-ai">
                 {getAIStatusLabel(aiStatus, locale)}
               </span>
-              <span className="status-badge status-badge-success">
-                {headerText.artifactSummary}
+              <span className="status-badge status-badge-primary">
+                {t("shell.dataMode", locale)}: {getDataModeValue(aiStatus, locale)}
               </span>
               <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
-                {t("common.language", locale)}
+                {t("shell.language", locale)}
                 <select
                   className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
                   onChange={(event) => switchLocale(event.target.value as Locale)}
@@ -166,7 +169,7 @@ export function AppShell() {
           <nav aria-label="Module tabs" className="flex gap-2 overflow-x-auto pb-1">
             {moduleTabs.map((tab) => (
               <a className="module-tab" href={tab.href} key={tab.id}>
-                {tab.label[locale]}
+                {t(tab.labelKey, locale)}
               </a>
             ))}
           </nav>
@@ -178,17 +181,17 @@ export function AppShell() {
 
         <section className="min-w-0 max-w-full flex-1">
           <header className="surface-card mb-6 overflow-hidden">
-            <div className="border-b border-slate-200 bg-white p-6">
+            <div className="section-header p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="status-badge status-badge-primary">
-                    {t("session.mvpSkeleton", locale)}
+                    {t("shell.heroEyebrow", locale)}
                   </p>
-                  <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-                    Process Blueprint AI Workbench
+                  <h1 className="mt-3 max-w-3xl text-3xl font-semibold text-slate-950">
+                    {t("shell.heroTitle", locale)}
                   </h1>
-                  <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                    {t("session.appDescription", locale)}
+                  <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                    {t("shell.heroDescription", locale)}
                   </p>
                 </div>
 
@@ -196,16 +199,17 @@ export function AppShell() {
                   <span className="status-badge status-badge-ai">
                     {getAIStatusLabel(aiStatus, locale)}
                   </span>
-                  <span className="status-badge status-badge-success">
-                    {headerText.artifactSummary}
+                  <span className="status-badge status-badge-primary">
+                    {t("shell.dataMode", locale)}: {getDataModeValue(aiStatus, locale)}
                   </span>
                 </div>
               </div>
             </div>
+
             <div className="grid gap-3 bg-slate-50/80 p-4 sm:grid-cols-3">
               <div className="soft-panel p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {headerText.aiModeLabel}
+                  {t("shell.aiStatus", locale)}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {getAIModeValue(aiStatus, locale)}
@@ -213,7 +217,7 @@ export function AppShell() {
               </div>
               <div className="soft-panel p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {headerText.sourceLabel}
+                  {t("shell.sourceOfTruth", locale)}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   Process Task Register
@@ -221,10 +225,10 @@ export function AppShell() {
               </div>
               <div className="soft-panel p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {headerText.releaseLabel}
+                  {t("shell.releaseScope", locale)}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
-                  MVP1-AI RC3
+                  {t("shell.versionValue", locale)}
                 </p>
               </div>
             </div>
@@ -272,13 +276,15 @@ export function AppShell() {
             <div className="grid gap-3 md:grid-cols-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  Version
+                  {t("shell.versionLabel", locale)}
                 </p>
-                <p className="mt-1 font-semibold text-slate-900">MVP1-AI RC3</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {t("shell.versionValue", locale)}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {headerText.aiModeLabel}
+                  {t("shell.aiStatus", locale)}
                 </p>
                 <p className="mt-1 font-semibold text-slate-900">
                   {getAIModeValue(aiStatus, locale)}
@@ -286,17 +292,17 @@ export function AppShell() {
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {headerText.dataModeLabel}
+                  {t("shell.dataMode", locale)}
                 </p>
                 <p className="mt-1 font-semibold text-slate-900">
-                  {aiStatus.dataUsageMode ?? "local-only"}
+                  {getDataModeValue(aiStatus, locale)}
                 </p>
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {headerText.privacyLabel}
+                  {t("shell.privacy", locale)}
                 </p>
-                <p className="mt-1 leading-5">{headerText.footerPrivacy}</p>
+                <p className="mt-1 leading-5">{t("shell.privacyNote", locale)}</p>
               </div>
             </div>
           </footer>

@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Implemented the MVP1-AI RC4 App Shell + Theme polish block.
+- Updated the global header/top menubar with `Process Blueprint AI Workbench`, RC4 version label, primary module tabs, AI status badge, data mode badge, and language selector.
+- Reworked the contextual sidebar grouping into Setup, Process Modeling, Product Delivery, and Export & Audit.
+- Updated the app footer with version, AI mode, data mode, and local storage/privacy note.
+- Strengthened global theme tokens and shared UI classes for primary blue, AI purple, success green, warning amber, danger red, slate neutral, card radius, card shadow, section header, status badges, and button hierarchy.
+- Kept the RC4 shell polish UI-only: no business logic, data model, canonical schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
 - Created RC4 UI/UX audit documentation for Workspace, AI Connection Center, AI Input Brief, File Intake, Template Hub, QA Panel, Process Task Register, D01 BPMN, D02 Service Blueprint, Product Delivery, AI Development Handoff Pack, Export Center, and AI Run History.
 - Created the RC4 UI/UX implementation plan with small delivery blocks for App Shell + Theme, i18n cleanup, Workspace Dashboard, Template Hub redesign, Product Delivery module, QA Panel redesign, PTR table UX, and Export/Audit polish.
 - Kept this RC4 step documentation-only: no application code, data model, canonical schema, D01/D02 generator, provider adapter, browser secret handling, or AI auto-apply behavior was changed.

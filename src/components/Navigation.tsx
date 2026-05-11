@@ -10,10 +10,9 @@ type NavigationProps = {
 };
 
 type NavigationGroup =
-  | "workspace"
+  | "setup"
   | "process-modeling"
   | "product-delivery"
-  | "templates"
   | "export-audit";
 
 const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>> = {
@@ -28,44 +27,28 @@ const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>
   "export-center": "nav.exportCenter"
 };
 
-const helperByLocale: Record<Locale, string> = {
-  vi: "Điều hướng theo module",
-  en: "Contextual module navigation"
-};
-
 const groupOrder: NavigationGroup[] = [
-  "workspace",
+  "setup",
   "process-modeling",
   "product-delivery",
-  "templates",
   "export-audit"
 ];
 
-const groupLabels: Record<Locale, Record<NavigationGroup, string>> = {
-  vi: {
-    workspace: "Không gian làm việc",
-    "process-modeling": "Mô hình quy trình",
-    "product-delivery": "Hồ sơ sản phẩm",
-    templates: "Mẫu",
-    "export-audit": "Xuất & kiểm toán"
-  },
-  en: {
-    workspace: "Workspace",
-    "process-modeling": "Process Modeling",
-    "product-delivery": "Product Delivery",
-    templates: "Templates",
-    "export-audit": "Export & Audit"
-  }
+const groupLabelKey: Record<NavigationGroup, TranslationKey> = {
+  setup: "shell.sidebarSetup",
+  "process-modeling": "shell.sidebarProcessModeling",
+  "product-delivery": "shell.sidebarProductDelivery",
+  "export-audit": "shell.sidebarExportAudit"
 };
 
 const groupBySectionId: Record<string, NavigationGroup> = {
-  workspace: "workspace",
-  "ai-settings": "workspace",
+  workspace: "setup",
+  "ai-settings": "setup",
   "input-brief": "process-modeling",
   "process-task-register": "process-modeling",
   "d01-bpmn-preview": "process-modeling",
   "d02-service-blueprint-preview": "process-modeling",
-  "template-library": "templates",
+  "template-library": "process-modeling",
   "product-delivery": "product-delivery",
   "export-center": "export-audit"
 };
@@ -73,10 +56,7 @@ const groupBySectionId: Record<string, NavigationGroup> = {
 const productDeliveryLinks = [
   {
     id: "product-delivery",
-    label: {
-      vi: "Luồng hồ sơ sản phẩm",
-      en: "Product Delivery flows"
-    },
+    labelKey: "shell.productDeliveryFlow" as const,
     href: "#product-delivery"
   }
 ];
@@ -92,10 +72,9 @@ export function Navigation({ locale, sections }: NavigationProps) {
         return groups;
       },
       {
-        workspace: [],
+        setup: [],
         "process-modeling": [],
         "product-delivery": [],
-        templates: [],
         "export-audit": []
       }
     );
@@ -132,9 +111,11 @@ export function Navigation({ locale, sections }: NavigationProps) {
     <aside className="surface-card sticky top-28 hidden h-fit w-72 shrink-0 p-4 md:block">
       <div className="mb-5 border-b border-slate-200 pb-4">
         <p className="text-sm font-semibold text-slate-950">
-          {locale === "vi" ? "Bản đồ module" : "Module map"}
+          {t("shell.sidebarTitle", locale)}
         </p>
-        <p className="mt-1 text-sm text-slate-500">{helperByLocale[locale]}</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {t("shell.sidebarHelper", locale)}
+        </p>
       </div>
 
       <nav aria-label="Workbench sections">
@@ -149,21 +130,19 @@ export function Navigation({ locale, sections }: NavigationProps) {
           return (
             <div className="mb-5 last:mb-0" key={group}>
               <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-slate-500">
-                {groupLabels[locale][group]}
+                {t(groupLabelKey[group], locale)}
               </p>
               <ol className="space-y-1">
                 {extraLinks.map((link) => (
                   <li key={link.id}>
                     <a
-                      className={`block rounded-md border px-3 py-2 text-sm font-semibold transition ${
-                        activeSectionId === "product-delivery"
-                          ? "border-purple-200 bg-purple-50 text-purple-800 shadow-sm"
-                          : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950"
+                      className={`sidebar-link ${
+                        activeSectionId === "product-delivery" ? "sidebar-link-active-ai" : ""
                       }`}
                       href={link.href}
                       onClick={() => setActiveSectionId("product-delivery")}
                     >
-                      {link.label[locale]}
+                      {t(link.labelKey, locale)}
                     </a>
                   </li>
                 ))}
@@ -174,11 +153,7 @@ export function Navigation({ locale, sections }: NavigationProps) {
                   return (
                     <li key={section.id}>
                       <a
-                        className={`block rounded-md border px-3 py-2 text-sm font-semibold transition ${
-                          isActive
-                            ? "border-blue-200 bg-blue-50 text-blue-800 shadow-sm"
-                            : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950"
-                        }`}
+                        className={`sidebar-link ${isActive ? "sidebar-link-active" : ""}`}
                         href={`#${section.id}`}
                         onClick={() => setActiveSectionId(section.id)}
                       >

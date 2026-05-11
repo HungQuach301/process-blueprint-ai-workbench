@@ -42,6 +42,12 @@ const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
+type QAReviewTab =
+  | "critical"
+  | "warnings"
+  | "suggestions"
+  | "recommendations"
+  | "advanced";
 
 type AIQACompareResult = {
   id: string;
@@ -72,10 +78,10 @@ const qaPanelText = {
     selected: "đã chọn",
     safeHelper: "An toàn = độ tin cậy cao, rủi ro thấp và chỉ đổi trường đơn giản. Đề xuất đổi graph không được chọn mặc định.",
     selectSafe: "Chọn đề xuất an toàn",
-    applySelected: "Áp dụng mục đã chọn",
+    applySelected: "Xem trước mục đã chọn",
     more: "Thêm",
     clearSelection: "Xóa lựa chọn",
-    applyAllSafe: "Áp dụng tất cả đề xuất an toàn",
+    applyAllSafe: "Xem trước đề xuất an toàn",
     exportFeedback: "Xuất feedback JSON",
     clearLocalFeedback: "Xóa feedback local",
     running: "Đang chạy AI QA...",
@@ -91,6 +97,14 @@ const qaPanelText = {
     automaticRecommendations: "Gợi ý tự động",
     suggestedFix: "Cách sửa",
     noIssuesInGroup: "Không có issue trong nhóm này.",
+    recommendedNextAction: "Bước tiếp theo được đề xuất",
+    fixCriticalFirst: "Xử lý issue nghiêm trọng trước, sau đó chạy lại QA.",
+    reviewWarningsNext: "Review cảnh báo để giảm rủi ro trước khi xuất artifact.",
+    reviewSafeRecommendations: "Xem trước các đề xuất an toàn rồi xác nhận nếu phù hợp.",
+    readyForExportReview: "Không còn issue nổi bật. Có thể review artifact hoặc export.",
+    reviewTabs: "Luồng review",
+    recommendationsTab: "Đề xuất",
+    whyItMatters: "Vì sao cần chú ý",
     critical: "Nghiêm trọng",
     warnings: "Cảnh báo",
     suggestions: "Gợi ý",
@@ -112,10 +126,10 @@ const qaPanelText = {
     selected: "selected",
     safeHelper: "Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.",
     selectSafe: "Select safe",
-    applySelected: "Apply selected",
+    applySelected: "Preview selected",
     more: "More",
     clearSelection: "Clear selection",
-    applyAllSafe: "Apply all safe recommendations",
+    applyAllSafe: "Preview safe recommendations",
     exportFeedback: "Export feedback JSON",
     clearLocalFeedback: "Clear local feedback",
     running: "Running AI QA...",
@@ -131,6 +145,14 @@ const qaPanelText = {
     automaticRecommendations: "Automatic recommendations",
     suggestedFix: "Suggested fix",
     noIssuesInGroup: "No issues in this group.",
+    recommendedNextAction: "Recommended next action",
+    fixCriticalFirst: "Fix critical issues first, then rerun QA.",
+    reviewWarningsNext: "Review warnings to reduce risk before exporting artifacts.",
+    reviewSafeRecommendations: "Preview safe recommendations and confirm the ones that fit.",
+    readyForExportReview: "No prominent issues remain. Review artifacts or export when ready.",
+    reviewTabs: "Review workflow",
+    recommendationsTab: "Recommendations",
+    whyItMatters: "Why it matters",
     critical: "Critical",
     warnings: "Warnings",
     suggestions: "Suggestions",
@@ -332,6 +354,7 @@ export function QAPanel({
   const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
   const [compareResults, setCompareResults] = useState<AIQACompareResult[]>([]);
   const [isRunningCompare, setIsRunningCompare] = useState(false);
+  const [activeReviewTab, setActiveReviewTab] = useState<QAReviewTab>("critical");
   useEffect(() => {
     setActiveLocale(getLocale());
     setAiQaIssues([]);
@@ -443,9 +466,56 @@ export function QAPanel({
     warning: text.warnings,
     suggestion: text.suggestions
   };
+  const criticalIssues = displayIssues.filter((issue) => issue.severity === "error");
+  const warningIssues = displayIssues.filter((issue) => issue.severity === "warning");
+  const suggestionIssues = displayIssues.filter((issue) => issue.severity === "suggestion");
+  const advancedIssues = displayIssues.filter((issue) =>
+    issue.recommendations?.some(isAdvancedStructureRecommendation)
+  );
+  const recommendationIssues = displayIssues.filter((issue) =>
+    issue.recommendations?.some((recommendation, index) => {
+      const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
+
+      return visibleRecommendationIds.has(recommendationId);
+    })
+  );
+  const nextAction =
+    criticalIssues.length > 0
+      ? text.fixCriticalFirst
+      : warningIssues.length > 0
+        ? text.reviewWarningsNext
+        : safeRecommendations.length > 0
+          ? text.reviewSafeRecommendations
+          : text.readyForExportReview;
+  const summaryCards = [
+    {
+      key: "critical" as QAReviewTab,
+      label: text.critical,
+      count: criticalIssues.length,
+      className: "border-red-200 bg-red-50 text-red-900"
+    },
+    {
+      key: "warnings" as QAReviewTab,
+      label: text.warnings,
+      count: warningIssues.length,
+      className: "border-amber-200 bg-amber-50 text-amber-900"
+    },
+    {
+      key: "suggestions" as QAReviewTab,
+      label: text.suggestions,
+      count: suggestionIssues.length,
+      className: "border-sky-200 bg-sky-50 text-sky-900"
+    },
+    {
+      key: "recommendations" as QAReviewTab,
+      label: text.recommendationsTab,
+      count: recommendationEntries.length,
+      className: "border-emerald-200 bg-emerald-50 text-emerald-900"
+    }
+  ];
   const groupedIssues = [
     {
-      key: "error",
+      key: "critical" as QAReviewTab,
       label: localizedSeverityLabels.error,
       issues: displayIssues.filter(
         (issue) =>
@@ -458,7 +528,7 @@ export function QAPanel({
       severity: "error" as QaSeverity
     },
     {
-      key: "warning",
+      key: "warnings" as QAReviewTab,
       label: localizedSeverityLabels.warning,
       issues: displayIssues.filter(
         (issue) =>
@@ -471,7 +541,7 @@ export function QAPanel({
       severity: "warning" as QaSeverity
     },
     {
-      key: "suggestion",
+      key: "suggestions" as QAReviewTab,
       label: localizedSeverityLabels.suggestion,
       issues: displayIssues.filter(
         (issue) =>
@@ -484,17 +554,32 @@ export function QAPanel({
       severity: "suggestion" as QaSeverity
     },
     {
-      key: "advanced",
+      key: "recommendations" as QAReviewTab,
+      label: text.recommendationsTab,
+      issues: recommendationIssues,
+      severity: "suggestion" as QaSeverity
+    },
+    {
+      key: "advanced" as QAReviewTab,
       label: text.advancedStructureChanges,
       issues: includeGraphChanging
-        ? displayIssues.filter((issue) =>
-            issue.recommendations?.some(isAdvancedStructureRecommendation)
-          )
+        ? advancedIssues
         : [],
       severity: "suggestion" as QaSeverity,
       isAdvanced: true
     }
   ];
+  const activeIssueGroup =
+    groupedIssues.find((group) => group.key === activeReviewTab) ?? groupedIssues[0];
+  const reviewTabs = groupedIssues.map((group) => ({
+    key: group.key,
+    label: group.label,
+    count:
+      group.key === "advanced" && !includeGraphChanging
+        ? advancedIssues.length
+        : group.issues.length,
+    isAdvanced: group.isAdvanced === true
+  }));
   const pendingChanges = pendingRecommendation
     ? getRecommendationChangePreview(processTasks, pendingRecommendation.recommendation)
     : [];
@@ -999,6 +1084,31 @@ export function QAPanel({
       description={text.description}
       title={text.title}
     >
+      <div className="mb-4 grid gap-3 md:grid-cols-4">
+        {summaryCards.map((card) => (
+          <button
+            className={`rounded border p-3 text-left transition hover:shadow-sm ${card.className}`}
+            key={card.key}
+            onClick={() => setActiveReviewTab(card.key)}
+            type="button"
+          >
+            <p className="text-xs font-bold uppercase tracking-wide">
+              {card.label}
+            </p>
+            <p className="mt-2 text-2xl font-semibold">{card.count}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
+          {text.recommendedNextAction}
+        </p>
+        <p className="mt-1 text-sm font-semibold text-blue-950">
+          {nextAction}
+        </p>
+      </div>
+
       {hasRecommendations ? (
         <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -1217,25 +1327,60 @@ export function QAPanel({
         {text.totalIssues}: {displayIssues.length}
       </p>
 
+      <div className="mb-4 rounded border border-slate-200 bg-white p-2">
+        <p className="px-2 pb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+          {text.reviewTabs}
+        </p>
+        <div className="flex gap-2 overflow-x-auto">
+          {reviewTabs.map((tab) => (
+            <button
+              className={`shrink-0 rounded border px-3 py-2 text-sm font-semibold transition ${
+                activeReviewTab === tab.key
+                  ? tab.isAdvanced
+                    ? "border-violet-200 bg-violet-50 text-violet-800"
+                    : "border-blue-200 bg-blue-50 text-blue-800"
+                  : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50"
+              }`}
+              key={tab.key}
+              onClick={() => setActiveReviewTab(tab.key)}
+              type="button"
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid w-full max-w-full min-w-0 gap-4 overflow-x-auto">
-        {groupedIssues.map((group) => (
-          <section className="min-w-0 rounded border border-slate-200" key={group.key}>
+          <section className="min-w-0 rounded border border-slate-200" key={activeIssueGroup.key}>
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
               <h3 className="text-sm font-semibold text-slate-950">
-                {group.label}
+                {activeIssueGroup.label}
               </h3>
               <span
                 className={`rounded border px-2 py-1 text-xs font-semibold ${
-                  group.isAdvanced ? advancedGroupStyles : severityStyles[group.severity]
+                  activeIssueGroup.isAdvanced ? advancedGroupStyles : severityStyles[activeIssueGroup.severity]
                 }`}
               >
-                {group.issues.length}
+                {activeIssueGroup.issues.length}
               </span>
             </div>
 
-            {group.issues.length > 0 ? (
+            {activeReviewTab === "advanced" && !includeGraphChanging ? (
+              <div className="px-4 py-3 text-sm text-slate-600">
+                <p>{text.hiddenAdvanced}</p>
+                <label className="mt-3 flex items-center gap-2">
+                  <input
+                    checked={includeGraphChanging}
+                    onChange={(event) => setIncludeGraphChanging(event.target.checked)}
+                    type="checkbox"
+                  />
+                  {text.includeGraph}
+                </label>
+              </div>
+            ) : activeIssueGroup.issues.length > 0 ? (
               <div className="divide-y divide-slate-200">
-                {group.issues.map((issue) => (
+                {activeIssueGroup.issues.map((issue) => (
                   <div
                     className="block w-full max-w-full px-4 py-3 text-left hover:bg-slate-50"
                     key={issue.id}
@@ -1258,14 +1403,30 @@ export function QAPanel({
                       <p className="mt-2 text-sm font-semibold text-slate-950">
                         {issue.taskName}
                       </p>
-                      <p className="mt-1 text-sm text-slate-700">{issue.message}</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {text.suggestedFix}: {issue.suggestedFix}
-                      </p>
+                      <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
+                        <p className="text-slate-600">
+                          <span className="font-semibold text-slate-800">
+                            {text.whyItMatters}:
+                          </span>{" "}
+                          {issue.message}
+                        </p>
+                        <p className="text-slate-600">
+                          <span className="font-semibold text-slate-800">
+                            {text.suggestedFix}:
+                          </span>{" "}
+                          {issue.suggestedFix}
+                        </p>
+                        <p className="text-slate-600">
+                          <span className="font-semibold text-slate-800">
+                            {text.affectedSteps}:
+                          </span>{" "}
+                          {issue.stepId}
+                        </p>
+                      </div>
                     </button>
                     <div
                       className={`mt-3 rounded border p-3 ${
-                        group.isAdvanced
+                        activeIssueGroup.isAdvanced
                           ? advancedRecommendationBoxStyle
                           : recommendationBoxStyles[issue.severity]
                       }`}
@@ -1286,7 +1447,7 @@ export function QAPanel({
                               return (
                             <div
                               className={`rounded border p-3 ${
-                                group.isAdvanced
+                                activeIssueGroup.isAdvanced
                                   ? advancedRecommendationCardStyle
                                   : recommendationCardStyles[issue.severity]
                               }`}
@@ -1366,7 +1527,6 @@ export function QAPanel({
               </p>
             )}
           </section>
-        ))}
       </div>
     </SessionFrame>
 

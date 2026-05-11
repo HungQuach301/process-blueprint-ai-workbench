@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Redesigned QA Panel into a clearer user-friendly review workflow for MVP1-AI RC3.
+- Added QA summary cards for Critical, Warnings, Suggestions, and Recommendations plus a recommended next action message.
+- Added review tabs for Critical, Warnings, Suggestions, Recommendations, and Advanced structure changes.
+- Kept graph-changing recommendations hidden by default behind the existing advanced structure toggle.
+- Kept card actions as preview-first: recommendation cards use `Preview change`, selected/safe batch actions open preview/confirmation before apply.
+- Simplified issue cards around issue title, why it matters, suggested fix, and affected step while preserving recommendation logic and feedback logging.
 - Moved Product Delivery Core out of Export Center into a dedicated primary module for MVP1-AI RC3.
 - Updated the global module tab and contextual sidebar so Product Delivery points to its own `#product-delivery` section instead of `#export-center`.
 - Kept Product Delivery generation/export logic intact while rendering it through a dedicated Product Delivery module surface.

@@ -9,6 +9,13 @@ type NavigationProps = {
   sections: NavigationSection[];
 };
 
+type NavigationGroup =
+  | "workspace"
+  | "process-modeling"
+  | "product-delivery"
+  | "templates"
+  | "export-audit";
+
 const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>> = {
   workspace: "nav.workspace",
   "ai-settings": "nav.aiSettings",
@@ -22,42 +29,71 @@ const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>
 };
 
 const helperByLocale: Record<Locale, string> = {
-  vi: "Khu vực làm việc",
-  en: "Navigation sections"
+  vi: "Contextual module navigation",
+  en: "Contextual module navigation"
 };
 
-const groupLabels: Record<Locale, Record<"setup" | "modeling" | "outputs", string>> = {
+const groupOrder: NavigationGroup[] = [
+  "workspace",
+  "process-modeling",
+  "product-delivery",
+  "templates",
+  "export-audit"
+];
+
+const groupLabels: Record<Locale, Record<NavigationGroup, string>> = {
   vi: {
-    setup: "Thiết lập",
-    modeling: "Mô hình quy trình",
-    outputs: "Đầu ra"
+    workspace: "Workspace",
+    "process-modeling": "Process Modeling",
+    "product-delivery": "Product Delivery",
+    templates: "Templates",
+    "export-audit": "Export & Audit"
   },
   en: {
-    setup: "Setup",
-    modeling: "Process modeling",
-    outputs: "Outputs"
+    workspace: "Workspace",
+    "process-modeling": "Process Modeling",
+    "product-delivery": "Product Delivery",
+    templates: "Templates",
+    "export-audit": "Export & Audit"
   }
 };
 
-const groupBySectionId: Record<string, keyof typeof groupLabels.en> = {
-  "ai-settings": "setup",
-  "input-brief": "modeling",
-  "template-library": "modeling",
-  "process-task-register": "modeling",
-  "d01-bpmn-preview": "outputs",
-  "d02-service-blueprint-preview": "outputs",
-  "export-center": "outputs"
+const groupBySectionId: Record<string, NavigationGroup> = {
+  "ai-settings": "workspace",
+  "input-brief": "process-modeling",
+  "process-task-register": "process-modeling",
+  "d01-bpmn-preview": "process-modeling",
+  "d02-service-blueprint-preview": "process-modeling",
+  "template-library": "templates",
+  "export-center": "export-audit"
 };
+
+const productDeliveryLinks = [
+  {
+    id: "product-delivery",
+    label: "Product Delivery flows",
+    href: "#export-center"
+  }
+];
 
 export function Navigation({ locale, sections }: NavigationProps) {
   const [activeSectionId, setActiveSectionId] = useState(sections[0]?.id ?? "");
 
   const groupedSections = useMemo(() => {
-    return sections.reduce<Record<string, NavigationSection[]>>((groups, section) => {
-      const group = groupBySectionId[section.id] ?? "outputs";
-      groups[group] = [...(groups[group] ?? []), section];
-      return groups;
-    }, {});
+    return sections.reduce<Record<NavigationGroup, NavigationSection[]>>(
+      (groups, section) => {
+        const group = groupBySectionId[section.id] ?? "export-audit";
+        groups[group] = [...groups[group], section];
+        return groups;
+      },
+      {
+        workspace: [],
+        "process-modeling": [],
+        "product-delivery": [],
+        templates: [],
+        "export-audit": []
+      }
+    );
   }, [sections]);
 
   useEffect(() => {
@@ -66,7 +102,7 @@ export function Navigation({ locale, sections }: NavigationProps) {
         .map((section) => {
           const element = document.getElementById(section.id);
           return element
-            ? { id: section.id, top: Math.abs(element.getBoundingClientRect().top - 96) }
+            ? { id: section.id, top: Math.abs(element.getBoundingClientRect().top - 136) }
             : null;
         })
         .filter((section): section is { id: string; top: number } => Boolean(section))
@@ -88,17 +124,18 @@ export function Navigation({ locale, sections }: NavigationProps) {
   }, [sections]);
 
   return (
-    <aside className="surface-card sticky top-6 hidden h-fit w-72 shrink-0 p-4 md:block">
+    <aside className="surface-card sticky top-28 hidden h-fit w-72 shrink-0 p-4 md:block">
       <div className="mb-5 border-b border-slate-200 pb-4">
-        <p className="text-sm font-semibold text-slate-950">Workbench</p>
+        <p className="text-sm font-semibold text-slate-950">Module map</p>
         <p className="mt-1 text-sm text-slate-500">{helperByLocale[locale]}</p>
       </div>
 
       <nav aria-label="Workbench sections">
-        {(["setup", "modeling", "outputs"] as const).map((group) => {
-          const groupSections = groupedSections[group] ?? [];
+        {groupOrder.map((group) => {
+          const groupSections = groupedSections[group];
+          const extraLinks = group === "product-delivery" ? productDeliveryLinks : [];
 
-          if (groupSections.length === 0) {
+          if (groupSections.length === 0 && extraLinks.length === 0) {
             return null;
           }
 
@@ -108,6 +145,21 @@ export function Navigation({ locale, sections }: NavigationProps) {
                 {groupLabels[locale][group]}
               </p>
               <ol className="space-y-1">
+                {extraLinks.map((link) => (
+                  <li key={link.id}>
+                    <a
+                      className={`block rounded-md border px-3 py-2 text-sm font-semibold transition ${
+                        activeSectionId === "export-center"
+                          ? "border-purple-200 bg-purple-50 text-purple-800 shadow-sm"
+                          : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950"
+                      }`}
+                      href={link.href}
+                      onClick={() => setActiveSectionId("export-center")}
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
                 {groupSections.map((section) => {
                   const navKey = navKeyBySectionId[section.id];
                   const isActive = activeSectionId === section.id;

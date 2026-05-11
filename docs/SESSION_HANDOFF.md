@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Created a polished MVP1-AI RC3 app shell.
+- Added a sticky global header/menubar with product mark, product name, module tabs, AI status badge, artifact readiness badge, and language selector.
+- Reworked the contextual sidebar into module groups: Workspace, Process Modeling, Product Delivery, Templates, and Export & Audit.
+- Added an app footer with version, AI mode, data mode, and a local storage/privacy note.
+- Extended the global theme tokens for primary blue, AI purple, success green, warning amber, danger red, and slate neutral styling.
+- Normalized shell typography, spacing, 8px card radius, subtle shadows, module tabs, and shared shell background styling.
+- Kept the change UI-only: no business logic, AI route behavior, provider adapter, generator, schema, API key handling, or auto-apply behavior was changed.
 - Polished File Intake and AI Development Handoff Pack UX for MVP1-AI RC2.
 - Added clearer File Intake supported-format guidance: text-based PDF, DOCX, and XLSX are supported locally; Image/OCR/Voice intake is coming soon.
 - Made selected File Intake rows show file name, file type, processing status, next step, Generate Draft PTR, and Clear file actions.

@@ -7,8 +7,10 @@
   color-scheme: light;
   --color-primary-blue: #2563eb;
   --color-primary-blue-strong: #1d4ed8;
+  --color-primary-blue-soft: #eff6ff;
   --color-ai-purple: #7c3aed;
   --color-ai-purple-strong: #6d28d9;
+  --color-ai-purple-soft: #f5f3ff;
   --color-success-green: #059669;
   --color-success-green-soft: #ecfdf5;
   --color-warning-amber: #d97706;
@@ -17,8 +19,11 @@
   --color-danger-red-soft: #fef2f2;
   --color-neutral-slate: #334155;
   --color-neutral-slate-soft: #f8fafc;
+  --color-neutral-slate-border: #dbe4ef;
+  --space-module: 1.25rem;
   --radius-card: 8px;
   --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 12px 32px rgb(15 23 42 / 0.04);
+  --shadow-shell: 0 18px 50px rgb(15 23 42 / 0.06);
 }
 
 * {
@@ -35,6 +40,8 @@ body {
     #f8fafc;
   color: #172033;
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 html {
@@ -48,8 +55,55 @@ a {
   text-decoration: none;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  background:
+    linear-gradient(180deg, #eaf2ff 0, #f8fafc 16rem),
+    var(--color-neutral-slate-soft);
+}
+
+.app-menubar {
+  box-shadow: 0 1px 0 rgb(15 23 42 / 0.05), var(--shadow-shell);
+}
+
+.module-tab {
+  display: inline-flex;
+  min-height: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: var(--color-neutral-slate);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+  white-space: nowrap;
+}
+
+.module-tab:hover,
+.module-tab:focus-visible {
+  border-color: #bfdbfe;
+  background: var(--color-primary-blue-soft);
+  color: var(--color-primary-blue-strong);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
+}
+
 .surface-card {
-  border: 1px solid #dbe4ef;
+  border: 1px solid var(--color-neutral-slate-border);
   border-radius: var(--radius-card);
   background: rgb(255 255 255 / 0.96);
   box-shadow: var(--shadow-card);

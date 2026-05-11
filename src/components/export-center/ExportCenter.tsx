@@ -229,7 +229,31 @@ const exportCenterText = {
     generatingHandoffPack: "Đang tạo gói bàn giao...",
     includedFiles: "Tệp bao gồm",
     localAuditLog: "Nhật ký kiểm toán cục bộ",
-    aiRunHistory: "Lịch sử chạy AI"
+    aiRunHistory: "Lịch sử chạy AI",
+    aiRunHistorySafeNote:
+      "Chỉ hiển thị metadata an toàn của các lần chạy AI. Không lưu prompt đầy đủ hoặc output đầy đủ trong lịch sử cục bộ.",
+    refreshHistory: "Làm mới lịch sử",
+    exportHistoryJson: "Xuất JSON lịch sử",
+    status: "Trạng thái",
+    validation: "Validation",
+    details: "Chi tiết",
+    hideDetails: "Ẩn",
+    showDetails: "Chi tiết",
+    external: "Gọi ngoài",
+    yes: "có",
+    no: "không",
+    errorType: "Loại lỗi",
+    requestId: "Request id",
+    safeMessage: "Lý do an toàn",
+    validationSummary: "Tóm tắt validation",
+    warnings: "Cảnh báo",
+    suggestedNextAction: "Hành động đề xuất",
+    notApplicable: "không áp dụng",
+    notAvailable: "không có",
+    noSafeError: "Không có safe error message được ghi nhận.",
+    valid: "Hợp lệ.",
+    noValidationSummary: "Không có tóm tắt validation.",
+    none: "Không có"
   },
   en: {
     title: "Export Center",
@@ -267,7 +291,31 @@ const exportCenterText = {
     generatingHandoffPack: "Creating handoff pack...",
     includedFiles: "Included files",
     localAuditLog: "Local Audit Log",
-    aiRunHistory: "AI Run History"
+    aiRunHistory: "AI Run History",
+    aiRunHistorySafeNote:
+      "Shows safe metadata for AI skill runs only. Full prompts and full model outputs are not stored in this local history.",
+    refreshHistory: "Refresh history",
+    exportHistoryJson: "Export history JSON",
+    status: "Status",
+    validation: "Validation",
+    details: "Details",
+    hideDetails: "Hide",
+    showDetails: "Details",
+    external: "External",
+    yes: "yes",
+    no: "no",
+    errorType: "Error type",
+    requestId: "Request id",
+    safeMessage: "Safe reason",
+    validationSummary: "Validation summary",
+    warnings: "Warnings",
+    suggestedNextAction: "Suggested next action",
+    notApplicable: "not applicable",
+    notAvailable: "not available",
+    noSafeError: "No safe error message recorded.",
+    valid: "Valid.",
+    noValidationSummary: "No validation summary recorded.",
+    none: "None"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -2336,8 +2384,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               {text.aiRunHistory}
             </h3>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              Shows safe metadata for AI skill runs only. Prompt text and full
-              model output are not stored in this local history.
+              {text.aiRunHistorySafeNote}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -2346,14 +2393,14 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               onClick={refreshAIRunHistory}
               type="button"
             >
-              {locale === "vi" ? "Làm mới lịch sử" : "Refresh history"}
+              {text.refreshHistory}
             </button>
             <button
               className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               onClick={downloadAIRunHistory}
               type="button"
             >
-              {locale === "vi" ? "Xuất JSON lịch sử" : "Export history JSON"}
+              {text.exportHistoryJson}
             </button>
           </div>
         </div>
@@ -2367,17 +2414,17 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                   <th className="px-3 py-2 font-semibold">Provider</th>
                   <th className="px-3 py-2 font-semibold">Model</th>
                   <th className="px-3 py-2 font-semibold">
-                    {locale === "vi" ? "Trạng thái" : "Status"}
+                    {text.status}
                   </th>
                   <th className="px-3 py-2 font-semibold">
-                    {locale === "vi" ? "Validation" : "Validation"}
+                    {text.validation}
                   </th>
                   <th className="px-3 py-2 font-semibold">Latency</th>
-                  <th className="px-3 py-2 font-semibold">External</th>
+                  <th className="px-3 py-2 font-semibold">{text.external}</th>
                   <th className="px-3 py-2 font-semibold">Tokens</th>
                   <th className="px-3 py-2 font-semibold">Timestamp</th>
                   <th className="px-3 py-2 font-semibold">
-                    {locale === "vi" ? "Chi tiết" : "Details"}
+                    {text.details}
                   </th>
                 </tr>
               </thead>
@@ -2415,7 +2462,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                             : `${run.latencyMs}ms`}
                         </td>
                         <td className="px-3 py-2">
-                          {run.externalApiCalled ? "yes" : "no"}
+                          {run.externalApiCalled ? text.yes : text.no}
                         </td>
                         <td className="px-3 py-2">
                           {run.tokenUsage?.totalTokens ?? "-"}
@@ -2432,7 +2479,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                               }
                               type="button"
                             >
-                              {isExpanded ? "Hide" : "Details"}
+                              {isExpanded ? text.hideDetails : text.showDetails}
                             </button>
                           ) : (
                             "-"
@@ -2444,37 +2491,37 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                           <td className="bg-slate-50 px-3 py-3" colSpan={10}>
                             <div className="grid gap-3 text-xs text-slate-700 md:grid-cols-2">
                               <p>
-                                <span className="font-semibold">Error type:</span>{" "}
-                                {run.errorType || "not applicable"}
+                                <span className="font-semibold">{text.errorType}:</span>{" "}
+                                {run.errorType || text.notApplicable}
                               </p>
                               <p>
-                                <span className="font-semibold">Request id:</span>{" "}
-                                {run.requestId || "not available"}
+                                <span className="font-semibold">{text.requestId}:</span>{" "}
+                                {run.requestId || text.notAvailable}
                               </p>
                               <p className="md:col-span-2">
                                 <span className="font-semibold">
-                                  Safe message:
+                                  {text.safeMessage}:
                                 </span>{" "}
-                                {run.safeErrorMessage || "No safe error message recorded."}
+                                {run.safeErrorMessage || text.noSafeError}
                               </p>
                               <p className="md:col-span-2">
                                 <span className="font-semibold">
-                                  Validation summary:
+                                  {text.validationSummary}:
                                 </span>{" "}
                                 {run.validationErrorSummary ||
                                   (run.validationStatus === "valid"
-                                    ? "Valid."
-                                    : "No validation summary recorded.")}
+                                    ? text.valid
+                                    : text.noValidationSummary)}
                               </p>
                               <p className="md:col-span-2">
-                                <span className="font-semibold">Warnings:</span>{" "}
+                                <span className="font-semibold">{text.warnings}:</span>{" "}
                                 {run.warnings.length
                                   ? run.warnings.join("; ")
-                                  : "None"}
+                                  : text.none}
                               </p>
                               <p className="md:col-span-2">
                                 <span className="font-semibold">
-                                  Suggested next action:
+                                  {text.suggestedNextAction}:
                                 </span>{" "}
                                 {run.suggestedNextAction}
                               </p>

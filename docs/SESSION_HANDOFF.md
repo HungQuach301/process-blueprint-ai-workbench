@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved AI trust UX and provider status clarity for MVP1-AI RC4.
+- Added a shared AI trust status component for the global shell and AI Connection Center, showing Mock/Real AI mode, selected/effective provider, data mode, and whether an external provider call is possible.
+- Updated the global header/hero/footer status surfaces to use the unified trust summary instead of separate local formatting.
+- Updated AI Connection Center provider cards so selected providers are clear, while missing-env or disabled providers no longer look like primary ready providers.
+- Added missing-env setup guidance that points to `.env.local` / server env and keeps API keys out of browser UI.
+- Polished AI Run History safe-detail copy while keeping history metadata-only and not storing full prompts or full model outputs.
+- Kept provider routes/adapters, AI schemas, D01/D02 generators, browser secret handling, and AI apply/approval behavior unchanged.
 - Improved Process Task Register UX for MVP1-AI RC4.
 - Kept Simple mode focused on business-readable columns while adding clearer Simple/Advanced helper text.
 - Improved the bulk action area with selected row count shown against total rows and a quick action to select rows with `needsReview` status.

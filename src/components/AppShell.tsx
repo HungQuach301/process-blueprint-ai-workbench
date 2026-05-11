@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Navigation } from "@/components/Navigation";
+import {
+  AITrustStatus,
+  getAITrustSummary,
+  type AITrustStatusResponse
+} from "@/components/ai-status/AITrustStatus";
 import { AIProviderSettingsPanel } from "@/components/ai-settings/AIProviderSettingsPanel";
 import { D01BpmnOutput } from "@/components/bpmn-output/D01BpmnOutput";
 import { D02ServiceBlueprintOutput } from "@/components/service-blueprint-output/D02ServiceBlueprintOutput";
@@ -29,76 +34,6 @@ const moduleTabs: Array<{
   { id: "templates", labelKey: "shell.moduleTemplates", href: "#template-library" },
   { id: "export-audit", labelKey: "shell.moduleExportAudit", href: "#export-center" }
 ];
-
-type AIStatusResponse = {
-  realAIEnabled?: boolean;
-  realAIQAEnabled?: boolean;
-  realAITemplateReviewEnabled?: boolean;
-  provider?: string;
-  effectiveProvider?: string;
-  fallbackActive?: boolean;
-  dataUsageMode?: string;
-};
-
-function hasRealAI(status: AIStatusResponse) {
-  return (
-    status.realAIEnabled === true ||
-    status.realAIQAEnabled === true ||
-    status.realAITemplateReviewEnabled === true
-  );
-}
-
-function formatProviderName(provider: string) {
-  if (provider === "product-ai") {
-    return "Product AI";
-  }
-
-  if (provider === "openai") {
-    return "OpenAI";
-  }
-
-  if (provider === "claude") {
-    return "Claude";
-  }
-
-  return provider;
-}
-
-function getAIStatusLabel(status: AIStatusResponse, locale: Locale) {
-  const effectiveProvider = status.effectiveProvider ?? status.provider ?? "mock";
-
-  if (status.fallbackActive) {
-    return t("shell.aiLocalMockFallback", locale);
-  }
-
-  if (!hasRealAI(status) || effectiveProvider === "mock") {
-    return t("shell.aiLocalMock", locale);
-  }
-
-  return `${t("shell.aiServerSide", locale)}: ${formatProviderName(effectiveProvider)}`;
-}
-
-function getAIModeValue(status: AIStatusResponse, locale: Locale) {
-  if (!hasRealAI(status) || status.fallbackActive) {
-    return t("shell.aiLocalMock", locale);
-  }
-
-  return t("shell.aiServerSide", locale);
-}
-
-function getDataModeValue(status: AIStatusResponse, locale: Locale) {
-  switch (status.dataUsageMode) {
-    case "cloud-processing":
-      return t("shell.dataModeCloudProcessing", locale);
-    case "no-training":
-      return t("shell.dataModeNoTraining", locale);
-    case "organization-private-learning":
-      return t("shell.dataModePrivateLearning", locale);
-    case "local-only":
-    default:
-      return t("shell.dataModeLocalOnly", locale);
-  }
-}
 
 const processModelingGuide = {
   vi: {
@@ -139,8 +74,9 @@ const processModelingGuide = {
 
 export function AppShell() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
-  const [aiStatus, setAIStatus] = useState<AIStatusResponse>({});
+  const [aiStatus, setAIStatus] = useState<AITrustStatusResponse>({});
   const processGuide = processModelingGuide[locale];
+  const aiTrustSummary = getAITrustSummary(aiStatus, locale);
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -150,7 +86,7 @@ export function AppShell() {
     async function loadAIStatus() {
       try {
         const response = await fetch("/api/ai/run-skill", { method: "GET" });
-        const data = (await response.json()) as AIStatusResponse;
+        const data = (await response.json()) as AITrustStatusResponse;
 
         setAIStatus(data);
       } catch {
@@ -184,12 +120,7 @@ export function AppShell() {
             </a>
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="status-badge status-badge-ai">
-                {getAIStatusLabel(aiStatus, locale)}
-              </span>
-              <span className="status-badge status-badge-primary">
-                {t("shell.dataMode", locale)}: {getDataModeValue(aiStatus, locale)}
-              </span>
+              <AITrustStatus compact locale={locale} status={aiStatus} />
               <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
                 {t("shell.language", locale)}
                 <select
@@ -234,12 +165,7 @@ export function AppShell() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 lg:justify-end">
-                  <span className="status-badge status-badge-ai">
-                    {getAIStatusLabel(aiStatus, locale)}
-                  </span>
-                  <span className="status-badge status-badge-primary">
-                    {t("shell.dataMode", locale)}: {getDataModeValue(aiStatus, locale)}
-                  </span>
+                  <AITrustStatus compact locale={locale} status={aiStatus} />
                 </div>
               </div>
             </div>
@@ -250,7 +176,7 @@ export function AppShell() {
                   {t("shell.aiStatus", locale)}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {getAIModeValue(aiStatus, locale)}
+                  {aiTrustSummary.modeLabel}
                 </p>
               </div>
               <div className="soft-panel p-3">
@@ -341,7 +267,7 @@ export function AppShell() {
                   {t("shell.aiStatus", locale)}
                 </p>
                 <p className="mt-1 font-semibold text-slate-900">
-                  {getAIModeValue(aiStatus, locale)}
+                  {aiTrustSummary.modeLabel}
                 </p>
               </div>
               <div>
@@ -349,7 +275,7 @@ export function AppShell() {
                   {t("shell.dataMode", locale)}
                 </p>
                 <p className="mt-1 font-semibold text-slate-900">
-                  {getDataModeValue(aiStatus, locale)}
+                  {aiTrustSummary.dataModeLabel}
                 </p>
               </div>
               <div>

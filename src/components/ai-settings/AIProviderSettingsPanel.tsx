@@ -1,6 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import {
+  AITrustStatus,
+  type AITrustStatusResponse,
+  type ProviderDisplayStatus,
+  type ProviderStatusItem,
+  type ServerProviderId
+} from "@/components/ai-status/AITrustStatus";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   AI_PROVIDER_SETTINGS_STORAGE_KEY,
@@ -19,31 +26,8 @@ import { getLocale, type Locale } from "@/lib/i18n";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type ProviderCardId = "product-ai" | "openai-byok" | "claude-byok" | "local-model";
-type ServerProviderId = "product-ai" | "openai" | "claude" | "mock";
-type ProviderDisplayStatus = "configured" | "missing env" | "disabled" | "available";
 
-type ProviderStatusItem = {
-  providerId: ServerProviderId;
-  status: ProviderDisplayStatus;
-  selected: boolean;
-  model: string;
-};
-
-type AIStatusResponse = {
-  realAIEnabled?: boolean;
-  realAIQAEnabled?: boolean;
-  realAITemplateReviewEnabled?: boolean;
-  providerStatus?: "configured" | "not configured" | "mock-only";
-  displayStatus?: ProviderDisplayStatus;
-  provider?: ServerProviderId;
-  effectiveProvider?: ServerProviderId;
-  fallbackActive?: boolean;
-  providers?: ProviderStatusItem[];
-  dataUsageMode?: DataUsageMode;
-  model?: string;
-};
-
-type TestConnectionResponse = AIStatusResponse & {
+type TestConnectionResponse = AITrustStatusResponse & {
   ok?: boolean;
   displayStatus?: ProviderDisplayStatus;
   message?: string;
@@ -169,7 +153,11 @@ const textByLocale = {
     modelPlaceholder: "Tên hiển thị tùy chọn",
     effectiveProvider: "Provider thực thi",
     fallbackActive: "Fallback local/mô phỏng đang hoạt động vì provider đã chọn chưa sẵn sàng.",
-    selectedStatus: "Trạng thái provider đã chọn"
+    selectedStatus: "Trạng thái provider đã chọn",
+    setupCta: "Cấu hình trong .env.local / server env",
+    setupHint: "Không nhập hoặc lưu API key trong browser. Provider thật chỉ chạy qua route server-side.",
+    localPreference: "Lựa chọn trong trình duyệt",
+    serverSelected: "Server đang chọn"
   },
   en: {
     title: "AI Connection Center",
@@ -213,7 +201,11 @@ const textByLocale = {
     modelPlaceholder: "Optional display name only",
     effectiveProvider: "Effective provider",
     fallbackActive: "Local/mock fallback is active because the selected provider is not ready.",
-    selectedStatus: "Selected provider status"
+    selectedStatus: "Selected provider status",
+    setupCta: "Configure .env.local / server env",
+    setupHint: "Do not enter or store API keys in the browser. Real providers run only through the server-side route.",
+    localPreference: "Browser preference",
+    serverSelected: "Server selected"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -258,7 +250,7 @@ export function AIProviderSettingsPanel() {
   const [message, setMessage] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [serverStatus, setServerStatus] = useState<AIStatusResponse>({});
+  const [serverStatus, setServerStatus] = useState<AITrustStatusResponse>({});
   const text = textByLocale[locale];
 
   useEffect(() => {
@@ -285,7 +277,7 @@ export function AIProviderSettingsPanel() {
   async function loadAIMode() {
     try {
       const response = await fetch("/api/ai/run-skill", { method: "GET" });
-      const data = (await response.json()) as AIStatusResponse;
+      const data = (await response.json()) as AITrustStatusResponse;
 
       setServerStatus(data);
     } catch {
@@ -302,8 +294,6 @@ export function AIProviderSettingsPanel() {
     serverStatus.realAIQAEnabled === true ||
     serverStatus.realAITemplateReviewEnabled === true;
   const selectedServerProvider = serverStatus.provider ?? "mock";
-  const effectiveServerProvider =
-    serverStatus.effectiveProvider ?? selectedServerProvider;
   const providerStatuses = useMemo(
     () => serverStatus.providers ?? [],
     [serverStatus.providers]
@@ -438,12 +428,18 @@ export function AIProviderSettingsPanel() {
           const status = getCardStatus(card, providerStatuses, realAIEnabled);
           const isSelected = settings.providerMode === card.id;
           const isServerSelected = selectedServerProvider === card.serverProviderId;
+          const isReady = status === "configured" || status === "available";
+          const selectedClass = isReady
+            ? "border-violet-300 bg-violet-600 text-white shadow-md"
+            : status === "missing env"
+              ? "border-amber-300 bg-amber-50 text-amber-950 shadow-sm"
+              : "border-slate-300 bg-slate-100 text-slate-800 shadow-sm";
 
           return (
             <button
               className={`min-h-44 rounded border p-4 text-left transition ${
                 isSelected
-                  ? "border-violet-300 bg-violet-600 text-white shadow-md"
+                  ? selectedClass
                   : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
               }`}
               key={card.id}
@@ -454,7 +450,11 @@ export function AIProviderSettingsPanel() {
               <span
                 className={`mt-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
                   isSelected
-                    ? "border-white/30 bg-white/10 text-white"
+                    ? isReady
+                      ? "border-white/30 bg-white/10 text-white"
+                      : status === "missing env"
+                        ? "border-amber-300 bg-amber-100 text-amber-900"
+                        : "border-slate-300 bg-slate-200 text-slate-700"
                     : status === "configured" || status === "available"
                       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                       : status === "missing env"
@@ -467,21 +467,37 @@ export function AIProviderSettingsPanel() {
               {isServerSelected ? (
                 <span
                   className={`ml-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
-                    isSelected
+                    isSelected && isReady
                       ? "border-white/30 bg-white/10 text-white"
                       : "border-sky-200 bg-sky-50 text-sky-800"
                   }`}
                 >
-                  {text.selected}
+                  {text.serverSelected}
+                </span>
+              ) : null}
+              {isSelected ? (
+                <span
+                  className={`ml-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
+                    isReady
+                      ? "border-white/30 bg-white/10 text-white"
+                      : "border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  {text.localPreference}
                 </span>
               ) : null}
               <span
                 className={`mt-3 block text-sm leading-6 ${
-                  isSelected ? "text-slate-200" : "text-slate-600"
+                  isSelected && isReady ? "text-slate-200" : "text-slate-600"
                 }`}
               >
                 {card.description[locale]}
               </span>
+              {status === "missing env" ? (
+                <span className="mt-3 block rounded border border-amber-200 bg-white/80 px-3 py-2 text-xs font-semibold text-amber-900">
+                  {text.setupCta}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -492,57 +508,11 @@ export function AIProviderSettingsPanel() {
         <p className="mt-1">{text.dataWarningBody}</p>
       </div>
 
-      <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
-        <div className="grid gap-3 text-sm md:grid-cols-4">
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.currentMode}
-            </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {realAIEnabled ? "Real AI" : locale === "vi" ? "Local/mô phỏng" : "Local/mock"}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              {realAIEnabled ? text.realModeSummary : text.mockModeSummary}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.serverProvider}
-            </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {serverStatus.provider ?? "mock"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {text.selectedStatus}:{" "}
-              {serverStatus.displayStatus
-                ? getStatusText(serverStatus.displayStatus, locale)
-                : "-"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.dataMode}
-            </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {dataUsageModeOptions.find((option) => option.value === serverStatus.dataUsageMode)?.label[locale] ??
-                (locale === "vi" ? "Chỉ lưu cục bộ" : "local-only")}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.model}
-            </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {serverStatus.model || settings.modelName || "-"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {text.effectiveProvider}: {effectiveServerProvider}
-            </p>
-          </div>
-        </div>
-        {serverStatus.fallbackActive ? (
+      <div className="mt-4">
+        <AITrustStatus locale={locale} status={serverStatus} />
+        {serverStatus.displayStatus === "missing env" ? (
           <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-            {text.fallbackActive}
+            {text.setupHint}
           </p>
         ) : null}
         <p className="mt-3 text-xs text-slate-500">

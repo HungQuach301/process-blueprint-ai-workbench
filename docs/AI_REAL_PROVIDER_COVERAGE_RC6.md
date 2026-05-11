@@ -4,7 +4,7 @@
 
 - Date: 2026-05-11
 - Branch: `feature/mvp1-ai-rc6-final-ux-ai-hardening`
-- Scope: RC6 Block 7 real AI integration coverage for OpenAI, Claude, Product AI, and mock/local fallback.
+- Scope: RC6 Block 7 real AI integration coverage for OpenAI, Claude, Product AI, and mock/local fallback; RC6 Block 8 setup coverage for preferred server env names and compatibility aliases.
 
 ## Audited Code
 
@@ -39,9 +39,9 @@
 | --- | --- |
 | Browser API key exposure | No provider API key usage found in client components. Provider secrets are referenced only in server route/provider code. |
 | Direct browser provider calls | No direct `api.openai.com` or Anthropic browser calls found. Client surfaces call `/api/ai/run-skill`. |
-| OpenAI adapter | Server-side `openai-provider.ts`, configured by `AI_PROVIDER=openai`, `OPENAI_API_KEY`, and `OPENAI_MODEL` or `AI_MODEL`. |
-| Claude adapter | Server-side `claude-provider.ts`, configured by `AI_PROVIDER=claude`, `ANTHROPIC_API_KEY`, and `CLAUDE_MODEL` or `AI_MODEL`. |
-| Product AI adapter | Server-side `product-ai-provider.ts`, configured by `AI_PROVIDER=product-ai`, `PRODUCT_AI_ENDPOINT`, optional `PRODUCT_AI_API_KEY`, and `PRODUCT_AI_MODEL` or `AI_MODEL`. |
+| OpenAI adapter | Server-side `openai-provider.ts`, configured by `AI_DEFAULT_PROVIDER=openai`, `OPENAI_API_KEY`, and `OPENAI_DEFAULT_MODEL` or `AI_MODEL`. Legacy `AI_PROVIDER` and `OPENAI_MODEL` aliases are still supported. |
+| Claude adapter | Server-side `claude-provider.ts`, configured by `AI_DEFAULT_PROVIDER=claude`, `ANTHROPIC_API_KEY`, and `CLAUDE_DEFAULT_MODEL` or `AI_MODEL`. Legacy `AI_PROVIDER` and `CLAUDE_MODEL` aliases are still supported. |
+| Product AI adapter | Server-side `product-ai-provider.ts`, configured by `AI_DEFAULT_PROVIDER=product-ai`, `PRODUCT_AI_BASE_URL`, optional `PRODUCT_AI_API_KEY`, and `PRODUCT_AI_DEFAULT_MODEL` or `AI_MODEL`. Legacy `AI_PROVIDER`, `PRODUCT_AI_ENDPOINT`, and `PRODUCT_AI_MODEL` aliases are still supported. |
 | Mock/local | Always available through the mock provider or deterministic route branches. |
 | Output handling | Route validates structured JSON output before returning success. UI keeps outputs in draft/recommendation/review/preview surfaces. |
 | Audit | Server route records safe audit metadata; browser surfaces log local `ai_call` metadata without full prompts or full model outputs. |
@@ -50,7 +50,7 @@
 
 | Skill / feature | UI surface | OpenAI status | Claude status | Product AI status | Mock status | Validation status | Known limitation | Test instruction |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `input-brief-to-ptr` | AI Input Brief manual input | Ready through server route with `ENABLE_REAL_AI=true`, `AI_PROVIDER=openai`, OpenAI env configured | Ready through server route with `ENABLE_REAL_AI=true`, `AI_PROVIDER=claude`, Claude env configured | Ready through server route with `ENABLE_REAL_AI=true`, Product AI env configured | Fallback local/mock Draft PTR | `validateStructuredProcessBrief`, brief quality gate, `validateDraftProcessTaskRegister`, draft quality gate | Requires cloud consent in UI settings before real provider call; output remains Draft PTR only | Fill required brief fields, enable real AI + provider env, click Generate Draft PTR with AI, confirm draft preview appears and is not applied |
+| `input-brief-to-ptr` | AI Input Brief manual input | Ready through server route with `ENABLE_REAL_AI=true`, `AI_DEFAULT_PROVIDER=openai`, OpenAI env configured | Ready through server route with `ENABLE_REAL_AI=true`, `AI_DEFAULT_PROVIDER=claude`, Claude env configured | Ready through server route with `ENABLE_REAL_AI=true`, Product AI env configured | Fallback local/mock Draft PTR | `validateStructuredProcessBrief`, brief quality gate, `validateDraftProcessTaskRegister`, draft quality gate | Requires cloud consent in UI settings before real provider call; output remains Draft PTR only | Fill required brief fields, enable real AI + provider env, click Generate Draft PTR with AI, confirm draft preview appears and is not applied |
 | `file-to-ptr-draft` / legacy `file-to-draft-ptr` | File Intake in AI Input Brief | Ready through server route for extracted text | Ready through server route for extracted text | Ready through server route for extracted text | Fallback local/mock for PDF/DOCX text; Excel remains deterministic local extraction | File context validation, Draft PTR schema, draft quality gate | OCR/image intake not implemented; Excel path is not real AI | Upload text-based PDF/DOCX or extracted content, generate Draft PTR, verify preview and local audit metadata |
 | `chat-to-ptr-draft` / legacy `chat-to-draft-ptr` | AI Input Brief notes/chat | Ready through server route | Ready through server route | Ready through server route | Fallback local/mock notes-to-draft | Chat/notes input validation, Draft PTR schema, draft quality gate | Pasted-text workflow only; no external chat connector/memory | Paste workshop notes, run notes/chat draft generation, verify stale draft clears after source edit |
 | `ptr-ai-assistant` / PTR recommendations (`process-improvement-recommendation`) | Process Task Register AI Assistant | Ready through server route with `ENABLE_REAL_AI=true` | Ready through server route with `ENABLE_REAL_AI=true` | Ready through server route with `ENABLE_REAL_AI=true` | Fallback deterministic selected-row recommendations | `ProcessTask[]` input validation, `validateAIQARecommendations`, step/reference checks, graph-changing safety | UI name differs from route skill id; output is routed to QA recommendations | Select PTR rows, click AI Assistant, verify recommendations appear in QA Engine and require preview/confirm before apply |
@@ -81,7 +81,7 @@
 ### Mock/local
 
 1. Set `ENABLE_REAL_AI=false`, `ENABLE_REAL_AI_QA=false`, and `ENABLE_REAL_AI_TEMPLATE_REVIEW=false`.
-2. Set `AI_PROVIDER=mock` or leave provider env incomplete.
+2. Set `AI_DEFAULT_PROVIDER=mock` or leave provider env incomplete.
 3. Run each UI action listed in the matrix.
 4. Expected result: `mode=mock`, `externalApiCalled=false`, preview/recommendation/review output appears, and no output is auto-applied.
 
@@ -91,9 +91,11 @@
    - `ENABLE_REAL_AI=true`
    - `ENABLE_REAL_AI_QA=true`
    - `ENABLE_REAL_AI_TEMPLATE_REVIEW=true`
-   - `AI_PROVIDER=openai`
+   - `AI_DEFAULT_PROVIDER=openai`
    - `OPENAI_API_KEY=<server-side only>`
-   - `OPENAI_MODEL=<model>` or `AI_MODEL=<model>`
+   - `OPENAI_DEFAULT_MODEL=<model>` or `AI_MODEL=<model>`
+   - `AI_ALLOW_CLOUD=true`
+   - `AI_REQUIRE_APPROVAL=true`
    - `AI_DATA_USAGE_MODE=no-training` or approved cloud-processing mode
 2. In AI Connection Center, enable cloud AI consent before running real-provider UI actions.
 3. Run representative skills: `input-brief-to-ptr`, `ai-process-qa`, `artifact-review`, `ai-template-review`, `ptr-to-brd`, `brd-to-srs`, `srs-to-user-stories`, `user-stories-to-acceptance-criteria`, `requirement-quality-check`, and `user-stories-to-ai-coding-pack`.
@@ -105,9 +107,11 @@
    - `ENABLE_REAL_AI=true`
    - `ENABLE_REAL_AI_QA=true`
    - `ENABLE_REAL_AI_TEMPLATE_REVIEW=true`
-   - `AI_PROVIDER=claude`
+   - `AI_DEFAULT_PROVIDER=claude`
    - `ANTHROPIC_API_KEY=<server-side only>`
-   - `CLAUDE_MODEL=<model>` or `AI_MODEL=<model>`
+   - `CLAUDE_DEFAULT_MODEL=<model>` or `AI_MODEL=<model>`
+   - `AI_ALLOW_CLOUD=true`
+   - `AI_REQUIRE_APPROVAL=true`
    - `AI_DATA_USAGE_MODE=no-training` or approved cloud-processing mode
 2. Repeat the OpenAI representative skill checks.
 3. Expected result: same route/validation behavior, with `providerId=claude`.
@@ -118,10 +122,12 @@
    - `ENABLE_REAL_AI=true`
    - `ENABLE_REAL_AI_QA=true`
    - `ENABLE_REAL_AI_TEMPLATE_REVIEW=true`
-   - `AI_PROVIDER=product-ai`
-   - `PRODUCT_AI_ENDPOINT=<server-side endpoint>`
+   - `AI_DEFAULT_PROVIDER=product-ai`
+   - `PRODUCT_AI_BASE_URL=<server-side endpoint>`
    - Optional `PRODUCT_AI_API_KEY=<server-side only>`
-   - `PRODUCT_AI_MODEL=<model>` or `AI_MODEL=<model>`
+   - `PRODUCT_AI_DEFAULT_MODEL=<model>` or `AI_MODEL=<model>`
+   - `AI_ALLOW_CLOUD=true`
+   - `AI_REQUIRE_APPROVAL=true`
 2. Run representative skills.
 3. Expected result: provider-backed output if the endpoint returns a supported JSON/text shape; otherwise route returns a safe provider error or validation error without auto-apply.
 
@@ -141,4 +147,4 @@
 6. Planned skills remain documented as not covered by real provider execution in RC6.
 7. No obvious browser API key exposure or direct browser provider call was found during code inspection.
 8. No large integration fix was applied in this block because the audited implementation already routes the active real-AI-ready skills through the server-side provider adapter and validation path.
-
+9. RC6 Block 8 added preferred setup env names in `.env.example` and provider-factory alias support so `AI_DEFAULT_PROVIDER`, `OPENAI_DEFAULT_MODEL`, `CLAUDE_DEFAULT_MODEL`, `PRODUCT_AI_BASE_URL`, and `PRODUCT_AI_DEFAULT_MODEL` work alongside the older runtime aliases.

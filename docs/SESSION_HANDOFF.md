@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 8 AI setup docs and environment example cleanup for OpenAI, Claude, Product AI, and mock/local fallback.
+- Updated `.env.example` with RC6 preferred server-side env names: `AI_DEFAULT_PROVIDER`, `AI_ALLOW_CLOUD`, `AI_REQUIRE_APPROVAL`, `OPENAI_DEFAULT_MODEL`, `CLAUDE_DEFAULT_MODEL`, `PRODUCT_AI_BASE_URL`, and `PRODUCT_AI_DEFAULT_MODEL`, while keeping legacy runtime aliases for compatibility.
+- Added provider-factory alias support so the new RC6 env names work through the existing server-side provider adapter path without exposing API keys in browser code.
+- Expanded `docs/AI_CONNECTION_SETUP.md` with OpenAI, Claude, Product AI, and mock/local setup instructions, data warnings, server-side-only guidance, and no-`NEXT_PUBLIC_*` secret rules.
+- Updated `docs/AI_REAL_PROVIDER_COVERAGE_RC6.md` to reflect the preferred RC6 provider env names and compatibility aliases.
+- Kept this RC6 Block 8 scoped to setup/docs/provider-env compatibility: no AI skill logic, prompt logic, data model, canonical schema, D01/D02 generator, recommendation apply workflow, Product Delivery workflow, or AI auto-apply behavior was changed.
 - Completed RC6 Block 7 real AI provider coverage audit for OpenAI, Claude, Product AI, and mock/local fallback.
 - Added `docs/AI_REAL_PROVIDER_COVERAGE_RC6.md` with per-skill coverage for Input Brief, File Intake, chat/notes draft PTR, PTR AI Assistant, QA Engine, D01/D02 artifact review, Template Review, Product Delivery generation/review skills, Requirement QA, and AI Coding Pack handoff.
 - Confirmed by code inspection that active real-AI-ready skills route through `/api/ai/run-skill`, use server-side provider adapters, validate inputs/outputs, keep preview/recommendation/review surfaces, and avoid browser API key exposure.

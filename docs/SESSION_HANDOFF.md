@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 Output Package ZIP cleanup.
+- Kept Output Package ZIP focused on artifact status cards, Generate all artifacts, Download ZIP, Export Audit Log JSON, and Export AI Run History JSON.
+- Kept AI Run History visible/exportable inside the existing Advanced expandable section so it does not dominate the default Output Package ZIP screen.
+- Preserved Product Delivery generation inside the dedicated Product Delivery module and kept Output Package ZIP as the final packaging/export module.
+- Kept this RC5 cleanup UI-only: no export artifact generator, Product Delivery skill logic, AI provider route/adapter, ProcessTask model, canonical schema, D01/D02 generator, browser secret handling, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 Product Delivery action cleanup.
 - Reorganized Product Delivery actions into three clear groups: Generate, Review, and Export.
 - Made `Generate Product Delivery Draft` the single primary Generate action and moved BRD/SRS/User Stories/Acceptance Criteria generation into a collapsed more-actions area.

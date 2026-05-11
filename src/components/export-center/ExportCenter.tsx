@@ -2303,6 +2303,13 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               >
                 {locale === "vi" ? "Xuất JSON nhật ký kiểm toán" : "Export Audit Log JSON"}
               </button>
+              <button
+                className="btn btn-secondary"
+                onClick={downloadAIRunHistory}
+                type="button"
+              >
+                {text.exportHistoryJson}
+              </button>
             </div>
           ) : null}
         </div>

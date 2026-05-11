@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 AI Connection Center provider-card cleanup.
+- Simplified provider cards so each card shows provider name, short description, and server-derived status only.
+- Replaced noisy Mode/Selected/Real AI style badges in provider cards with a single selected-card border/highlight and small `Current provider` text.
+- Moved technical AI details into Advanced Settings: current mode, browser provider preference, server provider, effective provider, data mode, model, feature flags, and the existing trust summary.
+- Kept the data warning visible but more compact, and preserved the server-side provider route boundary with no browser API key exposure.
+- Kept this RC5 cleanup UI-only: no provider logic, AI route, provider adapter, data model, D01/D02 generator, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 Dashboard and navigation cleanup.
 - Reordered the header and sidebar modules into the release workflow order: Dashboard, AI Connection Center, AI Input Brief, Process Task Register, QA Engine, Generate D01 BPMN XML, Generate D02 Service Blueprint, Template Hub, Product Delivery, and Output Package ZIP.
 - Simplified Dashboard by removing the visible Quick Start, Banking Starter Pack, and Recent AI Runs sections while keeping workspace summary, AI status, artifact/process/product/export status, and recommended next action.

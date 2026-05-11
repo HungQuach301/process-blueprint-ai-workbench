@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AITrustStatus,
+  formatAIProviderName,
+  getAITrustSummary,
   type AITrustStatusResponse,
   type ProviderDisplayStatus,
   type ProviderStatusItem,
@@ -127,7 +129,7 @@ const textByLocale = {
     available: "Khả dụng",
     dataWarning: "Cảnh báo dữ liệu",
     dataWarningBody:
-      "AI đám mây chỉ được gọi qua route phía máy chủ. Không nhập hoặc hiển thị API key trong trình duyệt.",
+      "AI đám mây chỉ chạy qua route phía máy chủ. Không nhập hoặc hiển thị API key trong trình duyệt.",
     currentMode: "Chế độ hiện tại",
     flags: "Cờ tính năng",
     serverProvider: "Provider phía máy chủ",
@@ -157,7 +159,11 @@ const textByLocale = {
     setupCta: "Cấu hình trong .env.local / server env",
     setupHint: "Không nhập hoặc lưu API key trong browser. Provider thật chỉ chạy qua route server-side.",
     localPreference: "Lựa chọn trong trình duyệt",
-    serverSelected: "Server đang chọn"
+    serverSelected: "Server đang chọn",
+    currentProvider: "Provider hiện tại",
+    selectedProvider: "Provider đã chọn",
+    browserProvider: "Provider trong trình duyệt",
+    featureFlags: "Cờ tính năng"
   },
   en: {
     title: "AI Connection Center",
@@ -175,7 +181,7 @@ const textByLocale = {
     available: "Available",
     dataWarning: "Data warning",
     dataWarningBody:
-      "Cloud AI is only called through the server-side route. API keys are never entered or displayed in the browser.",
+      "Cloud AI only runs through the server-side route. API keys are never entered or displayed in the browser.",
     currentMode: "Current mode",
     flags: "Feature flags",
     serverProvider: "Server provider",
@@ -205,7 +211,11 @@ const textByLocale = {
     setupCta: "Configure .env.local / server env",
     setupHint: "Do not enter or store API keys in the browser. Real providers run only through the server-side route.",
     localPreference: "Browser preference",
-    serverSelected: "Server selected"
+    serverSelected: "Server selected",
+    currentProvider: "Current provider",
+    selectedProvider: "Selected provider",
+    browserProvider: "Browser provider",
+    featureFlags: "Feature flags"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -298,6 +308,16 @@ export function AIProviderSettingsPanel() {
     () => serverStatus.providers ?? [],
     [serverStatus.providers]
   );
+  const aiTrustSummary = getAITrustSummary(serverStatus, locale);
+  const selectedBrowserProvider =
+    modelProviderOptions.find((option) => option.value === settings.providerMode)
+      ?.label[locale] ?? settings.providerMode;
+  const currentServerModel =
+    serverStatus.model ??
+    providerStatuses.find((provider) => provider.providerId === selectedServerProvider)
+      ?.model ??
+    settings.modelName ??
+    "n/a";
 
   function updateSettings(nextSettings: AIProviderSettings) {
     setSettings(nextSettings);
@@ -427,76 +447,52 @@ export function AIProviderSettingsPanel() {
         {providerCards.map((card) => {
           const status = getCardStatus(card, providerStatuses, realAIEnabled);
           const isSelected = settings.providerMode === card.id;
-          const isServerSelected = selectedServerProvider === card.serverProviderId;
-          const isReady = status === "configured" || status === "available";
-          const selectedClass = isReady
-            ? "border-violet-300 bg-violet-600 text-white shadow-md"
-            : status === "missing env"
-              ? "border-amber-300 bg-amber-50 text-amber-950 shadow-sm"
-              : "border-slate-300 bg-slate-100 text-slate-800 shadow-sm";
+          const selectedClass =
+            status === "missing env"
+              ? "border-amber-400 bg-amber-50 ring-2 ring-amber-100"
+              : "border-violet-500 bg-violet-50 ring-2 ring-violet-100";
+          const statusClass =
+            status === "configured" || status === "available"
+              ? "text-emerald-700"
+              : status === "missing env"
+                ? "text-amber-700"
+                : "text-slate-500";
 
           return (
             <button
-              className={`min-h-44 rounded border p-4 text-left transition ${
+              className={`min-h-40 rounded border p-4 text-left transition ${
                 isSelected
                   ? selectedClass
-                  : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
+                  : "border-slate-200 bg-white hover:border-slate-400"
               }`}
               key={card.id}
               onClick={() => selectProvider(card.id)}
               type="button"
             >
-              <span className="block text-sm font-semibold">{card.title}</span>
-              <span
-                className={`mt-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
-                  isSelected
-                    ? isReady
-                      ? "border-white/30 bg-white/10 text-white"
-                      : status === "missing env"
-                        ? "border-amber-300 bg-amber-100 text-amber-900"
-                        : "border-slate-300 bg-slate-200 text-slate-700"
-                    : status === "configured" || status === "available"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : status === "missing env"
-                        ? "border-amber-200 bg-amber-50 text-amber-800"
-                        : "border-slate-200 bg-slate-100 text-slate-600"
-                }`}
-              >
-                {getStatusText(status, locale)}
+              <span className="flex items-start justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-950">
+                    {card.title}
+                  </span>
+                  {isSelected ? (
+                    <span className="mt-1 block text-xs font-semibold text-violet-700">
+                      ✓ {text.currentProvider}
+                    </span>
+                  ) : null}
+                </span>
+                <span className={`shrink-0 text-xs font-semibold ${statusClass}`}>
+                  {getStatusText(status, locale)}
+                </span>
               </span>
-              {isServerSelected ? (
-                <span
-                  className={`ml-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
-                    isSelected && isReady
-                      ? "border-white/30 bg-white/10 text-white"
-                      : "border-sky-200 bg-sky-50 text-sky-800"
-                  }`}
-                >
-                  {text.serverSelected}
-                </span>
-              ) : null}
-              {isSelected ? (
-                <span
-                  className={`ml-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
-                    isReady
-                      ? "border-white/30 bg-white/10 text-white"
-                      : "border-slate-300 bg-white text-slate-700"
-                  }`}
-                >
-                  {text.localPreference}
-                </span>
-              ) : null}
-              <span
-                className={`mt-3 block text-sm leading-6 ${
-                  isSelected && isReady ? "text-slate-200" : "text-slate-600"
-                }`}
-              >
+              <span className="mt-3 block text-sm leading-6 text-slate-600">
                 {card.description[locale]}
               </span>
-              {status === "missing env" ? (
-                <span className="mt-3 block rounded border border-amber-200 bg-white/80 px-3 py-2 text-xs font-semibold text-amber-900">
+              {isSelected ? (
+                status === "missing env" ? (
+                <span className="mt-3 block text-xs font-semibold text-amber-800">
                   {text.setupCta}
                 </span>
+                ) : null
               ) : null}
             </button>
           );
@@ -506,18 +502,6 @@ export function AIProviderSettingsPanel() {
       <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <p className="font-semibold">{text.dataWarning}</p>
         <p className="mt-1">{text.dataWarningBody}</p>
-      </div>
-
-      <div className="mt-4">
-        <AITrustStatus locale={locale} status={serverStatus} />
-        {serverStatus.displayStatus === "missing env" ? (
-          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-            {text.setupHint}
-          </p>
-        ) : null}
-        <p className="mt-3 text-xs text-slate-500">
-          {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
-        </p>
       </div>
 
       <div className="mt-4 overflow-hidden rounded border border-slate-200 bg-white">
@@ -534,6 +518,74 @@ export function AIProviderSettingsPanel() {
 
         {advancedOpen ? (
           <div className="border-t border-slate-200 p-4">
+            <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-4">
+              <div className="grid gap-3 text-sm md:grid-cols-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {text.currentMode}
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {aiTrustSummary.modeLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {text.browserProvider}
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {selectedBrowserProvider}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {text.serverProvider}
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {formatAIProviderName(selectedServerProvider)}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {text.effectiveProvider}: {aiTrustSummary.effectiveProviderLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {text.dataMode}
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {aiTrustSummary.dataModeLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {text.model}
+                  </p>
+                  <p className="mt-1 font-semibold text-slate-950">
+                    {currentServerModel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {text.featureFlags}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700">
+                    ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}
+                    <br />
+                    ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}
+                    <br />
+                    ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <AITrustStatus locale={locale} status={serverStatus} />
+              </div>
+              {serverStatus.displayStatus === "missing env" ? (
+                <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                  {text.setupHint}
+                </p>
+              ) : null}
+            </div>
+
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">

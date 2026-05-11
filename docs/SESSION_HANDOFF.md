@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 4 QA Engine recommendation toolbar cleanup.
+- Rebalanced the QA Engine recommendation toolbar so `Generate AI recommendations` / `Tạo gợi ý bằng AI` is the prominent AI action, followed by Select safe, Apply selected, Apply all safe, Apply all recommendations, and More.
+- Moved Provider Compare out of the default toolbar row and into the More/advanced surface so the main recommendation actions no longer feel crowded.
+- Tightened safe recommendation selection so Select safe / Apply all safe exclude graph-changing, high-risk, non-low-risk, and conflicting recommendations.
+- Preserved the existing `/api/ai/run-skill` AI QA route, preview/confirmation modal, feedback logging, batch apply audit metadata, and no-auto-apply behavior.
+- Kept this RC6 cleanup UI/workflow-only: no AI provider adapter, provider secrets, data model, canonical schema, D01/D02 generator, or recommendation apply engine was changed.
 - Completed RC6 Block 3 AI Assistant one-click cleanup for Process Task Register.
 - Changed the PTR `AI Assistant` button from a menu opener into a one-click default action that uses the currently selected rows and routes through the existing `process-improvement-recommendation` skill.
 - Added lightweight context selection for the default PTR AI action: infer missing actor/system/lane first, then missing input/output, split complex task, interaction/channel, or wording improvement.

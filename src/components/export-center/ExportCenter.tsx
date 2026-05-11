@@ -185,36 +185,36 @@ type ExportCenterProps = {
   view?: ExportCenterView;
 };
 
-const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
-  { id: "product-ai", label: "Product AI" },
-  { id: "openai", label: "OpenAI" },
-  { id: "claude", label: "Claude" },
-  { id: "mock", label: "Local/Mock" }
+const compareProviders: Array<{ id: CompareProviderId; label: Record<Locale, string> }> = [
+  { id: "product-ai", label: { vi: "Product AI", en: "Product AI" } },
+  { id: "openai", label: { vi: "OpenAI", en: "OpenAI" } },
+  { id: "claude", label: { vi: "Claude", en: "Claude" } },
+  { id: "mock", label: { vi: "Local/mô phỏng", en: "Local/Mock" } }
 ];
 
 const exportCenterText = {
   vi: {
-    title: "Trung tâm xuất dữ liệu",
+    title: "Trung tâm xuất",
     description:
-      "Tạo và đóng gói D01 BPMN, D02 Service Blueprint, JSON dữ liệu, báo cáo QA và audit metadata từ Process Task Register.",
+      "Tạo và đóng gói D01 BPMN, D02 Service Blueprint, JSON dữ liệu, báo cáo QA và metadata kiểm toán từ Process Task Register.",
     generateAllArtifacts: "Tạo tất cả artifact",
     generatingZip: "Đang tạo ZIP...",
     downloadZip: "Tải ZIP",
     productDelivery: "Hồ sơ sản phẩm",
     productDeliveryDescription:
-      "Tạo bản nháp Product Delivery từ Process Task Register và context đã review. Tất cả output đều preview trước, chưa lưu vào Artifact Graph.",
-    optionalProjectContext: "Context dự án tùy chọn",
-    generateProductDeliveryDraft: "Tạo bản nháp Product Delivery",
-    downloadProductDeliveryMarkdown: "Tải Product Delivery Markdown",
-    aiDevelopmentHandoffPack: "Gói bàn giao phát triển bằng AI",
+      "Tạo bản nháp hồ sơ sản phẩm từ Process Task Register và ngữ cảnh đã rà soát. Tất cả đầu ra đều xem trước trước, chưa lưu vào Artifact Graph.",
+    optionalProjectContext: "Ngữ cảnh dự án tùy chọn",
+    generateProductDeliveryDraft: "Tạo bản nháp hồ sơ sản phẩm",
+    downloadProductDeliveryMarkdown: "Tải Markdown hồ sơ sản phẩm",
+    aiDevelopmentHandoffPack: "Gói bàn giao phát triển AI",
     aiDevelopmentHandoffDescription:
-      "Gửi gói này cho đội phát triển hoặc dùng với Codex, Claude Code, Cursor. Gói biến PTR và Product Delivery đã review thành handoff có preview trước khi tải ZIP.",
-    previewPtrHandoffPack: "Preview gói handoff từ PTR",
-    previewProductDeliveryHandoffPack: "Preview gói handoff từ Product Delivery",
-    downloadHandoffPack: "Tải ZIP handoff",
-    generatingHandoffPack: "Đang tạo gói handoff...",
-    includedFiles: "File bao gồm",
-    localAuditLog: "Nhật ký audit local",
+      "Gửi gói này cho đội phát triển hoặc dùng với Codex, Claude Code, Cursor. Gói biến PTR và hồ sơ sản phẩm đã rà soát thành bộ bàn giao có xem trước trước khi tải ZIP.",
+    previewPtrHandoffPack: "Xem trước gói bàn giao từ PTR",
+    previewProductDeliveryHandoffPack: "Xem trước gói bàn giao từ hồ sơ sản phẩm",
+    downloadHandoffPack: "Tải ZIP bàn giao",
+    generatingHandoffPack: "Đang tạo gói bàn giao...",
+    includedFiles: "Tệp bao gồm",
+    localAuditLog: "Nhật ký kiểm toán cục bộ",
     aiRunHistory: "Lịch sử chạy AI"
   },
   en: {
@@ -269,7 +269,7 @@ function readJsonArray<T>(key: string, fallback: T[]) {
   const parsedValue = JSON.parse(savedValue);
 
   if (!Array.isArray(parsedValue)) {
-    throw new Error(`${key} khÃ´ng pháº£i lÃ  danh sÃ¡ch há»£p lá»‡.`);
+    throw new Error(`${key} không phải là danh sách hợp lệ.`);
   }
 
   return parsedValue as T[];
@@ -508,10 +508,16 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       errorType: meta?.errorCode ?? meta?.audit?.errorCode,
       validationErrors,
       suggestedNextAction: success
-        ? "Review the preview before applying or exporting."
+        ? locale === "vi"
+          ? "Rà soát bản xem trước trước khi áp dụng hoặc xuất gói."
+          : "Review the preview before applying or exporting."
         : validationErrors?.length
-          ? "Review validation issues, adjust the source context, then rerun the skill."
-          : "Check provider status or rerun with Local/Mock fallback."
+          ? locale === "vi"
+            ? "Rà soát vấn đề kiểm tra, chỉnh ngữ cảnh nguồn, rồi chạy lại kỹ năng."
+            : "Review validation issues, adjust the source context, then rerun the skill."
+          : locale === "vi"
+            ? "Kiểm tra trạng thái provider hoặc chạy lại bằng fallback local/mô phỏng."
+            : "Check provider status or rerun with Local/Mock fallback."
     });
     refreshAIRunHistory();
   }
@@ -659,7 +665,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
     ) {
       setMessage(
         locale === "vi"
-          ? "Thêm ghi chú, context, tóm tắt nguồn hoặc text trích xuất từ file trước khi so sánh BRD từ ghi chú."
+          ? "Thêm ghi chú, ngữ cảnh, tóm tắt nguồn hoặc text trích xuất từ tệp trước khi so sánh BRD từ ghi chú."
           : "Add notes, context, source summary, or uploaded file text before comparing BRD from notes."
       );
       return;
@@ -684,7 +690,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
     ) {
       setMessage(
         locale === "vi"
-          ? "Hãy tạo Product Delivery artifacts hoặc bảo đảm PTR có dòng trước khi so sánh AI Coding Pack."
+          ? "Hãy tạo artifact hồ sơ sản phẩm hoặc bảo đảm PTR có dòng trước khi so sánh AI Coding Pack."
           : "Generate Product Delivery artifacts or ensure PTR has rows before comparing AI Coding Pack."
       );
       return;
@@ -702,7 +708,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       if (!confirmed) {
         setMessage(
           locale === "vi"
-            ? "Đã hủy so sánh provider. Không thay đổi preview."
+            ? "Đã hủy so sánh provider. Không thay đổi bản xem trước."
             : "Provider Compare cancelled. No preview was changed."
         );
         return;
@@ -712,7 +718,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
     if (!confirmRealAICallIfNeeded(usesCloudProvider)) {
       setMessage(
         locale === "vi"
-          ? "Đã hủy so sánh provider do chưa xác nhận gọi cloud AI."
+          ? "Đã hủy so sánh provider do chưa xác nhận gọi AI đám mây."
           : "Provider Compare cancelled by cloud AI consent check."
       );
       return;
@@ -813,7 +819,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
     setIsRunningCompare(false);
     setMessage(
       locale === "vi"
-        ? "Đã hoàn tất so sánh provider. Chọn một output để xem tiếp."
+        ? "Đã hoàn tất so sánh provider. Chọn một đầu ra để xem tiếp."
         : "Provider Compare finished. Choose one output to preview further."
     );
   }
@@ -930,14 +936,18 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       setArtifacts(nextArtifacts);
       setExportPackageStatus("fresh");
       refreshArtifactStatuses();
-      setMessage("ÄÃ£ generate fresh Ä‘á»§ 5 artifacts cho output package.");
+      setMessage(locale === "vi" ? "Đã tạo mới đủ 5 artifact cho gói đầu ra." : "Generated fresh output package artifacts.");
     } catch (error) {
       setArtifacts(null);
       setExportPackageStatus("not_generated");
       setMessage(
         error instanceof Error
-          ? `KhÃ´ng thá»ƒ generate output package: ${error.message}`
-          : "KhÃ´ng thá»ƒ generate output package. Vui lÃ²ng kiá»ƒm tra dá»¯ liá»‡u."
+          ? locale === "vi"
+            ? `Không thể tạo gói đầu ra: ${error.message}`
+            : `Could not generate output package: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo gói đầu ra. Vui lòng kiểm tra dữ liệu."
+            : "Could not generate output package. Please check the data."
       );
     }
   }
@@ -1718,12 +1728,16 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       setArtifacts(currentArtifacts);
       setExportPackageStatus("fresh");
       refreshArtifactStatuses();
-      setMessage("ÄÃ£ táº¡o ZIP output package.");
+      setMessage(locale === "vi" ? "Đã tạo ZIP gói đầu ra." : "Created output package ZIP.");
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? `KhÃ´ng thá»ƒ download ZIP: ${error.message}`
-          : "KhÃ´ng thá»ƒ download ZIP. Vui lÃ²ng thá»­ láº¡i."
+          ? locale === "vi"
+            ? `Không thể tải ZIP: ${error.message}`
+            : `Could not download ZIP: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tải ZIP. Vui lòng thử lại."
+            : "Could not download ZIP. Please try again."
       );
     } finally {
       setIsDownloading(false);
@@ -1736,7 +1750,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       `Audit_Log_${createTimestamp()}.json`,
       "application/json;charset=utf-8"
     );
-    setMessage("ÄÃ£ export audit log JSON.");
+    setMessage(locale === "vi" ? "Đã xuất JSON nhật ký kiểm toán." : "Exported audit log JSON.");
   }
 
   function downloadAIRunHistory() {
@@ -1786,7 +1800,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       setProductDeliveryDraft(nextDraft);
       setMessage(
         locale === "vi"
-          ? "Đã tạo preview Product Delivery draft deterministic."
+          ? "Đã tạo bản xem trước nháp hồ sơ sản phẩm theo cách xác định."
           : "Created deterministic Product Delivery draft preview."
       );
     } catch (error) {
@@ -1794,10 +1808,10 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       setMessage(
         error instanceof Error
           ? locale === "vi"
-            ? `Không thể tạo Product Delivery draft: ${error.message}`
+            ? `Không thể tạo nháp hồ sơ sản phẩm: ${error.message}`
             : `Could not create Product Delivery draft: ${error.message}`
           : locale === "vi"
-            ? "Không thể tạo Product Delivery draft. Vui lòng kiểm tra dữ liệu."
+            ? "Không thể tạo nháp hồ sơ sản phẩm. Vui lòng kiểm tra dữ liệu."
             : "Could not create Product Delivery draft. Please check the data."
       );
     }
@@ -1835,7 +1849,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       });
       setMessage(
         locale === "vi"
-          ? "Đã export Product Delivery draft markdown."
+          ? "Đã xuất Markdown nháp hồ sơ sản phẩm."
           : "Exported Product Delivery draft markdown."
       );
     } catch (error) {
@@ -1943,7 +1957,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
       logRouteAIRun({ skillId, success: true, meta: data.meta });
       setMessage(
         locale === "vi"
-          ? "Đã tạo preview AI Coding Pack từ Product Delivery artifacts."
+          ? "Đã tạo bản xem trước AI Coding Pack từ artifact hồ sơ sản phẩm."
           : "Created AI Coding Pack preview from Product Delivery artifacts."
       );
     } catch (error) {
@@ -2207,7 +2221,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 onClick={downloadAuditLog}
                 type="button"
               >
-                Export Audit Log JSON
+                {locale === "vi" ? "Xuất JSON nhật ký kiểm toán" : "Export Audit Log JSON"}
               </button>
             </div>
           ) : null}
@@ -2237,10 +2251,16 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               }`}
             >
               {status === "fresh"
-                ? "Fresh"
+                ? locale === "vi"
+                  ? "Mới nhất"
+                  : "Fresh"
                 : status === "stale"
-                  ? "Stale"
-                  : "Not generated"}
+                  ? locale === "vi"
+                    ? "Cần tạo lại"
+                    : "Stale"
+                  : locale === "vi"
+                    ? "Chưa tạo"
+                    : "Not generated"}
             </p>
           </div>
         ))}
@@ -2270,14 +2290,14 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               onClick={refreshAIRunHistory}
               type="button"
             >
-              Refresh history
+              {locale === "vi" ? "Làm mới lịch sử" : "Refresh history"}
             </button>
             <button
               className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               onClick={downloadAIRunHistory}
               type="button"
             >
-              {locale === "vi" ? "Export lịch sử JSON" : "Export history JSON"}
+              {locale === "vi" ? "Xuất JSON lịch sử" : "Export history JSON"}
             </button>
           </div>
         </div>
@@ -2471,7 +2491,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               </label>
               <label className="block md:col-span-2">
                 <span className="text-sm font-medium text-slate-700">
-                  {locale === "vi" ? "Text trích xuất từ file tùy chọn" : "Optional uploaded file text"}
+                  {locale === "vi" ? "Text trích xuất từ tệp tùy chọn" : "Optional uploaded file text"}
                 </span>
                 <textarea
                   className="mt-2 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
@@ -2491,7 +2511,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 { vi: "SRS", en: "SRS" },
                 { vi: "User story", en: "User Stories" },
                 { vi: "Acceptance Criteria", en: "Acceptance Criteria" },
-                { vi: "Review phạm vi", en: "Scope Review" },
+                { vi: "Rà soát phạm vi", en: "Scope Review" },
                 { vi: "Cắt MVP", en: "MVP Slicing" },
                 { vi: "Gói bàn giao phát triển", en: "AI Development Handoff Pack" }
               ].map((capability) => (
@@ -2607,11 +2627,11 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
 
               <div className="rounded border border-purple-100 bg-purple-50/60 p-3">
                 <p className="text-sm font-semibold text-purple-950">
-                  {locale === "vi" ? "Review" : "Review"}
+                  {locale === "vi" ? "Rà soát" : "Review"}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-purple-900/80">
                   {locale === "vi"
-                    ? "Chạy scope review và Requirement QA như finding/recommendation draft; không tự áp dụng."
+                    ? "Chạy rà soát phạm vi và Requirement QA dưới dạng finding/recommendation nháp; không tự áp dụng."
                     : "Run scope review and Requirement QA as draft findings/recommendations; nothing is auto-applied."}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -2623,10 +2643,10 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                   >
                     {isGeneratingProductScopeReview
                       ? locale === "vi"
-                        ? "Đang review scope..."
+                        ? "Đang rà soát phạm vi..."
                         : "Reviewing Scope..."
                       : locale === "vi"
-                        ? "Review Product Scope"
+                        ? "Rà soát phạm vi sản phẩm"
                         : "Review Product Scope"}
                   </button>
                   <button
@@ -2749,7 +2769,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                           onChange={() => toggleCompareProvider(provider.id)}
                           type="checkbox"
                         />
-                        {provider.label}
+                        {provider.label[locale]}
                       </label>
                     ))}
                     {compareProviderIds.length > 1 ? (
@@ -2900,13 +2920,13 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               <li>{locale === "vi" ? "Dàn ý SRS" : "SRS outline"}</li>
               <li>{locale === "vi" ? "User stories" : "User stories"}</li>
               <li>{locale === "vi" ? "Acceptance criteria" : "Acceptance criteria"}</li>
-              <li>{locale === "vi" ? "Review product scope và MVP slicing" : "Product scope review and MVP slicing"}</li>
-              <li>{locale === "vi" ? "Requirement QA và trace coverage" : "Requirement QA and trace coverage"}</li>
+              <li>{locale === "vi" ? "Rà soát phạm vi sản phẩm và MVP slicing" : "Product scope review and MVP slicing"}</li>
+              <li>{locale === "vi" ? "Requirement QA và độ phủ trace" : "Requirement QA and trace coverage"}</li>
               <li>{locale === "vi" ? "Giả định và câu hỏi mở" : "Assumptions and open questions"}</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
               {locale === "vi"
-                ? "MVP1 chưa tạo Artifact Graph. User stories và acceptance criteria được tạo qua AI skill route server-side và chỉ ở trạng thái preview/export."
+                ? "MVP1 chưa tạo Artifact Graph. User stories và acceptance criteria được tạo qua AI skill route phía máy chủ và chỉ ở trạng thái xem trước/xuất."
                 : "No Artifact Graph is created in MVP1. User stories and acceptance criteria are generated through server-side AI skill routes and remain preview/export only."}
             </p>
           </div>
@@ -2916,7 +2936,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                {locale === "vi" ? "Preview: bản nháp Product Delivery" : "Preview: Product Delivery draft"}
+                {locale === "vi" ? "Xem trước: bản nháp hồ sơ sản phẩm" : "Preview: Product Delivery draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"
@@ -3402,7 +3422,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
               {locale === "vi"
-                ? "Chi tiết nâng cao cho người dùng kỹ thuật: AGENTS.md, CLAUDE.md, cursor rules và spec.json được giữ trong gói. Product Delivery dùng `user-stories-to-ai-coding-pack` qua `/api/ai/run-skill`, có fallback mock/local và schema validation."
+                ? "Chi tiết nâng cao cho người dùng kỹ thuật: AGENTS.md, CLAUDE.md, cursor rules và spec.json được giữ trong gói. Product Delivery dùng `user-stories-to-ai-coding-pack` qua `/api/ai/run-skill`, có fallback local/mô phỏng và schema validation."
                 : "Advanced details for technical users: AGENTS.md, CLAUDE.md, cursor rules, and spec.json are kept in the package. Product Delivery generation uses `user-stories-to-ai-coding-pack` through `/api/ai/run-skill`, with mock/local fallback and schema validation."}
             </p>
           </div>

@@ -98,7 +98,7 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
     const viewer = viewerRef.current;
 
     if (!viewer || !xml.trim()) {
-      setErrorMessage("ChÆ°a cÃ³ BPMN XML Ä‘á»ƒ zoom.");
+      setErrorMessage("Chưa có BPMN XML để zoom.");
       return;
     }
 

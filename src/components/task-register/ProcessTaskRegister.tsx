@@ -58,23 +58,23 @@ const ptrText = {
     saveChanges: "Lưu thay đổi",
     more: "Thêm",
     addRow: "Thêm dòng",
-    resetSample: "Reset mẫu",
+    resetSample: "Đặt lại mẫu",
     exportExcel: "Xuất Excel",
     importExcel: "Nhập Excel",
-    downloadExcelTemplate: "Tải Excel template",
+    downloadExcelTemplate: "Tải mẫu Excel",
     exportJson: "Xuất JSON",
     sample: "Mẫu",
     autoSuggest: "Tự gợi ý trường tương tác",
     aiAssistant: "Trợ lý AI",
-    aiNoSelection: "Chọn ít nhất một dòng trước khi chạy AI Assistant.",
+    aiNoSelection: "Chọn ít nhất một dòng trước khi chạy trợ lý AI.",
     aiRunning: "Đang chạy AI Assistant...",
-    aiNoRecommendations: "AI Assistant không trả recommendation nào cho các dòng đã chọn.",
-    aiRecommendationsReady: "AI Assistant đã tạo recommendation trong QA Panel.",
+    aiNoRecommendations: "Trợ lý AI không trả đề xuất nào cho các dòng đã chọn.",
+    aiRecommendationsReady: "Trợ lý AI đã tạo đề xuất trong bảng QA.",
     normalizeRows: "Chuẩn hóa dòng đã chọn",
-    inferActorSystemLane: "Suy luận actor/system/lane còn thiếu",
-    improveTaskWording: "Cải thiện cách viết task",
-    suggestSplitTask: "Gợi ý tách task phức tạp",
-    generateInputOutput: "Tạo input/output còn thiếu",
+    inferActorSystemLane: "Suy luận vai trò/hệ thống/lane còn thiếu",
+    improveTaskWording: "Cải thiện cách viết công việc",
+    suggestSplitTask: "Gợi ý tách công việc phức tạp",
+    generateInputOutput: "Tạo đầu vào/đầu ra còn thiếu",
     suggestInteractionChannel: "Gợi ý customerInteractionType/channel",
     clearSelection: "Bỏ chọn",
     selectedRowsCount: "Dòng đã chọn",
@@ -89,9 +89,9 @@ const ptrText = {
     saving: "Đang lưu",
     selectRows: "Chọn dòng",
     selectedRows: "dòng đã chọn",
-    oneRow: "Một dòng = một task/gateway/event/data interaction.",
+    oneRow: "Một dòng = một công việc, gateway, event hoặc data interaction.",
     gateway: "Gateway phải có câu hỏi điều kiện và đủ nhánh yes/no.",
-    systemData: "System/data phải giữ liên kết với hành trình người dùng.",
+    systemData: "Hệ thống/dữ liệu phải giữ liên kết với hành trình người dùng.",
     totalRows: "Tổng dòng",
     gatewayCount: "Gateway"
   },
@@ -182,9 +182,9 @@ const processTaskColumnLabels = {
     customerInteractionType: "Loại tương tác khách hàng",
     channel: "Kênh",
     actor: "Người thực hiện",
-    actorLane: "Lane người dùng",
+    actorLane: "Làn người dùng",
     system: "Hệ thống",
-    systemLane: "Lane hệ thống",
+    systemLane: "Làn hệ thống",
     dataObject: "Đối tượng dữ liệu",
     dataAction: "Thao tác dữ liệu",
     taskName: "Tên công việc",
@@ -199,7 +199,7 @@ const processTaskColumnLabels = {
     sla: "SLA",
     riskControl: "Rủi ro/Kiểm soát",
     sourceRef: "Nguồn tham chiếu",
-    reviewStatus: "Trạng thái review",
+    reviewStatus: "Trạng thái rà soát",
     comment: "Ghi chú"
   },
   en: {
@@ -1646,11 +1646,12 @@ export function ProcessTaskRegister() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-slate-950">
-                  Preview Excel import
+                  {locale === "vi" ? "Xem trước nhập Excel" : "Preview Excel import"}
                 </h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  Số dòng đọc được: {importPreview.tasks.length} | Lỗi:{" "}
-                  {importPreview.errors.length} | Cảnh báo:{" "}
+                  {locale === "vi" ? "Số dòng đọc được" : "Rows read"}:{" "}
+                  {importPreview.tasks.length} | {locale === "vi" ? "Lỗi" : "Errors"}:{" "}
+                  {importPreview.errors.length} | {locale === "vi" ? "Cảnh báo" : "Warnings"}:{" "}
                   {importPreview.warnings.length}
                 </p>
               </div>
@@ -1661,21 +1662,23 @@ export function ProcessTaskRegister() {
                   onClick={applyImport}
                   type="button"
                 >
-                  Apply Import
+                  {locale === "vi" ? "Áp dụng nhập Excel" : "Apply Import"}
                 </button>
                 <button
                   className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                   onClick={cancelImport}
                   type="button"
                 >
-                  Cancel Import
+                  {locale === "vi" ? "Hủy nhập Excel" : "Cancel Import"}
                 </button>
               </div>
             </div>
 
             {importPreview.errors.length > 0 ? (
               <div className="mt-4 rounded border border-red-200 bg-red-50 p-3">
-                <p className="text-sm font-semibold text-red-800">Lỗi import</p>
+                <p className="text-sm font-semibold text-red-800">
+                  {locale === "vi" ? "Lỗi nhập" : "Import errors"}
+                </p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
                   {importPreview.errors.map((issue, index) => (
                     <li key={`${issue.message}-${index}`}>{issue.message}</li>
@@ -1687,7 +1690,7 @@ export function ProcessTaskRegister() {
             {importPreview.warnings.length > 0 ? (
               <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">
-                  Cảnh báo import
+                  {locale === "vi" ? "Cảnh báo nhập" : "Import warnings"}
                 </p>
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-700">
                   {importPreview.warnings.map((issue, index) => (
@@ -1754,7 +1757,7 @@ export function ProcessTaskRegister() {
               </table>
               {importPreview.tasks.length > 8 ? (
                 <p className="border-t border-slate-200 p-3 text-sm text-slate-500">
-                  Chỉ hiển thị 8 dòng đầu trong preview.
+                  {locale === "vi" ? "Chỉ hiển thị 8 dòng đầu trong bản xem trước." : "Only the first 8 rows are shown in preview."}
                 </p>
               ) : null}
             </div>

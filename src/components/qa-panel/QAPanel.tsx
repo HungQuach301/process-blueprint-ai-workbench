@@ -61,48 +61,48 @@ type AIQACompareResult = {
   error?: string;
 };
 
-const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
-  { id: "product-ai", label: "Product AI" },
-  { id: "openai", label: "OpenAI" },
-  { id: "claude", label: "Claude" },
-  { id: "mock", label: "Local/Mock" }
+const compareProviders: Array<{ id: CompareProviderId; label: Record<Locale, string> }> = [
+  { id: "product-ai", label: { vi: "Product AI", en: "Product AI" } },
+  { id: "openai", label: { vi: "OpenAI", en: "OpenAI" } },
+  { id: "claude", label: { vi: "Claude", en: "Claude" } },
+  { id: "mock", label: { vi: "Local/mô phỏng", en: "Local/Mock" } }
 ];
 
 const qaPanelText = {
   vi: {
     title: "Bảng kiểm tra QA",
-    description: "QA tự chạy lại khi dữ liệu trong bảng thay đổi. Chọn issue để nhảy tới dòng liên quan nếu còn tồn tại.",
+    description: "QA tự chạy lại khi dữ liệu trong bảng thay đổi. Chọn vấn đề để nhảy tới dòng liên quan nếu còn tồn tại.",
     downloadReport: "Tải báo cáo QA",
     recommendationToolbar: "Thanh đề xuất",
     recommendations: "đề xuất",
     selected: "đã chọn",
-    safeHelper: "An toàn = độ tin cậy cao, rủi ro thấp và chỉ đổi trường đơn giản. Đề xuất đổi graph không được chọn mặc định.",
+    safeHelper: "An toàn = độ tin cậy cao, rủi ro thấp và chỉ đổi trường đơn giản. Đề xuất đổi cấu trúc luồng không được chọn mặc định.",
     selectSafe: "Chọn đề xuất an toàn",
     applySelected: "Xem trước mục đã chọn",
     more: "Thêm",
     clearSelection: "Xóa lựa chọn",
     applyAllSafe: "Xem trước đề xuất an toàn",
-    exportFeedback: "Xuất feedback JSON",
-    clearLocalFeedback: "Xóa feedback local",
+    exportFeedback: "Xuất phản hồi JSON",
+    clearLocalFeedback: "Xóa phản hồi cục bộ",
     running: "Đang chạy AI QA...",
     runReal: "Chạy AI QA",
-    runMock: "Chạy mock QA",
+    runMock: "Chạy QA mô phỏng",
     showOnlySafe: "Chỉ hiện đề xuất an toàn",
     includeMedium: "Bao gồm mức trung bình",
     includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
     providerCompare: "So sánh provider",
-    totalIssues: "Tổng số issue",
+    totalIssues: "Tổng số vấn đề",
     noRecommendations: "Chưa có đề xuất tự động.",
     hiddenAdvanced: "Thay đổi cấu trúc nâng cao đang được ẩn.",
     automaticRecommendations: "Gợi ý tự động",
     suggestedFix: "Cách sửa",
-    noIssuesInGroup: "Không có issue trong nhóm này.",
+    noIssuesInGroup: "Không có vấn đề trong nhóm này.",
     recommendedNextAction: "Bước tiếp theo được đề xuất",
-    fixCriticalFirst: "Xử lý issue nghiêm trọng trước, sau đó chạy lại QA.",
-    reviewWarningsNext: "Review cảnh báo để giảm rủi ro trước khi xuất artifact.",
+    fixCriticalFirst: "Xử lý vấn đề nghiêm trọng trước, sau đó chạy lại QA.",
+    reviewWarningsNext: "Rà soát cảnh báo để giảm rủi ro trước khi xuất artifact.",
     reviewSafeRecommendations: "Xem trước các đề xuất an toàn rồi xác nhận nếu phù hợp.",
-    readyForExportReview: "Không còn issue nổi bật. Có thể review artifact hoặc export.",
-    reviewTabs: "Luồng review",
+    readyForExportReview: "Không còn vấn đề nổi bật. Có thể rà soát artifact hoặc xuất gói.",
+    reviewTabs: "Luồng rà soát",
     recommendationsTab: "Đề xuất",
     whyItMatters: "Vì sao cần chú ý",
     critical: "Nghiêm trọng",
@@ -675,7 +675,7 @@ export function QAPanel({
     }
 
     if (compareProviderIds.length === 0) {
-      setAiQaMessage("Choose at least one provider before running Provider Compare.");
+      setAiQaMessage(locale === "vi" ? "Chọn ít nhất một provider trước khi so sánh." : "Choose at least one provider before running Provider Compare.");
       return;
     }
 
@@ -683,23 +683,25 @@ export function QAPanel({
 
     if (compareProviderIds.length > 1 && usesCloudProvider) {
       const confirmed = window.confirm(
-        "Provider Compare will call multiple selected providers and may increase cost. Continue?"
+        locale === "vi"
+          ? "So sánh provider sẽ gọi nhiều provider đã chọn và có thể tăng chi phí. Tiếp tục?"
+          : "Provider Compare will call multiple selected providers and may increase cost. Continue?"
       );
 
       if (!confirmed) {
-        setAiQaMessage("Provider Compare cancelled. No recommendation was applied.");
+        setAiQaMessage(locale === "vi" ? "Đã hủy so sánh provider. Không có đề xuất nào được áp dụng." : "Provider Compare cancelled. No recommendation was applied.");
         return;
       }
     }
 
     if (!confirmRealAICallIfNeeded(realAIQAEnabled && usesCloudProvider)) {
-      setAiQaMessage("Provider Compare cancelled by cloud AI consent check.");
+      setAiQaMessage(locale === "vi" ? "Đã hủy so sánh provider ở bước xác nhận AI đám mây." : "Provider Compare cancelled by cloud AI consent check.");
       return;
     }
 
     setIsRunningCompare(true);
     setCompareResults([]);
-    setAiQaMessage("Running Provider Compare for AI QA...");
+    setAiQaMessage(locale === "vi" ? "Đang so sánh provider cho AI QA..." : "Running Provider Compare for AI QA...");
 
     const nextResults: AIQACompareResult[] = [];
 
@@ -820,7 +822,7 @@ export function QAPanel({
     }
 
     setCompareResults(nextResults);
-    setAiQaMessage("Provider Compare finished. Choose one provider output to preview further.");
+    setAiQaMessage(locale === "vi" ? "Đã so sánh xong provider. Chọn một đầu ra để xem trước tiếp." : "Provider Compare finished. Choose one provider output to preview further.");
     setIsRunningCompare(false);
   }
 
@@ -838,9 +840,13 @@ export function QAPanel({
               taskName: `${result.providerId} AI QA recommendation`,
               severity: "suggestion",
               message:
-                "Provider Compare output selected for the existing Recommendation Engine workflow.",
+                locale === "vi"
+                  ? "Đã chọn đầu ra so sánh provider cho luồng Recommendation Engine hiện có."
+                  : "Provider Compare output selected for the existing Recommendation Engine workflow.",
               suggestedFix:
-                "Review the selected provider recommendation, preview the operation, then apply only after confirmation.",
+                locale === "vi"
+                  ? "Rà soát đề xuất từ provider đã chọn, xem trước thao tác, rồi chỉ áp dụng sau khi xác nhận."
+                  : "Review the selected provider recommendation, preview the operation, then apply only after confirmation.",
               recommendations: result.recommendations
             }
           ]
@@ -858,7 +864,7 @@ export function QAPanel({
     if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
       setAiQaMessage(
         locale === "vi"
-          ? "Đã hủy gọi Real AI QA. Không có recommendation nào được tạo."
+          ? "Đã hủy gọi Real AI QA. Không tạo đề xuất."
           : "Real AI QA call cancelled. No recommendation was created."
       );
       return;
@@ -949,7 +955,9 @@ export function QAPanel({
                 message:
                   "AI QA returned recommendation(s) using the existing Recommendation Engine schema.",
                 suggestedFix:
-                  "Review the AI recommendation, preview the operation, then apply only after confirmation.",
+                  locale === "vi"
+                    ? "Rà soát đề xuất AI, xem trước thao tác, rồi chỉ áp dụng sau khi xác nhận."
+                    : "Review the AI recommendation, preview the operation, then apply only after confirmation.",
                 recommendations
               }
             ]
@@ -1229,7 +1237,7 @@ export function QAPanel({
                       onChange={() => toggleCompareProvider(provider.id)}
                       type="checkbox"
                     />
-                    {provider.label}
+                    {provider.label[locale]}
                   </label>
                 ))}
                 <button

@@ -8,7 +8,7 @@ export const en: TranslationDictionary = {
   "common.cancel": "Cancel",
   "common.preview": "Preview",
   "common.language": "Language",
-  "common.vietnamese": "Tiếng Việt",
+  "common.vietnamese": "Vietnamese",
   "common.english": "English",
   "nav.workspace": "Workspace",
   "nav.aiSettings": "AI Connection Center",

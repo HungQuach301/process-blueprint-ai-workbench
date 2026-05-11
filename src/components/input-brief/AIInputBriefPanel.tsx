@@ -61,20 +61,20 @@ const previewLabels = {
     confidence: "Độ tin cậy",
     assumptions: "Giả định",
     openQuestions: "Câu hỏi cần làm rõ",
-    qualityGateWarnings: "Cảnh báo Quality Gate",
+    qualityGateWarnings: "Cảnh báo cổng chất lượng",
     qualityIssues: "Vấn đề chất lượng",
     replaceCurrentPtr: "Thay PTR hiện tại",
     appendToCurrentPtr: "Thêm vào PTR hiện tại",
-    cancelDraft: "Hủy draft",
+    cancelDraft: "Hủy bản nháp",
     stepId: "Mã bước",
     bpmnType: "Loại BPMN",
-    actor: "Actor",
+    actor: "Vai trò",
     system: "Hệ thống",
-    taskName: "Tên task",
-    input: "Input",
-    output: "Output",
+    taskName: "Tên công việc",
+    input: "Đầu vào",
+    output: "Đầu ra",
     defaultNextStep: "Bước tiếp theo",
-    reviewStatus: "Trạng thái review"
+    reviewStatus: "Trạng thái rà soát"
   },
   en: {
     sourceSummary: "Source summary",
@@ -103,43 +103,47 @@ const inputBriefUiText = {
     generateWithAI: "Tạo bằng AI",
     generating: "Đang tạo...",
     manualInput: "Nhập thủ công",
-    importFile: "Nhập file",
+    importFile: "Nhập tệp",
     voiceInputComingSoon: "Nhập giọng nói - sắp có",
     relatedSystems: "Hệ thống liên quan",
     relatedSystemsHelper: "Kênh khách hàng, hệ thống nội bộ và bên thứ ba được nhập riêng.",
     dataDocuments: "Dữ liệu và tài liệu",
     dataDocumentsHelper: "Giữ dữ liệu, tài liệu, biểu mẫu và hồ sơ tách khỏi hệ thống.",
     voiceComingSoon: "Tính năng nhập giọng nói sắp có. MVP1 chưa ghi âm, upload hoặc xử lý bên ngoài.",
-    fileIntake: "Nhập file",
-    fileIntakeHelper: "File được xử lý local để tạo preview Draft PTR trước khi áp dụng.",
+    fileIntake: "Nhập tệp",
+    fileIntakeHelper: "Tệp được xử lý cục bộ để tạo bản xem trước PTR nháp trước khi áp dụng.",
     supportedFormatsTitle: "Định dạng hỗ trợ",
-    supportedFormats: "PDF dạng text, DOCX và XLSX được hỗ trợ để tạo Draft PTR local.",
-    comingSoonFormats: "Image/OCR/Voice intake sẽ có sau.",
+    supportedFormats: "PDF dạng text, DOCX và XLSX được hỗ trợ để tạo PTR nháp cục bộ.",
+    comingSoonFormats: "Nhập Image/OCR/Voice sẽ có sau.",
     nextStep: "Bước tiếp theo",
-    clearFiles: "Xóa file",
-    selectLocalFiles: "Chọn file local",
-    reselectAfterRefresh: "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất.",
-    fileName: "Tên file",
+    clearFiles: "Xóa tệp",
+    selectLocalFiles: "Chọn tệp cục bộ",
+    reselectAfterRefresh: "Vui lòng chọn lại tệp sau khi làm mới trình duyệt để thực hiện trích xuất.",
+    fileName: "Tên tệp",
     type: "Loại",
     size: "Dung lượng",
     lastModified: "Sửa lần cuối",
     status: "Trạng thái",
     action: "Thao tác",
     extract: "Trích xuất",
-    generateDraftPtr: "Tạo Draft PTR",
+    generateDraftPtr: "Tạo PTR nháp",
+    chatNotes: "Ghi chú / nội dung chat",
+    chatNotesHelper: "Dán nội dung chat, ghi chú workshop hoặc văn bản thủ công để tạo bản xem trước PTR nháp.",
+    chatNotesPlaceholder: "Ví dụ: Khách hàng gửi yêu cầu mở tài khoản. RM kiểm tra hồ sơ. Ops tạo CIF...",
+    generateFromChatNotes: "Tạo PTR nháp từ ghi chú",
     unsupportedImage: "OCR/Image chưa hỗ trợ trong MVP1",
-    unsupportedFile: "Loại file chưa hỗ trợ",
+    unsupportedFile: "Loại tệp chưa hỗ trợ",
     remove: "Xóa",
-    unsupportedSummary: "Phát hiện file chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Voice/OCR/Image chưa được hỗ trợ.",
+    unsupportedSummary: "Phát hiện tệp chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Voice/OCR/Image chưa được hỗ trợ.",
     other: "Khác",
     realAIMode: "Real AI qua provider",
-    mockMode: "Local/mock, không gọi provider bên ngoài",
+    mockMode: "Local/mô phỏng, không gọi provider bên ngoài",
     checkingAIMode: "Đang kiểm tra chế độ AI...",
-    cloudWarning: "Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
+    cloudWarning: "Dữ liệu có thể được xử lý trên đám mây theo cấu hình phía máy chủ.",
     aiCancelled: "Đã hủy gọi Real AI. Bản nháp chưa được tạo.",
-    realAIRunning: "Real AI: đang gọi provider qua route server-side...",
-    mockRunning: "Local/mock: đang tạo bản nháp, không gọi provider bên ngoài.",
-    mockDone: "Local/mock: đã tạo bản nháp PTR. Không gọi provider bên ngoài.",
+    realAIRunning: "Real AI: đang gọi provider qua route phía máy chủ...",
+    mockRunning: "Local/mô phỏng: đang tạo bản nháp, không gọi provider bên ngoài.",
+    mockDone: "Local/mô phỏng: đã tạo bản nháp PTR. Không gọi provider bên ngoài.",
     draftBlocked: "Không thể tạo bản nháp PTR",
     draftRows: "dòng"
   },
@@ -573,7 +577,7 @@ function getFileDraftActionLabel(
         ? "Image/OCR intake sẽ có sau."
         : "Image/OCR intake is coming soon."
       : locale === "vi"
-        ? "Loại file này chưa được hỗ trợ."
+        ? "Loại tệp này chưa được hỗ trợ."
         : "This file type is not supported yet.";
   }
 
@@ -583,18 +587,18 @@ function getFileDraftActionLabel(
 
   if (file.status === "extracted") {
     return locale === "vi"
-      ? "Preview Draft PTR đã sẵn sàng để review."
+      ? "Bản xem trước PTR nháp đã sẵn sàng để rà soát."
       : "Draft PTR preview is ready for review.";
   }
 
   if (file.status === "failed") {
     return locale === "vi"
-      ? "Xử lý thất bại. Hãy xóa file hoặc chọn file khác."
+      ? "Xử lý thất bại. Hãy xóa tệp hoặc chọn tệp khác."
       : "Processing failed. Clear the file or choose another file.";
   }
 
   return locale === "vi"
-    ? `${generateLabel} để tạo preview có thể review.`
+    ? `${generateLabel} để tạo bản xem trước có thể rà soát.`
     : `${generateLabel} to create a reviewable preview.`;
 }
 
@@ -859,14 +863,14 @@ export function AIInputBriefPanel() {
     setMessage(
       unsupportedImageCount > 0
         ? locale === "vi"
-          ? `${unsupportedImageCount} file hình ảnh chưa được hỗ trợ. OCR/hình ảnh sẽ có ở phiên bản sau; file không được upload.`
+          ? `${unsupportedImageCount} tệp hình ảnh chưa được hỗ trợ. OCR/hình ảnh sẽ có ở phiên bản sau; tệp không được upload.`
           : `${unsupportedImageCount} image file is not supported yet. OCR/image extraction is coming soon; files are not uploaded.`
         : unsupportedCount > 0
         ? locale === "vi"
-          ? `${unsupportedCount} file chưa được hỗ trợ. Hiện chỉ hỗ trợ .xlsx, .docx và PDF dạng text. File không được upload.`
+          ? `${unsupportedCount} tệp chưa được hỗ trợ. Hiện chỉ hỗ trợ .xlsx, .docx và PDF dạng text. Tệp không được upload.`
           : `${unsupportedCount} file is not supported. Supported formats are .xlsx, .docx, and text-based PDF. Files are not uploaded.`
         : locale === "vi"
-        ? `Đã chọn ${nextFileMetadata.length} file. File chỉ được xử lý local trong trình duyệt, không upload.`
+        ? `Đã chọn ${nextFileMetadata.length} tệp. Tệp chỉ được xử lý cục bộ trong trình duyệt, không upload.`
         : `Selected ${nextFileMetadata.length} file(s). Files are processed locally in the browser and are not uploaded.`
     );
   }
@@ -879,7 +883,7 @@ export function AIInputBriefPanel() {
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage(
       locale === "vi"
-        ? "Đã xóa metadata file intake local."
+        ? "Đã xóa metadata nhập tệp cục bộ."
         : "Cleared local file intake metadata."
     );
   }
@@ -907,7 +911,7 @@ export function AIInputBriefPanel() {
     clearDraftPreview();
     setMessage(
       locale === "vi"
-        ? "Đã xóa file và preview/draft liên quan."
+        ? "Đã xóa tệp và bản xem trước/bản nháp liên quan."
         : "Removed the file and cleared the related preview/draft."
     );
   }
@@ -932,7 +936,7 @@ export function AIInputBriefPanel() {
     clearDraftPreview();
     setMessage(
       locale === "vi"
-        ? "Đang trích xuất Excel local trong trình duyệt. File không được upload."
+        ? "Đang trích xuất Excel cục bộ trong trình duyệt. Tệp không được upload."
         : "Extracting Excel locally in the browser. The file is not uploaded."
     );
 
@@ -958,7 +962,7 @@ export function AIInputBriefPanel() {
             ? preview.warnings
             : [
                 locale === "vi"
-                  ? "Hãy review các dòng đã trích xuất trước khi áp dụng vào PTR."
+                  ? "Hãy rà soát các dòng đã trích xuất trước khi áp dụng vào PTR."
                   : "Review extracted rows before applying to PTR."
               ],
         qualityIssues: preview.warnings,
@@ -971,7 +975,7 @@ export function AIInputBriefPanel() {
       updateIntakeFileStatus(file, "extracted");
       setMessage(
         locale === "vi"
-          ? `Đã trích xuất ${preview.draftTasks.length} draft task từ sheet ${preview.detectedSheet}. Hãy review trước khi áp dụng.`
+          ? `Đã trích xuất ${preview.draftTasks.length} công việc nháp từ sheet ${preview.detectedSheet}. Hãy rà soát trước khi áp dụng.`
           : `Extracted ${preview.draftTasks.length} draft task(s) from sheet ${preview.detectedSheet}. Review before applying.`
       );
     } catch (error) {
@@ -993,7 +997,7 @@ export function AIInputBriefPanel() {
     clearDraftPreview();
     setMessage(
       locale === "vi"
-        ? "Đang trích xuất DOCX local và tạo Draft PTR. File không được upload."
+        ? "Đang trích xuất DOCX cục bộ và tạo PTR nháp. Tệp không được upload."
         : "Extracting DOCX locally and generating Draft PTR. The file is not uploaded."
     );
 
@@ -1031,8 +1035,8 @@ export function AIInputBriefPanel() {
       setBlockingErrors([]);
       setMessage(
         error instanceof Error
-          ? `DOCX Draft PTR generation failed: ${error.message}`
-          : "DOCX Draft PTR generation failed."
+          ? `Tạo PTR nháp từ DOCX thất bại: ${error.message}`
+          : "Tạo PTR nháp từ DOCX thất bại."
       );
     }
   }
@@ -1043,7 +1047,7 @@ export function AIInputBriefPanel() {
     clearDraftPreview();
     setMessage(
       locale === "vi"
-        ? "Đang trích xuất text từ PDF local trong trình duyệt. File không được upload."
+        ? "Đang trích xuất text từ PDF cục bộ trong trình duyệt. Tệp không được upload."
         : "Extracting PDF text locally in the browser. The file is not uploaded."
     );
 
@@ -1063,7 +1067,7 @@ export function AIInputBriefPanel() {
       setMessage(
         error instanceof Error
           ? error.message
-          : "Không thể trích xuất text từ file PDF này. Vui lòng paste nội dung, dùng Word/Excel, hoặc chờ tính năng OCR ở phiên bản sau."
+          : "Không thể trích xuất text từ tệp PDF này. Vui lòng dán nội dung, dùng Word/Excel, hoặc chờ tính năng OCR ở phiên bản sau."
       );
     }
   }
@@ -1190,7 +1194,7 @@ export function AIInputBriefPanel() {
           status: "failure",
           summary:
             locale === "vi"
-              ? "Draft PTR không đạt Quality Gate."
+              ? "PTR nháp không đạt cổng chất lượng."
               : "Draft PTR did not pass the Quality Gate.",
           metadata: {
             mode: generationMode,
@@ -1204,7 +1208,7 @@ export function AIInputBriefPanel() {
           success: false,
           errorMessage:
             locale === "vi"
-              ? "Draft PTR không đạt Quality Gate."
+              ? "PTR nháp không đạt cổng chất lượng."
               : "Draft PTR did not pass the Quality Gate.",
           realAIEnabled,
           externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
@@ -1214,7 +1218,7 @@ export function AIInputBriefPanel() {
         setBlockingErrors(errors);
         setMessage(
           locale === "vi"
-            ? "Draft PTR không đạt Quality Gate."
+            ? "PTR nháp không đạt cổng chất lượng."
             : "Draft PTR did not pass the Quality Gate."
         );
         return null;
@@ -1259,7 +1263,7 @@ export function AIInputBriefPanel() {
       });
       setMessage(
         locale === "vi"
-          ? `${generationMode}: đã tạo draft PTR ${validation.value.draftProcessTasks.length} dòng từ ${sourceLabel}. Hãy review trước khi áp dụng.`
+          ? `${generationMode}: đã tạo PTR nháp ${validation.value.draftProcessTasks.length} dòng từ ${sourceLabel}. Hãy rà soát trước khi áp dụng.`
           : `${generationMode}: generated ${validation.value.draftProcessTasks.length} draft PTR row(s) from ${sourceLabel}. Review before applying.`
       );
       return nextDraftMeta;
@@ -1293,7 +1297,7 @@ export function AIInputBriefPanel() {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
     clearDraftPreview();
-    setMessage("Đang extract PDF local và tạo Draft PTR. Không upload file.");
+    setMessage(locale === "vi" ? "Đang trích xuất PDF cục bộ và tạo PTR nháp. Không upload tệp." : "Extracting PDF locally and generating Draft PTR. The file is not uploaded.");
 
     try {
       const result = await extractTextFromPdf(file);
@@ -1322,7 +1326,7 @@ export function AIInputBriefPanel() {
       setMessage(
         error instanceof Error
           ? error.message
-          : "Không thể trích xuất PDF để tạo Draft PTR. OCR chưa được hỗ trợ trong MVP1."
+          : "Không thể trích xuất PDF để tạo PTR nháp. OCR chưa được hỗ trợ trong MVP1."
       );
     }
   }
@@ -1331,7 +1335,7 @@ export function AIInputBriefPanel() {
     if (!docxExtraction) {
       setMessage(
         locale === "vi"
-          ? "Chưa có dữ liệu trích xuất DOCX để tạo Draft PTR."
+          ? "Chưa có dữ liệu trích xuất DOCX để tạo PTR nháp."
           : "No DOCX extraction is available to generate Draft PTR."
       );
       return;
@@ -1364,7 +1368,7 @@ export function AIInputBriefPanel() {
     if (!pdfExtraction) {
       setMessage(
         locale === "vi"
-          ? "Chưa có dữ liệu trích xuất PDF để tạo Draft PTR."
+          ? "Chưa có dữ liệu trích xuất PDF để tạo PTR nháp."
           : "No PDF extraction is available to generate Draft PTR."
       );
       return;
@@ -1394,12 +1398,12 @@ export function AIInputBriefPanel() {
       setDraftMeta(null);
       setBlockingErrors([
         locale === "vi"
-          ? "Ghi chú cần đủ nội dung để tạo Draft PTR."
+          ? "Ghi chú cần đủ nội dung để tạo PTR nháp."
           : "Notes must contain enough text to generate a Draft PTR."
       ]);
       setMessage(
         locale === "vi"
-          ? "Nội dung chat/ghi chú quá ngắn để tạo Draft PTR."
+          ? "Nội dung chat/ghi chú quá ngắn để tạo PTR nháp."
           : "Chat/notes text is too short to generate Draft PTR."
       );
       return;
@@ -1446,7 +1450,7 @@ export function AIInputBriefPanel() {
       setBlockingErrors(errors);
       setMessage(
         locale === "vi"
-          ? "Brief chưa đủ thông tin để tạo Draft PTR."
+          ? "Tóm tắt chưa đủ thông tin để tạo PTR nháp."
           : "The brief does not have enough information to generate Draft PTR."
       );
       return;
@@ -1466,7 +1470,7 @@ export function AIInputBriefPanel() {
       setBlockingErrors(errors);
       setMessage(
         locale === "vi"
-          ? "Draft PTR không đạt Quality Gate."
+          ? "PTR nháp không đạt cổng chất lượng."
           : "Draft PTR did not pass the Quality Gate."
       );
       return;
@@ -1485,7 +1489,7 @@ export function AIInputBriefPanel() {
     setDraftMeta(nextResponse);
     setMessage(
       locale === "vi"
-        ? `Đã tạo draft PTR bằng mock local: ${response.draftProcessTasks.length} dòng. Không gọi external API.`
+        ? `Đã tạo PTR nháp bằng mô phỏng cục bộ: ${response.draftProcessTasks.length} dòng. Không gọi API bên ngoài.`
         : `Generated Draft PTR with local mock mode: ${response.draftProcessTasks.length} row(s). No external API was called.`
     );
   }
@@ -1514,7 +1518,7 @@ export function AIInputBriefPanel() {
       setBlockingErrors(errors);
       setMessage(
         locale === "vi"
-          ? "Brief chưa đủ thông tin để tạo Draft PTR."
+          ? "Tóm tắt chưa đủ thông tin để tạo PTR nháp."
           : "The brief does not have enough information to generate Draft PTR."
       );
       return;
@@ -1551,7 +1555,7 @@ export function AIInputBriefPanel() {
         setBlockingErrors(errors);
         setMessage(
           locale === "vi"
-            ? "Draft PTR không đạt Quality Gate."
+            ? "PTR nháp không đạt cổng chất lượng."
             : "Draft PTR did not pass the Quality Gate."
         );
         return;
@@ -1687,7 +1691,7 @@ export function AIInputBriefPanel() {
           status: "failure",
           summary:
             locale === "vi"
-              ? "Draft PTR không đạt Quality Gate."
+              ? "PTR nháp không đạt cổng chất lượng."
               : "Draft PTR did not pass the Quality Gate.",
           metadata: {
             mode: "real-ai",
@@ -1700,7 +1704,7 @@ export function AIInputBriefPanel() {
           success: false,
           errorMessage:
             locale === "vi"
-              ? "Draft PTR không đạt Quality Gate."
+              ? "PTR nháp không đạt cổng chất lượng."
               : "Draft PTR did not pass the Quality Gate.",
           realAIEnabled: true,
           externalApiCalled: data.meta?.externalApiCalled ?? true
@@ -1710,7 +1714,7 @@ export function AIInputBriefPanel() {
         setBlockingErrors(errors);
         setMessage(
           locale === "vi"
-            ? "Draft PTR không đạt Quality Gate."
+            ? "PTR nháp không đạt cổng chất lượng."
             : "Draft PTR did not pass the Quality Gate."
         );
         return;
@@ -1749,7 +1753,7 @@ export function AIInputBriefPanel() {
       });
       setMessage(
         locale === "vi"
-          ? `Real AI mode: đã tạo draft PTR hợp lệ ${validation.value.draftProcessTasks.length} dòng. Hãy review trước khi áp dụng.`
+          ? `Real AI: đã tạo PTR nháp hợp lệ ${validation.value.draftProcessTasks.length} dòng. Hãy rà soát trước khi áp dụng.`
           : `Real AI mode: generated ${validation.value.draftProcessTasks.length} valid draft PTR row(s). Review before applying.`
       );
     } catch {
@@ -2011,11 +2015,11 @@ export function AIInputBriefPanel() {
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-slate-950">
-                  {locale === "vi" ? "Chat / ghi chú" : "Chat / notes"}
+                  {uiText.chatNotes}
                 </h3>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
                   {locale === "vi"
-                    ? "Dán nội dung trao đổi, ghi chú workshop hoặc text thủ công để tạo preview Draft PTR."
+                    ? uiText.chatNotesHelper
                     : "Paste chat, workshop notes, or manual text to generate a Draft PTR preview."}
                 </p>
               </div>
@@ -2026,7 +2030,7 @@ export function AIInputBriefPanel() {
                 type="button"
               >
                 {locale === "vi"
-                  ? "Tạo Draft PTR từ ghi chú"
+                  ? uiText.generateFromChatNotes
                   : "Generate Draft PTR from notes"}
               </button>
             </div>
@@ -2230,7 +2234,7 @@ export function AIInputBriefPanel() {
                         onClick={() => removeSelectedFile(file)}
                         type="button"
                       >
-                        {locale === "vi" ? "Xóa file" : "Clear file"}
+                        {locale === "vi" ? "Xóa tệp" : "Clear file"}
                       </button>
                     </td>
                   </tr>
@@ -2252,7 +2256,7 @@ export function AIInputBriefPanel() {
                   <span className="font-semibold">
                     {excelPreview.draftTasks.length}
                   </span>{" "}
-                  dòng draft PTR. Bản xem trước nằm bên dưới để review trước khi áp dụng.
+                  dòng PTR nháp. Bản xem trước nằm bên dưới để rà soát trước khi áp dụng.
                 </>
               ) : (
                 <>
@@ -2288,7 +2292,7 @@ export function AIInputBriefPanel() {
                 </p>
                 <p className="mt-1 text-violet-900">
                   {locale === "vi"
-                    ? "Chỉ trích xuất text local. Không upload file hoặc gọi AI bên ngoài."
+                    ? "Chỉ trích xuất text cục bộ. Không upload tệp hoặc gọi AI bên ngoài."
                     : "Local text extraction only. No file upload or external AI call."}
                 </p>
               </div>
@@ -2440,7 +2444,7 @@ export function AIInputBriefPanel() {
                 {t("inputBrief.draftPreview", locale)}
               </h3>
               <p className="mt-1 text-sm text-slate-600">
-                {draftTasks.length} dòng draft. {t("inputBrief.reviewBeforeApply", locale)}
+                {draftTasks.length} {locale === "vi" ? "dòng nháp" : "draft row(s)"}. {t("inputBrief.reviewBeforeApply", locale)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

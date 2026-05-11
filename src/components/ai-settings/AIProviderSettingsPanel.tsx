@@ -60,7 +60,7 @@ const providerCards: Array<{
     serverProviderId: "product-ai",
     title: "Product AI",
     description: {
-      vi: "AI của sản phẩm, chạy qua endpoint server-side được cấu hình bằng env.",
+      vi: "AI của sản phẩm, chạy qua endpoint phía máy chủ được cấu hình bằng env.",
       en: "Managed product AI through the server-side endpoint configured by env."
     }
   },
@@ -87,40 +87,43 @@ const providerCards: Array<{
     serverProviderId: "mock",
     title: "Local / Mock",
     description: {
-      vi: "Fallback local/mock, không gọi provider bên ngoài.",
+      vi: "Fallback local/mô phỏng, không gọi provider bên ngoài.",
       en: "Mock/local fallback with no external provider call."
     }
   }
 ];
 
-const modelProviderOptions: Array<{ value: ModelProvider; label: string }> = [
-  { value: "product-ai", label: "Product AI" },
-  { value: "openai-byok", label: "OpenAI" },
-  { value: "claude-byok", label: "Claude" },
-  { value: "local-model", label: "Local / Mock" },
-  { value: "no-ai", label: "No-AI" }
+const modelProviderOptions: Array<{ value: ModelProvider; label: Record<Locale, string> }> = [
+  { value: "product-ai", label: { vi: "Product AI", en: "Product AI" } },
+  { value: "openai-byok", label: { vi: "OpenAI", en: "OpenAI" } },
+  { value: "claude-byok", label: { vi: "Claude", en: "Claude" } },
+  { value: "local-model", label: { vi: "Local / mô phỏng", en: "Local / Mock" } },
+  { value: "no-ai", label: { vi: "Không dùng AI", en: "No-AI" } }
 ];
 
-const dataUsageModeOptions: Array<{ value: DataUsageMode; label: string }> = [
-  { value: "local-only", label: "Local only" },
-  { value: "cloud-processing", label: "Cloud processing" },
-  { value: "no-training", label: "No training" },
-  { value: "organization-private-learning", label: "Organization-private learning" }
+const dataUsageModeOptions: Array<{ value: DataUsageMode; label: Record<Locale, string> }> = [
+  { value: "local-only", label: { vi: "Chỉ lưu cục bộ", en: "Local only" } },
+  { value: "cloud-processing", label: { vi: "Xử lý qua đám mây", en: "Cloud processing" } },
+  { value: "no-training", label: { vi: "Không dùng để huấn luyện", en: "No training" } },
+  {
+    value: "organization-private-learning",
+    label: { vi: "Học riêng theo tổ chức", en: "Organization-private learning" }
+  }
 ];
 
 const modelCapabilityOptions: Array<{
   value: DefaultModelCapability;
-  label: string;
+  label: Record<Locale, string>;
 }> = [
-  { value: "basic", label: "Basic" },
-  { value: "advanced", label: "Advanced" },
-  { value: "reasoning", label: "Reasoning" }
+  { value: "basic", label: { vi: "Cơ bản", en: "Basic" } },
+  { value: "advanced", label: { vi: "Nâng cao", en: "Advanced" } },
+  { value: "reasoning", label: { vi: "Suy luận", en: "Reasoning" } }
 ];
 
-const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: string }> = [
-  { id: "input-brief-to-ptr", label: "Input Brief to PTR" },
-  { id: "ai-process-qa", label: "Process QA" },
-  { id: "ai-template-review", label: "Template Review" }
+const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: Record<Locale, string> }> = [
+  { id: "input-brief-to-ptr", label: { vi: "Tóm tắt đầu vào sang PTR", en: "Input Brief to PTR" } },
+  { id: "ai-process-qa", label: { vi: "QA quy trình", en: "Process QA" } },
+  { id: "ai-template-review", label: { vi: "Rà soát mẫu", en: "Template Review" } }
 ];
 
 const textByLocale = {
@@ -140,32 +143,32 @@ const textByLocale = {
     available: "Khả dụng",
     dataWarning: "Cảnh báo dữ liệu",
     dataWarningBody:
-      "Cloud AI chỉ được gọi qua route server-side. Không nhập hoặc hiển thị API key trong browser.",
+      "AI đám mây chỉ được gọi qua route phía máy chủ. Không nhập hoặc hiển thị API key trong trình duyệt.",
     currentMode: "Chế độ hiện tại",
     flags: "Cờ tính năng",
-    serverProvider: "Provider server",
-    dataMode: "Chế độ dữ liệu server",
+    serverProvider: "Provider phía máy chủ",
+    dataMode: "Chế độ dữ liệu phía máy chủ",
     model: "Model",
     advanced: "Thiết lập nâng cao",
     show: "Hiện",
     hide: "Ẩn",
     defaultProvider: "Provider mặc định",
     capability: "Năng lực model mặc định",
-    allowCloud: "Cho phép cloud AI",
+    allowCloud: "Cho phép AI đám mây",
     requireApproval: "Yêu cầu phê duyệt",
     dataUsageMode: "Chế độ sử dụng dữ liệu",
     organizationNote: "Ghi chú tổ chức",
     organizationPlaceholder: "Ghi chú tenant/tổ chức tùy chọn",
-    perSkillOverride: "Ghi đè theo skill",
+    perSkillOverride: "Ghi đè theo kỹ năng",
     inheritDefault: "Theo provider mặc định",
-    saved: "Đã lưu preference không chứa secret vào localStorage.",
-    resetDone: "Đã đặt lại về local/mock và local-only.",
+    saved: "Đã lưu tùy chọn không chứa secret vào localStorage.",
+    resetDone: "Đã đặt lại về local/mô phỏng và chỉ lưu cục bộ.",
     changed: "Có thay đổi chưa lưu.",
-    mockModeSummary: "Local/mock, không gọi provider bên ngoài.",
-    realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
+    mockModeSummary: "Local/mô phỏng, không gọi provider bên ngoài.",
+    realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên đám mây theo cấu hình phía máy chủ.",
     modelPlaceholder: "Tên hiển thị tùy chọn",
     effectiveProvider: "Provider thực thi",
-    fallbackActive: "Fallback local/mock đang hoạt động vì provider đã chọn chưa sẵn sàng.",
+    fallbackActive: "Fallback local/mô phỏng đang hoạt động vì provider đã chọn chưa sẵn sàng.",
     selectedStatus: "Trạng thái provider đã chọn"
   },
   en: {
@@ -368,7 +371,11 @@ export function AIProviderSettingsPanel() {
       setMessage(data.message ?? (data.ok ? text.available : text.missingEnv));
     } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Connection test failed."
+        error instanceof Error
+          ? error.message
+          : locale === "vi"
+            ? "Kiểm tra kết nối thất bại."
+            : "Connection test failed."
       );
     } finally {
       setIsTesting(false);
@@ -492,7 +499,7 @@ export function AIProviderSettingsPanel() {
               {text.currentMode}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {realAIEnabled ? "Real AI" : "Local/mock"}
+              {realAIEnabled ? "Real AI" : locale === "vi" ? "Local/mô phỏng" : "Local/mock"}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
               {realAIEnabled ? text.realModeSummary : text.mockModeSummary}
@@ -517,7 +524,8 @@ export function AIProviderSettingsPanel() {
               {text.dataMode}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {serverStatus.dataUsageMode ?? "local-only"}
+              {dataUsageModeOptions.find((option) => option.value === serverStatus.dataUsageMode)?.label[locale] ??
+                (locale === "vi" ? "Chỉ lưu cục bộ" : "local-only")}
             </p>
           </div>
           <div>
@@ -573,7 +581,7 @@ export function AIProviderSettingsPanel() {
                 >
                   {modelProviderOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {option.label[locale]}
                     </option>
                   ))}
                 </select>
@@ -595,7 +603,7 @@ export function AIProviderSettingsPanel() {
                 >
                   {dataUsageModeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {option.label[locale]}
                     </option>
                   ))}
                 </select>
@@ -618,7 +626,7 @@ export function AIProviderSettingsPanel() {
                 >
                   {modelCapabilityOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {option.label[locale]}
                     </option>
                   ))}
                 </select>
@@ -701,7 +709,7 @@ export function AIProviderSettingsPanel() {
                   {skillOverrideOptions.map((skill) => (
                     <label className="block" key={skill.id}>
                       <span className="text-xs font-semibold text-slate-600">
-                        {skill.label}
+                        {skill.label[locale]}
                       </span>
                       <select
                         className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
@@ -716,7 +724,7 @@ export function AIProviderSettingsPanel() {
                         <option value="">{text.inheritDefault}</option>
                         {modelProviderOptions.map((option) => (
                           <option key={option.value} value={option.value}>
-                            {option.label}
+                            {option.label[locale]}
                           </option>
                         ))}
                       </select>

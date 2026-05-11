@@ -58,38 +58,38 @@ type TemplateCompareResult = {
   error?: string;
 };
 
-const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
-  { id: "product-ai", label: "Product AI" },
-  { id: "openai", label: "OpenAI" },
-  { id: "claude", label: "Claude" },
-  { id: "mock", label: "Local/Mock" }
+const compareProviders: Array<{ id: CompareProviderId; label: Record<Locale, string> }> = [
+  { id: "product-ai", label: { vi: "Product AI", en: "Product AI" } },
+  { id: "openai", label: { vi: "OpenAI", en: "OpenAI" } },
+  { id: "claude", label: { vi: "Claude", en: "Claude" } },
+  { id: "mock", label: { vi: "Local/mô phỏng", en: "Local/Mock" } }
 ];
 
 const templateHubText = {
   vi: {
-    title: "Trung tâm template",
-    description: "Quản lý template dùng lại cho D01 BPMN và D02 Service Blueprint. Template QA chỉ tạo recommendation, không auto-apply.",
-    currentTemplates: "Template hiện tại",
-    browseTemplates: "Duyệt template",
-    templateReview: "Template review",
-    currentTemplatesHelper: "Xem nhanh template đang dùng cho D01 và D02 trước khi đổi.",
-    browseTemplatesHelper: "Duyệt thư viện bằng card gọn. Metadata chi tiết nằm trong phần mở rộng.",
-    templateReviewHelper: "Chạy review và xem recommendation. Không có recommendation nào được áp dụng tự động.",
-    editorTabHelper: "Chỉnh template đã chọn. JSON/rule chi tiết nằm trong Advanced mode.",
-    changeTemplate: "Đổi template",
-    previewTemplate: "Xem template",
+    title: "Trung tâm mẫu",
+    description: "Quản lý mẫu dùng lại cho D01 BPMN và D02 Service Blueprint. QA mẫu chỉ tạo đề xuất, không tự áp dụng.",
+    currentTemplates: "Mẫu hiện tại",
+    browseTemplates: "Duyệt mẫu",
+    templateReview: "Rà soát mẫu",
+    currentTemplatesHelper: "Xem nhanh mẫu đang dùng cho D01 và D02 trước khi đổi.",
+    browseTemplatesHelper: "Duyệt thư viện bằng thẻ gọn. Thông tin chi tiết nằm trong phần mở rộng.",
+    templateReviewHelper: "Chạy rà soát và xem đề xuất. Không có đề xuất nào được áp dụng tự động.",
+    editorTabHelper: "Chỉnh mẫu đã chọn. Quy tắc JSON chi tiết nằm trong chế độ nâng cao.",
+    changeTemplate: "Đổi mẫu",
+    previewTemplate: "Xem mẫu",
     runTemplateQA: "Chạy Template QA",
     running: "Đang chạy...",
     save: "Lưu",
-    reset: "Reset",
-    recommendations: "Recommendation từ Template QA",
-    aiTemplateReview: "AI Template Review",
+    reset: "Đặt lại",
+    recommendations: "Đề xuất từ Template QA",
+    aiTemplateReview: "Rà soát mẫu bằng AI",
     reviewWarnings: "Cảnh báo",
     reviewAssumptions: "Giả định",
-    reviewRequired: "Cần người dùng review. Không có thay đổi template nào được auto-apply.",
-    starterPack: "Banking Starter Pack và template đã lưu",
-    outputType: "Loại output",
-    businessDomain: "Domain nghiệp vụ",
+    reviewRequired: "Cần người dùng rà soát. Không có thay đổi mẫu nào được tự áp dụng.",
+    starterPack: "Banking Starter Pack và mẫu đã lưu",
+    outputType: "Loại đầu ra",
+    businessDomain: "Lĩnh vực nghiệp vụ",
     processType: "Loại quy trình",
     scope: "Phạm vi",
     status: "Trạng thái",
@@ -102,32 +102,32 @@ const templateHubText = {
     selected: "Đang chọn",
     notCompatibleD01: "Không tương thích D01",
     notCompatibleD02: "Không tương thích D02",
-    advancedProviderCompare: "Nâng cao: Provider Compare",
-    providerCompareHelper: "Tùy chọn và mặc định tắt. So sánh provider chỉ để chọn output review; không auto-apply recommendation.",
+    advancedProviderCompare: "Nâng cao: So sánh provider",
+    providerCompareHelper: "Tùy chọn và mặc định tắt. So sánh provider chỉ để chọn đầu ra rà soát; không tự áp dụng đề xuất.",
     enableCompareMode: "Bật chế độ so sánh",
-    compareTemplateReview: "So sánh Template Review",
+    compareTemplateReview: "So sánh kết quả rà soát mẫu",
     comparing: "Đang so sánh...",
     costWarning: "Nhiều provider có thể làm tăng chi phí AI.",
-    useThisOutput: "Dùng output này",
-    qualityScore: "Điểm chất lượng template",
+    useThisOutput: "Dùng đầu ra này",
+    qualityScore: "Điểm chất lượng mẫu",
     confidence: "Độ tin cậy",
     warnings: "Cảnh báo",
     assumptions: "Giả định",
-    affectedFields: "Field bị ảnh hưởng",
-    editor: "Template editor",
-    editorHelper: "Basic mode chỉ hiển thị metadata. JSON rules nằm trong Advanced mode.",
+    affectedFields: "Trường bị ảnh hưởng",
+    editor: "Trình chỉnh mẫu",
+    editorHelper: "Chế độ cơ bản chỉ hiển thị thông tin mô tả. Quy tắc JSON nằm trong chế độ nâng cao.",
     basicMode: "Chế độ cơ bản",
-    advancedMode: "Chế độ nâng cao: JSON rules",
+    advancedMode: "Chế độ nâng cao: quy tắc JSON",
     hide: "Ẩn",
     show: "Hiện",
     notClassified: "Chưa phân loại",
-    tags: "Tag",
-    noTemplateSelected: "Chưa chọn template.",
-    templatePreview: "Xem trước template",
+    tags: "Thẻ",
+    noTemplateSelected: "Chưa chọn mẫu.",
+    templatePreview: "Xem trước mẫu",
     close: "Đóng",
-    rulePreview: "Xem rules",
-    rulePreviewBody: "JSON/rule details chỉ chỉnh sửa trong Advanced mode. Preview này không hiển thị raw JSON ở template card.",
-    mandatoryFields: "Field bắt buộc",
+    rulePreview: "Xem quy tắc",
+    rulePreviewBody: "Chi tiết JSON/quy tắc chỉ chỉnh sửa trong chế độ nâng cao. Bản xem trước này không hiển thị JSON thô trên thẻ mẫu.",
+    mandatoryFields: "Trường bắt buộc",
     none: "Không có"
   },
   en: {
@@ -1443,7 +1443,7 @@ export function TemplateLibraryEditor() {
                         onChange={() => toggleCompareProvider(provider.id)}
                         type="checkbox"
                       />
-                      {provider.label}
+                      {provider.label[locale]}
                     </label>
                   ))}
                   <button

@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import { D02ServiceBlueprintPreview } from "@/components/preview/D02ServiceBlueprintPreview";
-import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import {
   confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import type { TemplateRecommendation } from "@/lib/ai/ai-template-review-types";
+import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
+import { getLocale, type Locale } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import { validateProcessTasks } from "@/lib/qa/task-register-rules";
@@ -30,8 +31,80 @@ const D02_GENERATED_XML_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const LOCALE_EVENT = "process-blueprint-locale-change";
 
-function readProcessTasks() {
+type ArtifactStatus = "fresh" | "stale" | "not_generated";
+
+const d02Text = {
+  vi: {
+    invalidTasks: "Dữ liệu Process Task Register đã lưu không hợp lệ.",
+    invalidTemplates: "Dữ liệu thư viện mẫu đã lưu không hợp lệ.",
+    emptyXml: "Generator không tạo ra draw.io XML.",
+    generated: "Đã tạo D02 từ Process Task Register hiện tại và mẫu",
+    generateFailed: "Không thể tạo D02 Service Blueprint",
+    generateFailedFallback: "Không thể tạo D02 Service Blueprint. Vui lòng kiểm tra dữ liệu đầu vào.",
+    noXmlForReview: "Chưa có draw.io XML để rà soát. Vui lòng tạo D02 trước.",
+    reviewing: "Đang rà soát Service Blueprint bằng AI...",
+    reviewed:
+      "Đã rà soát Service Blueprint bằng AI. Kết quả chỉ là bản xem trước, không tự động sửa draw.io XML.",
+    reviewFailed: "Không thể rà soát Service Blueprint bằng AI.",
+    noXmlForDownload: "Chưa có draw.io XML để tải xuống. Vui lòng bấm Tạo D02 Service Blueprint trước.",
+    downloaded: "Đã tạo file .drawio để tải xuống.",
+    generateButton: "Tạo D02 Service Blueprint",
+    downloadButton: "Tải .drawio",
+    reviewButton: "Rà soát Service Blueprint bằng AI",
+    reviewingButton: "Đang rà soát...",
+    description:
+      "Tạo draw.io XML từ Process Task Register đã lưu và mẫu D02 đang chọn. File có thể mở bằng draw.io / diagrams.net.",
+    title: "Tạo D02 Service Blueprint",
+    output: "Đầu ra D02 Service Blueprint",
+    statusLabel: "Trạng thái D02",
+    statusFresh: "Mới nhất",
+    statusStale: "Cần tạo lại sau khi dữ liệu/mẫu thay đổi",
+    statusMissing: "Chưa tạo",
+    aiReview: "Rà soát artifact bằng AI",
+    ptrRecommendations: "Đề xuất PTR",
+    templateRecommendations: "Đề xuất mẫu",
+    warnings: "Cảnh báo",
+    advancedXml: "Nâng cao / Xem draw.io XML",
+    generatedXml: "draw.io XML đã tạo"
+  },
+  en: {
+    invalidTasks: "Saved Process Task Register data is invalid.",
+    invalidTemplates: "Saved template library data is invalid.",
+    emptyXml: "Generator did not create draw.io XML.",
+    generated: "Generated D02 from the current Process Task Register and template",
+    generateFailed: "Could not generate D02 Service Blueprint",
+    generateFailedFallback: "Could not generate D02 Service Blueprint. Please check the input data.",
+    noXmlForReview: "No draw.io XML to review. Please generate D02 first.",
+    reviewing: "Reviewing Service Blueprint with AI...",
+    reviewed:
+      "Reviewed Service Blueprint with AI. Results are preview-only and do not auto-edit draw.io XML.",
+    reviewFailed: "Could not review Service Blueprint with AI.",
+    noXmlForDownload: "No draw.io XML to download. Please generate D02 Service Blueprint first.",
+    downloaded: "Created .drawio file for download.",
+    generateButton: "Generate D02 Service Blueprint",
+    downloadButton: "Download .drawio",
+    reviewButton: "Review Service Blueprint with AI",
+    reviewingButton: "Reviewing...",
+    description:
+      "Create draw.io XML from the saved Process Task Register and selected D02 template. The file can be opened with draw.io / diagrams.net.",
+    title: "Generate D02 Service Blueprint",
+    output: "D02 Service Blueprint Output",
+    statusLabel: "D02 status",
+    statusFresh: "Fresh",
+    statusStale: "Stale - regenerate after data/template changes",
+    statusMissing: "Not generated",
+    aiReview: "AI artifact review",
+    ptrRecommendations: "PTR recommendations",
+    templateRecommendations: "Template recommendations",
+    warnings: "Warnings",
+    advancedXml: "Advanced / View draw.io XML",
+    generatedXml: "Generated draw.io XML"
+  }
+} satisfies Record<Locale, Record<string, string>>;
+
+function readProcessTasks(locale: Locale) {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
 
   if (!savedTasks) {
@@ -41,13 +114,13 @@ function readProcessTasks() {
   const parsedTasks = JSON.parse(savedTasks);
 
   if (!Array.isArray(parsedTasks)) {
-    throw new Error("Dữ liệu Process Task Register đã lưu không hợp lệ.");
+    throw new Error(d02Text[locale].invalidTasks);
   }
 
   return parsedTasks as ProcessTask[];
 }
 
-function readSelectedD02Template() {
+function readSelectedD02Template(locale: Locale) {
   const savedTemplates = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
   const selectedTemplateId =
     window.localStorage.getItem(D02_STORAGE_KEY) ??
@@ -67,7 +140,7 @@ function readSelectedD02Template() {
   const parsedTemplates = JSON.parse(savedTemplates);
 
   if (!Array.isArray(parsedTemplates)) {
-    throw new Error("Dữ liệu Template Library đã lưu không hợp lệ.");
+    throw new Error(d02Text[locale].invalidTemplates);
   }
 
   const templates = parsedTemplates as TemplateProfile[];
@@ -82,8 +155,6 @@ function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
-type ArtifactStatus = "fresh" | "stale" | "not_generated";
-
 type ArtifactReviewResult = {
   recommendations: QARecommendation[];
   templateRecommendations: TemplateRecommendation[];
@@ -97,6 +168,7 @@ function readArtifactStatus(): ArtifactStatus {
 }
 
 export function D02ServiceBlueprintOutput() {
+  const [locale, setActiveLocale] = useState<Locale>("vi");
   const [xml, setXml] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<ArtifactStatus>("not_generated");
@@ -109,6 +181,22 @@ export function D02ServiceBlueprintOutput() {
   function refreshStatus() {
     setStatus(readArtifactStatus());
   }
+
+  useEffect(() => {
+    setActiveLocale(getLocale());
+
+    function handleLocaleChange(event: Event) {
+      const localeDetail = (event as CustomEvent<{ locale?: Locale }>).detail;
+
+      if (localeDetail?.locale) {
+        setActiveLocale(localeDetail.locale);
+      }
+    }
+
+    window.addEventListener(LOCALE_EVENT, handleLocaleChange);
+
+    return () => window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
+  }, []);
 
   useEffect(() => {
     refreshStatus();
@@ -149,16 +237,18 @@ export function D02ServiceBlueprintOutput() {
   }, []);
 
   function generateXml() {
+    const text = d02Text[locale];
+
     try {
-      const processTasks = readProcessTasks();
-      const selectedTemplate = readSelectedD02Template();
+      const processTasks = readProcessTasks(locale);
+      const selectedTemplate = readSelectedD02Template(locale);
       const generatedXml = generateServiceBlueprintDrawioXml(
         processTasks,
         selectedTemplate
       );
 
       if (!generatedXml.trim()) {
-        throw new Error("Generator không tạo ra draw.io XML.");
+        throw new Error(text.emptyXml);
       }
 
       setXml(generatedXml);
@@ -176,36 +266,34 @@ export function D02ServiceBlueprintOutput() {
           templateId: selectedTemplate.id
         }
       });
-      setMessage(
-        `Đã generate D02 từ Process Task Register hiện tại và template: ${selectedTemplate.name}.`
-      );
+      setMessage(`${text.generated}: ${selectedTemplate.name}.`);
     } catch (error) {
       setXml("");
       setMessage(
         error instanceof Error
-          ? `Không thể generate D02 Service Blueprint: ${error.message}`
-          : "Không thể generate D02 Service Blueprint. Vui lòng kiểm tra dữ liệu đầu vào."
+          ? `${text.generateFailed}: ${error.message}`
+          : text.generateFailedFallback
       );
     }
   }
 
   async function reviewServiceBlueprintWithAI() {
+    const text = d02Text[locale];
+
     if (!xml.trim()) {
-      setMessage(
-        "ChÆ°a cÃ³ draw.io XML Ä‘á»ƒ review. Vui lÃ²ng generate D02 trÆ°á»›c."
-      );
+      setMessage(text.noXmlForReview);
       return;
     }
 
-    const processTasks = readProcessTasks();
-    const selectedTemplate = readSelectedD02Template();
+    const processTasks = readProcessTasks(locale);
+    const selectedTemplate = readSelectedD02Template(locale);
     if (!confirmRealAICallIfNeeded(realAIEnabled)) {
       return;
     }
 
     setIsReviewing(true);
     setReviewResult(null);
-    setMessage("Äang review Service Blueprint báº±ng AI...");
+    setMessage(text.reviewing);
 
     try {
       const response = await fetch("/api/ai/run-skill", {
@@ -273,25 +361,19 @@ export function D02ServiceBlueprintOutput() {
           warningCount: result.warnings.length
         }
       });
-      setMessage(
-        "ÄÃ£ review Service Blueprint báº±ng AI. Káº¿t quáº£ chá»‰ lÃ  preview, khÃ´ng tá»± Ä‘á»™ng sá»­a draw.io XML."
-      );
+      setMessage(text.reviewed);
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "KhÃ´ng thá»ƒ review Service Blueprint báº±ng AI."
-      );
+      setMessage(error instanceof Error ? error.message : text.reviewFailed);
     } finally {
       setIsReviewing(false);
     }
   }
 
   function downloadDrawio() {
+    const text = d02Text[locale];
+
     if (!xml.trim()) {
-      setMessage(
-        "Chưa có draw.io XML để download. Vui lòng bấm Generate D02 Service Blueprint trước."
-      );
+      setMessage(text.noXmlForDownload);
       return;
     }
 
@@ -305,99 +387,95 @@ export function D02ServiceBlueprintOutput() {
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    setMessage("Đã tạo file .drawio để download.");
+    setMessage(text.downloaded);
   }
+
+  const text = d02Text[locale];
+  const statusText =
+    status === "fresh"
+      ? text.statusFresh
+      : status === "stale"
+        ? text.statusStale
+        : text.statusMissing;
 
   return (
     <SessionFrame
       actions={
         <>
-            <button
-              className="btn btn-primary"
-              onClick={generateXml}
-              type="button"
-            >
-              Generate D02 Service Blueprint
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={downloadDrawio}
-              type="button"
-            >
-              Download .drawio
-            </button>
-            <button
-              className="btn btn-ai"
-              disabled={isReviewing || !xml.trim()}
-              onClick={reviewServiceBlueprintWithAI}
-              type="button"
-            >
-              {isReviewing ? "Reviewing..." : "Review Service Blueprint with AI"}
-            </button>
+          <button className="btn btn-primary" onClick={generateXml} type="button">
+            {text.generateButton}
+          </button>
+          <button className="btn btn-secondary" onClick={downloadDrawio} type="button">
+            {text.downloadButton}
+          </button>
+          <button
+            className="btn btn-ai"
+            disabled={isReviewing || !xml.trim()}
+            onClick={reviewServiceBlueprintWithAI}
+            type="button"
+          >
+            {isReviewing ? text.reviewingButton : text.reviewButton}
+          </button>
         </>
       }
       bodyClassName="p-4"
-      description="Tạo draw.io XML từ Process Task Register đã lưu và template D02 đang chọn. File có thể mở bằng draw.io / diagrams.net."
-      title="Generate D02 Service Blueprint"
+      description={text.description}
+      title={text.title}
     >
-        <p className="mb-2 text-sm font-medium uppercase text-slate-500">
-          D02 Service Blueprint Output
-        </p>
-        <p
-          className={`mb-4 text-sm ${
-            status === "fresh"
-              ? "text-emerald-700"
-              : status === "stale"
-                ? "text-amber-700"
-                : "text-slate-500"
-          }`}
-        >
-          Trạng thái D02:{" "}
-          {status === "fresh"
-            ? "Fresh"
+      <p className="mb-2 text-sm font-medium uppercase text-slate-500">
+        {text.output}
+      </p>
+      <p
+        className={`mb-4 text-sm ${
+          status === "fresh"
+            ? "text-emerald-700"
             : status === "stale"
-              ? "Stale - cần generate lại sau khi dữ liệu/template thay đổi"
-              : "Not generated"}
-        </p>
-        {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+              ? "text-amber-700"
+              : "text-slate-500"
+        }`}
+      >
+        {text.statusLabel}: {statusText}
+      </p>
+      {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
 
-        <div className="mb-4">
-          <D02ServiceBlueprintPreview />
+      <div className="mb-4">
+        <D02ServiceBlueprintPreview />
+      </div>
+
+      {reviewResult ? (
+        <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <p className="font-semibold text-slate-900">{text.aiReview}</p>
+          <p className="mt-1">
+            {text.ptrRecommendations}: {reviewResult.recommendations.length} ·{" "}
+            {text.templateRecommendations}:{" "}
+            {reviewResult.templateRecommendations.length} · {text.warnings}:{" "}
+            {reviewResult.warnings.length}
+          </p>
+          {reviewResult.warnings.length > 0 ? (
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {reviewResult.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
+      ) : null}
 
-        {reviewResult ? (
-          <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900">AI artifact review</p>
-            <p className="mt-1">
-              PTR recommendations: {reviewResult.recommendations.length} · Template recommendations:{" "}
-              {reviewResult.templateRecommendations.length} · Warnings:{" "}
-              {reviewResult.warnings.length}
-            </p>
-            {reviewResult.warnings.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-1 pl-5">
-                {reviewResult.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-
-        <details className="rounded border border-slate-200 bg-slate-50">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
-            Advanced / View draw.io XML
-          </summary>
-          <div className="border-t border-slate-200 p-4">
-        <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-          draw.io XML đã generate
-          <textarea
-            className="min-h-96 w-full rounded border border-slate-300 bg-slate-950 p-3 font-mono text-xs font-normal text-slate-50"
-            readOnly
-            value={xml}
-          />
-        </label>
-          </div>
-        </details>
+      <details className="rounded border border-slate-200 bg-slate-50">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+          {text.advancedXml}
+        </summary>
+        <div className="border-t border-slate-200 p-4">
+          <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
+            {text.generatedXml}
+            <textarea
+              className="min-h-96 w-full rounded border border-slate-300 bg-slate-950 p-3 font-mono text-xs font-normal text-slate-50"
+              readOnly
+              value={xml}
+            />
+          </label>
+        </div>
+      </details>
     </SessionFrame>
   );
 }

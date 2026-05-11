@@ -378,6 +378,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Current blockers
 
+## RC4 i18n cleanup update - 2026-05-11
+
+- Cleaned the base Vietnamese dictionary and removed default bilingual labels from the global shell, module navigation, and Input Brief dictionary entries.
+- Localized the most visible RC4 UI surfaces for Vietnamese/English separation across Workspace, AI Connection Center, Input Brief/File Intake, Template Hub, QA Panel, PTR, D01 BPMN, D02 Service Blueprint, Product Delivery/Export Center, and AI Run History controls.
+- Rebuilt D01/D02 output panels with locale-aware labels/messages while preserving generator logic, server-side AI review route usage, and preview-only review behavior.
+- Kept canonical enum values, internal schema keys, technical artifact filenames (`AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`), and provider names in English where they identify technical artifacts/providers.
+- No API key handling, provider adapter behavior, schema, D01/D02 generator logic, or AI auto-apply workflow was changed.
+
 - Artifact review recommendations are validated and returned by the route, but the D01/D02 UI currently shows counts/warnings only; full handoff into QA Panel and Template Hub still needs a scoped follow-up.
 - Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
 - Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.

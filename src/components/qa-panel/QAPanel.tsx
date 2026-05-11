@@ -6,6 +6,7 @@ import {
   confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
+import type { TemplateRecommendation } from "@/lib/ai/ai-template-review-types";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
@@ -39,6 +40,8 @@ const TEMPLATES_STORAGE_KEY =
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+const ARTIFACT_REVIEW_QA_EVENT =
+  "process-blueprint-ai-workbench:artifact-review-to-qa";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
@@ -49,6 +52,18 @@ type QAReviewTab =
   | "recommendations"
   | "advanced";
 type PendingBatchKind = "selected" | "safe" | "all";
+type ArtifactReviewSource = "bpmn" | "service-blueprint";
+
+type ArtifactReviewEventDetail = {
+  artifactType: ArtifactReviewSource;
+  recommendations: QARecommendation[];
+  templateRecommendations: TemplateRecommendation[];
+  warnings: string[];
+};
+
+type ArtifactReviewFinding = ArtifactReviewEventDetail & {
+  id: string;
+};
 
 type AIQACompareResult = {
   id: string;
@@ -149,6 +164,13 @@ const qaPanelText = {
     affectedStepIds: "Step ID bị ảnh hưởng",
     conflicts: "Xung đột",
     conflictsSkipped: "Đề xuất bị xung đột sẽ được bỏ qua.",
+    artifactReviewAdded: "Rà soát AI đã thêm đề xuất vào QA Engine.",
+    bpmnReviewSource: "Rà soát BPMN",
+    serviceBlueprintReviewSource: "Rà soát Service Blueprint",
+    templateRelatedReview: "Rà soát artifact liên quan đến mẫu",
+    templateRelatedHelper: "Đề xuất mẫu chỉ để rà soát trong QA Engine. Mở Template Hub để cập nhật template nếu phù hợp.",
+    openTemplateHub: "Mở Template Hub",
+    artifactWarnings: "Cảnh báo artifact",
     none: "Không có"
   },
   en: {
@@ -230,6 +252,13 @@ const qaPanelText = {
     affectedStepIds: "Affected step IDs",
     conflicts: "Conflicts",
     conflictsSkipped: "Conflicting recommendations will be skipped.",
+    artifactReviewAdded: "AI review added recommendations to QA Engine.",
+    bpmnReviewSource: "BPMN review",
+    serviceBlueprintReviewSource: "Service Blueprint review",
+    templateRelatedReview: "Template-related artifact review",
+    templateRelatedHelper: "Template recommendations are review-only in QA Engine. Open Template Hub to update the template when appropriate.",
+    openTemplateHub: "Open Template Hub",
+    artifactWarnings: "Artifact warnings",
     none: "None"
   }
 } satisfies Record<Locale, Record<string, string>>;
@@ -394,6 +423,22 @@ function readSelectedTemplateProfiles() {
   return selectedTemplates.length > 0 ? selectedTemplates : templateProfiles;
 }
 
+function isArtifactReviewDetail(value: unknown): value is ArtifactReviewEventDetail {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const detail = value as Partial<ArtifactReviewEventDetail>;
+
+  return (
+    (detail.artifactType === "bpmn" ||
+      detail.artifactType === "service-blueprint") &&
+    Array.isArray(detail.recommendations) &&
+    Array.isArray(detail.templateRecommendations) &&
+    Array.isArray(detail.warnings)
+  );
+}
+
 export function QAPanel({
   issues,
   processTasks,
@@ -405,6 +450,9 @@ export function QAPanel({
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [aiQaIssues, setAiQaIssues] = useState<QaIssue[]>([]);
   const [aiQaMessage, setAiQaMessage] = useState("");
+  const [artifactReviewFindings, setArtifactReviewFindings] = useState<
+    ArtifactReviewFinding[]
+  >([]);
   const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
   const [isRunningAIQA, setIsRunningAIQA] = useState(false);
   const [pendingRecommendation, setPendingRecommendation] = useState<{
@@ -424,10 +472,12 @@ export function QAPanel({
   const [compareResults, setCompareResults] = useState<AIQACompareResult[]>([]);
   const [isRunningCompare, setIsRunningCompare] = useState(false);
   const [activeReviewTab, setActiveReviewTab] = useState<QAReviewTab>("critical");
+  const text = qaPanelText[locale];
   useEffect(() => {
     setActiveLocale(getLocale());
     setAiQaIssues([]);
     setAiQaMessage("");
+    setArtifactReviewFindings([]);
   }, [processTasks]);
 
   useEffect(() => {
@@ -445,6 +495,90 @@ export function QAPanel({
       window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
     };
   }, []);
+
+  useEffect(() => {
+    function handleArtifactReview(event: Event) {
+      const detail = (event as CustomEvent<unknown>).detail;
+
+      if (!isArtifactReviewDetail(detail)) {
+        return;
+      }
+
+      const sourceLabel =
+        detail.artifactType === "bpmn"
+          ? text.bpmnReviewSource
+          : text.serviceBlueprintReviewSource;
+      const recommendations = detail.recommendations.map((recommendation) => ({
+        ...recommendation,
+        source:
+          recommendation.source === "hybrid"
+            ? ("hybrid" as const)
+            : ("ai" as const),
+        requiresConfirmation: true,
+        complianceTags: Array.from(
+          new Set([
+            ...(recommendation.complianceTags ?? []),
+            detail.artifactType === "bpmn" ? "bpmn-review" : "service-blueprint-review"
+          ])
+        )
+      }));
+      const findingId = `artifact-review-${detail.artifactType}-${Date.now()}`;
+
+      if (
+        recommendations.length > 0 ||
+        detail.templateRecommendations.length > 0 ||
+        detail.warnings.length > 0
+      ) {
+        setArtifactReviewFindings((currentFindings) => [
+          { ...detail, id: findingId },
+          ...currentFindings
+        ].slice(0, 5));
+      }
+
+      if (recommendations.length > 0) {
+        setAiQaIssues((currentIssues) => [
+          {
+            id: findingId,
+            issueCode: "SERVICE_BLUEPRINT_CARD_READINESS",
+            stepId:
+              recommendations[0].targetStepIds[0] ??
+              processTasks[0]?.stepId ??
+              "AI",
+            taskName: `${sourceLabel}: ${text.recommendations}`,
+            severity: "suggestion",
+            message:
+              locale === "vi"
+                ? `${sourceLabel} đã tạo đề xuất cho Process Task Register.`
+                : `${sourceLabel} created recommendations for the Process Task Register.`,
+            suggestedFix:
+              locale === "vi"
+                ? "Rà soát trong QA Engine, xem trước thay đổi, rồi chỉ áp dụng sau khi xác nhận."
+                : "Review in QA Engine, preview the change, then apply only after confirmation.",
+            recommendations
+          },
+          ...currentIssues
+        ]);
+      }
+
+      clearSelection();
+      setActiveReviewTab("recommendations");
+      setAiQaMessage(
+        `${text.artifactReviewAdded} ${sourceLabel}: ${
+          recommendations.length
+        } PTR, ${detail.templateRecommendations.length} ${
+          locale === "vi" ? "mẫu" : "template"
+        }, ${
+          detail.warnings.length
+        } ${text.warnings.toLowerCase()}.`
+      );
+    }
+
+    window.addEventListener(ARTIFACT_REVIEW_QA_EVENT, handleArtifactReview);
+
+    return () => {
+      window.removeEventListener(ARTIFACT_REVIEW_QA_EVENT, handleArtifactReview);
+    };
+  }, [locale, processTasks, text]);
 
   useEffect(() => {
     let active = true;
@@ -553,7 +687,6 @@ export function QAPanel({
     [issues]
   );
   const hasRecommendations = recommendationEntries.length > 0;
-  const text = qaPanelText[locale];
   const localizedSeverityLabels: Record<QaSeverity, string> = {
     error: text.critical,
     warning: text.warnings,
@@ -1483,6 +1616,69 @@ export function QAPanel({
         <p className="mb-4 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
           {aiQaMessage}
         </p>
+      ) : null}
+
+      {artifactReviewFindings.length > 0 ? (
+        <div className="mb-4 space-y-3">
+          {artifactReviewFindings.map((finding) => {
+            const sourceLabel =
+              finding.artifactType === "bpmn"
+                ? text.bpmnReviewSource
+                : text.serviceBlueprintReviewSource;
+
+            return (
+              <div
+                className="rounded border border-violet-200 bg-violet-50 p-3 text-sm text-violet-950"
+                key={finding.id}
+              >
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="font-semibold">
+                      {text.templateRelatedReview}: {sourceLabel}
+                    </p>
+                    <p className="mt-1 text-violet-900">
+                      {text.templateRelatedHelper}
+                    </p>
+                  </div>
+                  <a className="btn btn-secondary w-fit text-xs" href="#template-library">
+                    {text.openTemplateHub}
+                  </a>
+                </div>
+
+                {finding.templateRecommendations.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {finding.templateRecommendations.map((recommendation) => (
+                      <div
+                        className="rounded border border-violet-100 bg-white/80 p-2"
+                        key={recommendation.id}
+                      >
+                        <p className="font-semibold">{recommendation.title}</p>
+                        <p className="mt-1 text-violet-900">
+                          {recommendation.description}
+                        </p>
+                        <p className="mt-1 text-xs text-violet-800">
+                          {text.confidence}: {recommendation.confidence} | {text.risk}:{" "}
+                          {recommendation.riskLevel}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {finding.warnings.length > 0 ? (
+                  <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-amber-900">
+                    <p className="font-semibold">{text.artifactWarnings}</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5">
+                      {finding.warnings.map((warning, index) => (
+                        <li key={`${finding.id}-warning-${index}`}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       ) : null}
 
       <p className="mb-4 text-sm font-semibold text-slate-950">

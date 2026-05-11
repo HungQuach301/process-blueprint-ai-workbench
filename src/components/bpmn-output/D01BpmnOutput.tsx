@@ -30,6 +30,8 @@ const D01_GENERATED_XML_KEY =
 const D01_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d01-bpmn-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const ARTIFACT_REVIEW_QA_EVENT =
+  "process-blueprint-ai-workbench:artifact-review-to-qa";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 const d01Text = {
@@ -90,6 +92,20 @@ const d01Text = {
     generatedXml: "Generated XML"
   }
 } satisfies Record<Locale, Record<string, string>>;
+
+function createReviewAddedMessage(
+  locale: Locale,
+  recommendationCount: number,
+  templateRecommendationCount: number
+) {
+  const totalCount = recommendationCount + templateRecommendationCount;
+
+  if (locale === "vi") {
+    return `Rà soát AI đã thêm ${totalCount} đề xuất vào QA Engine (${recommendationCount} PTR, ${templateRecommendationCount} mẫu).`;
+  }
+
+  return `AI review added ${totalCount} recommendation(s) to QA Engine (${recommendationCount} PTR, ${templateRecommendationCount} template).`;
+}
 
 function readProcessTasks(locale: Locale) {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
@@ -304,6 +320,22 @@ export function D01BpmnOutput() {
       };
 
       setReviewResult(result);
+      window.dispatchEvent(
+        new CustomEvent(ARTIFACT_REVIEW_QA_EVENT, {
+          detail: {
+            artifactType: "bpmn",
+            recommendations: result.recommendations,
+            templateRecommendations: result.templateRecommendations,
+            warnings: result.warnings
+          }
+        })
+      );
+      window.setTimeout(() => {
+        document.getElementById("qa-panel")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }, 50);
       logAICallAudit({
         skillId: ARTIFACT_REVIEW_SKILL_ID,
         success: true,
@@ -316,7 +348,13 @@ export function D01BpmnOutput() {
           warningCount: result.warnings.length
         }
       });
-      setMessage(text.reviewed);
+      setMessage(
+        `${text.reviewed} ${createReviewAddedMessage(
+          locale,
+          result.recommendations.length,
+          result.templateRecommendations.length
+        )}`
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : text.reviewFailed);
     } finally {

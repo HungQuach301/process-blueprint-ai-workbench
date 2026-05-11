@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 5 D01/D02 artifact review routing to QA Engine.
+- Kept `Review BPMN with AI` and `Review Service Blueprint with AI` on the existing server-side `artifact-review` skill route with ProcessTask data, selected template, generated XML, and rule QA issues as input.
+- Routed returned PTR `QARecommendation[]` into QA Engine via the existing recommendation preview/confirmation/apply workflow instead of leaving counts only in D01/D02 panels.
+- Added review-only QA Engine visibility for `TemplateRecommendation[]` and artifact warnings, with a Template Hub link for any template update.
+- Updated D01/D02 review status messages to report how many recommendations were added to QA Engine and scroll the user back to QA Engine after review.
+- Kept this RC6 cleanup workflow-only: no BPMN/draw.io XML mutation, no D01/D02 generator change, no AI provider adapter change, no data model/schema change, and no AI auto-apply behavior was changed.
 - Completed RC6 Block 4 QA Engine recommendation toolbar cleanup.
 - Rebalanced the QA Engine recommendation toolbar so `Generate AI recommendations` / `Tạo gợi ý bằng AI` is the prominent AI action, followed by Select safe, Apply selected, Apply all safe, Apply all recommendations, and More.
 - Moved Provider Compare out of the default toolbar row and into the More/advanced surface so the main recommendation actions no longer feel crowded.

@@ -378,6 +378,15 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Current blockers
 
+## RC4 QA Panel guided review workflow update - 2026-05-11
+
+- Refined QA Panel into a guided review workflow with existing summary cards, recommended next action, and tabs for Critical, Warnings, Suggestions, Recommendations, and Advanced structure changes.
+- Kept issue cards focused on title/affected step, why it matters, suggested fix, and compact recommendation metadata.
+- Ensured graph-changing recommendations are separated into Advanced structure changes, hidden by default, excluded from Select safe, and not selectable for batch preview/apply.
+- Kept recommendation cards preview-first with `Preview change`; apply remains available only after confirmation in the preview dialog.
+- Preserved existing recommendation generation, preview/apply helpers, confirmation flow, feedback logging, provider compare route usage, and local audit behavior.
+- No ProcessTask schema, recommendation schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
+
 ## RC4 Product Delivery dedicated module update - 2026-05-11
 
 - Promoted Product Delivery into the navigation section list so it appears as a real primary sidebar module, aligned with the existing top menubar tab.

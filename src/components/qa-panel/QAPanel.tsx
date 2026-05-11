@@ -115,6 +115,8 @@ const qaPanelText = {
     affectedSteps: "Bước bị ảnh hưởng",
     changeSummary: "Tóm tắt thay đổi",
     previewChange: "Xem trước thay đổi",
+    advancedHiddenHelper: "Đề xuất đổi cấu trúc luồng được tách riêng ở tab nâng cao và không được chọn bởi Select safe.",
+    previewThenConfirm: "Preview trước; chỉ áp dụng sau khi xác nhận trong hộp thoại.",
     none: "Không có"
   },
   en: {
@@ -163,6 +165,8 @@ const qaPanelText = {
     affectedSteps: "Affected steps",
     changeSummary: "Change summary",
     previewChange: "Preview change",
+    advancedHiddenHelper: "Flow-structure changes are separated into the advanced tab and are never selected by Select safe.",
+    previewThenConfirm: "Preview first; apply only after confirmation in the dialog.",
     none: "None"
   }
 } satisfies Record<Locale, Record<string, string>>;
@@ -476,7 +480,10 @@ export function QAPanel({
     issue.recommendations?.some((recommendation, index) => {
       const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
 
-      return visibleRecommendationIds.has(recommendationId);
+      return (
+        !isAdvancedStructureRecommendation(recommendation) &&
+        visibleRecommendationIds.has(recommendationId)
+      );
     })
   );
   const nextAction =
@@ -518,12 +525,7 @@ export function QAPanel({
       key: "critical" as QAReviewTab,
       label: localizedSeverityLabels.error,
       issues: displayIssues.filter(
-        (issue) =>
-          issue.severity === "error" &&
-          !(
-            includeGraphChanging &&
-            issue.recommendations?.some(isAdvancedStructureRecommendation)
-          )
+        (issue) => issue.severity === "error"
       ),
       severity: "error" as QaSeverity
     },
@@ -531,12 +533,7 @@ export function QAPanel({
       key: "warnings" as QAReviewTab,
       label: localizedSeverityLabels.warning,
       issues: displayIssues.filter(
-        (issue) =>
-          issue.severity === "warning" &&
-          !(
-            includeGraphChanging &&
-            issue.recommendations?.some(isAdvancedStructureRecommendation)
-          )
+        (issue) => issue.severity === "warning"
       ),
       severity: "warning" as QaSeverity
     },
@@ -544,12 +541,7 @@ export function QAPanel({
       key: "suggestions" as QAReviewTab,
       label: localizedSeverityLabels.suggestion,
       issues: displayIssues.filter(
-        (issue) =>
-          issue.severity === "suggestion" &&
-          !(
-            includeGraphChanging &&
-            issue.recommendations?.some(isAdvancedStructureRecommendation)
-          )
+        (issue) => issue.severity === "suggestion"
       ),
       severity: "suggestion" as QaSeverity
     },
@@ -586,6 +578,23 @@ export function QAPanel({
   const pendingBatchPreview = pendingBatchRecommendations
     ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
     : null;
+
+  function isRecommendationVisibleInActiveGroup(
+    recommendation: QARecommendation,
+    recommendationId: string
+  ) {
+    const isAdvancedRecommendation = isAdvancedStructureRecommendation(recommendation);
+
+    if (activeReviewTab === "advanced") {
+      return includeGraphChanging && isAdvancedRecommendation;
+    }
+
+    if (isAdvancedRecommendation) {
+      return false;
+    }
+
+    return visibleRecommendationIds.has(recommendationId);
+  }
 
   function toggleRecommendation(id: string) {
     setSelectedRecommendationIds((currentIds) => {
@@ -1130,6 +1139,9 @@ export function QAPanel({
               <p className="mt-1 text-xs text-emerald-800">
                 {text.safeHelper}
               </p>
+              <p className="mt-1 text-xs text-emerald-800">
+                {text.previewThenConfirm}
+              </p>
             </div>
 
             <div className="flex max-w-full flex-wrap items-center gap-2">
@@ -1377,6 +1389,7 @@ export function QAPanel({
             {activeReviewTab === "advanced" && !includeGraphChanging ? (
               <div className="px-4 py-3 text-sm text-slate-600">
                 <p>{text.hiddenAdvanced}</p>
+                <p className="mt-1">{text.advancedHiddenHelper}</p>
                 <label className="mt-3 flex items-center gap-2">
                   <input
                     checked={includeGraphChanging}
@@ -1447,8 +1460,15 @@ export function QAPanel({
                           {issue.recommendations.map((recommendation, index) => (
                             (() => {
                               const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
+                              const isAdvancedRecommendation =
+                                isAdvancedStructureRecommendation(recommendation);
 
-                              if (!visibleRecommendationIds.has(recommendationId)) {
+                              if (
+                                !isRecommendationVisibleInActiveGroup(
+                                  recommendation,
+                                  recommendationId
+                                )
+                              ) {
                                 return null;
                               }
 
@@ -1462,32 +1482,49 @@ export function QAPanel({
                               key={recommendationId}
                             >
                               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                                <label className="flex gap-2">
-                                  <input
-                                    checked={selectedRecommendationIds.has(recommendationId)}
-                                    className="mt-1"
-                                    onChange={() => toggleRecommendation(recommendationId)}
-                                    type="checkbox"
-                                  />
-                                  <span>
+                                <div className="flex gap-2">
+                                  {!isAdvancedRecommendation ? (
+                                    <input
+                                      checked={selectedRecommendationIds.has(recommendationId)}
+                                      className="mt-1"
+                                      onChange={() => toggleRecommendation(recommendationId)}
+                                      type="checkbox"
+                                    />
+                                  ) : null}
+                                  <div>
                                   <p className="text-sm font-semibold text-slate-800">
                                     {recommendation.title}
                                   </p>
-                                  <p className="mt-1 text-sm text-slate-600">
-                                    {recommendation.description}
-                                  </p>
-                                  <p className="mt-1 text-xs text-slate-500">
-                                    {text.confidence}: {recommendation.confidence} | {text.impact}:{" "}
-                                    {recommendation.impact} | {text.risk}: {recommendation.riskLevel ?? "medium"}
-                                  </p>
-                                  <p className="mt-1 text-xs text-slate-500">
-                                    {text.affectedSteps}:{" "}
-                                    {getAffectedStepIds(recommendation).length
-                                      ? getAffectedStepIds(recommendation).join(", ")
-                                      : text.none}
-                                  </p>
-                                  </span>
-                                </label>
+                                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                                    <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                                      {text.confidence}: {recommendation.confidence}
+                                    </span>
+                                    <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                                      {text.risk}: {recommendation.riskLevel ?? "medium"}
+                                    </span>
+                                    <span className="rounded bg-slate-100 px-2 py-1 font-semibold text-slate-700">
+                                      {text.affectedSteps}:{" "}
+                                      {getAffectedStepIds(recommendation).length
+                                        ? getAffectedStepIds(recommendation).join(", ")
+                                        : text.none}
+                                    </span>
+                                  </div>
+                                  <div className="mt-2 grid gap-2 text-xs text-slate-600 md:grid-cols-2">
+                                    <p>
+                                      <span className="font-semibold text-slate-800">
+                                        {text.whyItMatters}:
+                                      </span>{" "}
+                                      {recommendation.description}
+                                    </p>
+                                    <p>
+                                      <span className="font-semibold text-slate-800">
+                                        {text.suggestedFix}:
+                                      </span>{" "}
+                                      {recommendation.previewText || issue.suggestedFix}
+                                    </p>
+                                  </div>
+                                  </div>
+                                </div>
                                 <button
                                   className="btn btn-ai w-fit text-xs"
                                   onClick={() =>
@@ -1501,9 +1538,9 @@ export function QAPanel({
                                   {text.previewChange}
                                 </button>
                               </div>
-                              {recommendation.previewText ? (
-                                <p className="mt-1 whitespace-pre-line text-xs text-slate-500">
-                                  {text.changeSummary}: {recommendation.previewText}
+                              {isAdvancedRecommendation ? (
+                                <p className="mt-2 rounded border border-violet-200 bg-violet-50 px-2 py-1 text-xs text-violet-800">
+                                  {text.advancedHiddenHelper}
                                 </p>
                               ) : null}
                             </div>
@@ -1513,7 +1550,10 @@ export function QAPanel({
                           {issue.recommendations.every((recommendation, index) => {
                             const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
 
-                            return !visibleRecommendationIds.has(recommendationId);
+                            return !isRecommendationVisibleInActiveGroup(
+                              recommendation,
+                              recommendationId
+                            );
                           }) ? (
                             <p className="text-sm text-slate-600">
                               {text.hiddenAdvanced}

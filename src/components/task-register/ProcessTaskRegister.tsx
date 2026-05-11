@@ -70,6 +70,8 @@ const ptrText = {
     aiRunning: "Đang chạy AI Assistant...",
     aiNoRecommendations: "Trợ lý AI không trả đề xuất nào cho các dòng đã chọn.",
     aiRecommendationsReady: "Trợ lý AI đã tạo đề xuất trong bảng QA.",
+    aiUsingLocalFallback: "Đang dùng local/mock fallback. Nếu muốn gọi provider ngoài, hãy cấu hình nhà cung cấp trong Trung tâm kết nối AI.",
+    moreAiActions: "Tác vụ AI nâng cao",
     normalizeRows: "Chuẩn hóa dòng đã chọn",
     inferActorSystemLane: "Suy luận vai trò/hệ thống/lane còn thiếu",
     improveTaskWording: "Cải thiện cách viết công việc",
@@ -121,6 +123,8 @@ const ptrText = {
     aiRunning: "Running AI Assistant...",
     aiNoRecommendations: "AI Assistant did not return recommendations for the selected rows.",
     aiRecommendationsReady: "AI Assistant created recommendations in the QA Panel.",
+    aiUsingLocalFallback: "Using local/mock fallback. Configure a provider in AI Connection Center to call an external provider.",
+    moreAiActions: "More AI actions",
     normalizeRows: "Normalize selected rows",
     inferActorSystemLane: "Infer missing actor/system/lane",
     improveTaskWording: "Improve task wording",
@@ -275,6 +279,9 @@ const ptrAIAssistantActions: Array<{
   { id: "generate-missing-input-output", textKey: "generateInputOutput" },
   { id: "suggest-interaction-channel", textKey: "suggestInteractionChannel" }
 ];
+
+const DEFAULT_PTR_AI_ASSISTANT_ACTION_ID: PtrAIAssistantActionId =
+  "improve-task-wording";
 
 const visibleColumns: EditableColumn[] = [
   { key: "stepId", label: "Mã bước", minWidth: "110px" },
@@ -882,6 +889,51 @@ export function ProcessTaskRegister() {
     );
   }
 
+  function chooseDefaultPtrAIAssistantAction(): PtrAIAssistantActionId {
+    if (selectedTasks.length === 0) {
+      return DEFAULT_PTR_AI_ASSISTANT_ACTION_ID;
+    }
+
+    if (
+      selectedTasks.some(
+        (task) =>
+          !String(task.actor ?? "").trim() ||
+          !String(task.system ?? "").trim() ||
+          !String(task.actorLane ?? "").trim() ||
+          !String(task.systemLane ?? "").trim()
+      )
+    ) {
+      return "infer-missing-actor-system-lane";
+    }
+
+    if (
+      selectedTasks.some(
+        (task) => !String(task.input ?? "").trim() || !String(task.output ?? "").trim()
+      )
+    ) {
+      return "generate-missing-input-output";
+    }
+
+    if (
+      selectedTasks.some((task) => {
+        const taskName = String(task.taskName ?? "");
+        return taskName.length > 90 || /\b(and|then|và|rồi|sau đó)\b/i.test(taskName);
+      })
+    ) {
+      return "suggest-split-complex-task";
+    }
+
+    if (
+      selectedTasks.some(
+        (task) => isEmptyInteractionType(task) || !String(task.channel ?? "").trim()
+      )
+    ) {
+      return "suggest-interaction-channel";
+    }
+
+    return DEFAULT_PTR_AI_ASSISTANT_ACTION_ID;
+  }
+
   async function runPtrAIAssistantAction(actionId: PtrAIAssistantActionId) {
     if (selectedTasks.length === 0) {
       setSaveMessage(text.aiNoSelection);
@@ -981,7 +1033,7 @@ export function ProcessTaskRegister() {
       setSaveMessage(
         `${text.aiRecommendationsReady} (${recommendations.length}; ${
           data.mode === "provider-backed" ? "provider-backed" : "mock/local"
-        })`
+        })${data.meta?.externalApiCalled === true ? "" : ` ${text.aiUsingLocalFallback}`}`
       );
       saveAuditLogEntry({
         action: "ai_call",
@@ -1629,10 +1681,18 @@ export function ProcessTaskRegister() {
                   <button
                     className="btn btn-ai"
                     disabled={isRunningPtrAI || selectedTasks.length === 0}
-                    onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
+                    onClick={() => void runPtrAIAssistantAction(chooseDefaultPtrAIAssistantAction())}
                     type="button"
                   >
                     {isRunningPtrAI ? text.aiRunning : text.aiAssistant}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    disabled={isRunningPtrAI || selectedTasks.length === 0}
+                    onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
+                    type="button"
+                  >
+                    {text.moreAiActions}
                   </button>
                   {isPtrAIMenuOpen ? (
                     <div className="absolute left-0 top-11 z-30 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">

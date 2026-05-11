@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC6 Block 3 AI Assistant one-click cleanup for Process Task Register.
+- Changed the PTR `AI Assistant` button from a menu opener into a one-click default action that uses the currently selected rows and routes through the existing `process-improvement-recommendation` skill.
+- Added lightweight context selection for the default PTR AI action: infer missing actor/system/lane first, then missing input/output, split complex task, interaction/channel, or wording improvement.
+- Moved the old PTR AI action choices into `More AI actions` / `Tác vụ AI nâng cao` so advanced options remain available without blocking the default click.
+- Kept AI output as QA recommendations in the existing QA Panel preview/confirmation/apply workflow, and added clearer local/mock fallback copy when no external provider call is made.
+- Kept this RC6 cleanup UI/workflow-only: no AI provider route/adapter, provider secrets, data model, canonical schema, D01/D02 generator, recommendation apply logic, or AI auto-apply behavior was changed.
 - Completed RC6 Block 2 AI Input Brief generation-action clarity cleanup.
 - Clarified the Manual Input draft actions so Real AI mode shows `Tạo PTR nháp bằng AI` / `Generate Draft PTR with AI` as the primary AI action and keeps `Tạo PTR nháp local/mock` / `Generate local/mock Draft PTR` as the secondary local path.
 - Clarified mock/local mode so the primary action is `Tạo PTR nháp` / `Generate Draft PTR`, with helper text stating no external provider is called and the AI action disabled until Real AI is enabled.

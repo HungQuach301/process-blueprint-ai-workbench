@@ -59,6 +59,7 @@ const groupLabels: Record<Locale, Record<NavigationGroup, string>> = {
 };
 
 const groupBySectionId: Record<string, NavigationGroup> = {
+  workspace: "workspace",
   "ai-settings": "workspace",
   "input-brief": "process-modeling",
   "process-task-register": "process-modeling",

@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Turned Workspace into a useful dashboard for MVP1-AI RC3.
+- Added Workspace overview cards for AI status, Process Task Register status, QA status, artifact status, and Product Delivery status.
+- Added Start here actions for creating from brief, importing a file, reviewing QA, generating Product Delivery, and exporting the package.
+- Added a recommended next action based on local workspace state and a metadata-only recent AI run summary.
+- Reintroduced Workspace as a primary dashboard entry in the module tabs and contextual navigation, removing release-facing hidden placeholder wording.
 - Improved Process Task Register for both non-technical and technical users in MVP1-AI RC3.
 - Tightened Simple mode to the requested business-readable columns: Step ID, Task name, Actor, System, Phase, Next step, and Review status.
 - Kept Advanced mode as the full technical column set without changing the `ProcessTask` schema.

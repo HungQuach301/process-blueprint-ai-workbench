@@ -10,11 +10,12 @@ import { AIInputBriefPanel } from "@/components/input-brief/AIInputBriefPanel";
 import { ProductDeliveryCore } from "@/components/product-delivery/ProductDeliveryCore";
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
+import { WorkspaceDashboard } from "@/components/workspace/WorkspaceDashboard";
 import { getLocale, setLocale, t, type Locale } from "@/lib/i18n";
 import { navigationSections } from "@/lib/sample-data/navigation-sections";
 
 const releaseNavigationSections = navigationSections.filter(
-  (section) => section.id !== "workspace" && section.id !== "qa-panel"
+  (section) => section.id !== "qa-panel"
 );
 
 type AIStatusResponse = {
@@ -32,7 +33,7 @@ const moduleTabs: Array<{
   label: Record<Locale, string>;
   href: string;
 }> = [
-  { id: "workspace", label: { vi: "Không gian làm việc", en: "Workspace" }, href: "#ai-settings" },
+  { id: "workspace", label: { vi: "Không gian làm việc", en: "Workspace" }, href: "#workspace" },
   { id: "process-modeling", label: { vi: "Mô hình quy trình", en: "Process Modeling" }, href: "#input-brief" },
   { id: "product-delivery", label: { vi: "Hồ sơ sản phẩm", en: "Product Delivery" }, href: "#product-delivery" },
   { id: "templates", label: { vi: "Mẫu", en: "Templates" }, href: "#template-library" },
@@ -127,7 +128,7 @@ export function AppShell() {
       <header className="app-menubar sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-4 py-3 lg:px-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <a className="flex min-w-0 items-center gap-3" href="#ai-settings">
+            <a className="flex min-w-0 items-center gap-3" href="#workspace">
               <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-sm font-black text-white shadow-sm">
                 PB
               </span>
@@ -230,6 +231,10 @@ export function AppShell() {
           </header>
 
           <div className="grid min-w-0 gap-5">
+            <div className="min-w-0 max-w-full scroll-mt-36" id="workspace">
+              <WorkspaceDashboard aiStatus={aiStatus} locale={locale} />
+            </div>
+
             <div className="min-w-0 max-w-full scroll-mt-36" id="ai-settings">
               <AIProviderSettingsPanel />
             </div>

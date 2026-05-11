@@ -9,8 +9,8 @@ export const navigationSections: NavigationSection[] = [
   {
     id: "workspace",
     label: "Workspace",
-    description: "Release workspace entry is hidden from the MVP1-AI navigation.",
-    status: "Hidden"
+    description: "Dashboard for workspace status, next actions, and recent AI runs.",
+    status: "Ready"
   },
   {
     id: "ai-settings",

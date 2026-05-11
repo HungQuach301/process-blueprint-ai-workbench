@@ -383,6 +383,11 @@ export function D02ServiceBlueprintOutput() {
           </div>
         ) : null}
 
+        <details className="rounded border border-slate-200 bg-slate-50">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-800">
+            Advanced / View draw.io XML
+          </summary>
+          <div className="border-t border-slate-200 p-4">
         <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
           draw.io XML đã generate
           <textarea
@@ -391,6 +396,8 @@ export function D02ServiceBlueprintOutput() {
             value={xml}
           />
         </label>
+          </div>
+        </details>
     </SessionFrame>
   );
 }

@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved D01 BPMN, D02 Service Blueprint, and Export Center preview UX for MVP1-AI RC2.
+- Kept visual previews prominent for D01 BPMN and D02 Service Blueprint.
+- Added BPMN preview Fit, Zoom -, and Zoom + controls using the existing `bpmn-js` viewer canvas.
+- Moved raw BPMN XML and draw.io XML into closed-by-default Advanced / View XML sections for technical users.
+- Kept XML download actions available and did not modify D01/D02 generator logic.
+- Kept Export Center artifact status cards visible in the primary flow.
+- Moved AI Run History into an Advanced collapsible area and removed its export action from the primary header action group so it no longer visually dominates package export.
+- Preserved AI audit metadata behavior, no browser API key exposure, and no auto-apply behavior.
 - Improved Process Task Register table UX for MVP1-AI RC2.
 - Added Simple / Advanced column mode without changing the `ProcessTask` schema.
 - Added sticky table header inside the table scroll area.
@@ -194,6 +202,11 @@ Complete Module 2 + Module 3 with full real AI support.
 - `src/components/task-register/ProcessTaskRegister.tsx`
 - `src/components/export-center/ExportCenter.tsx`
 - `src/components/task-register/ProcessTaskRegister.tsx`
+- `docs/SESSION_HANDOFF.md`
+- `src/components/preview/BpmnPreview.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/export-center/ExportCenter.tsx`
 - `docs/SESSION_HANDOFF.md`
 - `src/lib/models/product-delivery.ts`
 - `src/lib/generators/product-delivery-generator.ts`

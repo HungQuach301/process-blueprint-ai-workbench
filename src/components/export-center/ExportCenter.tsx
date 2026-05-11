@@ -1974,13 +1974,6 @@ export function ExportCenter() {
             >
               Export Audit Log JSON
             </button>
-            <button
-              className="btn btn-secondary"
-              onClick={downloadAIRunHistory}
-              type="button"
-            >
-              Export AI Run History JSON
-            </button>
           </div>
         </div>
 
@@ -2016,7 +2009,11 @@ export function ExportCenter() {
         ))}
       </div>
 
-      <div className="border-t border-slate-200 p-4">
+      <details className="border-t border-slate-200 bg-slate-50/60">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700">
+          Advanced / AI Run History ({aiRunHistory.length})
+        </summary>
+      <div className="border-t border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
@@ -2179,6 +2176,7 @@ export function ExportCenter() {
           </div>
         )}
       </div>
+      </details>
 
       <div className="border-t border-slate-200 p-4">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">

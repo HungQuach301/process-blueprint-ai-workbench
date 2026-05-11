@@ -152,6 +152,10 @@ const inputBriefUiText = {
     voiceComingSoon: "Voice Input is coming soon. No recording, upload, or external processing is implemented in this step.",
     fileIntake: "File Intake",
     fileIntakeHelper: "Files are processed locally for Draft PTR preview before Apply.",
+    supportedFormatsTitle: "Supported formats",
+    supportedFormats: "Text-based PDF, DOCX, and XLSX are supported for local Draft PTR generation.",
+    comingSoonFormats: "Image/OCR/Voice intake is coming soon.",
+    nextStep: "Next step",
     clearFiles: "Clear files",
     selectLocalFiles: "Select local files",
     reselectAfterRefresh: "Please select the file again after browser refresh to run extraction.",
@@ -554,6 +558,28 @@ function isImageIntakeFile(file: Pick<IntakeFileMetadata, "fileName" | "fileType
   );
 }
 
+function getFileDraftActionLabel(file: IntakeFileMetadata, generateLabel: string) {
+  if (file.status === "unsupported") {
+    return isImageIntakeFile(file)
+      ? "Image/OCR intake is coming soon."
+      : "This file type is not supported yet.";
+  }
+
+  if (file.status === "pending-extraction") {
+    return "Processing locally...";
+  }
+
+  if (file.status === "extracted") {
+    return "Draft PTR preview is ready for review.";
+  }
+
+  if (file.status === "failed") {
+    return "Processing failed. Clear the file or choose another file.";
+  }
+
+  return `${generateLabel} to create a reviewable preview.`;
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [briefMode, setBriefMode] = useState<BriefMode>("manual");
@@ -913,27 +939,48 @@ export function AIInputBriefPanel() {
     }
   }
 
-  async function extractDocxFile(file: File) {
+  async function generateDraftPtrFromDocxFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
     clearDraftPreview();
-    setMessage("Dang extract DOCX local trong browser. Khong upload file.");
+    setMessage("Dang extract DOCX local va tao Draft PTR. Khong upload file.");
 
     try {
       const result = await extractTextFromDocx(file);
 
       setDocxExtraction(result);
       updateIntakeFileStatus(file, "extracted");
-      setMessage(
-        `Da extract DOCX local: ${result.rawText.length} ky tu, ${result.detectedSteps.length} step goi y.`
-      );
+      await generateDraftPtrViaSkill({
+        skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+        payload: {
+          fileName: file.name,
+          fileType:
+            file.type ||
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          extractedText: result.rawText,
+          extractionWarnings: [
+            ...result.assumptions,
+            ...result.openQuestions
+          ],
+          detectedActors: result.detectedActors,
+          detectedSystems: result.detectedSystems,
+          detectedDataObjects: result.detectedDataObjects,
+          detectedSteps: result.detectedSteps,
+          inputLanguage: locale,
+          outputLanguage: locale
+        },
+        sourceLabel: `DOCX ${file.name}`
+      });
     } catch (error) {
       updateIntakeFileStatus(file, "failed");
       setDocxExtraction(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors([]);
       setMessage(
         error instanceof Error
-          ? `DOCX extraction failed: ${error.message}`
-          : "DOCX extraction failed."
+          ? `DOCX Draft PTR generation failed: ${error.message}`
+          : "DOCX Draft PTR generation failed."
       );
     }
   }
@@ -1899,6 +1946,24 @@ export function AIInputBriefPanel() {
           />
         </label>
 
+        <div className="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <p className="font-semibold">
+            {"supportedFormatsTitle" in uiText
+              ? uiText.supportedFormatsTitle
+              : "Supported formats"}
+          </p>
+          <p className="mt-1">
+            {"supportedFormats" in uiText
+              ? uiText.supportedFormats
+              : "Text-based PDF, DOCX, and XLSX are supported for local Draft PTR generation."}
+          </p>
+          <p className="mt-1 text-slate-500">
+            {"comingSoonFormats" in uiText
+              ? uiText.comingSoonFormats
+              : "Image/OCR/Voice intake is coming soon."}
+          </p>
+        </div>
+
         {intakeFiles.length > 0 && selectedFileObjects.length === 0 ? (
           <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             {uiText.reselectAfterRefresh}
@@ -1937,6 +2002,10 @@ export function AIInputBriefPanel() {
                       >
                         {file.status}
                       </span>
+                      <p className="mt-1 max-w-72 whitespace-normal text-xs text-slate-500">
+                        {"nextStep" in uiText ? `${uiText.nextStep}: ` : "Next step: "}
+                        {getFileDraftActionLabel(file, uiText.generateDraftPtr)}
+                      </p>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       {file.fileName.toLowerCase().endsWith(".xlsx") &&
@@ -1961,7 +2030,7 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          {uiText.extract}
+                          {uiText.generateDraftPtr}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".docx") &&
                         file.status !== "unsupported" ? (
@@ -1976,7 +2045,7 @@ export function AIInputBriefPanel() {
                             );
 
                             if (selectedFile) {
-                              void extractDocxFile(selectedFile);
+                              void generateDraftPtrFromDocxFile(selectedFile);
                             } else {
                               setMessage(
                                 uiText.reselectAfterRefresh
@@ -1985,7 +2054,7 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          {uiText.extract}
+                          {uiText.generateDraftPtr}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".pdf") &&
                         file.status !== "unsupported" ? (
@@ -2023,7 +2092,7 @@ export function AIInputBriefPanel() {
                         onClick={() => removeSelectedFile(file)}
                         type="button"
                       >
-                        {uiText.remove}
+                        Clear file
                       </button>
                     </td>
                   </tr>

@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Polished File Intake and AI Development Handoff Pack UX for MVP1-AI RC2.
+- Added clearer File Intake supported-format guidance: text-based PDF, DOCX, and XLSX are supported locally; Image/OCR/Voice intake is coming soon.
+- Made selected File Intake rows show file name, file type, processing status, next step, Generate Draft PTR, and Clear file actions.
+- Kept File Intake stale preview/draft clearing when a new file is selected or removed.
+- Renamed the user-facing AI Coding Pack section to `AI Development Handoff Pack` while keeping technical files such as `AGENTS.md`, `CLAUDE.md`, cursor rules, and `spec.json` visible in included-file details.
+- Added non-technical handoff copy explaining that the package can be sent to a development team or used with Codex, Claude Code, and Cursor.
+- Preserved preview-before-download behavior, server-side AI route usage, mock/local fallback, no browser API key exposure, and no auto-apply behavior.
 - Improved D01 BPMN, D02 Service Blueprint, and Export Center preview UX for MVP1-AI RC2.
 - Kept visual previews prominent for D01 BPMN and D02 Service Blueprint.
 - Added BPMN preview Fit, Zoom -, and Zoom + controls using the existing `bpmn-js` viewer canvas.

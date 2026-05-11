@@ -2924,16 +2924,16 @@ export function ExportCenter() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div>
             <p className="text-sm font-medium uppercase text-slate-500">
-              AI Coding Pack
+              AI Development Handoff Pack
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              Export AI-ready coding context
+              Package reviewed requirements for development
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Export for Codex, Claude Code, Cursor, or similar coding tools.
-              Source data can come from Process Task Register or reviewed
-              Product Delivery artifacts. Provider calls go through the
-              server-side AI skill route only.
+              Send this package to your development team or use it with Codex,
+              Claude Code, Cursor. It turns the Process Task Register and
+              reviewed Product Delivery artifacts into a previewed handoff
+              before ZIP download.
             </p>
             <label className="mt-4 block">
               <span className="text-sm font-medium text-slate-700">
@@ -2952,14 +2952,14 @@ export function ExportCenter() {
                 onClick={previewAICodingPack}
                 type="button"
               >
-                Preview PTR Coding Pack
+                Preview PTR Handoff Pack
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 onClick={() => void previewProductDeliveryAICodingPack()}
                 type="button"
               >
-                Preview Product Delivery Coding Pack
+                Preview Product Delivery Handoff Pack
               </button>
               <button
                 className="btn btn-primary"
@@ -2968,8 +2968,8 @@ export function ExportCenter() {
                 type="button"
               >
                 {isDownloadingAICodingPack
-                  ? "Dang tao AI Coding Pack..."
-                  : "Download AI Coding Pack ZIP"}
+                  ? "Dang tao handoff pack..."
+                  : "Download Handoff Pack ZIP"}
               </button>
             </div>
           </div>
@@ -2988,8 +2988,10 @@ export function ExportCenter() {
               <li>test-plan.md</li>
             </ul>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Product Delivery pack uses `user-stories-to-ai-coding-pack`
-              through `/api/ai/run-skill`, with mock/local fallback and schema
+              Advanced details for technical users: AGENTS.md, CLAUDE.md,
+              cursor rules, and spec.json are kept in the package. Product
+              Delivery generation uses `user-stories-to-ai-coding-pack` through
+              `/api/ai/run-skill`, with mock/local fallback and schema
               validation.
             </p>
           </div>

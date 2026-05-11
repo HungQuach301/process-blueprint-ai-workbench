@@ -203,12 +203,26 @@ const exportCenterText = {
     productDelivery: "Hồ sơ sản phẩm",
     productDeliveryDescription:
       "Tạo bản nháp hồ sơ sản phẩm từ Process Task Register và ngữ cảnh đã rà soát. Tất cả đầu ra đều xem trước trước, chưa lưu vào Artifact Graph.",
+    productDeliveryHowItWorks: "Cách làm Product Delivery",
+    productDeliveryStep1Title: "Tạo tài liệu nháp",
+    productDeliveryStep1Body: "Tạo BRD, SRS, user stories, acceptance criteria và scope/MVP để xem trước.",
+    productDeliveryStep2Title: "Chạy kiểm tra chất lượng",
+    productDeliveryStep2Body: "Rà soát requirement quality và trace trước khi chia sẻ.",
+    productDeliveryStep3Title: "Xuất gói bàn giao phát triển",
+    productDeliveryStep3Body: "Xem trước AI Development Handoff Pack rồi tải ZIP khi sẵn sàng.",
     optionalProjectContext: "Ngữ cảnh dự án tùy chọn",
     generateProductDeliveryDraft: "Tạo bản nháp hồ sơ sản phẩm",
     downloadProductDeliveryMarkdown: "Tải Markdown hồ sơ sản phẩm",
     aiDevelopmentHandoffPack: "Gói bàn giao phát triển AI",
     aiDevelopmentHandoffDescription:
       "Gửi gói này cho đội phát triển hoặc dùng với Codex, Claude Code, Cursor. Gói biến PTR và hồ sơ sản phẩm đã rà soát thành bộ bàn giao có xem trước trước khi tải ZIP.",
+    handoffHowItWorks: "Cách làm AI Development Handoff",
+    handoffStep1Title: "Chọn tài liệu nguồn",
+    handoffStep1Body: "Dùng PTR hoặc tài liệu Product Delivery đã rà soát.",
+    handoffStep2Title: "Xem trước gói bàn giao",
+    handoffStep2Body: "Kiểm tra spec.json và các file kỹ thuật trước.",
+    handoffStep3Title: "Tải ZIP",
+    handoffStep3Body: "Tải gói ZIP sau khi preview phù hợp.",
     previewPtrHandoffPack: "Xem trước gói bàn giao từ PTR",
     previewProductDeliveryHandoffPack: "Xem trước gói bàn giao từ hồ sơ sản phẩm",
     downloadHandoffPack: "Tải ZIP bàn giao",
@@ -227,12 +241,26 @@ const exportCenterText = {
     productDelivery: "Product Delivery",
     productDeliveryDescription:
       "Generate preview-first Product Delivery drafts from the Process Task Register and reviewed context. Outputs are not saved to an Artifact Graph.",
+    productDeliveryHowItWorks: "How Product Delivery works",
+    productDeliveryStep1Title: "Generate draft artifacts",
+    productDeliveryStep1Body: "Create preview-first BRD, SRS, user stories, acceptance criteria, and scope/MVP.",
+    productDeliveryStep2Title: "Run quality checks",
+    productDeliveryStep2Body: "Review requirement quality and trace before sharing.",
+    productDeliveryStep3Title: "Export development handoff",
+    productDeliveryStep3Body: "Preview the AI Development Handoff Pack, then download ZIP when ready.",
     optionalProjectContext: "Optional project context",
     generateProductDeliveryDraft: "Generate Product Delivery Draft",
     downloadProductDeliveryMarkdown: "Download Product Delivery Markdown",
     aiDevelopmentHandoffPack: "AI Development Handoff Pack",
     aiDevelopmentHandoffDescription:
       "Send this package to your development team or use it with Codex, Claude Code, Cursor. It turns the Process Task Register and reviewed Product Delivery artifacts into a previewed handoff before ZIP download.",
+    handoffHowItWorks: "How AI Development Handoff works",
+    handoffStep1Title: "Select source artifacts",
+    handoffStep1Body: "Use PTR or reviewed Product Delivery artifacts.",
+    handoffStep2Title: "Preview handoff pack",
+    handoffStep2Body: "Check spec.json and the technical files first.",
+    handoffStep3Title: "Download ZIP",
+    handoffStep3Body: "Download the ZIP after the preview looks ready.",
     previewPtrHandoffPack: "Preview PTR Handoff Pack",
     previewProductDeliveryHandoffPack: "Preview Product Delivery Handoff Pack",
     downloadHandoffPack: "Download Handoff Pack ZIP",
@@ -2458,6 +2486,25 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {text.productDeliveryDescription}
             </p>
+            <details className="mt-4 rounded border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-emerald-950">
+              <summary className="cursor-pointer font-semibold">
+                {text.productDeliveryHowItWorks}
+              </summary>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {[
+                  { title: text.productDeliveryStep1Title, body: text.productDeliveryStep1Body },
+                  { title: text.productDeliveryStep2Title, body: text.productDeliveryStep2Body },
+                  { title: text.productDeliveryStep3Title, body: text.productDeliveryStep3Body }
+                ].map((step, index) => (
+                  <div className="rounded border border-emerald-100 bg-white/80 p-3" key={step.title}>
+                    <p className="text-xs font-bold uppercase text-emerald-700">
+                      {index + 1}. {step.title}
+                    </p>
+                    <p className="mt-1 leading-5 text-emerald-950/80">{step.body}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
@@ -3364,6 +3411,25 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {text.aiDevelopmentHandoffDescription}
             </p>
+            <details className="mt-4 rounded border border-indigo-100 bg-indigo-50/60 p-4 text-sm text-indigo-950">
+              <summary className="cursor-pointer font-semibold">
+                {text.handoffHowItWorks}
+              </summary>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {[
+                  { title: text.handoffStep1Title, body: text.handoffStep1Body },
+                  { title: text.handoffStep2Title, body: text.handoffStep2Body },
+                  { title: text.handoffStep3Title, body: text.handoffStep3Body }
+                ].map((step, index) => (
+                  <div className="rounded border border-indigo-100 bg-white/80 p-3" key={step.title}>
+                    <p className="text-xs font-bold uppercase text-indigo-700">
+                      {index + 1}. {step.title}
+                    </p>
+                    <p className="mt-1 leading-5 text-indigo-950/80">{step.body}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
             <label className="mt-4 block">
               <span className="text-sm font-medium text-slate-700">
                 {text.optionalProjectContext}

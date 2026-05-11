@@ -69,6 +69,13 @@ const templateHubText = {
   vi: {
     title: "Trung tâm mẫu",
     description: "Quản lý mẫu dùng lại cho D01 BPMN và D02 Service Blueprint. QA mẫu chỉ tạo đề xuất, không tự áp dụng.",
+    howItWorks: "Cách dùng Template Hub",
+    guideStep1Title: "Chọn mẫu",
+    guideStep1Body: "Xem mẫu hiện tại hoặc duyệt thư viện mẫu.",
+    guideStep2Title: "Rà soát chất lượng",
+    guideStep2Body: "Chạy Template QA và xem đề xuất trước.",
+    guideStep3Title: "Gắn cho D01/D02",
+    guideStep3Body: "Chọn mẫu phù hợp cho D01 hoặc D02, không tự tạo lại tài liệu đầu ra.",
     currentTemplates: "Mẫu hiện tại",
     browseTemplates: "Duyệt mẫu",
     templateReview: "Rà soát mẫu",
@@ -133,6 +140,13 @@ const templateHubText = {
   en: {
     title: "Template Hub",
     description: "Manage reusable profiles for D01 BPMN and D02 Service Blueprint. Template QA creates recommendations only; it never auto-applies changes.",
+    howItWorks: "How Template Hub works",
+    guideStep1Title: "Choose template",
+    guideStep1Body: "Check current templates or browse the library.",
+    guideStep2Title: "Review quality",
+    guideStep2Body: "Run Template QA and inspect recommendations first.",
+    guideStep3Title: "Apply to D01/D02",
+    guideStep3Body: "Select a compatible D01 or D02 template; artifacts regenerate only when you choose.",
     currentTemplates: "Current templates",
     browseTemplates: "Browse templates",
     templateReview: "Template review",
@@ -1201,6 +1215,26 @@ export function TemplateLibraryEditor() {
       </div>
 
       {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+
+      <details className="mt-4 rounded border border-violet-100 bg-violet-50/60 p-4 text-sm text-violet-950">
+        <summary className="cursor-pointer font-semibold">
+          {text.howItWorks}
+        </summary>
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          {[
+            { title: text.guideStep1Title, body: text.guideStep1Body },
+            { title: text.guideStep2Title, body: text.guideStep2Body },
+            { title: text.guideStep3Title, body: text.guideStep3Body }
+          ].map((step, index) => (
+            <div className="rounded border border-violet-100 bg-white/80 p-3" key={step.title}>
+              <p className="text-xs font-bold uppercase text-violet-700">
+                {index + 1}. {step.title}
+              </p>
+              <p className="mt-1 leading-5 text-violet-950/80">{step.body}</p>
+            </div>
+          ))}
+        </div>
+      </details>
 
       {activeTab === "current" ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2">

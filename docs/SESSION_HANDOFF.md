@@ -6,7 +6,7 @@
 
 ## Current branch
 
-`feature/mvp1-ai-ux-redesign-rc3`
+`feature/mvp1-ai-rc4-ux-redesign`
 
 ## Current product phase
 
@@ -377,6 +377,13 @@ Complete Module 2 + Module 3 with full real AI support.
 - AI output must not be auto-applied.
 
 ## Current blockers
+
+## RC4 lightweight guidance blocks update - 2026-05-11
+
+- Added concise collapsible "How it works" guidance blocks for Process Modeling, Template Hub, Product Delivery, and AI Development Handoff.
+- Each guide uses three short steps and follows the current locale instead of showing bilingual copy by default.
+- Kept the guidance visually lightweight so it supports new users without adding another dense panel to the main workflow.
+- Kept the change UI-only: no business logic, data model, canonical schema, D01/D02 generator, AI provider route/adapter, browser secret handling, or AI auto-apply behavior was changed.
 
 ## RC4 Workspace guided dashboard update - 2026-05-11
 

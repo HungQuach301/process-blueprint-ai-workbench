@@ -100,9 +100,47 @@ function getDataModeValue(status: AIStatusResponse, locale: Locale) {
   }
 }
 
+const processModelingGuide = {
+  vi: {
+    title: "Cách làm Process Modeling",
+    steps: [
+      {
+        title: "Thu thập đầu vào",
+        body: "Bắt đầu từ brief, file, ghi chú hoặc mẫu ngân hàng."
+      },
+      {
+        title: "Rà soát PTR có cấu trúc",
+        body: "Kiểm tra bước, actor, system, phase và bước tiếp theo."
+      },
+      {
+        title: "Tạo BPMN/D02/xuất gói",
+        body: "Tạo D01 BPMN, D02 Service Blueprint và gói xuất sau khi rà soát."
+      }
+    ]
+  },
+  en: {
+    title: "How Process Modeling works",
+    steps: [
+      {
+        title: "Capture input",
+        body: "Start from a brief, file, notes, or banking template."
+      },
+      {
+        title: "Review structured PTR",
+        body: "Check steps, actors, systems, phases, and next steps."
+      },
+      {
+        title: "Generate BPMN/D02/export",
+        body: "Generate D01 BPMN, D02 Service Blueprint, and exports after review."
+      }
+    ]
+  }
+} satisfies Record<Locale, { title: string; steps: Array<{ title: string; body: string }> }>;
+
 export function AppShell() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [aiStatus, setAIStatus] = useState<AIStatusResponse>({});
+  const processGuide = processModelingGuide[locale];
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -242,6 +280,22 @@ export function AppShell() {
             <div className="min-w-0 max-w-full scroll-mt-36" id="ai-settings">
               <AIProviderSettingsPanel />
             </div>
+
+            <details className="rounded border border-blue-100 bg-blue-50/60 p-4 text-sm text-blue-950">
+              <summary className="cursor-pointer font-semibold">
+                {processGuide.title}
+              </summary>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {processGuide.steps.map((step, index) => (
+                  <div className="rounded border border-blue-100 bg-white/80 p-3" key={step.title}>
+                    <p className="text-xs font-bold uppercase text-blue-700">
+                      {index + 1}. {step.title}
+                    </p>
+                    <p className="mt-1 leading-5 text-blue-950/80">{step.body}</p>
+                  </div>
+                ))}
+              </div>
+            </details>
 
             <div className="min-w-0 max-w-full scroll-mt-36" id="input-brief">
               <AIInputBriefPanel />

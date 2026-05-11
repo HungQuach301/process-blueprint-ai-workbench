@@ -55,7 +55,7 @@ const providerCards: Array<{
     serverProviderId: "openai",
     title: "OpenAI",
     description: {
-      vi: "OpenAI qua route server-side. Không nhập API key trong trình duyệt.",
+      vi: "OpenAI qua route phía máy chủ. Không nhập API key trong trình duyệt.",
       en: "OpenAI through the server-side route. No browser API key entry."
     }
   },
@@ -64,7 +64,7 @@ const providerCards: Array<{
     serverProviderId: "claude",
     title: "Claude",
     description: {
-      vi: "Claude qua adapter server-side và biến môi trường riêng.",
+      vi: "Claude qua adapter phía máy chủ và biến môi trường riêng.",
       en: "Claude through the server-side adapter and server env."
     }
   },
@@ -73,7 +73,7 @@ const providerCards: Array<{
     serverProviderId: "mock",
     title: "Local / Mock",
     description: {
-      vi: "Fallback local/mô phỏng, không gọi provider bên ngoài.",
+      vi: "Fallback cục bộ/mô phỏng, không gọi nhà cung cấp bên ngoài.",
       en: "Mock/local fallback with no external provider call."
     }
   }
@@ -116,7 +116,7 @@ const textByLocale = {
   vi: {
     title: "Trung tâm kết nối AI",
     description:
-      "Chọn provider, kiểm tra kết nối và quản lý cấu hình AI không nhạy cảm.",
+      "Chọn nhà cung cấp, kiểm tra kết nối và quản lý cấu hình AI không nhạy cảm.",
     save: "Lưu thiết lập",
     reset: "Đặt lại",
     test: "Kiểm tra kết nối",
@@ -132,13 +132,13 @@ const textByLocale = {
       "AI đám mây chỉ chạy qua route phía máy chủ. Không nhập hoặc hiển thị API key trong trình duyệt.",
     currentMode: "Chế độ hiện tại",
     flags: "Cờ tính năng",
-    serverProvider: "Provider phía máy chủ",
+    serverProvider: "Nhà cung cấp phía máy chủ",
     dataMode: "Chế độ dữ liệu phía máy chủ",
     model: "Model",
     advanced: "Thiết lập nâng cao",
     show: "Hiện",
     hide: "Ẩn",
-    defaultProvider: "Provider mặc định",
+    defaultProvider: "Nhà cung cấp mặc định",
     capability: "Năng lực model mặc định",
     allowCloud: "Cho phép AI đám mây",
     requireApproval: "Yêu cầu phê duyệt",
@@ -146,23 +146,23 @@ const textByLocale = {
     organizationNote: "Ghi chú tổ chức",
     organizationPlaceholder: "Ghi chú tenant/tổ chức tùy chọn",
     perSkillOverride: "Ghi đè theo kỹ năng",
-    inheritDefault: "Theo provider mặc định",
+    inheritDefault: "Theo nhà cung cấp mặc định",
     saved: "Đã lưu tùy chọn không chứa secret vào localStorage.",
     resetDone: "Đã đặt lại về local/mô phỏng và chỉ lưu cục bộ.",
     changed: "Có thay đổi chưa lưu.",
-    mockModeSummary: "Local/mô phỏng, không gọi provider bên ngoài.",
-    realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên đám mây theo cấu hình phía máy chủ.",
+    mockModeSummary: "Cục bộ/mô phỏng, không gọi nhà cung cấp bên ngoài.",
+    realModeSummary: "AI thật qua nhà cung cấp đã chọn. Dữ liệu có thể được xử lý trên đám mây theo cấu hình phía máy chủ.",
     modelPlaceholder: "Tên hiển thị tùy chọn",
-    effectiveProvider: "Provider thực thi",
-    fallbackActive: "Fallback local/mô phỏng đang hoạt động vì provider đã chọn chưa sẵn sàng.",
-    selectedStatus: "Trạng thái provider đã chọn",
+    effectiveProvider: "Nhà cung cấp thực thi",
+    fallbackActive: "Fallback cục bộ/mô phỏng đang hoạt động vì nhà cung cấp đã chọn chưa sẵn sàng.",
+    selectedStatus: "Trạng thái nhà cung cấp đã chọn",
     setupCta: "Cấu hình trong .env.local / server env",
-    setupHint: "Không nhập hoặc lưu API key trong browser. Provider thật chỉ chạy qua route server-side.",
+    setupHint: "Không nhập hoặc lưu API key trong trình duyệt. Nhà cung cấp thật chỉ chạy qua route phía máy chủ.",
     localPreference: "Lựa chọn trong trình duyệt",
     serverSelected: "Server đang chọn",
-    currentProvider: "Provider hiện tại",
-    selectedProvider: "Provider đã chọn",
-    browserProvider: "Provider trong trình duyệt",
+    currentProvider: "Nhà cung cấp hiện tại",
+    selectedProvider: "Nhà cung cấp đã chọn",
+    browserProvider: "Nhà cung cấp trong trình duyệt",
     featureFlags: "Cờ tính năng"
   },
   en: {
@@ -541,7 +541,7 @@ export function AIProviderSettingsPanel() {
                     {text.serverProvider}
                   </p>
                   <p className="mt-1 font-semibold text-slate-950">
-                    {formatAIProviderName(selectedServerProvider)}
+                    {formatAIProviderName(selectedServerProvider, locale)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     {text.effectiveProvider}: {aiTrustSummary.effectiveProviderLabel}

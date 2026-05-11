@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 final i18n and copy cleanup.
+- Reviewed the visible RC5 module order from Dashboard through Output Package ZIP for obvious mixed-language labels, helper text, buttons, and status copy.
+- Cleaned Vietnamese UI copy in AI status, AI Connection Center, AI Input Brief, QA Engine, Product Delivery, and Output Package ZIP where English terms were not required.
+- Preserved technical/provider/product names such as OpenAI, Claude, Product AI, Process Task Register/PTR, BRD, SRS, BPMN, AGENTS.md, CLAUDE.md, and spec.json.
+- Kept this RC5 cleanup copy-only: no data model, canonical schema, AI provider route/adapter, D01/D02 generator, recommendation apply workflow, browser secret handling, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 Output Package ZIP cleanup.
 - Kept Output Package ZIP focused on artifact status cards, Generate all artifacts, Download ZIP, Export Audit Log JSON, and Export AI Run History JSON.
 - Kept AI Run History visible/exportable inside the existing Advanced expandable section so it does not dominate the default Output Package ZIP screen.

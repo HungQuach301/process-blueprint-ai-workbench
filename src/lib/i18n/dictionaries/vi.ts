@@ -35,7 +35,7 @@ export const vi: TranslationDictionary = {
   "shell.sourceOfTruth": "Nguồn dữ liệu chuẩn",
   "shell.releaseScope": "Phạm vi bản phát hành",
   "shell.privacy": "Quyền riêng tư",
-  "shell.privacyNote": "Local storage chỉ lưu tùy chọn và metadata bản nháp trong trình duyệt này. API key của provider không được nhập, lưu hoặc hiển thị ở client.",
+  "shell.privacyNote": "Lưu trữ cục bộ chỉ lưu tùy chọn và metadata bản nháp trong trình duyệt này. API key của nhà cung cấp không được nhập, lưu hoặc hiển thị ở client.",
   "shell.heroEyebrow": "Workbench MVP1-AI RC5",
   "shell.heroTitle": "Từ ý định nghiệp vụ đến bộ hồ sơ bàn giao có kiểm soát.",
   "shell.heroDescription": "Workbench SaaS cho tóm tắt đầu vào, nhập tệp, bảng quy trình, QA, đầu ra D01/D02, bàn giao sản phẩm, gói bàn giao AI và xuất kèm kiểm toán.",

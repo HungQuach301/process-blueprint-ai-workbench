@@ -109,12 +109,12 @@ const inputBriefUiText = {
     relatedSystemsHelper: "Kênh khách hàng, hệ thống nội bộ và bên thứ ba được nhập riêng.",
     dataDocuments: "Dữ liệu và tài liệu",
     dataDocumentsHelper: "Giữ dữ liệu, tài liệu, biểu mẫu và hồ sơ tách khỏi hệ thống.",
-    voiceComingSoon: "Tính năng nhập giọng nói sắp có. MVP1 chưa ghi âm, upload hoặc xử lý bên ngoài.",
+    voiceComingSoon: "Tính năng nhập giọng nói sắp có. MVP1 chưa ghi âm, tải lên hoặc xử lý bên ngoài.",
     fileIntake: "Nhập tệp",
     fileIntakeHelper: "Tệp được xử lý cục bộ để tạo bản xem trước PTR nháp trước khi áp dụng.",
     supportedFormatsTitle: "Định dạng hỗ trợ",
     supportedFormats: "PDF dạng text, DOCX và XLSX được hỗ trợ để tạo PTR nháp cục bộ.",
-    comingSoonFormats: "Nhập Image/OCR/Voice sẽ có sau.",
+    comingSoonFormats: "Nhập ảnh/OCR/giọng nói sẽ có sau.",
     nextStep: "Bước tiếp theo",
     clearFiles: "Xóa tệp",
     selectLocalFiles: "Chọn tệp cục bộ",
@@ -127,23 +127,23 @@ const inputBriefUiText = {
     action: "Thao tác",
     extract: "Trích xuất",
     generateDraftPtr: "Tạo PTR nháp",
-    chatNotes: "Ghi chú / nội dung chat",
+    chatNotes: "Ghi chú / nội dung trao đổi",
     chatNotesHelper: "Dán nội dung chat, ghi chú workshop hoặc văn bản thủ công để tạo bản xem trước PTR nháp.",
     chatNotesPlaceholder: "Ví dụ: Khách hàng gửi yêu cầu mở tài khoản. RM kiểm tra hồ sơ. Ops tạo CIF...",
     generateFromChatNotes: "Tạo PTR nháp từ ghi chú",
-    unsupportedImage: "OCR/Image chưa hỗ trợ trong MVP1",
+    unsupportedImage: "OCR/ảnh chưa hỗ trợ trong MVP1",
     unsupportedFile: "Loại tệp chưa hỗ trợ",
     remove: "Xóa",
-    unsupportedSummary: "Phát hiện tệp chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Voice/OCR/Image chưa được hỗ trợ.",
+    unsupportedSummary: "Phát hiện tệp chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Giọng nói/OCR/ảnh chưa được hỗ trợ.",
     other: "Khác",
-    realAIMode: "Real AI qua provider",
-    mockMode: "Local/mô phỏng, không gọi provider bên ngoài",
+    realAIMode: "AI thật qua nhà cung cấp",
+    mockMode: "Cục bộ/mô phỏng, không gọi nhà cung cấp bên ngoài",
     checkingAIMode: "Đang kiểm tra chế độ AI...",
     cloudWarning: "Dữ liệu có thể được xử lý trên đám mây theo cấu hình phía máy chủ.",
-    aiCancelled: "Đã hủy gọi Real AI. Bản nháp chưa được tạo.",
-    realAIRunning: "Real AI: đang gọi provider qua route phía máy chủ...",
-    mockRunning: "Local/mô phỏng: đang tạo bản nháp, không gọi provider bên ngoài.",
-    mockDone: "Local/mô phỏng: đã tạo bản nháp PTR. Không gọi provider bên ngoài.",
+    aiCancelled: "Đã hủy gọi AI thật. Bản nháp chưa được tạo.",
+    realAIRunning: "AI thật: đang gọi nhà cung cấp qua route phía máy chủ...",
+    mockRunning: "Cục bộ/mô phỏng: đang tạo bản nháp, không gọi nhà cung cấp bên ngoài.",
+    mockDone: "Cục bộ/mô phỏng: đã tạo bản nháp PTR. Không gọi nhà cung cấp bên ngoài.",
     draftBlocked: "Không thể tạo bản nháp PTR",
     draftRows: "dòng"
   },
@@ -873,14 +873,14 @@ export function AIInputBriefPanel() {
     setMessage(
       unsupportedImageCount > 0
         ? locale === "vi"
-          ? `${unsupportedImageCount} tệp hình ảnh chưa được hỗ trợ. OCR/hình ảnh sẽ có ở phiên bản sau; tệp không được upload.`
+          ? `${unsupportedImageCount} tệp hình ảnh chưa được hỗ trợ. OCR/hình ảnh sẽ có ở phiên bản sau; tệp không được tải lên.`
           : `${unsupportedImageCount} image file is not supported yet. OCR/image extraction is coming soon; files are not uploaded.`
         : unsupportedCount > 0
         ? locale === "vi"
-          ? `${unsupportedCount} tệp chưa được hỗ trợ. Hiện chỉ hỗ trợ .xlsx, .docx và PDF dạng text. Tệp không được upload.`
+          ? `${unsupportedCount} tệp chưa được hỗ trợ. Hiện chỉ hỗ trợ .xlsx, .docx và PDF dạng văn bản. Tệp không được tải lên.`
           : `${unsupportedCount} file is not supported. Supported formats are .xlsx, .docx, and text-based PDF. Files are not uploaded.`
         : locale === "vi"
-        ? `Đã chọn ${nextFileMetadata.length} tệp. Tệp chỉ được xử lý cục bộ trong trình duyệt, không upload.`
+        ? `Đã chọn ${nextFileMetadata.length} tệp. Tệp chỉ được xử lý cục bộ trong trình duyệt, không tải lên.`
         : `Selected ${nextFileMetadata.length} file(s). Files are processed locally in the browser and are not uploaded.`
     );
   }
@@ -946,7 +946,7 @@ export function AIInputBriefPanel() {
     startDraftGenerationAttempt();
     setMessage(
       locale === "vi"
-        ? "Đang trích xuất Excel cục bộ trong trình duyệt. Tệp không được upload."
+        ? "Đang trích xuất Excel cục bộ trong trình duyệt. Tệp không được tải lên."
         : "Extracting Excel locally in the browser. The file is not uploaded."
     );
 
@@ -1007,7 +1007,7 @@ export function AIInputBriefPanel() {
     startDraftGenerationAttempt();
     setMessage(
       locale === "vi"
-        ? "Đang trích xuất DOCX cục bộ và tạo PTR nháp. Tệp không được upload."
+        ? "Đang trích xuất DOCX cục bộ và tạo PTR nháp. Tệp không được tải lên."
         : "Extracting DOCX locally and generating Draft PTR. The file is not uploaded."
     );
 
@@ -1057,7 +1057,7 @@ export function AIInputBriefPanel() {
     clearDraftPreview();
     setMessage(
       locale === "vi"
-        ? "Đang trích xuất text từ PDF cục bộ trong trình duyệt. Tệp không được upload."
+        ? "Đang trích xuất văn bản từ PDF cục bộ trong trình duyệt. Tệp không được tải lên."
         : "Extracting PDF text locally in the browser. The file is not uploaded."
     );
 
@@ -1068,7 +1068,7 @@ export function AIInputBriefPanel() {
       updateIntakeFileStatus(file, "extracted");
       setMessage(
         locale === "vi"
-          ? `Đã trích xuất PDF local: ${result.rawText.length} ký tự.`
+          ? `Đã trích xuất PDF cục bộ: ${result.rawText.length} ký tự.`
           : `Extracted PDF locally: ${result.rawText.length} characters.`
       );
     } catch (error) {
@@ -1319,7 +1319,7 @@ export function AIInputBriefPanel() {
     updateIntakeFileStatus(file, "pending-extraction");
     clearFileExtractionPreviews();
     startDraftGenerationAttempt();
-    setMessage(locale === "vi" ? "Đang trích xuất PDF cục bộ và tạo PTR nháp. Không upload tệp." : "Extracting PDF locally and generating Draft PTR. The file is not uploaded.");
+    setMessage(locale === "vi" ? "Đang trích xuất PDF cục bộ và tạo PTR nháp. Không tải tệp lên." : "Extracting PDF locally and generating Draft PTR. The file is not uploaded.");
 
     try {
       const result = await extractTextFromPdf(file);
@@ -1774,7 +1774,7 @@ export function AIInputBriefPanel() {
       });
       setMessage(
         locale === "vi"
-          ? `Real AI: đã tạo PTR nháp hợp lệ ${validation.value.draftProcessTasks.length} dòng. Hãy rà soát trước khi áp dụng.`
+          ? `AI thật: đã tạo PTR nháp hợp lệ ${validation.value.draftProcessTasks.length} dòng. Hãy rà soát trước khi áp dụng.`
           : `Real AI mode: generated ${validation.value.draftProcessTasks.length} valid draft PTR row(s). Review before applying.`
       );
     } catch {
@@ -1871,7 +1871,7 @@ export function AIInputBriefPanel() {
     setDraftMeta(null);
     setBlockingErrors([]);
     setHasDraftGenerationAttempt(false);
-    setMessage(locale === "vi" ? "Đã hủy preview bản nháp." : "Canceled draft preview.");
+    setMessage(locale === "vi" ? "Đã hủy xem trước bản nháp." : "Canceled draft preview.");
   }
 
   function resetBrief() {
@@ -1889,7 +1889,7 @@ export function AIInputBriefPanel() {
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage(
       locale === "vi"
-        ? "Đã đặt lại brief local và preview bản nháp."
+        ? "Đã đặt lại tóm tắt cục bộ và bản xem trước nháp."
         : "Reset the local brief and draft preview."
     );
   }
@@ -2326,7 +2326,7 @@ export function AIInputBriefPanel() {
                 </p>
                 <p className="mt-1 text-violet-900">
                   {locale === "vi"
-                    ? "Chỉ trích xuất text cục bộ. Không upload tệp hoặc gọi AI bên ngoài."
+                    ? "Chỉ trích xuất văn bản cục bộ. Không tải tệp lên hoặc gọi AI bên ngoài."
                     : "Local text extraction only. No file upload or external AI call."}
                 </p>
               </div>

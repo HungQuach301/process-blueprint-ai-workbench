@@ -35,12 +35,12 @@ export type AITrustStatusResponse = {
 const textByLocale = {
   vi: {
     mode: "Chế độ",
-    mockMode: "Mock / local",
-    realMode: "Real AI",
-    provider: "Provider",
-    selectedProvider: "Provider đã chọn",
-    effectiveProvider: "Provider thực thi",
-    dataMode: "Data mode",
+    mockMode: "Mô phỏng / cục bộ",
+    realMode: "AI thật",
+    provider: "Nhà cung cấp",
+    selectedProvider: "Nhà cung cấp đã chọn",
+    effectiveProvider: "Nhà cung cấp thực thi",
+    dataMode: "Chế độ dữ liệu",
     externalCall: "Có thể gọi ra ngoài",
     yes: "Có",
     no: "Không",
@@ -49,15 +49,15 @@ const textByLocale = {
     cloudProcessing: "cloud-processing",
     privateLearning: "organization-private-learning",
     fallback:
-      "Đang fallback về Local Mock vì provider đã chọn chưa sẵn sàng hoặc real AI đang tắt.",
+      "Đang dùng mô phỏng cục bộ vì nhà cung cấp đã chọn chưa sẵn sàng hoặc AI thật đang tắt.",
     missingEnv:
-      "Provider đã chọn thiếu server env. Cấu hình trong .env.local/server env, không nhập API key trong browser.",
+      "Nhà cung cấp đã chọn thiếu biến môi trường phía máy chủ. Cấu hình trong .env.local/server env; không nhập API key trong trình duyệt.",
     disabled:
-      "Real AI feature flags đang tắt. App dùng mock/local fallback.",
+      "Cờ tính năng AI thật đang tắt. Ứng dụng dùng mô phỏng/cục bộ.",
     externalSafe:
-      "Không có external provider call trong trạng thái hiện tại.",
+      "Không có lệnh gọi nhà cung cấp bên ngoài trong trạng thái hiện tại.",
     externalPossible:
-      "Dữ liệu có thể rời app nếu user xác nhận cloud AI và server provider đã cấu hình."
+      "Dữ liệu có thể rời ứng dụng nếu người dùng xác nhận AI đám mây và nhà cung cấp phía máy chủ đã được cấu hình."
   },
   en: {
     mode: "Mode",
@@ -95,7 +95,7 @@ function hasRealAI(status: AITrustStatusResponse) {
   );
 }
 
-export function formatAIProviderName(provider: string | undefined) {
+export function formatAIProviderName(provider: string | undefined, locale: Locale = "en") {
   if (provider === "product-ai") {
     return "Product AI";
   }
@@ -108,7 +108,7 @@ export function formatAIProviderName(provider: string | undefined) {
     return "Claude";
   }
 
-  return "Local Mock";
+  return locale === "vi" ? "Mô phỏng cục bộ" : "Local Mock";
 }
 
 export function getAITrustSummary(status: AITrustStatusResponse, locale: Locale) {
@@ -129,8 +129,8 @@ export function getAITrustSummary(status: AITrustStatusResponse, locale: Locale)
 
   return {
     modeLabel: realMode ? text.realMode : text.mockMode,
-    selectedProviderLabel: formatAIProviderName(selectedProvider),
-    effectiveProviderLabel: formatAIProviderName(effectiveProvider),
+    selectedProviderLabel: formatAIProviderName(selectedProvider, locale),
+    effectiveProviderLabel: formatAIProviderName(effectiveProvider, locale),
     dataModeLabel:
       dataMode === "cloud-processing"
         ? text.cloudProcessing

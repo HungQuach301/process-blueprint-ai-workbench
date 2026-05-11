@@ -203,22 +203,22 @@ const exportCenterText = {
     productDelivery: "Hồ sơ sản phẩm",
     productDeliveryDescription:
       "Tạo bản nháp hồ sơ sản phẩm từ Process Task Register và ngữ cảnh đã rà soát. Tất cả đầu ra đều xem trước trước, chưa lưu vào Artifact Graph.",
-    productDeliveryHowItWorks: "Cách làm Product Delivery",
+    productDeliveryHowItWorks: "Cách làm hồ sơ sản phẩm",
     productDeliveryStep1Title: "Tạo tài liệu nháp",
-    productDeliveryStep1Body: "Tạo BRD, SRS, user stories, acceptance criteria và scope/MVP để xem trước.",
+    productDeliveryStep1Body: "Tạo BRD, SRS, user stories, acceptance criteria và phạm vi/MVP để xem trước.",
     productDeliveryStep2Title: "Chạy kiểm tra chất lượng",
     productDeliveryStep2Body: "Rà soát requirement quality và trace trước khi chia sẻ.",
     productDeliveryStep3Title: "Xuất gói bàn giao phát triển",
-    productDeliveryStep3Body: "Xem trước AI Development Handoff Pack rồi tải ZIP khi sẵn sàng.",
+    productDeliveryStep3Body: "Xem trước gói bàn giao phát triển AI rồi tải ZIP khi sẵn sàng.",
     optionalProjectContext: "Ngữ cảnh dự án tùy chọn",
     generateProductDeliveryDraft: "Tạo bản nháp hồ sơ sản phẩm",
     downloadProductDeliveryMarkdown: "Tải Markdown hồ sơ sản phẩm",
     aiDevelopmentHandoffPack: "Gói bàn giao phát triển AI",
     aiDevelopmentHandoffDescription:
       "Gửi gói này cho đội phát triển hoặc dùng với Codex, Claude Code, Cursor. Gói biến PTR và hồ sơ sản phẩm đã rà soát thành bộ bàn giao có xem trước trước khi tải ZIP.",
-    handoffHowItWorks: "Cách làm AI Development Handoff",
+    handoffHowItWorks: "Cách làm gói bàn giao phát triển AI",
     handoffStep1Title: "Chọn tài liệu nguồn",
-    handoffStep1Body: "Dùng PTR hoặc tài liệu Product Delivery đã rà soát.",
+    handoffStep1Body: "Dùng PTR hoặc hồ sơ sản phẩm đã rà soát.",
     handoffStep2Title: "Xem trước gói bàn giao",
     handoffStep2Body: "Kiểm tra spec.json và các file kỹ thuật trước.",
     handoffStep3Title: "Tải ZIP",
@@ -231,11 +231,11 @@ const exportCenterText = {
     localAuditLog: "Nhật ký kiểm toán cục bộ",
     aiRunHistory: "Lịch sử chạy AI",
     aiRunHistorySafeNote:
-      "Chỉ hiển thị metadata an toàn của các lần chạy AI. Không lưu prompt đầy đủ hoặc output đầy đủ trong lịch sử cục bộ.",
+      "Chỉ hiển thị metadata an toàn của các lần chạy AI. Không lưu prompt đầy đủ hoặc đầu ra đầy đủ trong lịch sử cục bộ.",
     refreshHistory: "Làm mới lịch sử",
     exportHistoryJson: "Xuất JSON lịch sử",
     status: "Trạng thái",
-    validation: "Validation",
+    validation: "Kiểm tra hợp lệ",
     details: "Chi tiết",
     hideDetails: "Ẩn",
     showDetails: "Chi tiết",
@@ -243,16 +243,16 @@ const exportCenterText = {
     yes: "có",
     no: "không",
     errorType: "Loại lỗi",
-    requestId: "Request id",
+    requestId: "Mã request",
     safeMessage: "Lý do an toàn",
-    validationSummary: "Tóm tắt validation",
+    validationSummary: "Tóm tắt kiểm tra hợp lệ",
     warnings: "Cảnh báo",
     suggestedNextAction: "Hành động đề xuất",
     notApplicable: "không áp dụng",
     notAvailable: "không có",
-    noSafeError: "Không có safe error message được ghi nhận.",
+    noSafeError: "Không ghi nhận thông báo lỗi an toàn.",
     valid: "Hợp lệ.",
-    noValidationSummary: "Không có tóm tắt validation.",
+    noValidationSummary: "Không có tóm tắt kiểm tra hợp lệ.",
     none: "Không có"
   },
   en: {
@@ -2422,7 +2422,9 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Skill</th>
-                  <th className="px-3 py-2 font-semibold">Provider</th>
+                  <th className="px-3 py-2 font-semibold">
+                    {locale === "vi" ? "Nhà cung cấp" : "Provider"}
+                  </th>
                   <th className="px-3 py-2 font-semibold">Model</th>
                   <th className="px-3 py-2 font-semibold">
                     {text.status}
@@ -2433,7 +2435,9 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                   <th className="px-3 py-2 font-semibold">Latency</th>
                   <th className="px-3 py-2 font-semibold">{text.external}</th>
                   <th className="px-3 py-2 font-semibold">Tokens</th>
-                  <th className="px-3 py-2 font-semibold">Timestamp</th>
+                  <th className="px-3 py-2 font-semibold">
+                    {locale === "vi" ? "Thời điểm" : "Timestamp"}
+                  </th>
                   <th className="px-3 py-2 font-semibold">
                     {text.details}
                   </th>
@@ -2702,7 +2706,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                   onChange={(event) => setProductDeliveryFileText(event.target.value)}
                   placeholder={
                     locale === "vi"
-                      ? "Dán text đã trích xuất từ PDF/DOCX khi có. Trình duyệt không gọi trực tiếp provider AI bên ngoài."
+                      ? "Dán văn bản đã trích xuất từ PDF/DOCX khi có. Trình duyệt không gọi trực tiếp nhà cung cấp AI bên ngoài."
                       : "Paste extracted PDF/DOCX text when available. Browser does not call external AI providers directly."
                   }
                   value={productDeliveryFileText}
@@ -2957,17 +2961,17 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             </div>
             <details className="mt-4 rounded border border-slate-200 bg-slate-50">
               <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-slate-700">
-                {locale === "vi" ? "Nâng cao / So sánh provider" : "Advanced / Provider Compare"}
+                {locale === "vi" ? "Nâng cao / So sánh nhà cung cấp" : "Advanced / Provider Compare"}
               </summary>
               <div className="border-t border-slate-200 p-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-950">
-                    {locale === "vi" ? "So sánh provider" : "Provider Compare"}
+                    {locale === "vi" ? "So sánh nhà cung cấp" : "Provider Compare"}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-slate-600">
                     {locale === "vi"
-                      ? "Tùy chọn và mặc định tắt. So sánh các provider đã chọn cho BRD, User Stories hoặc AI Coding Pack, sau đó chọn một output để xem tiếp."
+                      ? "Tùy chọn và mặc định tắt. So sánh các nhà cung cấp đã chọn cho BRD, User Stories hoặc AI Coding Pack, sau đó chọn một đầu ra để xem tiếp."
                       : "Optional and off by default. Compare selected providers for BRD, User Stories, or AI Coding Pack, then choose one output to preview further."}
                   </p>
                 </div>
@@ -2996,7 +3000,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {compareProviderIds.length > 1 ? (
                       <span className="text-xs text-amber-700">
                         {locale === "vi"
-                          ? "Nhiều provider có thể làm tăng chi phí AI."
+                          ? "Nhiều nhà cung cấp có thể làm tăng chi phí AI."
                           : "Multiple providers may increase AI cost."}
                       </span>
                     ) : null}
@@ -3121,7 +3125,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                       onClick={() => useExportCompareResult(result)}
                       type="button"
                     >
-                      {locale === "vi" ? "Dùng output này" : "Use this output"}
+                      {locale === "vi" ? "Dùng đầu ra này" : "Use this output"}
                     </button>
                   </div>
                 ))}
@@ -3149,7 +3153,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               <summary>{technicalDetailsLabel}</summary>
               <p className="border-t border-slate-200 p-3 text-xs leading-5 text-slate-500">
               {locale === "vi"
-                ? "MVP1 chưa tạo Artifact Graph. User stories và acceptance criteria được tạo qua AI skill route phía máy chủ và chỉ ở trạng thái xem trước/xuất."
+                ? "MVP1 chưa tạo Artifact Graph. User stories và acceptance criteria được tạo qua route kỹ năng AI phía máy chủ và chỉ ở trạng thái xem trước/xuất."
                 : "No Artifact Graph is created in MVP1. User stories and acceptance criteria are generated through server-side AI skill routes and remain preview/export only."}
               </p>
             </details>
@@ -3239,7 +3243,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             <p className="text-sm font-semibold text-slate-950">BRD</p>
             <p className="mt-1 text-sm text-slate-600">
               {locale === "vi"
-                ? "Chưa có preview BRD. Dùng action card Generate ở phần Tổng quan để tạo BRD từ PTR hoặc ghi chú."
+                ? "Chưa có bản xem trước BRD. Dùng nhóm Tạo ở phần Tổng quan để tạo BRD từ PTR hoặc ghi chú."
                 : "No BRD preview yet. Use the Generate action card in Overview to create BRD from PTR or notes."}
             </p>
           </div>
@@ -3249,11 +3253,11 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-brd">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                {locale === "vi" ? "Preview: bản nháp BRD có cấu trúc" : "Preview: Structured BRD draft"}
+                {locale === "vi" ? "Xem trước: bản nháp BRD có cấu trúc" : "Preview: Structured BRD draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"
-                  ? `Đã tạo lúc ${brdPreview.timestamp} qua ${brdPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  ? `Đã tạo lúc ${brdPreview.timestamp} qua ${brdPreview.sourceSkillId}. Chỉ xem trước; chưa lưu vào Artifact Graph.`
                   : `Generated at ${brdPreview.timestamp} via ${brdPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
@@ -3313,11 +3317,11 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-srs">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                {locale === "vi" ? "Preview: bản nháp SRS có cấu trúc" : "Preview: Structured SRS draft"}
+                {locale === "vi" ? "Xem trước: bản nháp SRS có cấu trúc" : "Preview: Structured SRS draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"
-                  ? `Đã tạo lúc ${srsPreview.timestamp} qua ${srsPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  ? `Đã tạo lúc ${srsPreview.timestamp} qua ${srsPreview.sourceSkillId}. Chỉ xem trước; chưa lưu vào Artifact Graph.`
                   : `Generated at ${srsPreview.timestamp} via ${srsPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
@@ -3377,11 +3381,11 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-stories">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                {locale === "vi" ? "Preview: bản nháp user stories có cấu trúc" : "Preview: Structured user stories draft"}
+                {locale === "vi" ? "Xem trước: bản nháp user stories có cấu trúc" : "Preview: Structured user stories draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"
-                  ? `Đã tạo lúc ${userStoryPreview.timestamp} qua ${userStoryPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  ? `Đã tạo lúc ${userStoryPreview.timestamp} qua ${userStoryPreview.sourceSkillId}. Chỉ xem trước; chưa lưu vào Artifact Graph.`
                   : `Generated at ${userStoryPreview.timestamp} via ${userStoryPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
@@ -3445,11 +3449,11 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-acceptance">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                {locale === "vi" ? "Preview: bản nháp acceptance criteria có cấu trúc" : "Preview: Structured acceptance criteria draft"}
+                {locale === "vi" ? "Xem trước: bản nháp acceptance criteria có cấu trúc" : "Preview: Structured acceptance criteria draft"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"
-                  ? `Đã tạo lúc ${acceptanceCriteriaPreview.timestamp} qua ${acceptanceCriteriaPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  ? `Đã tạo lúc ${acceptanceCriteriaPreview.timestamp} qua ${acceptanceCriteriaPreview.sourceSkillId}. Chỉ xem trước; chưa lưu vào Artifact Graph.`
                   : `Generated at ${acceptanceCriteriaPreview.timestamp} via ${acceptanceCriteriaPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
@@ -3518,10 +3522,12 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
 
         {!productScopeReviewPreview ? (
           <div className="empty-state mt-4" id="product-delivery-scope">
-            <p className="text-sm font-semibold text-slate-950">Scope Review / MVP Slicing</p>
+            <p className="text-sm font-semibold text-slate-950">
+              {locale === "vi" ? "Rà soát phạm vi / Cắt MVP" : "Scope Review / MVP Slicing"}
+            </p>
             <p className="mt-1 text-sm text-slate-600">
               {locale === "vi"
-                ? "Chưa có preview Scope/MVP. Chạy Review Product Scope hoặc Generate MVP Slicing trong action card Review/Generate."
+                ? "Chưa có bản xem trước phạm vi/MVP. Chạy Rà soát phạm vi sản phẩm hoặc Tạo MVP Slicing trong nhóm Rà soát."
                 : "No Scope/MVP preview yet. Run Review Product Scope or Generate MVP Slicing from the Review/Generate cards."}
             </p>
           </div>
@@ -3531,11 +3537,11 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white" id="product-delivery-scope">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                {locale === "vi" ? "Preview: review phạm vi sản phẩm và MVP slicing" : "Preview: Product scope review and MVP slicing"}
+                {locale === "vi" ? "Xem trước: rà soát phạm vi sản phẩm và cắt MVP" : "Preview: Product scope review and MVP slicing"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"
-                  ? `Đã tạo lúc ${productScopeReviewPreview.timestamp} qua ${productScopeReviewPreview.sourceSkillId}. Chỉ preview; chưa lưu vào Artifact Graph.`
+                  ? `Đã tạo lúc ${productScopeReviewPreview.timestamp} qua ${productScopeReviewPreview.sourceSkillId}. Chỉ xem trước; chưa lưu vào Artifact Graph.`
                   : `Generated at ${productScopeReviewPreview.timestamp} via ${productScopeReviewPreview.sourceSkillId}. Preview only; not saved to an Artifact Graph.`}
               </p>
             </div>
@@ -3589,11 +3595,11 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                {locale === "vi" ? "Preview: Requirement QA và trace coverage" : "Preview: Requirement QA and trace coverage"}
+                {locale === "vi" ? "Xem trước: QA yêu cầu và độ phủ truy vết" : "Preview: Requirement QA and trace coverage"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"
-                  ? `Đã tạo lúc ${requirementQAPreview.timestamp} qua ${requirementQAPreview.sourceSkillId}. Finding chỉ là recommendation draft; chưa áp dụng hoặc lưu.`
+                  ? `Đã tạo lúc ${requirementQAPreview.timestamp} qua ${requirementQAPreview.sourceSkillId}. Phát hiện chỉ là đề xuất nháp; chưa áp dụng hoặc lưu.`
                   : `Generated at ${requirementQAPreview.timestamp} via ${requirementQAPreview.sourceSkillId}. Findings are draft recommendations only; nothing is applied or saved.`}
               </p>
             </div>
@@ -3743,7 +3749,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               <summary>{technicalDetailsLabel}</summary>
               <p className="border-t border-slate-200 p-3 text-xs leading-5 text-slate-500">
               {locale === "vi"
-                ? "Chi tiết nâng cao cho người dùng kỹ thuật: AGENTS.md, CLAUDE.md, cursor rules và spec.json được giữ trong gói. Product Delivery dùng `user-stories-to-ai-coding-pack` qua `/api/ai/run-skill`, có fallback local/mô phỏng và schema validation."
+                ? "Chi tiết nâng cao cho người dùng kỹ thuật: AGENTS.md, CLAUDE.md, cursor rules và spec.json được giữ trong gói. Hồ sơ sản phẩm dùng `user-stories-to-ai-coding-pack` qua `/api/ai/run-skill`, có fallback cục bộ/mô phỏng và kiểm tra schema."
                 : "Advanced details for technical users: AGENTS.md, CLAUDE.md, cursor rules, and spec.json are kept in the package. Product Delivery generation uses `user-stories-to-ai-coding-pack` through `/api/ai/run-skill`, with mock/local fallback and schema validation."}
               </p>
             </details>
@@ -3754,7 +3760,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
           <div className="mt-4 rounded border border-slate-200 bg-white">
             <div className="border-b border-slate-200 px-4 py-3">
               <p className="text-sm font-semibold text-slate-950">
-                Preview: spec.json
+                {locale === "vi" ? "Xem trước: spec.json" : "Preview: spec.json"}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 {locale === "vi"

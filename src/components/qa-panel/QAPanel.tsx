@@ -88,12 +88,12 @@ const qaPanelText = {
     clearLocalFeedback: "Xóa phản hồi cục bộ",
     running: "Đang tạo gợi ý bằng AI...",
     generateAIRecommendations: "Tạo gợi ý bằng AI",
-    mockLocalStatus: "Mock/local: tạo gợi ý bằng route server-side, không gọi provider bên ngoài.",
-    realAIStatus: "Real AI: tạo gợi ý bằng route server-side và provider đã cấu hình.",
+    mockLocalStatus: "Mô phỏng/cục bộ: tạo gợi ý bằng route phía máy chủ, không gọi nhà cung cấp bên ngoài.",
+    realAIStatus: "AI thật: tạo gợi ý bằng route phía máy chủ và nhà cung cấp đã cấu hình.",
     showOnlySafe: "Chỉ hiện đề xuất an toàn",
     includeMedium: "Bao gồm mức trung bình",
     includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
-    providerCompare: "So sánh provider",
+    providerCompare: "So sánh nhà cung cấp",
     totalIssues: "Tổng số vấn đề",
     noRecommendations: "Chưa có đề xuất tự động.",
     hiddenAdvanced: "Thay đổi cấu trúc nâng cao đang được ẩn.",
@@ -118,8 +118,8 @@ const qaPanelText = {
     affectedSteps: "Bước bị ảnh hưởng",
     changeSummary: "Tóm tắt thay đổi",
     previewChange: "Xem trước thay đổi",
-    advancedHiddenHelper: "Đề xuất đổi cấu trúc luồng được tách riêng ở tab nâng cao và không được chọn bởi Select safe.",
-    previewThenConfirm: "Preview trước; chỉ áp dụng sau khi xác nhận trong hộp thoại.",
+    advancedHiddenHelper: "Đề xuất đổi cấu trúc luồng được tách riêng ở tab nâng cao và không được chọn bởi hành động chọn đề xuất an toàn.",
+    previewThenConfirm: "Xem trước trước; chỉ áp dụng sau khi xác nhận trong hộp thoại.",
     confirmRecommendation: "Xác nhận đề xuất QA",
     confirmBatchRecommendations: "Xác nhận nhóm đề xuất",
     applySelectedRecommendations: "Áp dụng đề xuất đã chọn",
@@ -779,7 +779,7 @@ export function QAPanel({
     }
 
     if (compareProviderIds.length === 0) {
-      setAiQaMessage(locale === "vi" ? "Chọn ít nhất một provider trước khi so sánh." : "Choose at least one provider before running Provider Compare.");
+      setAiQaMessage(locale === "vi" ? "Chọn ít nhất một nhà cung cấp trước khi so sánh." : "Choose at least one provider before running Provider Compare.");
       return;
     }
 
@@ -788,24 +788,24 @@ export function QAPanel({
     if (compareProviderIds.length > 1 && usesCloudProvider) {
       const confirmed = window.confirm(
         locale === "vi"
-          ? "So sánh provider sẽ gọi nhiều provider đã chọn và có thể tăng chi phí. Tiếp tục?"
+          ? "So sánh nhà cung cấp sẽ gọi nhiều nhà cung cấp đã chọn và có thể tăng chi phí. Tiếp tục?"
           : "Provider Compare will call multiple selected providers and may increase cost. Continue?"
       );
 
       if (!confirmed) {
-        setAiQaMessage(locale === "vi" ? "Đã hủy so sánh provider. Không có đề xuất nào được áp dụng." : "Provider Compare cancelled. No recommendation was applied.");
+        setAiQaMessage(locale === "vi" ? "Đã hủy so sánh nhà cung cấp. Không có đề xuất nào được áp dụng." : "Provider Compare cancelled. No recommendation was applied.");
         return;
       }
     }
 
     if (!confirmRealAICallIfNeeded(realAIQAEnabled && usesCloudProvider)) {
-      setAiQaMessage(locale === "vi" ? "Đã hủy so sánh provider ở bước xác nhận AI đám mây." : "Provider Compare cancelled by cloud AI consent check.");
+      setAiQaMessage(locale === "vi" ? "Đã hủy so sánh nhà cung cấp ở bước xác nhận AI đám mây." : "Provider Compare cancelled by cloud AI consent check.");
       return;
     }
 
     setIsRunningCompare(true);
     setCompareResults([]);
-    setAiQaMessage(locale === "vi" ? "Đang so sánh provider cho AI QA..." : "Running Provider Compare for AI QA...");
+    setAiQaMessage(locale === "vi" ? "Đang so sánh nhà cung cấp cho AI QA..." : "Running Provider Compare for AI QA...");
 
     const nextResults: AIQACompareResult[] = [];
 
@@ -926,7 +926,7 @@ export function QAPanel({
     }
 
     setCompareResults(nextResults);
-    setAiQaMessage(locale === "vi" ? "Đã so sánh xong provider. Chọn một đầu ra để xem trước tiếp." : "Provider Compare finished. Choose one provider output to preview further.");
+    setAiQaMessage(locale === "vi" ? "Đã so sánh xong nhà cung cấp. Chọn một đầu ra để xem trước tiếp." : "Provider Compare finished. Choose one provider output to preview further.");
     setIsRunningCompare(false);
   }
 
@@ -945,11 +945,11 @@ export function QAPanel({
               severity: "suggestion",
               message:
                 locale === "vi"
-                  ? "Đã chọn đầu ra so sánh provider cho luồng Recommendation Engine hiện có."
+                  ? "Đã chọn đầu ra so sánh nhà cung cấp cho luồng Recommendation Engine hiện có."
                   : "Provider Compare output selected for the existing Recommendation Engine workflow.",
               suggestedFix:
                 locale === "vi"
-                  ? "Rà soát đề xuất từ provider đã chọn, xem trước thao tác, rồi chỉ áp dụng sau khi xác nhận."
+                  ? "Rà soát đề xuất từ nhà cung cấp đã chọn, xem trước thao tác, rồi chỉ áp dụng sau khi xác nhận."
                   : "Review the selected provider recommendation, preview the operation, then apply only after confirmation.",
               recommendations: result.recommendations
             }
@@ -959,7 +959,7 @@ export function QAPanel({
     clearSelection();
     setAiQaMessage(
       locale === "vi"
-        ? `Đã chọn output từ ${result.providerId} để preview AI QA.`
+        ? `Đã chọn đầu ra từ ${result.providerId} để xem trước AI QA.`
         : `Selected ${result.providerId} output for AI QA preview.`
     );
   }
@@ -968,7 +968,7 @@ export function QAPanel({
     if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
       setAiQaMessage(
         locale === "vi"
-          ? "Đã hủy gọi Real AI QA. Không tạo đề xuất."
+          ? "Đã hủy gọi AI thật cho QA. Không tạo đề xuất."
           : "Real AI QA call cancelled. No recommendation was created."
       );
       return;
@@ -978,10 +978,10 @@ export function QAPanel({
     setAiQaMessage(
       realAIQAEnabled
         ? locale === "vi"
-          ? "Đang chạy Real AI QA qua route server-side..."
+          ? "Đang chạy AI thật cho QA qua route phía máy chủ..."
           : "Running real AI QA through the server route..."
         : locale === "vi"
-          ? "Đang chạy mock AI QA. Real AI QA đang tắt."
+          ? "Đang chạy AI QA mô phỏng. AI thật cho QA đang tắt."
           : "Running mock AI QA. Real AI QA is disabled."
     );
 
@@ -1359,7 +1359,13 @@ export function QAPanel({
                   onClick={() => void runAiQaCompare()}
                   type="button"
                 >
-                  {isRunningCompare ? "Comparing..." : "Compare providers"}
+                  {isRunningCompare
+                    ? locale === "vi"
+                      ? "Đang so sánh..."
+                      : "Comparing..."
+                    : locale === "vi"
+                      ? "So sánh nhà cung cấp"
+                      : "Compare providers"}
                 </button>
               </>
             ) : null}
@@ -1404,7 +1410,7 @@ export function QAPanel({
                     {result.providerId}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Model: {result.model || "n/a"}
+                    {locale === "vi" ? "Model" : "Model"}: {result.model || "n/a"}
                   </p>
                 </div>
                 <span
@@ -1419,7 +1425,8 @@ export function QAPanel({
               </div>
               <p className="mt-2 text-sm text-slate-700">{result.summary}</p>
               <p className="mt-1 text-xs text-slate-500">
-                Confidence: {result.confidence} | Warnings:{" "}
+                {locale === "vi" ? "Độ tin cậy" : "Confidence"}: {result.confidence} |{" "}
+                {locale === "vi" ? "Cảnh báo" : "Warnings"}:{" "}
                 {result.warnings.length}
               </p>
               {result.error ? (
@@ -1431,7 +1438,7 @@ export function QAPanel({
                 onClick={() => useCompareResult(result)}
                 type="button"
               >
-                Use this output
+                {locale === "vi" ? "Dùng đầu ra này" : "Use this output"}
               </button>
             </div>
           ))}

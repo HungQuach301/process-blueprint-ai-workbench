@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Created RC4 UI/UX audit documentation for Workspace, AI Connection Center, AI Input Brief, File Intake, Template Hub, QA Panel, Process Task Register, D01 BPMN, D02 Service Blueprint, Product Delivery, AI Development Handoff Pack, Export Center, and AI Run History.
+- Created the RC4 UI/UX implementation plan with small delivery blocks for App Shell + Theme, i18n cleanup, Workspace Dashboard, Template Hub redesign, Product Delivery module, QA Panel redesign, PTR table UX, and Export/Audit polish.
+- Kept this RC4 step documentation-only: no application code, data model, canonical schema, D01/D02 generator, provider adapter, browser secret handling, or AI auto-apply behavior was changed.
 - Turned Workspace into a useful dashboard for MVP1-AI RC3.
 - Added Workspace overview cards for AI status, Process Task Register status, QA status, artifact status, and Product Delivery status.
 - Added Start here actions for creating from brief, importing a file, reviewing QA, generating Product Delivery, and exporting the package.

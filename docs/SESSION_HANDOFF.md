@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Moved Product Delivery Core out of Export Center into a dedicated primary module for MVP1-AI RC3.
+- Updated the global module tab and contextual sidebar so Product Delivery points to its own `#product-delivery` section instead of `#export-center`.
+- Kept Product Delivery generation/export logic intact while rendering it through a dedicated Product Delivery module surface.
+- Reorganized Product Delivery actions into grouped Generate, Review, and Export cards covering BRD, SRS, User Stories, Acceptance Criteria, Scope Review, MVP Slicing, and AI Development Handoff Pack workflows.
+- Kept Export Center focused on output package ZIP, artifact readiness statuses, audit log export, and AI Run History.
+- Preserved preview-before-download behavior, server-side AI route boundaries, schema/quality-gate flows, no browser API key exposure, no D01/D02 generator changes, and no AI auto-apply behavior.
 - Redesigned Template Hub with progressive disclosure for MVP1-AI RC3.
 - Split Template Hub into four user-facing tabs: Current templates, Browse templates, Template review, and Editor.
 - Simplified template browse cards to show only key scan fields: name, output type, domain, process type, status, and short recommended tags.

@@ -65,6 +65,7 @@ const groupBySectionId: Record<string, NavigationGroup> = {
   "d01-bpmn-preview": "process-modeling",
   "d02-service-blueprint-preview": "process-modeling",
   "template-library": "templates",
+  "product-delivery": "product-delivery",
   "export-center": "export-audit"
 };
 
@@ -75,7 +76,7 @@ const productDeliveryLinks = [
       vi: "Luồng hồ sơ sản phẩm",
       en: "Product Delivery flows"
     },
-    href: "#export-center"
+    href: "#product-delivery"
   }
 ];
 
@@ -154,12 +155,12 @@ export function Navigation({ locale, sections }: NavigationProps) {
                   <li key={link.id}>
                     <a
                       className={`block rounded-md border px-3 py-2 text-sm font-semibold transition ${
-                        activeSectionId === "export-center"
+                        activeSectionId === "product-delivery"
                           ? "border-purple-200 bg-purple-50 text-purple-800 shadow-sm"
                           : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-950"
                       }`}
                       href={link.href}
-                      onClick={() => setActiveSectionId("export-center")}
+                      onClick={() => setActiveSectionId("product-delivery")}
                     >
                       {link.label[locale]}
                     </a>

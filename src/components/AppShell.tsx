@@ -7,6 +7,7 @@ import { D01BpmnOutput } from "@/components/bpmn-output/D01BpmnOutput";
 import { D02ServiceBlueprintOutput } from "@/components/service-blueprint-output/D02ServiceBlueprintOutput";
 import { ExportCenter } from "@/components/export-center/ExportCenter";
 import { AIInputBriefPanel } from "@/components/input-brief/AIInputBriefPanel";
+import { ProductDeliveryCore } from "@/components/product-delivery/ProductDeliveryCore";
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
 import { getLocale, setLocale, t, type Locale } from "@/lib/i18n";
@@ -33,7 +34,7 @@ const moduleTabs: Array<{
 }> = [
   { id: "workspace", label: { vi: "Không gian làm việc", en: "Workspace" }, href: "#ai-settings" },
   { id: "process-modeling", label: { vi: "Mô hình quy trình", en: "Process Modeling" }, href: "#input-brief" },
-  { id: "product-delivery", label: { vi: "Hồ sơ sản phẩm", en: "Product Delivery" }, href: "#export-center" },
+  { id: "product-delivery", label: { vi: "Hồ sơ sản phẩm", en: "Product Delivery" }, href: "#product-delivery" },
   { id: "templates", label: { vi: "Mẫu", en: "Templates" }, href: "#template-library" },
   { id: "export-audit", label: { vi: "Xuất & kiểm toán", en: "Export & Audit" }, href: "#export-center" }
 ];
@@ -251,6 +252,10 @@ export function AppShell() {
 
             <div className="min-w-0 max-w-full scroll-mt-36" id="d02-service-blueprint-preview">
               <D02ServiceBlueprintOutput />
+            </div>
+
+            <div className="min-w-0 max-w-full scroll-mt-36" id="product-delivery">
+              <ProductDeliveryCore />
             </div>
 
             <div className="min-w-0 max-w-full scroll-mt-36" id="export-center">

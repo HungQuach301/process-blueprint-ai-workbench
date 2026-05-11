@@ -179,6 +179,12 @@ type ExportCompareResult = {
   error?: string;
 };
 
+type ExportCenterView = "export" | "product-delivery";
+
+type ExportCenterProps = {
+  view?: ExportCenterView;
+};
+
 const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "product-ai", label: "Product AI" },
   { id: "openai", label: "OpenAI" },
@@ -355,7 +361,7 @@ function mapRouteCodingPackFiles(
   };
 }
 
-export function ExportCenter() {
+export function ExportCenter({ view = "export" }: ExportCenterProps) {
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [artifacts, setArtifacts] = useState<OutputArtifacts | null>(null);
   const [aiCodingPack, setAICodingPack] = useState<AICodingPackPreview | null>(
@@ -401,6 +407,8 @@ export function ExportCenter() {
   const [exportPackageStatus, setExportPackageStatus] =
     useState<ArtifactStatus>("not_generated");
   const text = exportCenterText[locale];
+  const isExportView = view === "export";
+  const isProductDeliveryView = view === "product-delivery";
 
   function readArtifactStatus(key: string): ArtifactStatus {
     const status = window.localStorage.getItem(key);
@@ -2161,45 +2169,54 @@ export function ExportCenter() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="status-badge status-badge-success">
-              {text.title}
+              {isProductDeliveryView ? text.productDelivery : text.title}
             </p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">
-              {locale === "vi" ? "Gói ZIP đầu ra" : "Output Package ZIP"}
+              {isProductDeliveryView
+                ? locale === "vi"
+                  ? "Hồ sơ sản phẩm"
+                  : "Product Delivery Core"
+                : locale === "vi"
+                  ? "Gói ZIP đầu ra"
+                  : "Output Package ZIP"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              {text.description}
+              {isProductDeliveryView ? text.productDeliveryDescription : text.description}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={generateAllArtifacts}
-              type="button"
-            >
-              {text.generateAllArtifacts}
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={isDownloading}
-              onClick={downloadZip}
-              type="button"
-            >
-              {isDownloading ? text.generatingZip : text.downloadZip}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={downloadAuditLog}
-              type="button"
-            >
-              Export Audit Log JSON
-            </button>
-          </div>
+          {isExportView ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                onClick={generateAllArtifacts}
+                type="button"
+              >
+                {text.generateAllArtifacts}
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={isDownloading}
+                onClick={downloadZip}
+                type="button"
+              >
+                {isDownloading ? text.generatingZip : text.downloadZip}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={downloadAuditLog}
+                type="button"
+              >
+                Export Audit Log JSON
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
       </div>
 
+      <div className={isExportView ? "contents" : "hidden"}>
       <div className="grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-5">
         {[
           ["D01 BPMN", readiness.d01Bpmn],
@@ -2404,7 +2421,9 @@ export function ExportCenter() {
         )}
       </div>
       </details>
+      </div>
 
+      <div className={isProductDeliveryView ? "contents" : "hidden"}>
       <div className="border-t border-slate-200 p-4">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div>
@@ -2466,180 +2485,240 @@ export function ExportCenter() {
                 />
               </label>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingBRD}
-                onClick={() => void generateBRDPreview("ptr-to-brd")}
-                type="button"
-              >
-                {isGeneratingBRD
-                  ? locale === "vi"
-                    ? "Đang tạo BRD..."
-                    : "Generating BRD..."
-                  : locale === "vi"
-                  ? "Tạo BRD từ PTR"
-                  : "Generate BRD from PTR"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingBRD}
-                onClick={() => void generateBRDPreview("notes-to-brd")}
-                type="button"
-              >
-                {locale === "vi" ? "Tạo BRD từ ghi chú" : "Generate BRD from Notes"}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!brdPreview}
-                onClick={downloadBRDJson}
-                type="button"
-              >
-                {locale === "vi" ? "Tải BRD JSON" : "Download BRD JSON"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingSRS}
-                onClick={() => void generateSRSPreview("brd-to-srs")}
-                type="button"
-              >
-                {isGeneratingSRS
-                  ? locale === "vi"
-                    ? "Đang tạo SRS..."
-                    : "Generating SRS..."
-                  : locale === "vi"
-                  ? "Tạo SRS từ BRD/PTR"
-                  : "Generate SRS from BRD/PTR"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingSRS}
-                onClick={() => void generateSRSPreview("notes-to-srs")}
-                type="button"
-              >
-                {locale === "vi" ? "Tạo SRS từ ghi chú" : "Generate SRS from Notes"}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!srsPreview}
-                onClick={downloadSRSJson}
-                type="button"
-              >
-                {locale === "vi" ? "Tải SRS JSON" : "Download SRS JSON"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingUserStories}
-                onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
-                type="button"
-              >
-                {isGeneratingUserStories
-                  ? locale === "vi"
-                    ? "Đang tạo user story..."
-                    : "Generating Stories..."
-                  : locale === "vi"
-                  ? "Tạo user story từ SRS"
-                  : "Generate Stories from SRS"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingUserStories}
-                onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
-                type="button"
-              >
-                {locale === "vi" ? "Tạo user story từ BRD" : "Generate Stories from BRD"}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!userStoryPreview}
-                onClick={downloadUserStoriesJson}
-                type="button"
-              >
-                {locale === "vi" ? "Tải Stories JSON" : "Download Stories JSON"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingAcceptanceCriteria}
-                onClick={() => void generateAcceptanceCriteriaPreview()}
-                type="button"
-              >
-                {isGeneratingAcceptanceCriteria
-                  ? locale === "vi"
-                    ? "Đang tạo Acceptance Criteria..."
-                    : "Generating AC..."
-                  : locale === "vi"
-                  ? "Tạo Acceptance Criteria"
-                  : "Generate Acceptance Criteria"}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!acceptanceCriteriaPreview}
-                onClick={downloadAcceptanceCriteriaJson}
-                type="button"
-              >
-                {locale === "vi" ? "Tải AC JSON" : "Download AC JSON"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingProductScopeReview}
-                onClick={() => void generateProductScopeReviewPreview("product-scope-review")}
-                type="button"
-              >
-                {isGeneratingProductScopeReview
-                  ? locale === "vi"
-                    ? "Đang review scope..."
-                    : "Reviewing Scope..."
-                  : locale === "vi"
-                  ? "Review Product Scope"
-                  : "Review Product Scope"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingProductScopeReview}
-                onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
-                type="button"
-              >
-                {locale === "vi" ? "Tạo MVP Slicing" : "Generate MVP Slicing"}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!productScopeReviewPreview}
-                onClick={downloadProductScopeReviewJson}
-                type="button"
-              >
-                {locale === "vi" ? "Tải Scope JSON" : "Download Scope JSON"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingRequirementQA}
-                onClick={() => void generateRequirementQAPreview()}
-                type="button"
-              >
-                {isGeneratingRequirementQA
-                  ? locale === "vi"
-                    ? "Đang chạy Requirement QA..."
-                    : "Running Requirement QA..."
-                  : locale === "vi"
-                  ? "Chạy Requirement QA"
-                  : "Run Requirement QA"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={previewProductDeliveryDraft}
-                type="button"
-              >
-              {text.generateProductDeliveryDraft}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!productDeliveryDraft}
-                onClick={downloadProductDeliveryMarkdown}
-                type="button"
-              >
-              {text.downloadProductDeliveryMarkdown}
-              </button>
+            <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { vi: "BRD", en: "BRD" },
+                { vi: "SRS", en: "SRS" },
+                { vi: "User story", en: "User Stories" },
+                { vi: "Acceptance Criteria", en: "Acceptance Criteria" },
+                { vi: "Review phạm vi", en: "Scope Review" },
+                { vi: "Cắt MVP", en: "MVP Slicing" },
+                { vi: "Gói bàn giao phát triển", en: "AI Development Handoff Pack" }
+              ].map((capability) => (
+                <div
+                  className="rounded border border-slate-200 bg-white px-3 py-2 font-medium text-slate-700"
+                  key={capability.en}
+                >
+                  {capability[locale]}
+                </div>
+              ))}
             </div>
-            <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
+            <div className="mt-4 grid gap-3 lg:grid-cols-3">
+              <div className="rounded border border-blue-100 bg-blue-50/60 p-3">
+                <p className="text-sm font-semibold text-blue-950">
+                  {locale === "vi" ? "Tạo" : "Generate"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-blue-900/80">
+                  {locale === "vi"
+                    ? "Tạo bản nháp BRD, SRS, user stories, acceptance criteria và MVP slicing để xem trước."
+                    : "Create preview-first BRD, SRS, user stories, acceptance criteria, and MVP slicing drafts."}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingBRD}
+                    onClick={() => void generateBRDPreview("ptr-to-brd")}
+                    type="button"
+                  >
+                    {isGeneratingBRD
+                      ? locale === "vi"
+                        ? "Đang tạo BRD..."
+                        : "Generating BRD..."
+                      : locale === "vi"
+                        ? "Tạo BRD từ PTR"
+                        : "Generate BRD from PTR"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingBRD}
+                    onClick={() => void generateBRDPreview("notes-to-brd")}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tạo BRD từ ghi chú" : "Generate BRD from Notes"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingSRS}
+                    onClick={() => void generateSRSPreview("brd-to-srs")}
+                    type="button"
+                  >
+                    {isGeneratingSRS
+                      ? locale === "vi"
+                        ? "Đang tạo SRS..."
+                        : "Generating SRS..."
+                      : locale === "vi"
+                        ? "Tạo SRS từ BRD/PTR"
+                        : "Generate SRS from BRD/PTR"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingSRS}
+                    onClick={() => void generateSRSPreview("notes-to-srs")}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tạo SRS từ ghi chú" : "Generate SRS from Notes"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingUserStories}
+                    onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
+                    type="button"
+                  >
+                    {isGeneratingUserStories
+                      ? locale === "vi"
+                        ? "Đang tạo user story..."
+                        : "Generating Stories..."
+                      : locale === "vi"
+                        ? "Tạo user story từ SRS"
+                        : "Generate Stories from SRS"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingUserStories}
+                    onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tạo user story từ BRD" : "Generate Stories from BRD"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingAcceptanceCriteria}
+                    onClick={() => void generateAcceptanceCriteriaPreview()}
+                    type="button"
+                  >
+                    {isGeneratingAcceptanceCriteria
+                      ? locale === "vi"
+                        ? "Đang tạo Acceptance Criteria..."
+                        : "Generating AC..."
+                      : locale === "vi"
+                        ? "Tạo Acceptance Criteria"
+                        : "Generate Acceptance Criteria"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingProductScopeReview}
+                    onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tạo MVP Slicing" : "Generate MVP Slicing"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded border border-purple-100 bg-purple-50/60 p-3">
+                <p className="text-sm font-semibold text-purple-950">
+                  {locale === "vi" ? "Review" : "Review"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-purple-900/80">
+                  {locale === "vi"
+                    ? "Chạy scope review và Requirement QA như finding/recommendation draft; không tự áp dụng."
+                    : "Run scope review and Requirement QA as draft findings/recommendations; nothing is auto-applied."}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingProductScopeReview}
+                    onClick={() => void generateProductScopeReviewPreview("product-scope-review")}
+                    type="button"
+                  >
+                    {isGeneratingProductScopeReview
+                      ? locale === "vi"
+                        ? "Đang review scope..."
+                        : "Reviewing Scope..."
+                      : locale === "vi"
+                        ? "Review Product Scope"
+                        : "Review Product Scope"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingRequirementQA}
+                    onClick={() => void generateRequirementQAPreview()}
+                    type="button"
+                  >
+                    {isGeneratingRequirementQA
+                      ? locale === "vi"
+                        ? "Đang chạy Requirement QA..."
+                        : "Running Requirement QA..."
+                      : locale === "vi"
+                        ? "Chạy Requirement QA"
+                        : "Run Requirement QA"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded border border-emerald-100 bg-emerald-50/60 p-3">
+                <p className="text-sm font-semibold text-emerald-950">
+                  {locale === "vi" ? "Xuất" : "Export"}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-emerald-900/80">
+                  {locale === "vi"
+                    ? "Tải JSON/Markdown sau khi đã có preview; gói handoff nằm ở phần bên dưới."
+                    : "Download JSON/Markdown after previews exist; the handoff pack is below."}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    className="btn btn-primary"
+                    disabled={!brdPreview}
+                    onClick={downloadBRDJson}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tải BRD JSON" : "Download BRD JSON"}
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={!srsPreview}
+                    onClick={downloadSRSJson}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tải SRS JSON" : "Download SRS JSON"}
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={!userStoryPreview}
+                    onClick={downloadUserStoriesJson}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tải Stories JSON" : "Download Stories JSON"}
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={!acceptanceCriteriaPreview}
+                    onClick={downloadAcceptanceCriteriaJson}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tải AC JSON" : "Download AC JSON"}
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={!productScopeReviewPreview}
+                    onClick={downloadProductScopeReviewJson}
+                    type="button"
+                  >
+                    {locale === "vi" ? "Tải Scope JSON" : "Download Scope JSON"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    onClick={previewProductDeliveryDraft}
+                    type="button"
+                  >
+                    {text.generateProductDeliveryDraft}
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    disabled={!productDeliveryDraft}
+                    onClick={downloadProductDeliveryMarkdown}
+                    type="button"
+                  >
+                    {text.downloadProductDeliveryMarkdown}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <details className="mt-4 rounded border border-slate-200 bg-slate-50">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-slate-700">
+                {locale === "vi" ? "Nâng cao / So sánh provider" : "Advanced / Provider Compare"}
+              </summary>
+              <div className="border-t border-slate-200 p-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-950">
@@ -2756,7 +2835,6 @@ export function ExportCenter() {
                   </div>
                 </div>
               ) : null}
-            </div>
             {compareResults.length > 0 ? (
               <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 {compareResults.map((result) => (
@@ -2808,6 +2886,8 @@ export function ExportCenter() {
                 ))}
               </div>
             ) : null}
+              </div>
+            </details>
           </div>
 
           <div className="rounded border border-slate-200 bg-slate-50 p-3">
@@ -3356,6 +3436,7 @@ export function ExportCenter() {
             </pre>
           </div>
         ) : null}
+      </div>
       </div>
     </section>
   );

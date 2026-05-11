@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed the MVP1-AI RC5 Product Delivery action cleanup.
+- Reorganized Product Delivery actions into three clear groups: Generate, Review, and Export.
+- Made `Generate Product Delivery Draft` the single primary Generate action and moved BRD/SRS/User Stories/Acceptance Criteria generation into a collapsed more-actions area.
+- Moved `Generate MVP Slicing` into the Review group alongside `Run Requirement QA` and `Review Product Scope`.
+- Kept export actions focused on BRD/SRS/Stories/AC JSON, Product Delivery Markdown, and AI Handoff Pack ZIP.
+- Kept this RC5 cleanup UI-only: no Product Delivery skill logic, AI provider route/adapter, ProcessTask model, canonical schema, D01/D02 generator, browser secret handling, or AI auto-apply behavior was changed.
 - Completed the MVP1-AI RC5 QA Engine recommendation-action cleanup.
 - Renamed the QA surface title to `QA Engine` and added the clear `Generate AI recommendations` / `Tạo gợi ý bằng AI` action while keeping the existing `ai-process-qa` server-side route/provider-adapter flow.
 - Made mock/local status explicit beside the AI recommendation action so users can see when no external provider call is used.

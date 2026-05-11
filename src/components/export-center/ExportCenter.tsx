@@ -2727,99 +2727,103 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
                 <p className="mt-1 text-xs leading-5 text-blue-900/80">
                   {locale === "vi"
-                    ? "Tạo bản nháp BRD, SRS, user stories, acceptance criteria và MVP slicing để xem trước."
-                    : "Create preview-first BRD, SRS, user stories, acceptance criteria, and MVP slicing drafts."}
+                    ? "Tạo bản nháp Product Delivery để xem trước trước khi tải hoặc bàn giao."
+                    : "Create a preview-first Product Delivery draft before download or handoff."}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingBRD}
-                    onClick={() => void generateBRDPreview("ptr-to-brd")}
-                    type="button"
-                  >
-                    {isGeneratingBRD
-                      ? locale === "vi"
-                        ? "Đang tạo BRD..."
-                        : "Generating BRD..."
-                      : locale === "vi"
-                        ? "Tạo BRD từ PTR"
-                        : "Generate BRD from PTR"}
-                  </button>
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingBRD}
-                    onClick={() => void generateBRDPreview("notes-to-brd")}
-                    type="button"
-                  >
-                    {locale === "vi" ? "Tạo BRD từ ghi chú" : "Generate BRD from Notes"}
-                  </button>
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingSRS}
-                    onClick={() => void generateSRSPreview("brd-to-srs")}
-                    type="button"
-                  >
-                    {isGeneratingSRS
-                      ? locale === "vi"
-                        ? "Đang tạo SRS..."
-                        : "Generating SRS..."
-                      : locale === "vi"
-                        ? "Tạo SRS từ BRD/PTR"
-                        : "Generate SRS from BRD/PTR"}
-                  </button>
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingSRS}
-                    onClick={() => void generateSRSPreview("notes-to-srs")}
-                    type="button"
-                  >
-                    {locale === "vi" ? "Tạo SRS từ ghi chú" : "Generate SRS from Notes"}
-                  </button>
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingUserStories}
-                    onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
-                    type="button"
-                  >
-                    {isGeneratingUserStories
-                      ? locale === "vi"
-                        ? "Đang tạo user story..."
-                        : "Generating Stories..."
-                      : locale === "vi"
-                        ? "Tạo user story từ SRS"
-                        : "Generate Stories from SRS"}
-                  </button>
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingUserStories}
-                    onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
-                    type="button"
-                  >
-                    {locale === "vi" ? "Tạo user story từ BRD" : "Generate Stories from BRD"}
-                  </button>
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingAcceptanceCriteria}
-                    onClick={() => void generateAcceptanceCriteriaPreview()}
-                    type="button"
-                  >
-                    {isGeneratingAcceptanceCriteria
-                      ? locale === "vi"
-                        ? "Đang tạo Acceptance Criteria..."
-                        : "Generating AC..."
-                      : locale === "vi"
-                        ? "Tạo Acceptance Criteria"
-                        : "Generate Acceptance Criteria"}
-                  </button>
-                  <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingProductScopeReview}
-                    onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
-                    type="button"
-                  >
-                    {locale === "vi" ? "Tạo MVP Slicing" : "Generate MVP Slicing"}
-                  </button>
-                </div>
+                <button
+                  className="btn btn-primary mt-3 w-full justify-center"
+                  onClick={previewProductDeliveryDraft}
+                  type="button"
+                >
+                  {text.generateProductDeliveryDraft}
+                </button>
+                <details className="mt-3 rounded border border-blue-100 bg-white/80">
+                  <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-blue-950">
+                    {locale === "vi" ? "Tác vụ tạo khác" : "More generate actions"}
+                  </summary>
+                  <div className="grid gap-2 border-t border-blue-100 p-3">
+                    <button
+                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={isGeneratingBRD}
+                      onClick={() => void generateBRDPreview("ptr-to-brd")}
+                      type="button"
+                    >
+                      {isGeneratingBRD
+                        ? locale === "vi"
+                          ? "Đang tạo BRD..."
+                          : "Generating BRD..."
+                        : locale === "vi"
+                          ? "Tạo BRD từ PTR"
+                          : "Generate BRD from PTR"}
+                    </button>
+                    <button
+                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={isGeneratingBRD}
+                      onClick={() => void generateBRDPreview("notes-to-brd")}
+                      type="button"
+                    >
+                      {locale === "vi" ? "Tạo BRD từ ghi chú" : "Generate BRD from Notes"}
+                    </button>
+                    <button
+                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={isGeneratingSRS}
+                      onClick={() => void generateSRSPreview("brd-to-srs")}
+                      type="button"
+                    >
+                      {isGeneratingSRS
+                        ? locale === "vi"
+                          ? "Đang tạo SRS..."
+                          : "Generating SRS..."
+                        : locale === "vi"
+                          ? "Tạo SRS"
+                          : "Generate SRS"}
+                    </button>
+                    <button
+                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={isGeneratingSRS}
+                      onClick={() => void generateSRSPreview("notes-to-srs")}
+                      type="button"
+                    >
+                      {locale === "vi" ? "Tạo SRS từ ghi chú" : "Generate SRS from Notes"}
+                    </button>
+                    <button
+                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={isGeneratingUserStories}
+                      onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
+                      type="button"
+                    >
+                      {isGeneratingUserStories
+                        ? locale === "vi"
+                          ? "Đang tạo User Stories..."
+                          : "Generating User Stories..."
+                        : locale === "vi"
+                          ? "Tạo User Stories"
+                          : "Generate User Stories"}
+                    </button>
+                    <button
+                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={isGeneratingUserStories}
+                      onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
+                      type="button"
+                    >
+                      {locale === "vi" ? "Tạo User Stories từ BRD" : "Generate User Stories from BRD"}
+                    </button>
+                    <button
+                      className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={isGeneratingAcceptanceCriteria}
+                      onClick={() => void generateAcceptanceCriteriaPreview()}
+                      type="button"
+                    >
+                      {isGeneratingAcceptanceCriteria
+                        ? locale === "vi"
+                          ? "Đang tạo Acceptance Criteria..."
+                          : "Generating Acceptance Criteria..."
+                        : locale === "vi"
+                          ? "Tạo Acceptance Criteria"
+                          : "Generate Acceptance Criteria"}
+                    </button>
+                  </div>
+                </details>
               </div>
 
               <div className="rounded border border-purple-100 bg-purple-50/60 p-3">
@@ -2828,12 +2832,26 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
                 <p className="mt-1 text-xs leading-5 text-purple-900/80">
                   {locale === "vi"
-                    ? "Chạy rà soát phạm vi và Requirement QA dưới dạng finding/recommendation nháp; không tự áp dụng."
-                    : "Run scope review and Requirement QA as draft findings/recommendations; nothing is auto-applied."}
+                    ? "Chạy QA, rà soát phạm vi và cắt MVP dưới dạng preview; không tự áp dụng."
+                    : "Run QA, scope review, and MVP slicing as previews; nothing is auto-applied."}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 grid gap-2">
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingRequirementQA}
+                    onClick={() => void generateRequirementQAPreview()}
+                    type="button"
+                  >
+                    {isGeneratingRequirementQA
+                      ? locale === "vi"
+                        ? "Đang chạy Requirement QA..."
+                        : "Running Requirement QA..."
+                      : locale === "vi"
+                        ? "Chạy Requirement QA"
+                        : "Run Requirement QA"}
+                  </button>
+                  <button
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                     disabled={isGeneratingProductScopeReview}
                     onClick={() => void generateProductScopeReviewPreview("product-scope-review")}
                     type="button"
@@ -2847,18 +2865,12 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                         : "Review Product Scope"}
                   </button>
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                    disabled={isGeneratingRequirementQA}
-                    onClick={() => void generateRequirementQAPreview()}
+                    className="rounded border border-slate-300 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={isGeneratingProductScopeReview}
+                    onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
                     type="button"
                   >
-                    {isGeneratingRequirementQA
-                      ? locale === "vi"
-                        ? "Đang chạy Requirement QA..."
-                        : "Running Requirement QA..."
-                      : locale === "vi"
-                        ? "Chạy Requirement QA"
-                        : "Run Requirement QA"}
+                    {locale === "vi" ? "Tạo MVP Slicing" : "Generate MVP Slicing"}
                   </button>
                 </div>
               </div>
@@ -2869,12 +2881,12 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </p>
                 <p className="mt-1 text-xs leading-5 text-emerald-900/80">
                   {locale === "vi"
-                    ? "Tải JSON/Markdown sau khi đã có preview; gói handoff nằm ở phần bên dưới."
-                    : "Download JSON/Markdown after previews exist; the handoff pack is below."}
+                    ? "Tải artifact đã có preview dưới dạng JSON, Markdown hoặc ZIP handoff."
+                    : "Download previewed artifacts as JSON, Markdown, or handoff ZIP."}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 grid gap-2">
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-primary justify-center"
                     disabled={!brdPreview}
                     onClick={downloadBRDJson}
                     type="button"
@@ -2882,7 +2894,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải BRD JSON" : "Download BRD JSON"}
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-primary justify-center"
                     disabled={!srsPreview}
                     onClick={downloadSRSJson}
                     type="button"
@@ -2890,7 +2902,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải SRS JSON" : "Download SRS JSON"}
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-primary justify-center"
                     disabled={!userStoryPreview}
                     onClick={downloadUserStoriesJson}
                     type="button"
@@ -2898,7 +2910,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải Stories JSON" : "Download Stories JSON"}
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-primary justify-center"
                     disabled={!acceptanceCriteriaPreview}
                     onClick={downloadAcceptanceCriteriaJson}
                     type="button"
@@ -2906,7 +2918,7 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải AC JSON" : "Download AC JSON"}
                   </button>
                   <button
-                    className="btn btn-primary"
+                    className="btn btn-primary justify-center"
                     disabled={!productScopeReviewPreview}
                     onClick={downloadProductScopeReviewJson}
                     type="button"
@@ -2914,19 +2926,24 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                     {locale === "vi" ? "Tải Scope JSON" : "Download Scope JSON"}
                   </button>
                   <button
-                    className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                    onClick={previewProductDeliveryDraft}
-                    type="button"
-                  >
-                    {text.generateProductDeliveryDraft}
-                  </button>
-                  <button
-                    className="btn btn-primary"
+                    className="btn btn-primary justify-center"
                     disabled={!productDeliveryDraft}
                     onClick={downloadProductDeliveryMarkdown}
                     type="button"
                   >
                     {text.downloadProductDeliveryMarkdown}
+                  </button>
+                  <button
+                    className="btn btn-primary justify-center"
+                    disabled={isDownloadingAICodingPack}
+                    onClick={downloadAICodingPackZip}
+                    type="button"
+                  >
+                    {isDownloadingAICodingPack
+                      ? text.generatingHandoffPack
+                      : locale === "vi"
+                        ? "Tải AI Handoff Pack ZIP"
+                        : "Download AI Handoff Pack ZIP"}
                   </button>
                 </div>
               </div>

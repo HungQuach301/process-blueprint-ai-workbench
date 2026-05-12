@@ -89,7 +89,7 @@ export function AppShell() {
     <main className="app-shell min-h-screen w-full max-w-full overflow-x-hidden">
       <header className="app-menubar sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl px-4 py-3 lg:px-6">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <a className="flex min-w-0 items-center gap-3" href="#workspace">
               <span className="product-mark">PB</span>
               <span className="min-w-0">
@@ -102,7 +102,7 @@ export function AppShell() {
               </span>
             </a>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
               <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
                 {t("shell.language", locale)}
                 <select
@@ -123,52 +123,6 @@ export function AppShell() {
         <Navigation locale={locale} sections={navigationSections} />
 
         <section className="min-w-0 max-w-full flex-1">
-          <header className="surface-card mb-6 overflow-hidden">
-            <div className="section-header p-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <p className="status-badge status-badge-primary">
-                    {t("shell.heroEyebrow", locale)}
-                  </p>
-                  <h1 className="mt-3 max-w-3xl text-3xl font-semibold text-slate-950">
-                    {t("shell.heroTitle", locale)}
-                  </h1>
-                  <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
-                    {t("shell.heroDescription", locale)}
-                  </p>
-                </div>
-
-              </div>
-            </div>
-
-            <div className="grid gap-3 bg-slate-50/80 p-4 sm:grid-cols-3">
-              <div className="soft-panel p-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {t("shell.aiStatus", locale)}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {aiTrustSummary.modeLabel}
-                </p>
-              </div>
-              <div className="soft-panel p-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {t("shell.sourceOfTruth", locale)}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  Process Task Register
-                </p>
-              </div>
-              <div className="soft-panel p-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                  {t("shell.releaseScope", locale)}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
-                  {t("shell.versionValue", locale)}
-                </p>
-              </div>
-            </div>
-          </header>
-
           <div className="grid min-w-0 gap-5">
             <div className="min-w-0 max-w-full scroll-mt-36" id="workspace">
               <WorkspaceDashboard aiStatus={aiStatus} locale={locale} />

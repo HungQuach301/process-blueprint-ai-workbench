@@ -52,16 +52,7 @@ const productDeliveryActions = new Set([
 const text = {
   vi: {
     eyebrow: "Bảng điều khiển",
-    heroTitle: "Bắt đầu biến ý định nghiệp vụ thành bộ hồ sơ bàn giao AI-ready.",
-    heroSubtitle:
-      "Đi từ tóm tắt, tệp hoặc mẫu ngân hàng sang Process Task Register, rồi tạo D01 BPMN/D02 Service Blueprint, hồ sơ Product Delivery và AI Development Handoff Pack.",
-    journeyBrief: "Tóm tắt / tệp / mẫu",
-    journeyPtr: "PTR",
-    journeyProcess: "D01 BPMN / D02",
-    journeyProduct: "Product Delivery",
-    journeyHandoff: "AI Handoff",
     statusOverview: "Trạng thái workspace",
-    recommendedNextAction: "Hành động nên làm tiếp theo",
     aiStatus: "AI / provider",
     ptrStatus: "Dữ liệu PTR",
     qaStatus: "Chất lượng quy trình",
@@ -86,32 +77,11 @@ const text = {
     productNotStarted: "Chưa bắt đầu",
     exportReady: "Đã xuất gần đây",
     exportNeedsRefresh: "Cần xuất lại",
-    exportNotStarted: "Chưa xuất",
-    startFromBrief: "Start from brief",
-    importFile: "Import file",
-    useBankingTemplate: "Use banking template",
-    reviewProcessQuality: "Review process quality",
-    generateProductDeliveryDraft: "Generate product delivery draft",
-    exportAIHandoffPack: "Export AI handoff pack",
-    nextCreateBrief: "Chưa có PTR đã lưu. Hãy bắt đầu từ tóm tắt hoặc nhập tệp để tạo bản nháp PTR.",
-    nextReviewQA: "PTR đang có vấn đề/cảnh báo. Hãy rà soát QA trước khi tạo BPMN, D02 hoặc hồ sơ sản phẩm.",
-    nextRegenerateArtifacts: "D01/D02 đang thiếu hoặc cần tạo lại. Hãy tạo lại artifact từ PTR hiện tại.",
-    nextGenerateProduct: "Quy trình đã sẵn sàng. Hãy tạo bản nháp Product Delivery để chuyển sang BRD/SRS/user stories.",
-    nextExportHandoff: "Đã có Product Delivery. Hãy preview và xuất AI Development Handoff Pack.",
-    nextExportPackage: "Workspace đã sẵn sàng. Hãy xuất gói bàn giao/audit khi cần chia sẻ."
+    exportNotStarted: "Chưa xuất"
   },
   en: {
     eyebrow: "Dashboard",
-    heroTitle: "Start turning business intent into AI-ready delivery artifacts.",
-    heroSubtitle:
-      "Move from a brief, file, or banking template into the Process Task Register, then generate D01 BPMN/D02 Service Blueprint, Product Delivery, and the AI Development Handoff Pack.",
-    journeyBrief: "Brief / file / template",
-    journeyPtr: "PTR",
-    journeyProcess: "D01 BPMN / D02",
-    journeyProduct: "Product Delivery",
-    journeyHandoff: "AI Handoff",
     statusOverview: "Workspace status",
-    recommendedNextAction: "Recommended next action",
     aiStatus: "AI / provider",
     ptrStatus: "PTR data",
     qaStatus: "Process quality",
@@ -136,19 +106,7 @@ const text = {
     productNotStarted: "Not started",
     exportReady: "Recently exported",
     exportNeedsRefresh: "Export refresh needed",
-    exportNotStarted: "Not exported",
-    startFromBrief: "Start from brief",
-    importFile: "Import file",
-    useBankingTemplate: "Use banking template",
-    reviewProcessQuality: "Review process quality",
-    generateProductDeliveryDraft: "Generate product delivery draft",
-    exportAIHandoffPack: "Export AI handoff pack",
-    nextCreateBrief: "No saved PTR yet. Start from a brief or file to create a Draft PTR.",
-    nextReviewQA: "PTR has issues or warnings. Review QA before creating BPMN, D02, or Product Delivery.",
-    nextRegenerateArtifacts: "D01/D02 are missing or stale. Regenerate artifacts from the current PTR.",
-    nextGenerateProduct: "The process is ready. Generate Product Delivery drafts for BRD/SRS/user stories.",
-    nextExportHandoff: "Product Delivery exists. Preview and export the AI Development Handoff Pack.",
-    nextExportPackage: "Workspace is ready. Export the handoff/audit package when needed."
+    exportNotStarted: "Not exported"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -265,7 +223,6 @@ export function WorkspaceDashboard({ aiStatus, locale }: WorkspaceDashboardProps
   const warningCount = qaIssues.filter((issue) => issue.severity === "warning").length;
   const artifactStatuses = [d01Status, d02Status];
   const hasFreshArtifacts = artifactStatuses.every((status) => status === "fresh");
-  const hasMissingArtifacts = artifactStatuses.some((status) => status === "not_generated");
   const hasStaleArtifacts = artifactStatuses.some((status) => status === "stale");
   const hasProductDeliveryActivity = productDeliveryEventCount > 0;
   const hasExportPackage = exportPackageEventCount > 0;
@@ -275,63 +232,6 @@ export function WorkspaceDashboard({ aiStatus, locale }: WorkspaceDashboardProps
       ? labels.exportReady
       : labels.exportNeedsRefresh
     : labels.exportNotStarted;
-
-  const recommendedAction = useMemo(() => {
-    if (!tasksState.hasSavedTasks) {
-      return {
-        label: labels.startFromBrief,
-        href: "#input-brief",
-        description: labels.nextCreateBrief
-      };
-    }
-
-    if (criticalCount > 0 || warningCount > 0) {
-      return {
-        label: labels.reviewProcessQuality,
-        href: "#qa-panel",
-        description: labels.nextReviewQA
-      };
-    }
-
-    if (hasMissingArtifacts || hasStaleArtifacts) {
-      return {
-        label: labels.exportPackageStatus,
-        href: "#d01-bpmn-preview",
-        description: labels.nextRegenerateArtifacts
-      };
-    }
-
-    if (!hasProductDeliveryActivity) {
-      return {
-        label: labels.generateProductDeliveryDraft,
-        href: "#product-delivery",
-        description: labels.nextGenerateProduct
-      };
-    }
-
-    if (!hasExportPackage) {
-      return {
-        label: labels.exportAIHandoffPack,
-        href: "#product-delivery",
-        description: labels.nextExportHandoff
-      };
-    }
-
-    return {
-      label: labels.exportPackageStatus,
-      href: "#export-center",
-      description: labels.nextExportPackage
-    };
-  }, [
-    criticalCount,
-    hasExportPackage,
-    hasMissingArtifacts,
-    hasProductDeliveryActivity,
-    hasStaleArtifacts,
-    labels,
-    tasksState.hasSavedTasks,
-    warningCount
-  ]);
 
   const statusCards = [
     {
@@ -403,62 +303,11 @@ export function WorkspaceDashboard({ aiStatus, locale }: WorkspaceDashboardProps
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="section-header p-5">
+      <div className="p-4">
         <p className="status-badge status-badge-primary">{labels.eyebrow}</p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_0.85fr] lg:items-end">
-          <div>
-            <h2 className="max-w-4xl text-2xl font-semibold leading-tight text-slate-950">
-              {labels.heroTitle}
-            </h2>
-            <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-600">
-              {labels.heroSubtitle}
-            </p>
-          </div>
-          <div className="compact-card bg-blue-50/70">
-            <div className="grid gap-2 text-sm font-semibold text-blue-950">
-              {[
-                labels.journeyBrief,
-                labels.journeyPtr,
-                labels.journeyProcess,
-                labels.journeyProduct,
-                labels.journeyHandoff
-              ].map((step, index, steps) => (
-                <div className="flex items-center gap-2" key={step}>
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs text-blue-700 shadow-sm">
-                    {index + 1}
-                  </span>
-                  <span>{step}</span>
-                  {index < steps.length - 1 ? (
-                    <span className="ml-auto text-blue-400">-&gt;</span>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-slate-50/70 p-4">
-        <div className="compact-card">
-          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-            {labels.recommendedNextAction}
-          </p>
-          <h3 className="mt-2 text-xl font-semibold text-slate-950">
-            {recommendedAction.label}
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {recommendedAction.description}
-          </p>
-          <a className="btn btn-primary mt-4" href={recommendedAction.href}>
-            {recommendedAction.label}
-          </a>
-        </div>
-      </div>
-
-      <div className="border-t border-slate-200 p-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        <h2 className="mt-3 text-xl font-semibold text-slate-950">
           {labels.statusOverview}
-        </p>
+        </h2>
         <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           {statusCards.map((card) => (
             <article

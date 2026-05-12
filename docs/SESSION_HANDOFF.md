@@ -2,11 +2,11 @@
 
 ## Last updated
 
-2026-05-11
+2026-05-12
 
 ## Current branch
 
-`feature/mvp1-ai-rc6-final-ux-ai-hardening`
+`feature/mvp1-ai-rc7-final-release-cleanup`
 
 ## Current product phase
 
@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 1 final header and dashboard cleanup.
+- Kept the global header focused on product identity and the language selector, with the selector aligned to the right edge of the header container.
+- Removed the shell hero/banner that showed the release value proposition text, including `From business intent to governed delivery artifacts.` in English.
+- Simplified the Dashboard to a compact Workspace Status surface and removed the Dashboard hero/journey and `Recommended next action` section.
+- Kept Quick Start, Banking Starter Pack, and Recent AI Runs out of the Dashboard default view; Banking Starter Pack remains in Template Hub and AI Run History remains in export/audit surfaces.
+- Kept this RC7 cleanup UI-only: no business logic, AI route/provider adapter, provider secrets, data model, canonical schema, D01/D02 generator, recommendation apply workflow, or AI auto-apply behavior was changed.
 - Hardened AI provider secret boundaries before MVP1-AI release by marking provider/orchestration files as server-only.
 - Added `import "server-only";` to the provider factory, OpenAI provider, Claude provider, Product AI provider, and `/api/ai/run-skill` route entrypoint so files that read provider env secrets or instantiate provider calls cannot be imported into client bundles.
 - Verified the intended boundary remains: browser components use `/api/ai/run-skill` and sanitized metadata only; provider secrets remain server-side.

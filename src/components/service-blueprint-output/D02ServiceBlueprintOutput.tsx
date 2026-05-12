@@ -114,10 +114,10 @@ function createReviewAddedMessage(
   const totalCount = recommendationCount + templateRecommendationCount;
 
   if (locale === "vi") {
-    return `Rà soát AI đã thêm ${totalCount} đề xuất vào QA Engine (${recommendationCount} PTR, ${templateRecommendationCount} mẫu).`;
+    return `Rà soát AI đã thêm ${totalCount} đề xuất vào QA Engine.`;
   }
 
-  return `AI review added ${totalCount} recommendation(s) to QA Engine (${recommendationCount} PTR, ${templateRecommendationCount} template).`;
+  return `AI review added ${totalCount} recommendations to QA Engine.`;
 }
 
 function readProcessTasks(locale: Locale) {

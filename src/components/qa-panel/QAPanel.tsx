@@ -165,8 +165,8 @@ const qaPanelText = {
     conflicts: "Xung đột",
     conflictsSkipped: "Đề xuất bị xung đột sẽ được bỏ qua.",
     artifactReviewAdded: "Rà soát AI đã thêm đề xuất vào QA Engine.",
-    bpmnReviewSource: "Rà soát BPMN",
-    serviceBlueprintReviewSource: "Rà soát Service Blueprint",
+    bpmnReviewSource: "BPMN AI Review",
+    serviceBlueprintReviewSource: "Service Blueprint AI Review",
     templateRelatedReview: "Rà soát artifact liên quan đến mẫu",
     templateRelatedHelper: "Đề xuất mẫu chỉ để rà soát trong QA Engine. Mở Template Hub để cập nhật template nếu phù hợp.",
     openTemplateHub: "Mở Template Hub",
@@ -253,8 +253,8 @@ const qaPanelText = {
     conflicts: "Conflicts",
     conflictsSkipped: "Conflicting recommendations will be skipped.",
     artifactReviewAdded: "AI review added recommendations to QA Engine.",
-    bpmnReviewSource: "BPMN review",
-    serviceBlueprintReviewSource: "Service Blueprint review",
+    bpmnReviewSource: "BPMN AI Review",
+    serviceBlueprintReviewSource: "Service Blueprint AI Review",
     templateRelatedReview: "Template-related artifact review",
     templateRelatedHelper: "Template recommendations are review-only in QA Engine. Open Template Hub to update the template when appropriate.",
     openTemplateHub: "Open Template Hub",
@@ -508,6 +508,8 @@ export function QAPanel({
         detail.artifactType === "bpmn"
           ? text.bpmnReviewSource
           : text.serviceBlueprintReviewSource;
+      const totalReviewRecommendations =
+        detail.recommendations.length + detail.templateRecommendations.length;
       const recommendations = detail.recommendations.map((recommendation) => ({
         ...recommendation,
         source:
@@ -563,11 +565,13 @@ export function QAPanel({
       clearSelection();
       setActiveReviewTab("recommendations");
       setAiQaMessage(
-        `${text.artifactReviewAdded} ${sourceLabel}: ${
-          recommendations.length
-        } PTR, ${detail.templateRecommendations.length} ${
-          locale === "vi" ? "mẫu" : "template"
-        }, ${
+        `${
+          locale === "vi"
+            ? `Rà soát AI đã thêm ${totalReviewRecommendations} đề xuất vào QA Engine.`
+            : `AI review added ${totalReviewRecommendations} recommendations to QA Engine.`
+        } ${sourceLabel}: ${recommendations.length} PTR, ${
+          detail.templateRecommendations.length
+        } ${locale === "vi" ? "mẫu" : "template"}, ${
           detail.warnings.length
         } ${text.warnings.toLowerCase()}.`
       );

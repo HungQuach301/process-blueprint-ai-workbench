@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 6 D01/D02 AI review feedback routing cleanup.
+- Kept `Review BPMN with AI` and `Review Service Blueprint with AI` on the existing server-side `/api/ai/run-skill` `artifact-review` route with OpenAI/Claude/Product AI/mock support through the provider adapter.
+- Ensured artifact review feedback lands in QA Engine with visible source labels `BPMN AI Review` and `Service Blueprint AI Review`.
+- Updated D01/D02 and QA Engine status messages to report how many recommendations were added to QA Engine after review, while continuing to scroll users to QA Engine.
+- Kept artifact review output as QA recommendations or review-only template/artifact findings; no BPMN XML or draw.io XML is modified directly and no AI output is auto-applied.
 - Completed RC7 Block 5 QA Engine recommendation toolbar layout cleanup.
 - Reworked the QA recommendation toolbar into a responsive first-row action layout: Generate AI recommendations, Apply selected, Apply all safe, Apply all recommendations, and More.
 - Highlighted Generate AI recommendations with the existing AI purple button style while keeping the `ai-process-qa` call on the server-side `/api/ai/run-skill` route.

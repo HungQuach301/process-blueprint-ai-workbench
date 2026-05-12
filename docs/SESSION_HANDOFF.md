@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 8 Product Delivery layout and generate-all cleanup.
+- Added a top-right primary `Generate All Product Delivery` / `Tạo toàn bộ hồ sơ bàn giao` action in the Product Delivery header.
+- Reworked Product Delivery overview into six responsive artifact cards: BRD, SRS, User Stories, Acceptance Criteria, Scope/MVP, and AI Handoff Pack, each with status, primary action, and download when a preview exists.
+- Wired Generate All to create preview-first draft artifacts for BRD, SRS, User Stories, Acceptance Criteria, and Scope/MVP using existing Product Delivery generators; nothing is auto-exported or auto-applied.
+- Moved remaining Product Delivery draft, Markdown export, Requirement QA, and provider compare controls into Advanced/More surfaces to reduce UI noise while preserving functionality.
+- Kept this RC7 cleanup scoped: no Product Delivery schema, ProcessTask schema, D01/D02 generator, AI route/provider adapter, provider secret handling, or AI auto-apply behavior was changed.
 - Completed RC7 Block 7 Template Hub tab, upload, and review-action cleanup.
 - Renamed Template Hub tabs to `Templates in use` / `Mẫu biểu đang sử dụng` and `Templates library` / `Thư viện mẫu biểu`, and removed Template Review as a standalone tab.
 - Moved template review into `Review template with AI` / `Rà soát mẫu bằng AI` actions in Templates in use, template card detail, and Template editor.

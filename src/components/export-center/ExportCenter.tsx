@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 import JSZip from "jszip";
 import {
   exportAIRunHistoryJson,
@@ -21,6 +21,7 @@ import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import {
   generateProductDeliveryDraft,
+  generateProductScopeReview,
   type ProductDeliveryDraft
 } from "@/lib/generators/product-delivery-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
@@ -85,31 +86,39 @@ type ProductDeliveryPreview = {
 
 type BRDPreview = {
   timestamp: string;
-  sourceSkillId: "ptr-to-brd" | "notes-to-brd";
+  sourceSkillId: "ptr-to-brd" | "notes-to-brd" | "product-delivery-draft";
   brd: BRD;
 };
 
 type SRSPreview = {
   timestamp: string;
-  sourceSkillId: "brd-to-srs" | "notes-to-srs";
+  sourceSkillId: "brd-to-srs" | "notes-to-srs" | "product-delivery-draft";
   srs: SRS;
 };
 
 type UserStoryPreview = {
   timestamp: string;
-  sourceSkillId: "srs-to-user-stories" | "brd-to-user-stories";
+  sourceSkillId:
+    | "srs-to-user-stories"
+    | "brd-to-user-stories"
+    | "product-delivery-draft";
   userStorySet: UserStorySet;
 };
 
 type AcceptanceCriteriaPreview = {
   timestamp: string;
-  sourceSkillId: "user-stories-to-acceptance-criteria";
+  sourceSkillId:
+    | "user-stories-to-acceptance-criteria"
+    | "product-delivery-draft";
   acceptanceCriteria: AcceptanceCriteriaSet;
 };
 
 type ProductScopeReviewPreview = {
   timestamp: string;
-  sourceSkillId: "product-scope-review" | "mvp-slicing";
+  sourceSkillId:
+    | "product-scope-review"
+    | "mvp-slicing"
+    | "product-delivery-draft";
   scopeReview: ProductScopeReview;
 };
 
@@ -165,6 +174,8 @@ type AISkillRouteResponse<T> = {
   meta?: AIRunRouteMeta;
 };
 
+type ProductDeliveryCardStatus = "not-created" | "draft" | "ready" | "stale";
+
 type ExportCompareResult = {
   id: string;
   kind: ExportCompareKind;
@@ -211,8 +222,15 @@ const exportCenterText = {
     productDeliveryStep3Title: "Xuất gói bàn giao phát triển",
     productDeliveryStep3Body: "Xem trước gói bàn giao phát triển AI rồi tải ZIP khi sẵn sàng.",
     optionalProjectContext: "Ngữ cảnh dự án tùy chọn",
+    generateAllProductDelivery: "Tạo toàn bộ hồ sơ bàn giao",
     generateProductDeliveryDraft: "Tạo bản nháp hồ sơ sản phẩm",
     downloadProductDeliveryMarkdown: "Tải Markdown hồ sơ sản phẩm",
+    notCreated: "Chưa tạo",
+    draft: "Nháp",
+    ready: "Sẵn sàng",
+    stale: "Cần tạo lại",
+    download: "Tải xuống",
+    more: "Thêm",
     aiDevelopmentHandoffPack: "Gói bàn giao phát triển AI",
     aiDevelopmentHandoffDescription:
       "Gửi gói này cho đội phát triển hoặc dùng với Codex, Claude Code, Cursor. Gói biến PTR và hồ sơ sản phẩm đã rà soát thành bộ bàn giao có xem trước trước khi tải ZIP.",
@@ -273,8 +291,15 @@ const exportCenterText = {
     productDeliveryStep3Title: "Export development handoff",
     productDeliveryStep3Body: "Preview the AI Development Handoff Pack, then download ZIP when ready.",
     optionalProjectContext: "Optional project context",
+    generateAllProductDelivery: "Generate All Product Delivery",
     generateProductDeliveryDraft: "Generate Product Delivery Draft",
     downloadProductDeliveryMarkdown: "Download Product Delivery Markdown",
+    notCreated: "Not created",
+    draft: "Draft",
+    ready: "Ready",
+    stale: "Stale",
+    download: "Download",
+    more: "More",
     aiDevelopmentHandoffPack: "AI Development Handoff Pack",
     aiDevelopmentHandoffDescription:
       "Send this package to your development team or use it with Codex, Claude Code, Cursor. It turns the Process Task Register and reviewed Product Delivery artifacts into a previewed handoff before ZIP download.",
@@ -1897,6 +1922,87 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
     }
   }
 
+  function generateAllProductDelivery() {
+    try {
+      const nextDraft = buildProductDeliveryDraft();
+      const processTasks = readProcessTasks();
+      const sourceSummary = readInputBriefSourceSummary();
+      const scopeReview = generateProductScopeReview({
+        brd: nextDraft.draft.brd,
+        srs: nextDraft.draft.srs,
+        userStorySet: nextDraft.draft.userStorySet,
+        processTasks,
+        projectContext: productDeliveryContext,
+        notes: productDeliveryNotes,
+        sourceSummary,
+        uploadedFileText: productDeliveryFileText,
+        businessObjective: nextDraft.draft.brd.businessObjective,
+        generatedAt: nextDraft.timestamp
+      });
+
+      setProductDeliveryDraft(nextDraft);
+      setBRDPreview({
+        timestamp: nextDraft.timestamp,
+        sourceSkillId: "product-delivery-draft",
+        brd: nextDraft.draft.brd
+      });
+      setSRSPreview({
+        timestamp: nextDraft.timestamp,
+        sourceSkillId: "product-delivery-draft",
+        srs: nextDraft.draft.srs
+      });
+      setUserStoryPreview({
+        timestamp: nextDraft.timestamp,
+        sourceSkillId: "product-delivery-draft",
+        userStorySet: nextDraft.draft.userStorySet
+      });
+      setAcceptanceCriteriaPreview({
+        timestamp: nextDraft.timestamp,
+        sourceSkillId: "product-delivery-draft",
+        acceptanceCriteria: nextDraft.draft.acceptanceCriteria
+      });
+      setProductScopeReviewPreview({
+        timestamp: nextDraft.timestamp,
+        sourceSkillId: "product-delivery-draft",
+        scopeReview
+      });
+      setRequirementQAPreview(null);
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "success",
+        summary:
+          "Generated preview-first Product Delivery draft artifacts without export or apply.",
+        metadata: {
+          timestamp: nextDraft.timestamp,
+          brdRequirementCount: nextDraft.draft.brd.businessRequirements.length,
+          srsRequirementCount:
+            nextDraft.draft.srs.functionalRequirements.length +
+            nextDraft.draft.srs.nonFunctionalRequirements.length,
+          userStoryCount: nextDraft.draft.userStorySet.stories.length,
+          acceptanceCriteriaCount:
+            nextDraft.draft.acceptanceCriteria.criteria.length,
+          scopeItemCount: scopeReview.inScope.length,
+          mvpItemCount: scopeReview.mvpSlice.items.length
+        }
+      });
+      setMessage(
+        locale === "vi"
+          ? "Đã tạo preview nháp cho BRD, SRS, User Stories, Acceptance Criteria và Scope/MVP. Chưa export hoặc áp dụng."
+          : "Created draft previews for BRD, SRS, User Stories, Acceptance Criteria, and Scope/MVP. Nothing was exported or applied."
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? locale === "vi"
+            ? `Không thể tạo toàn bộ hồ sơ bàn giao: ${error.message}`
+            : `Could not generate all Product Delivery drafts: ${error.message}`
+          : locale === "vi"
+            ? "Không thể tạo toàn bộ hồ sơ bàn giao. Vui lòng kiểm tra dữ liệu."
+            : "Could not generate all Product Delivery drafts. Please check the data."
+      );
+    }
+  }
+
   function downloadProductDeliveryMarkdown() {
     try {
       if (!productDeliveryDraft) {
@@ -2257,6 +2363,222 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
     }
   }
 
+  function getProductDeliveryStatusLabel(status: ProductDeliveryCardStatus) {
+    if (status === "ready") {
+      return text.ready;
+    }
+
+    if (status === "draft") {
+      return text.draft;
+    }
+
+    if (status === "stale") {
+      return text.stale;
+    }
+
+    return text.notCreated;
+  }
+
+  function getProductDeliveryStatusClass(status: ProductDeliveryCardStatus) {
+    if (status === "ready") {
+      return "status-badge status-badge-success";
+    }
+
+    if (status === "draft") {
+      return "status-badge status-badge-warning";
+    }
+
+    if (status === "stale") {
+      return "status-badge status-badge-warning";
+    }
+
+    return "status-badge status-badge-neutral";
+  }
+
+  const productDeliveryCards = [
+    {
+      id: "brd",
+      href: "#product-delivery-brd",
+      title: "BRD",
+      status: brdPreview ? "draft" : "not-created",
+      summary: brdPreview
+        ? `${brdPreview.brd.businessRequirements.length} ${
+            locale === "vi" ? "yêu cầu" : "requirements"
+          }`
+        : locale === "vi"
+          ? "Bản nháp yêu cầu nghiệp vụ."
+          : "Business requirements draft.",
+      primaryLabel: locale === "vi" ? "Tạo BRD" : "Generate BRD",
+      primaryDisabled: isGeneratingBRD,
+      onPrimary: () => void generateBRDPreview("ptr-to-brd"),
+      downloadLabel: locale === "vi" ? "Tải BRD JSON" : "Download BRD JSON",
+      downloadDisabled: !brdPreview,
+      onDownload: downloadBRDJson,
+      more: (
+        <button
+          className="btn btn-ai text-sm"
+          disabled={isGeneratingBRD}
+          onClick={() => void generateBRDPreview("notes-to-brd")}
+          type="button"
+        >
+          {locale === "vi" ? "Tạo BRD từ ghi chú" : "Generate BRD from Notes"}
+        </button>
+      )
+    },
+    {
+      id: "srs",
+      href: "#product-delivery-srs",
+      title: "SRS",
+      status: srsPreview ? "draft" : "not-created",
+      summary: srsPreview
+        ? `${
+            srsPreview.srs.functionalRequirements.length +
+            srsPreview.srs.nonFunctionalRequirements.length
+          } ${locale === "vi" ? "yêu cầu" : "requirements"}`
+        : locale === "vi"
+          ? "Đặc tả yêu cầu phần mềm."
+          : "Software requirements draft.",
+      primaryLabel: locale === "vi" ? "Tạo SRS" : "Generate SRS",
+      primaryDisabled: isGeneratingSRS,
+      onPrimary: () => void generateSRSPreview("brd-to-srs"),
+      downloadLabel: locale === "vi" ? "Tải SRS JSON" : "Download SRS JSON",
+      downloadDisabled: !srsPreview,
+      onDownload: downloadSRSJson,
+      more: (
+        <button
+          className="btn btn-ai text-sm"
+          disabled={isGeneratingSRS}
+          onClick={() => void generateSRSPreview("notes-to-srs")}
+          type="button"
+        >
+          {locale === "vi" ? "Tạo SRS từ ghi chú" : "Generate SRS from Notes"}
+        </button>
+      )
+    },
+    {
+      id: "stories",
+      href: "#product-delivery-stories",
+      title: "User Stories",
+      status: userStoryPreview ? "draft" : "not-created",
+      summary: userStoryPreview
+        ? `${userStoryPreview.userStorySet.stories.length} ${
+            locale === "vi" ? "story" : "stories"
+          }`
+        : locale === "vi"
+          ? "Story có trace về nguồn."
+          : "Traceable user stories.",
+      primaryLabel: locale === "vi" ? "Tạo User Stories" : "Generate User Stories",
+      primaryDisabled: isGeneratingUserStories,
+      onPrimary: () => void generateUserStoryPreview("srs-to-user-stories"),
+      downloadLabel:
+        locale === "vi" ? "Tải Stories JSON" : "Download Stories JSON",
+      downloadDisabled: !userStoryPreview,
+      onDownload: downloadUserStoriesJson,
+      more: (
+        <button
+          className="btn btn-ai text-sm"
+          disabled={isGeneratingUserStories}
+          onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
+          type="button"
+        >
+          {locale === "vi" ? "Tạo User Stories từ BRD" : "Generate User Stories from BRD"}
+        </button>
+      )
+    },
+    {
+      id: "acceptance",
+      href: "#product-delivery-acceptance",
+      title: "Acceptance Criteria",
+      status: acceptanceCriteriaPreview ? "draft" : "not-created",
+      summary: acceptanceCriteriaPreview
+        ? `${acceptanceCriteriaPreview.acceptanceCriteria.criteria.length} ${
+            locale === "vi" ? "tiêu chí" : "criteria"
+          }`
+        : locale === "vi"
+          ? "Tiêu chí kiểm thử có thể review."
+          : "Reviewable test criteria.",
+      primaryLabel:
+        locale === "vi" ? "Tạo Acceptance Criteria" : "Generate Acceptance Criteria",
+      primaryDisabled: isGeneratingAcceptanceCriteria,
+      onPrimary: () => void generateAcceptanceCriteriaPreview(),
+      downloadLabel: locale === "vi" ? "Tải AC JSON" : "Download AC JSON",
+      downloadDisabled: !acceptanceCriteriaPreview,
+      onDownload: downloadAcceptanceCriteriaJson,
+      more: null
+    },
+    {
+      id: "scope",
+      href: "#product-delivery-scope",
+      title: "Scope/MVP",
+      status: productScopeReviewPreview ? "draft" : "not-created",
+      summary: productScopeReviewPreview
+        ? `${productScopeReviewPreview.scopeReview.mvpSlice.items.length} MVP ${
+            locale === "vi" ? "mục" : "items"
+          }`
+        : locale === "vi"
+          ? "Rà soát phạm vi và lát cắt MVP."
+          : "Scope review and MVP slicing.",
+      primaryLabel: locale === "vi" ? "Rà soát Scope/MVP" : "Review Scope/MVP",
+      primaryDisabled: isGeneratingProductScopeReview,
+      onPrimary: () => void generateProductScopeReviewPreview("product-scope-review"),
+      downloadLabel:
+        locale === "vi" ? "Tải Scope JSON" : "Download Scope JSON",
+      downloadDisabled: !productScopeReviewPreview,
+      onDownload: downloadProductScopeReviewJson,
+      more: (
+        <button
+          className="btn btn-ai text-sm"
+          disabled={isGeneratingProductScopeReview}
+          onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
+          type="button"
+        >
+          {locale === "vi" ? "Tạo MVP Slicing" : "Generate MVP Slicing"}
+        </button>
+      )
+    },
+    {
+      id: "handoff",
+      href: "#product-delivery-handoff",
+      title: text.aiDevelopmentHandoffPack,
+      status: aiCodingPack ? "ready" : "not-created",
+      summary: aiCodingPack
+        ? `${Object.keys(aiCodingPack.files).length} ${locale === "vi" ? "tệp" : "files"}`
+        : locale === "vi"
+          ? "Gói ZIP sau khi đã preview."
+          : "ZIP package after preview.",
+      primaryLabel:
+        locale === "vi" ? "Xem trước Handoff Pack" : "Preview Handoff Pack",
+      primaryDisabled: false,
+      onPrimary: () => void previewProductDeliveryAICodingPack(),
+      downloadLabel:
+        locale === "vi" ? "Tải Handoff ZIP" : "Download Handoff ZIP",
+      downloadDisabled: !aiCodingPack || isDownloadingAICodingPack,
+      onDownload: downloadAICodingPackZip,
+      more: (
+        <button
+          className="btn btn-secondary text-sm"
+          onClick={previewAICodingPack}
+          type="button"
+        >
+          {text.previewPtrHandoffPack}
+        </button>
+      )
+    }
+  ] satisfies Array<{
+    id: string;
+    href: string;
+    title: string;
+    status: ProductDeliveryCardStatus;
+    summary: string;
+    primaryLabel: string;
+    primaryDisabled: boolean;
+    onPrimary: () => void;
+    downloadLabel: string;
+    downloadDisabled: boolean;
+    onDownload: () => void;
+    more: ReactNode;
+  }>;
+
   return (
     <section className="surface-card overflow-hidden">
       <div className="section-header p-5">
@@ -2278,6 +2600,18 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
               {isProductDeliveryView ? text.productDeliveryDescription : text.description}
             </p>
           </div>
+
+          {isProductDeliveryView ? (
+            <div className="section-actions">
+              <button
+                className="btn btn-primary"
+                onClick={generateAllProductDelivery}
+                type="button"
+              >
+                {text.generateAllProductDelivery}
+              </button>
+            </div>
+          ) : null}
 
           {isExportView ? (
             <div className="section-actions">
@@ -2731,7 +3065,103 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
                 </div>
               ))}
             </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {productDeliveryCards.map((card) => (
+                <article
+                  className="compact-card flex min-h-52 flex-col justify-between"
+                  key={card.id}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <a
+                          className="text-sm font-semibold text-slate-950 hover:text-blue-700"
+                          href={card.href}
+                        >
+                          {card.title}
+                        </a>
+                        <p className="mt-2 text-sm leading-5 text-slate-600">
+                          {card.summary}
+                        </p>
+                      </div>
+                      <span className={getProductDeliveryStatusClass(card.status)}>
+                        {getProductDeliveryStatusLabel(card.status)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button
+                      className="btn btn-primary text-sm"
+                      disabled={card.primaryDisabled}
+                      onClick={card.onPrimary}
+                      type="button"
+                    >
+                      {card.primaryLabel}
+                    </button>
+                    {!card.downloadDisabled ? (
+                      <button
+                        className="btn btn-secondary text-sm"
+                        onClick={card.onDownload}
+                        type="button"
+                      >
+                        {card.downloadLabel}
+                      </button>
+                    ) : null}
+                    {card.more ? (
+                      <details className="w-full rounded border border-slate-200 bg-slate-50">
+                        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-slate-700">
+                          {text.more}
+                        </summary>
+                        <div className="border-t border-slate-200 p-3">
+                          {card.more}
+                        </div>
+                      </details>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <details className="advanced-panel mt-4">
+              <summary>
+                {locale === "vi"
+                  ? "Nâng cao / Tác vụ Product Delivery khác"
+                  : "Advanced / More Product Delivery actions"}
+              </summary>
+              <div className="grid gap-3 border-t border-slate-200 p-3 md:grid-cols-2">
+                <button
+                  className="btn btn-secondary"
+                  onClick={previewProductDeliveryDraft}
+                  type="button"
+                >
+                  {text.generateProductDeliveryDraft}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  disabled={!productDeliveryDraft}
+                  onClick={downloadProductDeliveryMarkdown}
+                  type="button"
+                >
+                  {text.downloadProductDeliveryMarkdown}
+                </button>
+                <button
+                  className="btn btn-ai"
+                  disabled={isGeneratingRequirementQA}
+                  onClick={() => void generateRequirementQAPreview()}
+                  type="button"
+                >
+                  {isGeneratingRequirementQA
+                    ? locale === "vi"
+                      ? "Đang chạy Requirement QA..."
+                      : "Running Requirement QA..."
+                    : locale === "vi"
+                      ? "Chạy Requirement QA"
+                      : "Run Requirement QA"}
+                </button>
+              </div>
+            </details>
+
+            <div className="hidden">
               <div className="action-card bg-slate-50">
                 <p className="text-sm font-semibold text-slate-950">
                   {locale === "vi" ? "Tổng quan" : "Summary"}

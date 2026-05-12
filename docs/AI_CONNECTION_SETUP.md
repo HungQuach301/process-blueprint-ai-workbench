@@ -187,14 +187,20 @@ If `AI_DATA_USAGE_MODE=local-only`, `/api/ai/run-skill` will not call an externa
 ## AI Connection Center
 
 The AI Connection Center is the browser UI for non-secret provider preferences.
-It shows four provider cards:
+For RC7 it shows three provider mode cards:
 
-- Product AI
-- OpenAI
-- Claude
-- Local / Mock
+- Platform Provided AI
+  - AI provided by the platform through server-side configuration.
+  - Maps to the server-side Product AI / product gateway mode.
+- Your AI
+  - Use your own organization or developer AI provider.
+  - For MVP, configure OpenAI keys, Anthropic keys, or enterprise endpoints through server environment variables only.
+  - Secure BYOK UI is coming soon; the browser UI must not request or store API keys.
+- Local
+  - Uses mock/local fallback.
+  - Makes no external provider call.
 
-Provider cards show one of these server-derived statuses:
+Provider mode cards show one of these server-derived statuses:
 
 - `configured`: required server env is present and real AI flags are enabled.
 - `missing env`: real AI flags are enabled but the selected provider env is incomplete.
@@ -207,12 +213,17 @@ other provider directly from the browser, and it does not expose API keys.
 
 Advanced Settings can store non-secret local preferences:
 
-- default provider
-- default model/capability
+- underlying model provider
+- model name / model family display name
+- capability: fast, standard, or reasoning
 - allow cloud AI
 - require approval
 - data usage mode
-- simple per-skill provider override for active skills
+- collapsed per-skill provider override for active skill groups
+
+The underlying provider selector may show Product gateway, OpenAI, Claude,
+enterprise endpoint, local/mock, and Gemini as disabled / coming soon when no
+real Gemini adapter exists.
 
 Per-skill overrides are local preferences only in this slice. Server-side
 execution remains governed by env, feature flags, data mode, provider adapter

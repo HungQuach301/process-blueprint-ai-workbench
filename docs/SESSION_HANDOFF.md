@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 2 AI Connection Center redesign into three provider mode cards.
+- Replaced the old Product AI / OpenAI / Claude / Local-Mock card set with Platform Provided AI, Your AI, and Local while keeping provider execution routed through the existing server-side adapter path.
+- Moved underlying provider, model display name, capability, data mode, feature flags, trust status, and per-skill override details into Advanced Settings; per-skill override is collapsed by default.
+- Clarified Your AI copy so MVP configuration uses server environment variables only, with secure BYOK UI marked as coming soon and no browser API-key entry or localStorage secret storage.
+- Kept this RC7 cleanup UI/docs-only: no AI route/provider adapter logic, provider secrets, data model, canonical schema, D01/D02 generator, recommendation apply workflow, or AI auto-apply behavior was changed.
 - Completed RC7 Block 1 final header and dashboard cleanup.
 - Kept the global header focused on product identity and the language selector, with the selector aligned to the right edge of the header container.
 - Removed the shell hero/banner that showed the release value proposition text, including `From business intent to governed delivery artifacts.` in English.

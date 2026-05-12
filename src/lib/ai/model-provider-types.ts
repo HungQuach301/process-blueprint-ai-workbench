@@ -21,7 +21,10 @@ export type ProviderStatus = "configured" | "not configured" | "mock-only";
 export type AISkillOverrideId =
   | "input-brief-to-ptr"
   | "ai-process-qa"
-  | "ai-template-review";
+  | "artifact-review"
+  | "ai-template-review"
+  | "product-delivery"
+  | "ai-handoff-pack";
 
 export type AIProviderSettings = {
   providerMode: ModelProviderMode;

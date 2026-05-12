@@ -7,8 +7,7 @@ import {
   getAITrustSummary,
   type AITrustStatusResponse,
   type ProviderDisplayStatus,
-  type ProviderStatusItem,
-  type ServerProviderId
+  type ProviderStatusItem
 } from "@/components/ai-status/AITrustStatus";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
@@ -27,7 +26,7 @@ import { getLocale, type Locale } from "@/lib/i18n";
 
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
-type ProviderCardId = "product-ai" | "openai-byok" | "claude-byok" | "local-model";
+type ProviderModeCardId = "platform-provided-ai" | "your-ai" | "local";
 
 type TestConnectionResponse = AITrustStatusResponse & {
   ok?: boolean;
@@ -36,54 +35,59 @@ type TestConnectionResponse = AITrustStatusResponse & {
 };
 
 const providerCards: Array<{
-  id: ProviderCardId;
-  serverProviderId: ServerProviderId;
+  id: ProviderModeCardId;
+  providerMode: ModelProvider;
   title: string;
   description: Record<Locale, string>;
+  detail: Record<Locale, string>;
 }> = [
   {
-    id: "product-ai",
-    serverProviderId: "product-ai",
-    title: "Product AI",
+    id: "platform-provided-ai",
+    providerMode: "product-ai",
+    title: "Platform Provided AI",
     description: {
-      vi: "AI của sản phẩm, chạy qua endpoint phía máy chủ được cấu hình bằng env.",
-      en: "Managed product AI through the server-side endpoint configured by env."
+      vi: "AI do nền tảng cung cấp qua cấu hình server-side.",
+      en: "AI provided by the platform through server-side configuration."
+    },
+    detail: {
+      vi: "Provider và model thực tế được cấu hình ở server. Trình duyệt không nhận secret.",
+      en: "The underlying provider and model are configured on the server. The browser never receives secrets."
     }
   },
   {
-    id: "openai-byok",
-    serverProviderId: "openai",
-    title: "OpenAI",
+    id: "your-ai",
+    providerMode: "openai-byok",
+    title: "Your AI",
     description: {
-      vi: "OpenAI qua route phía máy chủ. Không nhập API key trong trình duyệt.",
-      en: "OpenAI through the server-side route. No browser API key entry."
+      vi: "Dùng tài khoản/API/endpoint AI của bạn hoặc tổ chức bạn.",
+      en: "Use your own organization or developer AI provider."
+    },
+    detail: {
+      vi: "MVP cấu hình qua biến môi trường server. Secure BYOK UI sẽ bổ sung sau.",
+      en: "Configure through server environment variables for MVP. Secure BYOK UI coming soon."
     }
   },
   {
-    id: "claude-byok",
-    serverProviderId: "claude",
-    title: "Claude",
-    description: {
-      vi: "Claude qua adapter phía máy chủ và biến môi trường riêng.",
-      en: "Claude through the server-side adapter and server env."
-    }
-  },
-  {
-    id: "local-model",
-    serverProviderId: "mock",
-    title: "Local / Mock",
+    id: "local",
+    providerMode: "local-model",
+    title: "Local",
     description: {
       vi: "Fallback cục bộ/mô phỏng, không gọi nhà cung cấp bên ngoài.",
       en: "Mock/local fallback with no external provider call."
+    },
+    detail: {
+      vi: "Phù hợp demo nhạy cảm, offline hoặc môi trường chưa duyệt cloud AI.",
+      en: "Best for sensitive demos, offline work, or environments without cloud AI approval."
     }
-  }
+  },
 ];
 
 const modelProviderOptions: Array<{ value: ModelProvider; label: Record<Locale, string> }> = [
-  { value: "product-ai", label: { vi: "Product AI", en: "Product AI" } },
-  { value: "openai-byok", label: { vi: "OpenAI", en: "OpenAI" } },
-  { value: "claude-byok", label: { vi: "Claude", en: "Claude" } },
-  { value: "local-model", label: { vi: "Local / mô phỏng", en: "Local / Mock" } },
+  { value: "product-ai", label: { vi: "Cổng AI sản phẩm", en: "Product gateway" } },
+  { value: "openai-byok", label: { vi: "OpenAI qua biến môi trường máy chủ", en: "OpenAI through server env" } },
+  { value: "claude-byok", label: { vi: "Claude qua biến môi trường máy chủ", en: "Claude through server env" } },
+  { value: "azure-openai", label: { vi: "Endpoint doanh nghiệp", en: "Enterprise endpoint" } },
+  { value: "local-model", label: { vi: "Cục bộ / mô phỏng", en: "Local / Mock" } },
   { value: "no-ai", label: { vi: "Không dùng AI", en: "No-AI" } }
 ];
 
@@ -101,22 +105,25 @@ const modelCapabilityOptions: Array<{
   value: DefaultModelCapability;
   label: Record<Locale, string>;
 }> = [
-  { value: "basic", label: { vi: "Cơ bản", en: "Basic" } },
-  { value: "advanced", label: { vi: "Nâng cao", en: "Advanced" } },
+  { value: "basic", label: { vi: "Nhanh", en: "Fast" } },
+  { value: "advanced", label: { vi: "Chuẩn", en: "Standard" } },
   { value: "reasoning", label: { vi: "Suy luận", en: "Reasoning" } }
 ];
 
 const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: Record<Locale, string> }> = [
-  { id: "input-brief-to-ptr", label: { vi: "Tóm tắt đầu vào sang PTR", en: "Input Brief to PTR" } },
-  { id: "ai-process-qa", label: { vi: "QA quy trình", en: "Process QA" } },
-  { id: "ai-template-review", label: { vi: "Rà soát mẫu", en: "Template Review" } }
+  { id: "input-brief-to-ptr", label: { vi: "Input Brief sang PTR", en: "Input Brief to PTR" } },
+  { id: "ai-process-qa", label: { vi: "QA / gợi ý quy trình", en: "Process QA / Recommendations" } },
+  { id: "artifact-review", label: { vi: "Rà soát artifact D01/D02", en: "Artifact Review D01/D02" } },
+  { id: "ai-template-review", label: { vi: "Rà soát mẫu", en: "Template Review" } },
+  { id: "product-delivery", label: { vi: "Product Delivery", en: "Product Delivery" } },
+  { id: "ai-handoff-pack", label: { vi: "AI Handoff Pack", en: "AI Handoff Pack" } }
 ];
 
 const textByLocale = {
   vi: {
     title: "Trung tâm kết nối AI",
     description:
-      "Chọn nhà cung cấp, kiểm tra kết nối và quản lý cấu hình AI không nhạy cảm.",
+      "Chọn chế độ AI, kiểm tra kết nối và quản lý cấu hình không chứa secret.",
     save: "Lưu thiết lập",
     reset: "Đặt lại",
     test: "Kiểm tra kết nối",
@@ -138,14 +145,15 @@ const textByLocale = {
     advanced: "Thiết lập nâng cao",
     show: "Hiện",
     hide: "Ẩn",
-    defaultProvider: "Nhà cung cấp mặc định",
-    capability: "Năng lực model mặc định",
+    defaultProvider: "Nhà cung cấp model nền",
+    capability: "Năng lực",
     allowCloud: "Cho phép AI đám mây",
     requireApproval: "Yêu cầu phê duyệt",
     dataUsageMode: "Chế độ sử dụng dữ liệu",
     organizationNote: "Ghi chú tổ chức",
     organizationPlaceholder: "Ghi chú tenant/tổ chức tùy chọn",
     perSkillOverride: "Ghi đè theo kỹ năng",
+    perSkillOverrideHelp: "Chỉ dùng khi một nhóm AI cần provider khác với chế độ mặc định.",
     inheritDefault: "Theo nhà cung cấp mặc định",
     saved: "Đã lưu tùy chọn không chứa secret vào localStorage.",
     resetDone: "Đã đặt lại về local/mô phỏng và chỉ lưu cục bộ.",
@@ -163,12 +171,18 @@ const textByLocale = {
     currentProvider: "Nhà cung cấp hiện tại",
     selectedProvider: "Nhà cung cấp đã chọn",
     browserProvider: "Nhà cung cấp trong trình duyệt",
-    featureFlags: "Cờ tính năng"
+    featureFlags: "Cờ tính năng",
+    platformAdvancedHint:
+      "AI do nền tảng cung cấp chạy qua cấu hình phía máy chủ. Gemini đang ở trạng thái sắp ra mắt nếu chưa có adapter thật.",
+    yourAIAdvancedHint:
+      "Với MVP, hãy cấu hình qua biến môi trường máy chủ. Giao diện BYOK bảo mật sẽ bổ sung sau. Hỗ trợ OpenAI API key, Anthropic API key hoặc endpoint doanh nghiệp qua máy chủ.",
+    localAdvancedHint: "Chế độ cục bộ giữ fallback mô phỏng và không gọi nhà cung cấp bên ngoài.",
+    geminiComingSoon: "Gemini (sắp ra mắt)"
   },
   en: {
     title: "AI Connection Center",
     description:
-      "Choose providers, test connection, and manage non-secret AI preferences.",
+      "Choose an AI mode, test connection, and manage non-secret AI preferences.",
     save: "Save settings",
     reset: "Reset",
     test: "Test connection",
@@ -190,14 +204,15 @@ const textByLocale = {
     advanced: "Advanced Settings",
     show: "Show",
     hide: "Hide",
-    defaultProvider: "Default provider",
-    capability: "Default model/capability",
+    defaultProvider: "Underlying model provider",
+    capability: "Capability",
     allowCloud: "Allow cloud AI",
     requireApproval: "Require approval",
     dataUsageMode: "Data usage mode",
     organizationNote: "Organization note",
     organizationPlaceholder: "Optional tenant or organization note",
     perSkillOverride: "Per-skill override",
+    perSkillOverrideHelp: "Use only when a skill group needs a provider different from the default mode.",
     inheritDefault: "Use default provider",
     saved: "Saved non-secret preferences to localStorage.",
     resetDone: "Reset to local/mock and local-only.",
@@ -215,7 +230,13 @@ const textByLocale = {
     currentProvider: "Current provider",
     selectedProvider: "Selected provider",
     browserProvider: "Browser provider",
-    featureFlags: "Feature flags"
+    featureFlags: "Feature flags",
+    platformAdvancedHint:
+      "Platform Provided AI runs through server-side configuration. Gemini is shown as coming soon until a real adapter is available.",
+    yourAIAdvancedHint:
+      "Configure through server environment variables for MVP. Secure BYOK UI coming soon. Supports OpenAI API key, Anthropic API key, or enterprise endpoint through server env.",
+    localAdvancedHint: "Local keeps the mock/local fallback and makes no external provider call.",
+    geminiComingSoon: "Gemini (coming soon)"
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -224,14 +245,30 @@ function getCardStatus(
   providerStatuses: ProviderStatusItem[],
   realAIEnabled: boolean
 ): ProviderDisplayStatus {
-  if (card.serverProviderId === "mock") {
+  if (card.id === "local") {
     return "available";
   }
 
-  return (
-    providerStatuses.find((item) => item.providerId === card.serverProviderId)?.status ??
-    (realAIEnabled ? "missing env" : "disabled")
-  );
+  if (!realAIEnabled) {
+    return "disabled";
+  }
+
+  const cloudStatuses = providerStatuses.filter((item) => item.providerId !== "mock");
+  const configuredStatus = cloudStatuses.find((item) => item.status === "configured");
+
+  return configuredStatus?.status ?? (realAIEnabled ? "missing env" : "disabled");
+}
+
+function getSelectedModeCardId(providerMode: ModelProvider): ProviderModeCardId {
+  if (providerMode === "local-model" || providerMode === "no-ai") {
+    return "local";
+  }
+
+  if (providerMode === "product-ai") {
+    return "platform-provided-ai";
+  }
+
+  return "your-ai";
 }
 
 function getStatusText(status: ProviderDisplayStatus, locale: Locale) {
@@ -318,6 +355,7 @@ export function AIProviderSettingsPanel() {
       ?.model ??
     settings.modelName ??
     "n/a";
+  const selectedModeCardId = getSelectedModeCardId(settings.providerMode);
 
   function updateSettings(nextSettings: AIProviderSettings) {
     setSettings(nextSettings);
@@ -443,10 +481,10 @@ export function AIProviderSettingsPanel() {
       description={text.description}
       title={text.title}
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-3">
         {providerCards.map((card) => {
           const status = getCardStatus(card, providerStatuses, realAIEnabled);
-          const isSelected = settings.providerMode === card.id;
+          const isSelected = selectedModeCardId === card.id;
           const selectedClass =
             status === "missing env"
               ? "border-amber-400 bg-amber-50 ring-2 ring-amber-100"
@@ -466,7 +504,7 @@ export function AIProviderSettingsPanel() {
                   : "border-slate-200 bg-white hover:border-slate-400"
               }`}
               key={card.id}
-              onClick={() => selectProvider(card.id)}
+              onClick={() => selectProvider(card.providerMode)}
               type="button"
             >
               <span className="flex items-start justify-between gap-3">
@@ -486,6 +524,9 @@ export function AIProviderSettingsPanel() {
               </span>
               <span className="mt-3 block text-sm leading-6 text-slate-600">
                 {card.description[locale]}
+              </span>
+              <span className="mt-2 block text-xs leading-5 text-slate-500">
+                {card.detail[locale]}
               </span>
               {isSelected ? (
                 status === "missing env" ? (
@@ -587,6 +628,12 @@ export function AIProviderSettingsPanel() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
+              <div className="lg:col-span-2 rounded border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                <p>{text.platformAdvancedHint}</p>
+                <p className="mt-1">{text.yourAIAdvancedHint}</p>
+                <p className="mt-1">{text.localAdvancedHint}</p>
+              </div>
+
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
                   {text.defaultProvider}
@@ -606,6 +653,9 @@ export function AIProviderSettingsPanel() {
                       {option.label[locale]}
                     </option>
                   ))}
+                  <option disabled value="gemini-coming-soon">
+                    {text.geminiComingSoon}
+                  </option>
                 </select>
               </label>
 
@@ -723,9 +773,12 @@ export function AIProviderSettingsPanel() {
                 />
               </label>
 
-              <div className="lg:col-span-2 rounded border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-semibold text-slate-900">
+              <details className="lg:col-span-2 rounded border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-slate-900">
                   {text.perSkillOverride}
+                </summary>
+                <p className="mt-2 text-xs leading-5 text-slate-600">
+                  {text.perSkillOverrideHelp}
                 </p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   {skillOverrideOptions.map((skill) => (
@@ -753,7 +806,7 @@ export function AIProviderSettingsPanel() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </details>
             </div>
           </div>
         ) : null}

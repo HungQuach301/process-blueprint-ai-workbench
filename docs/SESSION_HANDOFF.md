@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 7 Template Hub tab, upload, and review-action cleanup.
+- Renamed Template Hub tabs to `Templates in use` / `Mẫu biểu đang sử dụng` and `Templates library` / `Thư viện mẫu biểu`, and removed Template Review as a standalone tab.
+- Moved template review into `Review template with AI` / `Rà soát mẫu bằng AI` actions in Templates in use, template card detail, and Template editor.
+- Kept AI Template Review on the existing server-side `/api/ai/run-skill` `ai-template-review` path with provider adapter support, schema validation, and no auto-apply.
+- Added MVP JSON TemplateProfile upload in Template editor; uploaded templates open in the basic metadata editor while raw JSON rules remain in Advanced, and other file formats are marked as coming soon.
+- Kept this RC7 cleanup scoped: no TemplateProfile schema, D01/D02 generator, AI route/provider adapter, provider secret handling, or AI auto-apply behavior was changed.
 - Completed RC7 Block 6 D01/D02 AI review feedback routing cleanup.
 - Kept `Review BPMN with AI` and `Review Service Blueprint with AI` on the existing server-side `/api/ai/run-skill` `artifact-review` route with OpenAI/Claude/Product AI/mock support through the provider adapter.
 - Ensured artifact review feedback lands in QA Engine with visible source labels `BPMN AI Review` and `Service Blueprint AI Review`.

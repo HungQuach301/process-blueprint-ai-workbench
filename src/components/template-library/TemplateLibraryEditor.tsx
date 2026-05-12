@@ -42,7 +42,7 @@ const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
-type TemplateHubTab = "current" | "browse" | "review" | "editor";
+type TemplateHubTab = "current" | "browse" | "editor";
 
 type TemplateCompareResult = {
   id: string;
@@ -73,15 +73,15 @@ const templateHubText = {
     guideStep1Title: "Chọn mẫu",
     guideStep1Body: "Xem mẫu hiện tại hoặc duyệt thư viện mẫu.",
     guideStep2Title: "Rà soát chất lượng",
-    guideStep2Body: "Chạy Template QA và xem đề xuất trước.",
+    guideStep2Body: "Bấm Rà soát mẫu bằng AI và xem đề xuất trước.",
     guideStep3Title: "Gắn cho D01/D02",
     guideStep3Body: "Chọn mẫu phù hợp cho D01 hoặc D02, không tự tạo lại tài liệu đầu ra.",
-    currentTemplates: "Mẫu hiện tại",
-    browseTemplates: "Duyệt mẫu",
+    currentTemplates: "Mẫu biểu đang sử dụng",
+    browseTemplates: "Thư viện mẫu biểu",
     templateReview: "Rà soát mẫu",
     currentTemplatesHelper: "Xem nhanh mẫu đang dùng cho D01 và D02 trước khi đổi.",
     browseTemplatesHelper: "Duyệt thư viện bằng thẻ gọn. Thông tin chi tiết nằm trong phần mở rộng.",
-    templateReviewHelper: "Chạy rà soát và xem đề xuất. Không có đề xuất nào được áp dụng tự động.",
+    templateReviewHelper: "Rà soát mẫu từ các nút hành động. Không có đề xuất nào được áp dụng tự động.",
     editorTabHelper: "Chỉnh mẫu đã chọn. Quy tắc JSON chi tiết nằm trong chế độ nâng cao.",
     changeTemplate: "Đổi mẫu",
     quickActions: "Thao tác nhanh",
@@ -99,7 +99,7 @@ const templateHubText = {
     templateType: "Loại template",
     noResults: "Không có template phù hợp với bộ lọc.",
     previewTemplate: "Xem mẫu",
-    runTemplateQA: "Chạy Template QA",
+    runTemplateQA: "Rà soát mẫu bằng AI",
     running: "Đang chạy...",
     save: "Lưu",
     reset: "Đặt lại",
@@ -137,6 +137,12 @@ const templateHubText = {
     affectedFields: "Trường bị ảnh hưởng",
     editor: "Trình chỉnh mẫu",
     editorHelper: "Chế độ cơ bản chỉ hiển thị thông tin mô tả. Quy tắc JSON nằm trong chế độ nâng cao.",
+    uploadTemplate: "Tải mẫu lên",
+    uploadTemplateHelper: "MVP hỗ trợ tệp JSON TemplateProfile. PDF, DOCX, XLSX và BPMN/draw.io sẽ hỗ trợ sau.",
+    uploadTemplateFile: "Chọn tệp JSON",
+    uploadUnsupported: "MVP hiện chỉ hỗ trợ tệp .json theo schema TemplateProfile. Các định dạng khác sẽ hỗ trợ sau.",
+    uploadInvalid: "Không thể đọc tệp template JSON.",
+    uploadSuccess: "Đã tải template JSON. Hãy kiểm tra metadata trước khi lưu.",
     basicMode: "Chế độ cơ bản",
     advancedMode: "Chế độ nâng cao: quy tắc JSON",
     hide: "Ẩn",
@@ -158,15 +164,15 @@ const templateHubText = {
     guideStep1Title: "Choose template",
     guideStep1Body: "Check current templates or browse the library.",
     guideStep2Title: "Review quality",
-    guideStep2Body: "Run Template QA and inspect recommendations first.",
+    guideStep2Body: "Use Review template with AI and inspect recommendations first.",
     guideStep3Title: "Apply to D01/D02",
     guideStep3Body: "Select a compatible D01 or D02 template; artifacts regenerate only when you choose.",
-    currentTemplates: "Current templates",
-    browseTemplates: "Browse templates",
+    currentTemplates: "Templates in use",
+    browseTemplates: "Templates library",
     templateReview: "Template review",
     currentTemplatesHelper: "Quickly see the templates currently used for D01 and D02 before changing them.",
     browseTemplatesHelper: "Browse the library with simplified cards. Detailed metadata stays in expandable details.",
-    templateReviewHelper: "Run review and inspect recommendations. Recommendations are never auto-applied.",
+    templateReviewHelper: "Run template review from action buttons. Recommendations are never auto-applied.",
     editorTabHelper: "Edit the selected template. Detailed JSON/rules stay in Advanced mode.",
     changeTemplate: "Change template",
     quickActions: "Quick actions",
@@ -184,7 +190,7 @@ const templateHubText = {
     templateType: "Template type",
     noResults: "No templates match the current filters.",
     previewTemplate: "Preview template",
-    runTemplateQA: "Run Template QA",
+    runTemplateQA: "Review template with AI",
     running: "Running...",
     save: "Save",
     reset: "Reset",
@@ -222,6 +228,12 @@ const templateHubText = {
     affectedFields: "Affected fields",
     editor: "Template editor",
     editorHelper: "Basic mode shows metadata. Advanced mode contains JSON rules.",
+    uploadTemplate: "Upload template",
+    uploadTemplateHelper: "MVP supports TemplateProfile JSON files. PDF, DOCX, XLSX, BPMN, and draw.io imports are coming soon.",
+    uploadTemplateFile: "Choose JSON file",
+    uploadUnsupported: "MVP currently supports only .json files that match the TemplateProfile schema. Other formats are coming soon.",
+    uploadInvalid: "Could not read the template JSON file.",
+    uploadSuccess: "Uploaded template JSON. Review metadata before saving.",
     basicMode: "Basic mode",
     advancedMode: "Advanced mode: JSON rules",
     hide: "Hide",
@@ -485,6 +497,34 @@ function findTemplate(drafts: TemplateDraft[], templateId: string) {
   return drafts.find((draft) => draft.id === templateId);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isTemplateProfile(value: unknown): value is TemplateProfile {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    (value.type === "bpmn" || value.type === "serviceBlueprint") &&
+    typeof value.version === "string" &&
+    (value.status === "draft" ||
+      value.status === "active" ||
+      value.status === "archived") &&
+    isRecord(value.laneRules) &&
+    isRecord(value.rowRules) &&
+    isRecord(value.taskCardRules) &&
+    isRecord(value.connectorRules) &&
+    isRecord(value.colorRules) &&
+    isRecord(value.layoutRules) &&
+    Array.isArray(value.mandatoryFields) &&
+    value.mandatoryFields.every((field) => typeof field === "string")
+  );
+}
+
 function isBpmnCompatibleTemplate(draft: TemplateDraft) {
   return (
     draft.type === "bpmn" ||
@@ -719,11 +759,6 @@ export function TemplateLibraryEditor() {
       helper: text.browseTemplatesHelper
     },
     {
-      id: "review",
-      label: text.templateReview,
-      helper: text.templateReviewHelper
-    },
-    {
       id: "editor",
       label: text.editor,
       helper: text.editorTabHelper
@@ -795,6 +830,52 @@ export function TemplateLibraryEditor() {
     );
   }
 
+  async function uploadTemplateFile(file: File | null) {
+    if (!file) {
+      return;
+    }
+
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      setMessage(text.uploadUnsupported);
+      return;
+    }
+
+    try {
+      const parsedTemplate = JSON.parse(await file.text()) as unknown;
+
+      if (!isTemplateProfile(parsedTemplate)) {
+        throw new Error(text.uploadInvalid);
+      }
+
+      const uploadedDraft = profileToDraft(parsedTemplate);
+
+      setDrafts((currentDrafts) => {
+        const exists = currentDrafts.some((draft) => draft.id === uploadedDraft.id);
+
+        return exists
+          ? currentDrafts.map((draft) =>
+              draft.id === uploadedDraft.id ? uploadedDraft : draft
+            )
+          : [uploadedDraft, ...currentDrafts];
+      });
+      setActiveTemplateId(uploadedDraft.id);
+      setActiveTab("editor");
+      setAdvancedModeOpen(false);
+      setTemplateReviewRecommendations([]);
+      setTemplateQualityScore(null);
+      setTemplateReviewWarnings([]);
+      setTemplateReviewAssumptions([]);
+      markGeneratedArtifactsStale();
+      setMessage(text.uploadSuccess);
+    } catch (error) {
+      setMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : text.uploadInvalid
+      );
+    }
+  }
+
   function useForD01(templateId: string) {
     const targetDraft = findTemplate(drafts, templateId);
 
@@ -851,8 +932,10 @@ export function TemplateLibraryEditor() {
     );
   }
 
-  async function runTemplateReview() {
-    if (!activeDraft) {
+  async function runTemplateReview(templateId = activeTemplateId) {
+    const reviewDraft = findTemplate(drafts, templateId);
+
+    if (!reviewDraft) {
       setMessage(
         locale === "vi"
           ? "Chưa chọn template để review."
@@ -864,7 +947,7 @@ export function TemplateLibraryEditor() {
     let selectedTemplate: TemplateProfile;
 
     try {
-      selectedTemplate = draftToProfile(activeDraft);
+      selectedTemplate = draftToProfile(reviewDraft);
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -875,7 +958,7 @@ export function TemplateLibraryEditor() {
     }
 
     setIsReviewingTemplate(true);
-    setActiveTab("review");
+    setActiveTemplateId(reviewDraft.id);
     setTemplateReviewRecommendations([]);
     setTemplateQualityScore(null);
     setTemplateReviewWarnings([]);
@@ -1190,7 +1273,7 @@ export function TemplateLibraryEditor() {
       title={text.title}
     >
       <div className="rounded border border-slate-200 bg-slate-50 p-1">
-        <div className="grid gap-1 md:grid-cols-4">
+        <div className="grid gap-1 md:grid-cols-3">
           {tabItems.map((tab) => (
             <button
               className={`rounded px-3 py-2 text-left text-sm font-semibold ${
@@ -1311,6 +1394,19 @@ export function TemplateLibraryEditor() {
                 ) : null}
                 {item.draft ? (
                   <button
+                    className="btn btn-ai text-xs"
+                    disabled={isReviewingTemplate}
+                    onClick={() => void runTemplateReview(item.draft!.id)}
+                    type="button"
+                  >
+                    {isReviewingTemplate &&
+                    activeTemplateId === (item.draft?.id ?? "")
+                      ? text.running
+                      : text.runTemplateQA}
+                  </button>
+                ) : null}
+                {item.draft ? (
+                  <button
                     className="btn btn-secondary text-xs"
                     onClick={() => {
                       setActiveTemplateId(item.draft?.id ?? activeTemplateId);
@@ -1420,6 +1516,16 @@ export function TemplateLibraryEditor() {
                       >
                         {text.preview}
                       </button>
+                      <button
+                        className="rounded border border-violet-300 bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-800 hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isReviewingTemplate}
+                        onClick={() => void runTemplateReview(draft.id)}
+                        type="button"
+                      >
+                        {isReviewingTemplate && activeTemplateId === draft.id
+                          ? text.running
+                          : text.runTemplateQA}
+                      </button>
                       {isD01Compatible ? (
                         <button
                           className="rounded border border-sky-300 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
@@ -1477,6 +1583,16 @@ export function TemplateLibraryEditor() {
                           .filter(Boolean)
                           .join(", ") || text.none}
                       </p>
+                      <button
+                        className="btn btn-ai w-fit text-xs"
+                        disabled={isReviewingTemplate}
+                        onClick={() => void runTemplateReview(draft.id)}
+                        type="button"
+                      >
+                        {isReviewingTemplate && activeTemplateId === draft.id
+                          ? text.running
+                          : text.runTemplateQA}
+                      </button>
                       <details className="rounded border border-slate-200 bg-white p-3">
                         <summary className="cursor-pointer text-xs font-semibold text-slate-700">
                           {text.rawRules}
@@ -1508,13 +1624,19 @@ export function TemplateLibraryEditor() {
         </div>
       ) : null}
 
-      {activeTab === "review" ? (
+      {isReviewingTemplate ||
+      templateReviewRecommendations.length > 0 ||
+      templateQualityScore ||
+      templateReviewWarnings.length > 0 ||
+      templateReviewAssumptions.length > 0 ||
+      compareResults.length > 0 ||
+      compareModeEnabled ? (
         <div className="mt-4 grid gap-4">
           <div className="rounded border border-indigo-200 bg-indigo-50 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-sm font-semibold text-indigo-950">
-                  {text.templateReview}
+                  {text.aiTemplateReview}
                 </p>
                 <p className="mt-1 text-sm text-indigo-900">
                   {activeDraft?.name ?? text.noTemplateSelected}
@@ -1526,7 +1648,7 @@ export function TemplateLibraryEditor() {
               <button
                 className="btn btn-ai w-fit"
                 disabled={isReviewingTemplate}
-                onClick={runTemplateReview}
+                onClick={() => void runTemplateReview()}
                 type="button"
               >
                 {isReviewingTemplate ? text.running : text.runTemplateQA}
@@ -1724,13 +1846,47 @@ export function TemplateLibraryEditor() {
                 {text.editorHelper}
               </p>
             </div>
-            <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
-              {text.basicMode}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className="btn btn-ai text-xs"
+                disabled={!activeDraft || isReviewingTemplate}
+                onClick={() => void runTemplateReview()}
+                type="button"
+              >
+                {isReviewingTemplate ? text.running : text.runTemplateQA}
+              </button>
+              <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-600">
+                {text.basicMode}
+              </span>
+            </div>
           </div>
 
           {activeDraft ? (
             <div className="mt-4 grid gap-4">
+            <div className="rounded border border-slate-200 bg-slate-50 p-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {text.uploadTemplate}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    {text.uploadTemplateHelper}
+                  </p>
+                </div>
+                <label className="btn btn-secondary w-fit cursor-pointer text-xs">
+                  {text.uploadTemplateFile}
+                  <input
+                    accept=".json,application/json"
+                    className="sr-only"
+                    onChange={(event) => {
+                      void uploadTemplateFile(event.target.files?.[0] ?? null);
+                      event.target.value = "";
+                    }}
+                    type="file"
+                  />
+                </label>
+              </div>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="grid gap-1 text-sm font-medium text-slate-700">
                 {text.templateName}

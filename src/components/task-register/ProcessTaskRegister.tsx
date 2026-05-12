@@ -66,28 +66,18 @@ const ptrText = {
     sample: "Mẫu",
     autoSuggest: "Tự gợi ý trường tương tác",
     aiAssistant: "Trợ lý AI",
-    aiNoSelection: "Chọn ít nhất một dòng trước khi chạy trợ lý AI.",
+    aiNoRows: "Chưa có dòng nào trong Process Task Register để AI rà soát.",
     aiRunning: "Đang chạy AI Assistant...",
-    aiNoRecommendations: "Trợ lý AI không trả đề xuất nào cho các dòng đã chọn.",
+    aiNoRecommendations: "Trợ lý AI không trả đề xuất nào cho phạm vi đã rà soát.",
     aiRecommendationsReady: "Trợ lý AI đã tạo đề xuất trong bảng QA.",
     aiUsingLocalFallback: "Đang dùng local/mock fallback. Nếu muốn gọi provider ngoài, hãy cấu hình nhà cung cấp trong Trung tâm kết nối AI.",
-    moreAiActions: "Tác vụ AI nâng cao",
     normalizeRows: "Chuẩn hóa dòng đã chọn",
     inferActorSystemLane: "Suy luận vai trò/hệ thống/lane còn thiếu",
     improveTaskWording: "Cải thiện cách viết công việc",
     suggestSplitTask: "Gợi ý tách công việc phức tạp",
     generateInputOutput: "Tạo đầu vào/đầu ra còn thiếu",
     suggestInteractionChannel: "Gợi ý customerInteractionType/channel",
-    clearSelection: "Bỏ chọn",
-    selectedRowsCount: "Dòng đã chọn",
-    selectionSummaryPrefix: "Đã chọn",
-    selectionSummaryConnector: "trên",
-    rowsLabel: "dòng",
-    bulkActions: "Hành động hàng loạt",
-    selectNeedsReview: "Chọn dòng cần rà soát",
-    noNeedsReviewRows: "Không có dòng nào đang cần rà soát.",
     rowActions: "Thao tác",
-    rowActionMenu: "Mở menu thao tác dòng",
     duplicateRow: "Nhân bản",
     deleteRow: "Xóa",
     simpleMode: "Đơn giản",
@@ -119,28 +109,18 @@ const ptrText = {
     sample: "Sample",
     autoSuggest: "Auto-suggest interaction fields",
     aiAssistant: "AI Assistant",
-    aiNoSelection: "Select at least one row before running AI Assistant.",
+    aiNoRows: "There are no Process Task Register rows for AI to review.",
     aiRunning: "Running AI Assistant...",
-    aiNoRecommendations: "AI Assistant did not return recommendations for the selected rows.",
+    aiNoRecommendations: "AI Assistant did not return recommendations for the reviewed scope.",
     aiRecommendationsReady: "AI Assistant created recommendations in the QA Panel.",
     aiUsingLocalFallback: "Using local/mock fallback. Configure a provider in AI Connection Center to call an external provider.",
-    moreAiActions: "More AI actions",
     normalizeRows: "Normalize selected rows",
     inferActorSystemLane: "Infer missing actor/system/lane",
     improveTaskWording: "Improve task wording",
     suggestSplitTask: "Suggest split complex task",
     generateInputOutput: "Generate missing input/output",
     suggestInteractionChannel: "Suggest customerInteractionType/channel",
-    clearSelection: "Clear selection",
-    selectedRowsCount: "Selected rows",
-    selectionSummaryPrefix: "Selected",
-    selectionSummaryConnector: "of",
-    rowsLabel: "rows",
-    bulkActions: "Bulk actions",
-    selectNeedsReview: "Select needs-review rows",
-    noNeedsReviewRows: "No rows currently need review.",
     rowActions: "Actions",
-    rowActionMenu: "Open row action menu",
     duplicateRow: "Duplicate",
     deleteRow: "Delete",
     simpleMode: "Simple",
@@ -691,12 +671,10 @@ export function ProcessTaskRegister() {
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ProcessTaskImportPreview | null>(null);
   const [isRegisterMoreMenuOpen, setIsRegisterMoreMenuOpen] = useState(false);
-  const [isPtrAIMenuOpen, setIsPtrAIMenuOpen] = useState(false);
   const [isRunningPtrAI, setIsRunningPtrAI] = useState(false);
   const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(() => new Set());
   const [columnMode, setColumnMode] = useState<ColumnMode>("simple");
   const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [openRowActionTaskId, setOpenRowActionTaskId] = useState<string | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const [ptrAiIssues, setPtrAiIssues] = useState<QaIssue[]>([]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -876,26 +854,15 @@ export function ProcessTaskRegister() {
     );
   }
 
-  function selectNeedsReviewRows() {
-    const needsReviewStepIds = tasks
-      .filter((task) => task.reviewStatus === "needsReview")
-      .map((task) => task.stepId);
-
-    setSelectedStepIds(new Set(needsReviewStepIds));
-    setSaveMessage(
-      needsReviewStepIds.length > 0
-        ? `${text.selectedRowsCount}: ${needsReviewStepIds.length}`
-        : text.noNeedsReviewRows
-    );
-  }
-
   function chooseDefaultPtrAIAssistantAction(): PtrAIAssistantActionId {
-    if (selectedTasks.length === 0) {
+    const scopeTasks = selectedTasks.length > 0 ? selectedTasks : tasks;
+
+    if (scopeTasks.length === 0) {
       return DEFAULT_PTR_AI_ASSISTANT_ACTION_ID;
     }
 
     if (
-      selectedTasks.some(
+      scopeTasks.some(
         (task) =>
           !String(task.actor ?? "").trim() ||
           !String(task.system ?? "").trim() ||
@@ -907,7 +874,7 @@ export function ProcessTaskRegister() {
     }
 
     if (
-      selectedTasks.some(
+      scopeTasks.some(
         (task) => !String(task.input ?? "").trim() || !String(task.output ?? "").trim()
       )
     ) {
@@ -915,7 +882,7 @@ export function ProcessTaskRegister() {
     }
 
     if (
-      selectedTasks.some((task) => {
+      scopeTasks.some((task) => {
         const taskName = String(task.taskName ?? "");
         return taskName.length > 90 || /\b(and|then|và|rồi|sau đó)\b/i.test(taskName);
       })
@@ -924,7 +891,7 @@ export function ProcessTaskRegister() {
     }
 
     if (
-      selectedTasks.some(
+      scopeTasks.some(
         (task) => isEmptyInteractionType(task) || !String(task.channel ?? "").trim()
       )
     ) {
@@ -935,13 +902,15 @@ export function ProcessTaskRegister() {
   }
 
   async function runPtrAIAssistantAction(actionId: PtrAIAssistantActionId) {
-    if (selectedTasks.length === 0) {
-      setSaveMessage(text.aiNoSelection);
+    const scopeTasks = selectedTasks.length > 0 ? selectedTasks : tasks;
+    const isSelectedScope = selectedTasks.length > 0;
+
+    if (scopeTasks.length === 0) {
+      setSaveMessage(text.aiNoRows);
       return;
     }
 
     setIsRunningPtrAI(true);
-    setIsPtrAIMenuOpen(false);
     setSaveMessage(text.aiRunning);
 
     try {
@@ -955,11 +924,13 @@ export function ProcessTaskRegister() {
           payload: {
             processTasks: tasks,
             templateProfiles: readTemplateProfiles(),
-            targetStepIds: selectedTasks.map((task) => task.stepId),
+            targetStepIds: scopeTasks.map((task) => task.stepId),
             metadata: {
               ptrAiAction: actionId,
-              selectedOnly: true,
-              selectedRowCount: selectedTasks.length
+              selectedOnly: isSelectedScope,
+              selectedRowCount: selectedTasks.length,
+              scope: isSelectedScope ? "selected-rows" : "full-table",
+              scopeRowCount: scopeTasks.length
             }
           }
         })
@@ -990,6 +961,8 @@ export function ProcessTaskRegister() {
             skillId: PTR_AI_ASSISTANT_SKILL_ID,
             actionId,
             selectedRowCount: selectedTasks.length,
+            scope: isSelectedScope ? "selected-rows" : "full-table",
+            scopeRowCount: scopeTasks.length,
             externalApiCalled: data.meta?.externalApiCalled === true
           }
         });
@@ -1010,7 +983,7 @@ export function ProcessTaskRegister() {
         return;
       }
 
-      const firstSelectedTask = selectedTasks[0];
+      const firstScopeTask = scopeTasks[0];
 
       setPtrAiIssues([
         {
@@ -1019,8 +992,8 @@ export function ProcessTaskRegister() {
             actionId === "suggest-split-complex-task"
               ? "MULTI_ACTION_TASK"
               : "SERVICE_BLUEPRINT_CARD_READINESS",
-          stepId: firstSelectedTask.stepId,
-          taskName: firstSelectedTask.taskName || firstSelectedTask.stepId,
+          stepId: firstScopeTask.stepId,
+          taskName: firstScopeTask.taskName || firstScopeTask.stepId,
           severity: "suggestion",
           message: `${text.aiAssistant}: ${text[ptrAIAssistantActions.find((action) => action.id === actionId)?.textKey ?? "aiAssistant"]}`,
           suggestedFix:
@@ -1043,6 +1016,8 @@ export function ProcessTaskRegister() {
           skillId: PTR_AI_ASSISTANT_SKILL_ID,
           actionId,
           selectedRowCount: selectedTasks.length,
+          scope: isSelectedScope ? "selected-rows" : "full-table",
+          scopeRowCount: scopeTasks.length,
           recommendationCount: recommendations.length,
           mode: data.mode ?? "mock",
           externalApiCalled: data.meta?.externalApiCalled === true
@@ -1063,6 +1038,8 @@ export function ProcessTaskRegister() {
           skillId: PTR_AI_ASSISTANT_SKILL_ID,
           actionId,
           selectedRowCount: selectedTasks.length,
+          scope: isSelectedScope ? "selected-rows" : "full-table",
+          scopeRowCount: scopeTasks.length,
           externalApiCalled: false
         }
       });
@@ -1599,6 +1576,14 @@ export function ProcessTaskRegister() {
                 </div>
               ) : null}
             </div>
+            <button
+              className="btn btn-ai"
+              disabled={isRunningPtrAI || tasks.length === 0}
+              onClick={() => void runPtrAIAssistantAction(chooseDefaultPtrAIAssistantAction())}
+              type="button"
+            >
+              {isRunningPtrAI ? text.aiRunning : text.aiAssistant}
+            </button>
           </div>
         }
         bodyClassName="p-4"
@@ -1658,67 +1643,6 @@ export function ProcessTaskRegister() {
               >
                 {text.autoSuggest}
               </button>
-            </div>
-            <div className="mt-4 rounded-md border border-blue-100 bg-blue-50/70 p-3">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-                    {text.bulkActions}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {text.selectionSummaryPrefix} {selectedTasks.length}{" "}
-                    {text.selectionSummaryConnector} {tasks.length} {text.rowsLabel}
-                  </p>
-                </div>
-                <div className="relative flex flex-wrap gap-2">
-                  <button
-                    className="btn btn-secondary"
-                    onClick={selectNeedsReviewRows}
-                    type="button"
-                  >
-                    {text.selectNeedsReview}
-                  </button>
-                  <button
-                    className="btn btn-ai"
-                    disabled={isRunningPtrAI || selectedTasks.length === 0}
-                    onClick={() => void runPtrAIAssistantAction(chooseDefaultPtrAIAssistantAction())}
-                    type="button"
-                  >
-                    {isRunningPtrAI ? text.aiRunning : text.aiAssistant}
-                  </button>
-                  <button
-                    className="btn btn-secondary"
-                    disabled={isRunningPtrAI || selectedTasks.length === 0}
-                    onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
-                    type="button"
-                  >
-                    {text.moreAiActions}
-                  </button>
-                  {isPtrAIMenuOpen ? (
-                    <div className="absolute left-0 top-11 z-30 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
-                      {ptrAIAssistantActions.map((action) => (
-                        <button
-                          className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
-                          disabled={isRunningPtrAI}
-                          key={action.id}
-                          onClick={() => void runPtrAIAssistantAction(action.id)}
-                          type="button"
-                        >
-                          {text[action.textKey]}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                  <button
-                    className="btn btn-secondary"
-                    disabled={selectedTasks.length === 0}
-                    onClick={() => setSelectedStepIds(new Set())}
-                    type="button"
-                  >
-                    {text.clearSelection}
-                  </button>
-                </div>
-              </div>
             </div>
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
               <li>{text.oneRow}</li>
@@ -1891,7 +1815,7 @@ export function ProcessTaskRegister() {
                     {column.label}
                   </th>
                 ))}
-                <th className="sticky right-0 top-0 z-40 w-24 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
+                <th className="sticky right-0 top-0 z-40 w-56 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
                   {text.rowActions}
                 </th>
               </tr>
@@ -1979,53 +1903,28 @@ export function ProcessTaskRegister() {
                     );
                   })}
                   <td className="sticky right-0 z-20 border-b border-l border-slate-200 bg-inherit p-2">
-                    <div className="relative">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        aria-label={`${text.rowActionMenu}: ${task.stepId}`}
-                        onClick={() =>
-                          setOpenRowActionTaskId((currentTaskId) =>
-                            currentTaskId === task.id ? null : task.id
-                          )
-                        }
+                        onClick={() => setDetailTaskId(task.id)}
                         type="button"
                       >
-                        ...
+                        {detailText.viewDetails}
                       </button>
-                      {openRowActionTaskId === task.id ? (
-                        <div className="absolute right-0 z-40 mt-2 w-36 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
-                          <button
-                            className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
-                            onClick={() => {
-                              setDetailTaskId(task.id);
-                              setOpenRowActionTaskId(null);
-                            }}
-                            type="button"
-                          >
-                            {detailText.viewDetails}
-                          </button>
-                          <button
-                            className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
-                            onClick={() => {
-                              duplicateRow(index);
-                              setOpenRowActionTaskId(null);
-                            }}
-                            type="button"
-                          >
-                            {text.duplicateRow}
-                          </button>
-                          <button
-                            className="block w-full rounded px-3 py-2 text-left text-red-700 hover:bg-red-50"
-                            onClick={() => {
-                              deleteRow(index);
-                              setOpenRowActionTaskId(null);
-                            }}
-                            type="button"
-                          >
-                            {text.deleteRow}
-                          </button>
-                        </div>
-                      ) : null}
+                      <button
+                        className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        onClick={() => duplicateRow(index)}
+                        type="button"
+                      >
+                        {text.duplicateRow}
+                      </button>
+                      <button
+                        className="rounded border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        onClick={() => deleteRow(index)}
+                        type="button"
+                      >
+                        {text.deleteRow}
+                      </button>
                     </div>
                   </td>
                 </tr>

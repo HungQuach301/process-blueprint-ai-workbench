@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 4 Process Task Register toolbar cleanup.
+- Moved PTR AI Assistant into the main header action group next to Save changes and More, while removing the visible bulk-action strip with Select needs-review rows, More AI actions, and Clear selection.
+- Changed PTR AI Assistant to run with one click: selected rows are used as context when present, otherwise the full Process Task Register is sent as the default review scope through the existing `/api/ai/run-skill` `process-improvement-recommendation` path.
+- Kept PTR AI output as QA recommendations/review findings only; recommendations still require QA Panel preview/confirmation before any apply.
+- Exposed row actions directly as Details, Duplicate, and Delete buttons in the table action column instead of hiding Duplicate/Delete behind a row overflow menu.
+- Kept this RC7 cleanup scoped: no ProcessTask schema, D01/D02 generator, AI route/provider adapter, provider secret handling, recommendation apply workflow, or AI auto-apply behavior was changed.
 - Completed RC7 Block 3 Input with AI cleanup.
 - Renamed the main AI intake surface from AI Input Brief to Input with AI / Nhập liệu với AI in navigation, shell labels, and the section title.
 - Reorganized Input with AI tabs so Manual Input, Import File, Chat / Notes, and Voice Input coming soon are peer tabs; Chat / Notes now calls the existing `chat-to-ptr-draft` route-backed draft workflow from its own tab.

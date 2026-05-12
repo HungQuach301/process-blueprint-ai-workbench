@@ -20,7 +20,7 @@ export const navigationSections: NavigationSection[] = [
   },
   {
     id: "input-brief",
-    label: "AI Input Brief",
+    label: "Input with AI",
     description: "Enter structured process notes and context.",
     status: "Ready"
   },

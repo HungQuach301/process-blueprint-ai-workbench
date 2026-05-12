@@ -101,15 +101,19 @@ const previewLabels = {
 const inputBriefUiText = {
   vi: {
     generateDraftPtrWithAI: "Tạo PTR nháp bằng AI",
-    generateDraftPtrLocalMock: "Tạo PTR nháp local/mock",
+    generateDraftPtrLocalMock: "Tạo nháp local",
     generateDraftPtrPrimary: "Tạo PTR nháp",
     enableRealAIToGenerate: "Bật Real AI để tạo bằng AI",
     realAIGenerationHelper: "AI sẽ gọi skill input-brief-to-ptr qua route phía máy chủ. Kết quả chỉ là bản nháp để rà soát.",
+    chatAIGenerationHelper: "AI sẽ gọi skill chat-to-ptr-draft qua route phía máy chủ. Kết quả chỉ là bản nháp để rà soát.",
     localMockGenerationHelper: "Chế độ local/mock không gọi nhà cung cấp bên ngoài. Kết quả chỉ là bản nháp để rà soát.",
     generating: "Đang tạo...",
     manualInput: "Nhập thủ công",
     importFile: "Nhập tệp",
-    voiceInputComingSoon: "Nhập giọng nói - sắp có",
+    chatNotesTab: "Chat / ghi chú",
+    voiceInputComingSoon: "Nhập giọng nói — sắp có",
+    showMore: "Hiển thị thêm",
+    showLess: "Ẩn bớt",
     relatedSystems: "Hệ thống liên quan",
     relatedSystemsHelper: "Kênh khách hàng, hệ thống nội bộ và bên thứ ba được nhập riêng.",
     dataDocuments: "Dữ liệu và tài liệu",
@@ -135,7 +139,7 @@ const inputBriefUiText = {
     chatNotes: "Ghi chú / nội dung trao đổi",
     chatNotesHelper: "Dán nội dung chat, ghi chú workshop hoặc văn bản thủ công để tạo bản xem trước PTR nháp.",
     chatNotesPlaceholder: "Ví dụ: Khách hàng gửi yêu cầu mở tài khoản. RM kiểm tra hồ sơ. Ops tạo CIF...",
-    generateFromChatNotes: "Tạo PTR nháp từ ghi chú",
+    generateFromChatNotes: "Tạo PTR nháp bằng AI",
     unsupportedImage: "OCR/ảnh chưa hỗ trợ trong MVP1",
     unsupportedFile: "Loại tệp chưa hỗ trợ",
     remove: "Xóa",
@@ -154,15 +158,19 @@ const inputBriefUiText = {
   },
   en: {
     generateDraftPtrWithAI: "Generate Draft PTR with AI",
-    generateDraftPtrLocalMock: "Generate local/mock Draft PTR",
+    generateDraftPtrLocalMock: "Generate local draft",
     generateDraftPtrPrimary: "Generate Draft PTR",
     enableRealAIToGenerate: "Enable Real AI to generate with AI",
     realAIGenerationHelper: "AI calls the input-brief-to-ptr skill through the server-side route. The result is a review-only draft.",
+    chatAIGenerationHelper: "AI calls the chat-to-ptr-draft skill through the server-side route. The result is a review-only draft.",
     localMockGenerationHelper: "Local/mock mode does not call an external provider. The result is a review-only draft.",
     generating: "Generating...",
     manualInput: "Manual Input",
     importFile: "Import File",
-    voiceInputComingSoon: "Voice Input - Coming soon",
+    chatNotesTab: "Chat / Notes",
+    voiceInputComingSoon: "Voice Input — Coming soon",
+    showMore: "Show more",
+    showLess: "Show less",
     relatedSystems: "Related systems",
     relatedSystemsHelper: "Customer-facing, internal, and third-party systems are captured separately.",
     dataDocuments: "Data and documents",
@@ -188,7 +196,7 @@ const inputBriefUiText = {
     chatNotes: "Chat / notes",
     chatNotesHelper: "Paste chat, workshop notes, or manual text to generate a Draft PTR preview.",
     chatNotesPlaceholder: "Example: Customer submits account opening request. RM checks documents. Ops creates CIF...",
-    generateFromChatNotes: "Generate Draft PTR from notes",
+    generateFromChatNotes: "Generate Draft PTR with AI",
     unsupportedImage: "OCR/Image unsupported in MVP1",
     unsupportedFile: "Unsupported file type",
     remove: "Remove",
@@ -241,7 +249,7 @@ type BriefField = {
   rows: number;
 };
 
-type BriefMode = "manual" | "import-file" | "voice";
+type BriefMode = "manual" | "import-file" | "chat-notes" | "voice";
 
 const emptyBrief: InputBriefFormState = {
   processInfo: "",
@@ -637,6 +645,9 @@ export function AIInputBriefPanel() {
   const [aiProvider, setAiProvider] = useState("mock");
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
+  const [expandedSuggestionFields, setExpandedSuggestionFields] = useState<
+    Partial<Record<BriefField["key"], boolean>>
+  >({});
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -846,6 +857,13 @@ export function AIInputBriefPanel() {
     setDraftMeta(null);
     setBlockingErrors([]);
     setHasDraftGenerationAttempt(false);
+  }
+
+  function toggleFieldSuggestions(fieldKey: BriefField["key"]) {
+    setExpandedSuggestionFields((current) => ({
+      ...current,
+      [fieldKey]: !current[fieldKey]
+    }));
   }
 
   function startDraftGenerationAttempt() {
@@ -1862,7 +1880,7 @@ export function AIInputBriefPanel() {
     saveAuditLogEntry({
       action: "apply_ai_draft",
       status: "success",
-      summary: `Applied draft Process Task Register from AI Input Brief workflow with ${mode} mode.`,
+      summary: `Applied draft Process Task Register from Input with AI workflow with ${mode} mode.`,
       metadata: {
         mode,
         draftRowCount: draftTasks.length,
@@ -1910,6 +1928,8 @@ export function AIInputBriefPanel() {
   function renderBriefField(field: BriefField) {
     const { options, otherText, selectedOptions } = getFieldSelection(field);
     const isOtherSelected = selectedOptions.includes(OTHER_OPTION_LABEL);
+    const isExpanded = expandedSuggestionFields[field.key] === true;
+    const hasOverflowSuggestions = options.length > 4;
 
     return (
       <section
@@ -1926,7 +1946,11 @@ export function AIInputBriefPanel() {
         </div>
 
         <div className="min-w-0">
-          <div className="flex max-w-full flex-wrap gap-2">
+          <div
+            className={`flex max-w-full flex-wrap gap-2 ${
+              isExpanded ? "" : "max-h-16 overflow-hidden"
+            }`}
+          >
             {options.map((suggestion) => {
               const isSelected = selectedOptions.includes(suggestion);
 
@@ -1949,6 +1973,18 @@ export function AIInputBriefPanel() {
               );
             })}
           </div>
+          {hasOverflowSuggestions ? (
+            <button
+              className="mt-2 text-xs font-semibold text-violet-700 hover:text-violet-900"
+              onClick={(event) => {
+                event.preventDefault();
+                toggleFieldSuggestions(field.key);
+              }}
+              type="button"
+            >
+              {isExpanded ? uiText.showLess : uiText.showMore}
+            </button>
+          ) : null}
           {isOtherSelected ? (
             <textarea
               className="mt-3 min-h-24 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
@@ -1963,15 +1999,30 @@ export function AIInputBriefPanel() {
     );
   }
 
-  const localDraftButtonLabel = realAIEnabled
-    ? uiText.generateDraftPtrLocalMock
-    : uiText.generateDraftPtrPrimary;
-  const aiDraftButtonLabel = realAIEnabled
-    ? uiText.generateDraftPtrWithAI
-    : uiText.enableRealAIToGenerate;
+  const localDraftButtonLabel = uiText.generateDraftPtrLocalMock;
+  const aiDraftButtonLabel = uiText.generateDraftPtrWithAI;
+  const canShowFrameGenerationActions =
+    briefMode === "manual" || briefMode === "chat-notes";
+  const canGenerateChatDraft = chatNotes.trim().length >= 20;
+  const canGenerateActiveDraft =
+    briefMode === "manual" || (briefMode === "chat-notes" && canGenerateChatDraft);
+  const generateActiveDraftWithAI =
+    briefMode === "chat-notes" ? generateDraftPtrFromChatNotes : generateDraftPtrWithAI;
+  const generateActiveLocalDraft =
+    briefMode === "chat-notes" ? generateDraftPtrFromChatNotes : generateDraftPtr;
+
+  function getFileGenerationButtonLabel(file: IntakeFileMetadata) {
+    if (file.fileName.toLowerCase().endsWith(".xlsx")) {
+      return uiText.generateDraftPtrLocalMock;
+    }
+
+    return realAIEnabled ? uiText.generateDraftPtrWithAI : uiText.generateDraftPtrLocalMock;
+  }
   const generationHelperText = aiModeLoaded
     ? realAIEnabled
-      ? uiText.realAIGenerationHelper
+      ? briefMode === "chat-notes"
+        ? uiText.chatAIGenerationHelper
+        : uiText.realAIGenerationHelper
       : uiText.localMockGenerationHelper
     : uiText.checkingAIMode;
 
@@ -1993,32 +2044,36 @@ export function AIInputBriefPanel() {
           >
             {t("inputBrief.resetBrief", locale)}
           </button>
-          <div className="flex max-w-full flex-col gap-1">
-            <div className="flex flex-wrap gap-2">
-              {realAIEnabled ? (
+          {canShowFrameGenerationActions ? (
+            <div className="flex max-w-full flex-col gap-1">
+              <div className="flex flex-wrap gap-2">
+                {realAIEnabled ? (
                 <>
                   <button
                     className="btn btn-ai"
-                    disabled={isGeneratingWithAI}
-                    onClick={generateDraftPtrWithAI}
+                    disabled={isGeneratingWithAI || !canGenerateActiveDraft}
+                    onClick={() => void generateActiveDraftWithAI()}
                     type="button"
                   >
                     {isGeneratingWithAI ? uiText.generating : aiDraftButtonLabel}
                   </button>
-                  <button
-                    className="btn btn-secondary"
-                    disabled={isGeneratingWithAI}
-                    onClick={generateDraftPtr}
-                    type="button"
-                  >
-                    {localDraftButtonLabel}
-                  </button>
+                  {briefMode === "manual" ? (
+                    <button
+                      className="btn btn-secondary"
+                      disabled={isGeneratingWithAI}
+                      onClick={generateDraftPtr}
+                      type="button"
+                    >
+                      {localDraftButtonLabel}
+                    </button>
+                  ) : null}
                 </>
               ) : (
                 <>
                   <button
                     className="btn btn-primary"
-                    onClick={generateDraftPtr}
+                    disabled={!canGenerateActiveDraft}
+                    onClick={() => void generateActiveLocalDraft()}
                     type="button"
                   >
                     {localDraftButtonLabel}
@@ -2032,11 +2087,12 @@ export function AIInputBriefPanel() {
                   </button>
                 </>
               )}
+              </div>
+              <p className="max-w-xl text-xs leading-5 text-slate-500">
+                {generationHelperText}
+              </p>
             </div>
-            <p className="max-w-xl text-xs leading-5 text-slate-500">
-              {generationHelperText}
-            </p>
-          </div>
+          ) : null}
         </>
       }
       bodyClassName="p-4"
@@ -2047,6 +2103,7 @@ export function AIInputBriefPanel() {
         {[
           { id: "manual" as const, label: uiText.manualInput, disabled: false },
           { id: "import-file" as const, label: uiText.importFile, disabled: false },
+          { id: "chat-notes" as const, label: uiText.chatNotesTab, disabled: false },
           { id: "voice" as const, label: uiText.voiceInputComingSoon, disabled: false }
         ].map((mode) => (
           <button
@@ -2096,40 +2153,35 @@ export function AIInputBriefPanel() {
               {dataDocumentBriefFields.map(renderBriefField)}
             </div>
           </div>
-          <div className="w-full min-w-0 rounded border border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-950">
-                  {uiText.chatNotes}
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {locale === "vi"
-                    ? uiText.chatNotesHelper
-                    : "Paste chat, workshop notes, or manual text to generate a Draft PTR preview."}
-                </p>
-              </div>
-              <button
-                className="w-fit rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isGeneratingWithAI || chatNotes.trim().length < 20}
-                onClick={() => void generateDraftPtrFromChatNotes()}
-                type="button"
-              >
-                {locale === "vi"
-                  ? uiText.generateFromChatNotes
-                  : "Generate Draft PTR from notes"}
-              </button>
+        </div>
+      ) : null}
+
+      {briefMode === "chat-notes" ? (
+        <div className="w-full min-w-0 rounded border border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">
+                {uiText.chatNotes}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {uiText.chatNotesHelper}
+              </p>
             </div>
-            <textarea
-              className="mt-3 min-h-32 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
-              onChange={(event) => setChatNotes(event.target.value)}
-              placeholder={
-                locale === "vi"
-                  ? "Ví dụ: Khách hàng gửi yêu cầu mở tài khoản. RM kiểm tra hồ sơ. Ops tạo CIF..."
-                  : "Example: Customer submits account opening request. RM checks documents. Ops creates CIF..."
-              }
-              value={chatNotes}
-            />
+            <button
+              className="btn btn-ai w-fit"
+              disabled={isGeneratingWithAI || !canGenerateChatDraft}
+              onClick={() => void generateDraftPtrFromChatNotes()}
+              type="button"
+            >
+              {isGeneratingWithAI ? uiText.generating : uiText.generateFromChatNotes}
+            </button>
           </div>
+          <textarea
+            className="mt-3 min-h-40 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+            onChange={(event) => setChatNotes(event.target.value)}
+            placeholder={uiText.chatNotesPlaceholder}
+            value={chatNotes}
+          />
         </div>
       ) : null}
 
@@ -2231,7 +2283,11 @@ export function AIInputBriefPanel() {
                       </span>
                       <p className="mt-1 max-w-72 whitespace-normal text-xs text-slate-500">
                         {"nextStep" in uiText ? `${uiText.nextStep}: ` : "Next step: "}
-                        {getFileDraftActionLabel(file, uiText.generateDraftPtr, locale)}
+                        {getFileDraftActionLabel(
+                          file,
+                          getFileGenerationButtonLabel(file),
+                          locale
+                        )}
                       </p>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
@@ -2257,7 +2313,7 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          {uiText.generateDraftPtr}
+                          {getFileGenerationButtonLabel(file)}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".docx") &&
                         file.status !== "unsupported" ? (
@@ -2281,7 +2337,7 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          {uiText.generateDraftPtr}
+                          {getFileGenerationButtonLabel(file)}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".pdf") &&
                         file.status !== "unsupported" ? (
@@ -2305,7 +2361,7 @@ export function AIInputBriefPanel() {
                           }}
                           type="button"
                         >
-                          {uiText.generateDraftPtr}
+                          {getFileGenerationButtonLabel(file)}
                         </button>
                       ) : file.status === "unsupported" ? (
                         <span className="text-xs font-semibold text-red-700">
@@ -2386,7 +2442,7 @@ export function AIInputBriefPanel() {
                 onClick={() => void generateDraftPtrFromDocxExtraction()}
                 type="button"
               >
-                {uiText.generateDraftPtr}
+                {realAIEnabled ? uiText.generateDraftPtrWithAI : uiText.generateDraftPtrLocalMock}
               </button>
             </div>
 
@@ -2474,7 +2530,7 @@ export function AIInputBriefPanel() {
                 onClick={() => void generateDraftPtrFromPdfExtraction()}
                 type="button"
               >
-                {uiText.generateDraftPtr}
+                {realAIEnabled ? uiText.generateDraftPtrWithAI : uiText.generateDraftPtrLocalMock}
               </button>
             </div>
             {pdfExtraction.warnings.length > 0 ? (

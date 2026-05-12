@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 3 Input with AI cleanup.
+- Renamed the main AI intake surface from AI Input Brief to Input with AI / Nhập liệu với AI in navigation, shell labels, and the section title.
+- Reorganized Input with AI tabs so Manual Input, Import File, Chat / Notes, and Voice Input coming soon are peer tabs; Chat / Notes now calls the existing `chat-to-ptr-draft` route-backed draft workflow from its own tab.
+- Kept Manual Input lighter by limiting suggestion chips behind Show more / Hiển thị thêm disclosure so cards stay compact by default.
+- Clarified generation actions as Generate Draft PTR with AI / Tạo PTR nháp bằng AI and Generate local draft / Tạo nháp local, while preserving Draft Preview and explicit user Apply before PTR mutation.
+- Kept this RC7 cleanup UI-only: no AI route/provider adapter logic, provider secrets, data model, canonical schema, D01/D02 generator, recommendation apply workflow, or AI auto-apply behavior was changed.
 - Completed RC7 Block 2 AI Connection Center redesign into three provider mode cards.
 - Replaced the old Product AI / OpenAI / Claude / Local-Mock card set with Platform Provided AI, Your AI, and Local while keeping provider execution routed through the existing server-side adapter path.
 - Moved underlying provider, model display name, capability, data mode, feature flags, trust status, and per-skill override details into Advanced Settings; per-skill override is collapsed by default.

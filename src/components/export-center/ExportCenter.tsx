@@ -21,7 +21,6 @@ import { generateBpmnXml } from "@/lib/generators/bpmn-generator";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import {
   generateProductDeliveryDraft,
-  generateProductScopeReview,
   type ProductDeliveryDraft
 } from "@/lib/generators/product-delivery-generator";
 import { generateQaReportMarkdown } from "@/lib/generators/qa-report-generator";
@@ -1922,49 +1921,263 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
     }
   }
 
-  function generateAllProductDelivery() {
+  async function generateAllProductDelivery() {
+    const timestamp = createTimestamp();
+    const processTasks = readProcessTasks();
+    const sourceSummary = readInputBriefSourceSummary();
+
     try {
-      const nextDraft = buildProductDeliveryDraft();
-      const processTasks = readProcessTasks();
-      const sourceSummary = readInputBriefSourceSummary();
-      const scopeReview = generateProductScopeReview({
-        brd: nextDraft.draft.brd,
-        srs: nextDraft.draft.srs,
-        userStorySet: nextDraft.draft.userStorySet,
+      setIsGeneratingBRD(true);
+      setIsGeneratingSRS(true);
+      setIsGeneratingUserStories(true);
+      setIsGeneratingAcceptanceCriteria(true);
+      setIsGeneratingProductScopeReview(true);
+
+      const brdResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "ptr-to-brd",
+          payload: {
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const brdData = (await brdResponse.json()) as AISkillRouteResponse<BRD>;
+
+      if (!brdResponse.ok || !brdData.ok || !brdData.result) {
+        logRouteAIRun({
+          skillId: "ptr-to-brd",
+          success: false,
+          meta: brdData.meta,
+          errorMessage: brdData.error,
+          validationErrors: brdData.validationErrors
+        });
+        setMessage(
+          brdData.validationErrors?.length
+            ? brdData.validationErrors.join(" ")
+            : brdData.error || "Could not generate BRD preview."
+        );
+        return;
+      }
+
+      logRouteAIRun({ skillId: "ptr-to-brd", success: true, meta: brdData.meta });
+
+      const srsResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "brd-to-srs",
+          payload: {
+            brd: brdData.result,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const srsData = (await srsResponse.json()) as AISkillRouteResponse<SRS>;
+
+      if (!srsResponse.ok || !srsData.ok || !srsData.result) {
+        logRouteAIRun({
+          skillId: "brd-to-srs",
+          success: false,
+          meta: srsData.meta,
+          errorMessage: srsData.error,
+          validationErrors: srsData.validationErrors
+        });
+        setMessage(
+          srsData.validationErrors?.length
+            ? srsData.validationErrors.join(" ")
+            : srsData.error || "Could not generate SRS preview."
+        );
+        return;
+      }
+
+      logRouteAIRun({ skillId: "brd-to-srs", success: true, meta: srsData.meta });
+
+      const storiesResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "srs-to-user-stories",
+          payload: {
+            brd: brdData.result,
+            srs: srsData.result,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const storiesData =
+        (await storiesResponse.json()) as AISkillRouteResponse<UserStorySet>;
+
+      if (!storiesResponse.ok || !storiesData.ok || !storiesData.result) {
+        logRouteAIRun({
+          skillId: "srs-to-user-stories",
+          success: false,
+          meta: storiesData.meta,
+          errorMessage: storiesData.error,
+          validationErrors: storiesData.validationErrors
+        });
+        setMessage(
+          storiesData.validationErrors?.length
+            ? storiesData.validationErrors.join(" ")
+            : storiesData.error || "Could not generate user stories preview."
+        );
+        return;
+      }
+
+      logRouteAIRun({
+        skillId: "srs-to-user-stories",
+        success: true,
+        meta: storiesData.meta
+      });
+
+      const acceptanceResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "user-stories-to-acceptance-criteria",
+          payload: {
+            userStorySet: storiesData.result,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const acceptanceData =
+        (await acceptanceResponse.json()) as AISkillRouteResponse<AcceptanceCriteriaSet>;
+
+      if (!acceptanceResponse.ok || !acceptanceData.ok || !acceptanceData.result) {
+        logRouteAIRun({
+          skillId: "user-stories-to-acceptance-criteria",
+          success: false,
+          meta: acceptanceData.meta,
+          errorMessage: acceptanceData.error,
+          validationErrors: acceptanceData.validationErrors
+        });
+        setMessage(
+          acceptanceData.validationErrors?.length
+            ? acceptanceData.validationErrors.join(" ")
+            : acceptanceData.error || "Could not generate acceptance criteria preview."
+        );
+        return;
+      }
+
+      logRouteAIRun({
+        skillId: "user-stories-to-acceptance-criteria",
+        success: true,
+        meta: acceptanceData.meta
+      });
+
+      const scopeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: "product-scope-review",
+          payload: {
+            brd: brdData.result,
+            srs: srsData.result,
+            userStorySet: storiesData.result,
+            processTasks,
+            projectContext: productDeliveryContext,
+            notes: productDeliveryNotes,
+            sourceSummary,
+            uploadedFileText: productDeliveryFileText,
+            businessObjective: brdData.result.businessObjective,
+            generatedAt: timestamp
+          }
+        })
+      });
+      const scopeData =
+        (await scopeResponse.json()) as AISkillRouteResponse<ProductScopeReview>;
+
+      if (!scopeResponse.ok || !scopeData.ok || !scopeData.result) {
+        logRouteAIRun({
+          skillId: "product-scope-review",
+          success: false,
+          meta: scopeData.meta,
+          errorMessage: scopeData.error,
+          validationErrors: scopeData.validationErrors
+        });
+        setMessage(
+          scopeData.validationErrors?.length
+            ? scopeData.validationErrors.join(" ")
+            : scopeData.error || "Could not generate product scope review preview."
+        );
+        return;
+      }
+
+      logRouteAIRun({
+        skillId: "product-scope-review",
+        success: true,
+        meta: scopeData.meta
+      });
+
+      const nextDraft = generateProductDeliveryDraft({
         processTasks,
         projectContext: productDeliveryContext,
         notes: productDeliveryNotes,
         sourceSummary,
         uploadedFileText: productDeliveryFileText,
-        businessObjective: nextDraft.draft.brd.businessObjective,
-        generatedAt: nextDraft.timestamp
+        generatedAt: timestamp
       });
 
-      setProductDeliveryDraft(nextDraft);
+      setProductDeliveryDraft({
+        timestamp,
+        draft: nextDraft
+      });
       setBRDPreview({
-        timestamp: nextDraft.timestamp,
-        sourceSkillId: "product-delivery-draft",
-        brd: nextDraft.draft.brd
+        timestamp,
+        sourceSkillId: "ptr-to-brd",
+        brd: brdData.result
       });
       setSRSPreview({
-        timestamp: nextDraft.timestamp,
-        sourceSkillId: "product-delivery-draft",
-        srs: nextDraft.draft.srs
+        timestamp,
+        sourceSkillId: "brd-to-srs",
+        srs: srsData.result
       });
       setUserStoryPreview({
-        timestamp: nextDraft.timestamp,
-        sourceSkillId: "product-delivery-draft",
-        userStorySet: nextDraft.draft.userStorySet
+        timestamp,
+        sourceSkillId: "srs-to-user-stories",
+        userStorySet: storiesData.result
       });
       setAcceptanceCriteriaPreview({
-        timestamp: nextDraft.timestamp,
-        sourceSkillId: "product-delivery-draft",
-        acceptanceCriteria: nextDraft.draft.acceptanceCriteria
+        timestamp,
+        sourceSkillId: "user-stories-to-acceptance-criteria",
+        acceptanceCriteria: acceptanceData.result
       });
       setProductScopeReviewPreview({
-        timestamp: nextDraft.timestamp,
-        sourceSkillId: "product-delivery-draft",
-        scopeReview
+        timestamp,
+        sourceSkillId: "product-scope-review",
+        scopeReview: scopeData.result
       });
       setRequirementQAPreview(null);
       saveAuditLogEntry({
@@ -1973,22 +2186,23 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
         summary:
           "Generated preview-first Product Delivery draft artifacts without export or apply.",
         metadata: {
-          timestamp: nextDraft.timestamp,
-          brdRequirementCount: nextDraft.draft.brd.businessRequirements.length,
+          timestamp,
+          workflow: "route-backed-product-delivery-generate-all",
+          brdRequirementCount: brdData.result.businessRequirements.length,
           srsRequirementCount:
-            nextDraft.draft.srs.functionalRequirements.length +
-            nextDraft.draft.srs.nonFunctionalRequirements.length,
-          userStoryCount: nextDraft.draft.userStorySet.stories.length,
+            srsData.result.functionalRequirements.length +
+            srsData.result.nonFunctionalRequirements.length,
+          userStoryCount: storiesData.result.stories.length,
           acceptanceCriteriaCount:
-            nextDraft.draft.acceptanceCriteria.criteria.length,
-          scopeItemCount: scopeReview.inScope.length,
-          mvpItemCount: scopeReview.mvpSlice.items.length
+            acceptanceData.result.criteria.length,
+          scopeItemCount: scopeData.result.inScope.length,
+          mvpItemCount: scopeData.result.mvpSlice.items.length
         }
       });
       setMessage(
         locale === "vi"
-          ? "Đã tạo preview nháp cho BRD, SRS, User Stories, Acceptance Criteria và Scope/MVP. Chưa export hoặc áp dụng."
-          : "Created draft previews for BRD, SRS, User Stories, Acceptance Criteria, and Scope/MVP. Nothing was exported or applied."
+          ? "Đã tạo preview nháp qua route AI cho BRD, SRS, User Stories, Acceptance Criteria và Scope/MVP. Chưa export hoặc áp dụng."
+          : "Created route-backed AI draft previews for BRD, SRS, User Stories, Acceptance Criteria, and Scope/MVP. Nothing was exported or applied."
       );
     } catch (error) {
       setMessage(
@@ -2000,6 +2214,12 @@ export function ExportCenter({ view = "export" }: ExportCenterProps) {
             ? "Không thể tạo toàn bộ hồ sơ bàn giao. Vui lòng kiểm tra dữ liệu."
             : "Could not generate all Product Delivery drafts. Please check the data."
       );
+    } finally {
+      setIsGeneratingBRD(false);
+      setIsGeneratingSRS(false);
+      setIsGeneratingUserStories(false);
+      setIsGeneratingAcceptanceCriteria(false);
+      setIsGeneratingProductScopeReview(false);
     }
   }
 

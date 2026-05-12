@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 9 final OpenAI and Claude real AI coverage pass.
+- Added `docs/AI_REAL_PROVIDER_COVERAGE_RC7.md` with coverage for Input with AI, file/chat to PTR, PTR AI Assistant, QA Engine, D01/D02 AI review, Template review, Product Delivery Generate All, BRD/SRS/User Stories/Acceptance Criteria, Scope/MVP, and AI Handoff Pack.
+- Confirmed the active real-AI-ready entry points route through `/api/ai/run-skill`, use server-side OpenAI/Claude/Product AI/mock providers, validate output schemas, and keep output as draft/recommendation/review/preview before user action.
+- Fixed the RC7 Product Delivery Generate All wiring so it now chains existing server-side skills (`ptr-to-brd`, `brd-to-srs`, `srs-to-user-stories`, `user-stories-to-acceptance-criteria`, and `product-scope-review`) instead of generating the full set only through browser deterministic code.
+- Kept Generate All preview-first: it updates Product Delivery previews only; it does not auto-export, auto-apply, mutate PTR, or persist an Artifact Graph.
+- Kept this RC7 coverage pass scoped: no provider adapter, provider secret handling, ProcessTask schema, Product Delivery schema, D01/D02 generator, recommendation apply workflow, or AI auto-apply behavior was changed.
 - Completed RC7 Block 8 Product Delivery layout and generate-all cleanup.
 - Added a top-right primary `Generate All Product Delivery` / `Tạo toàn bộ hồ sơ bàn giao` action in the Product Delivery header.
 - Reworked Product Delivery overview into six responsive artifact cards: BRD, SRS, User Stories, Acceptance Criteria, Scope/MVP, and AI Handoff Pack, each with status, primary action, and download when a preview exists.

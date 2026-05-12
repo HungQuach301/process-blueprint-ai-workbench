@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Completed RC7 Block 5 QA Engine recommendation toolbar layout cleanup.
+- Reworked the QA recommendation toolbar into a responsive first-row action layout: Generate AI recommendations, Apply selected, Apply all safe, Apply all recommendations, and More.
+- Highlighted Generate AI recommendations with the existing AI purple button style while keeping the `ai-process-qa` call on the server-side `/api/ai/run-skill` route.
+- Moved recommendation filters and AI status into a separate options area so toolbar buttons no longer crowd, overlap, or clip on the right.
+- Kept Provider Compare behind the More/advanced toggle and preserved the existing provider-compare confirmation behavior.
+- Kept Apply all recommendations preview-first with high-risk and graph-changing counts/warnings before any confirmation; no AI output is auto-applied and feedback logging remains unchanged.
+- Kept this RC7 cleanup scoped: no ProcessTask schema, D01/D02 generator, AI route/provider adapter, provider secret handling, feedback store, recommendation apply engine, or AI auto-apply behavior was changed.
 - Completed RC7 Block 4 Process Task Register toolbar cleanup.
 - Moved PTR AI Assistant into the main header action group next to Save changes and More, while removing the visible bulk-action strip with Select needs-review rows, More AI actions, and Clear selection.
 - Changed PTR AI Assistant to run with one click: selected rows are used as context when present, otherwise the full Process Task Register is sent as the default review scope through the existing `/api/ai/run-skill` `process-improvement-recommendation` path.

@@ -1381,7 +1381,7 @@ export function QAPanel({
 
       {hasRecommendations ? (
         <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
-          <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0">
             <div className="min-w-0">
               <p className="text-sm font-semibold uppercase text-emerald-800">
                 {text.recommendationToolbar}
@@ -1397,139 +1397,126 @@ export function QAPanel({
               </p>
             </div>
 
-            <div className="w-full xl:max-w-4xl">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-end">
-                <div className="min-w-[220px] rounded border border-violet-200 bg-white/80 p-3">
-                  <button
-                    className="btn btn-ai w-full justify-center text-xs"
-                    disabled={isRunningAIQA}
-                    onClick={runAiQa}
-                    type="button"
-                  >
-                    {isRunningAIQA ? text.running : text.generateAIRecommendations}
-                  </button>
-                  <p className="mt-2 text-xs leading-relaxed text-violet-800">
-                    {realAIQAEnabled ? text.realAIStatus : text.mockLocalStatus}
-                  </p>
-                </div>
-
-                <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                  <button
-                    className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={safeRecommendations.length === 0}
-                    onClick={selectSafeRecommendations}
-                    type="button"
-                  >
-                    {text.selectSafe} ({safeRecommendations.length})
-                  </button>
-                  <button
-                    className="btn btn-success text-xs"
-                    disabled={selectedRecommendations.length === 0}
-                    onClick={applySelectedRecommendations}
-                    type="button"
-                  >
-                    {text.applySelected} ({selectedRecommendations.length})
-                  </button>
-                  <button
-                    className="btn btn-success text-xs"
-                    disabled={safeRecommendations.length === 0}
-                    onClick={applyAllSafeRecommendations}
-                    type="button"
-                  >
-                    {text.applyAllSafe} ({safeRecommendations.length})
-                  </button>
-                  <button
-                    className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={allRecommendations.length === 0}
-                    onClick={applyAllRecommendations}
-                    type="button"
-                  >
-                    {text.applyAllRecommendations} ({allRecommendations.length})
-                  </button>
-                  <div className="relative">
+            <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2">
+              <button
+                className="btn btn-ai min-w-[220px] justify-center text-xs"
+                disabled={isRunningAIQA}
+                onClick={runAiQa}
+                type="button"
+              >
+                {isRunningAIQA ? text.running : text.generateAIRecommendations}
+              </button>
+              <button
+                className="btn btn-success text-xs"
+                disabled={selectedRecommendations.length === 0}
+                onClick={applySelectedRecommendations}
+                type="button"
+              >
+                {text.applySelected} ({selectedRecommendations.length})
+              </button>
+              <button
+                className="btn btn-success text-xs"
+                disabled={safeRecommendations.length === 0}
+                onClick={applyAllSafeRecommendations}
+                type="button"
+              >
+                {text.applyAllSafe} ({safeRecommendations.length})
+              </button>
+              <button
+                className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={allRecommendations.length === 0}
+                onClick={applyAllRecommendations}
+                type="button"
+              >
+                {text.applyAllRecommendations} ({allRecommendations.length})
+              </button>
+              <div className="relative">
+                <button
+                  className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                  onClick={() => setIsMoreMenuOpen((isOpen) => !isOpen)}
+                  type="button"
+                >
+                  {text.more}
+                </button>
+                {isMoreMenuOpen ? (
+                  <div className="absolute right-0 z-20 mt-2 w-64 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
                     <button
-                      className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
-                      onClick={() => setIsMoreMenuOpen((isOpen) => !isOpen)}
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={selectedRecommendations.length === 0}
+                      onClick={() => {
+                        clearSelection();
+                        setIsMoreMenuOpen(false);
+                      }}
                       type="button"
                     >
-                      {text.more}
+                      {text.clearSelection}
                     </button>
-                    {isMoreMenuOpen ? (
-                      <div className="absolute right-0 z-20 mt-2 w-64 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
-                        <button
-                          className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={selectedRecommendations.length === 0}
-                          onClick={() => {
-                            clearSelection();
-                            setIsMoreMenuOpen(false);
-                          }}
-                          type="button"
-                        >
-                          {text.clearSelection}
-                        </button>
-                        <button
-                          className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
-                          onClick={() => {
-                            setCompareModeEnabled((isEnabled) => !isEnabled);
-                            setIsMoreMenuOpen(false);
-                          }}
-                          type="button"
-                        >
-                          {text.providerCompare}
-                        </button>
-                        <button
-                          className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
-                          onClick={() => {
-                            downloadFeedbackJson();
-                            setIsMoreMenuOpen(false);
-                          }}
-                          type="button"
-                        >
-                          {text.exportFeedback}
-                        </button>
-                        <button
-                          className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
-                          onClick={() => {
-                            clearLocalFeedback();
-                            setIsMoreMenuOpen(false);
-                          }}
-                          type="button"
-                        >
-                          {text.clearLocalFeedback}
-                        </button>
-                      </div>
-                    ) : null}
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        setCompareModeEnabled((isEnabled) => !isEnabled);
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.providerCompare}
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        downloadFeedbackJson();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.exportFeedback}
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        clearLocalFeedback();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.clearLocalFeedback}
+                    </button>
                   </div>
-                </div>
+                ) : null}
               </div>
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-emerald-900">
-            <label className="flex items-center gap-2">
-              <input
-                checked={showOnlySafe}
-                onChange={(event) => setShowOnlySafe(event.target.checked)}
-                type="checkbox"
-              />
-              {text.showOnlySafe}
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                checked={includeMediumConfidence}
-                onChange={(event) => setIncludeMediumConfidence(event.target.checked)}
-                type="checkbox"
-              />
-              {text.includeMedium}
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                checked={includeGraphChanging}
-                onChange={(event) => setIncludeGraphChanging(event.target.checked)}
-                type="checkbox"
-              />
-              {text.includeGraph}
-            </label>
+          <div className="mt-3 rounded border border-emerald-200 bg-white/70 p-3">
+            <p className="text-xs leading-relaxed text-violet-800">
+              {realAIQAEnabled ? text.realAIStatus : text.mockLocalStatus}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-emerald-900">
+              <label className="flex items-center gap-2">
+                <input
+                  checked={showOnlySafe}
+                  onChange={(event) => setShowOnlySafe(event.target.checked)}
+                  type="checkbox"
+                />
+                {text.showOnlySafe}
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  checked={includeMediumConfidence}
+                  onChange={(event) => setIncludeMediumConfidence(event.target.checked)}
+                  type="checkbox"
+                />
+                {text.includeMedium}
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  checked={includeGraphChanging}
+                  onChange={(event) => setIncludeGraphChanging(event.target.checked)}
+                  type="checkbox"
+                />
+                {text.includeGraph}
+              </label>
+            </div>
           </div>
 
           {compareModeEnabled ? (

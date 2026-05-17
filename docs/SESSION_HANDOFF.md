@@ -18,6 +18,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `002-rule-qa-to-findings`.
+- Added `src/lib/qa/rule-qa-to-findings.ts` to convert existing Rule QA `QaIssue[]` into `QAFindingSet` without changing `validateProcessTasks`, `QARecommendation`, QA Panel UI, or recommendation apply behavior.
 - Ran task `M1-create-remaining-task-files`.
 - Created detailed Codex task definitions for remaining Milestone 1 tasks `002` through `017`, including QA findings, GateVerdict, Draft PTR gates, provider normalizer, D01/D02 gates, chain resilience, release hardening, data service abstraction, and User Gate 1 preparation.
 - Kept this meta-task documentation-only: no application source code, AI behavior, generator behavior, dependencies, or auto-apply behavior were changed.
@@ -215,6 +217,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/lib/qa/rule-qa-to-findings.ts`
+- `docs/SESSION_HANDOFF.md`
 - `.codex/tasks/002-rule-qa-to-findings.md`
 - `.codex/tasks/003-ai-qa-finding-skill.md`
 - `.codex/tasks/004-qa-panel-split.md`

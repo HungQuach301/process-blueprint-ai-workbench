@@ -9,7 +9,7 @@ Legend:
 
 - [x] 000-source-code-audit
 - [x] 001-qafinding-schema
-- [ ] 002-rule-qa-to-findings
+- [x] 002-rule-qa-to-findings
 - [ ] 003-ai-qa-finding-skill
 - [ ] 004-qa-panel-split
 - [ ] INT-01-qa-flow-integration-check
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

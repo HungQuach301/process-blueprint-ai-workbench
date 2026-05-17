@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `009a-provider-normalizer`.
+- Added `src/lib/ai/provider-output-normalizer.ts` as a pure, route-unwired helper for provider output normalization.
+- The normalizer accepts parsed provider output with skill/schema context, unwraps shallow `{ result }` / `{ data }` payloads, normalizes common shallow field aliases, reports missing required arrays, and reports broken step references as errors without silently nulling them.
+- Kept `/api/ai/run-skill/route.ts`, mock/local behavior, provider adapters, AI auto-apply behavior, schemas, and D01/D02 generators unchanged.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `INT-02-draft-ptr-gate-integration-check`.
 - Added `docs/DRAFT_PTR_GATE_CHECK.md` to document the Draft PTR Gate + Source Coverage advisory integration check.
 - Verified by source inspection that Draft PTR preview renders `GateVerdict` separately from Source Coverage advisory, Source Coverage remains non-blocking, and Replace/Append Apply remains explicit.

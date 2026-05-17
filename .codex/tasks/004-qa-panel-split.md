@@ -1,4 +1,4 @@
-# Task ID: 004-qa-panel-split
+﻿# Task ID: 004-qa-panel-split
 
 ## Task name
 
@@ -35,7 +35,7 @@ Update the QA Panel UI so findings and recommendations are visually separated. F
 - src/components/qa-panel/QAPanel.tsx
 - src/lib/qa/task-register-rules.ts
 - src/lib/qa/qa-finding.ts
-- src/lib/qa/qa-finding-adapter.ts
+- src/lib/qa/rule-qa-to-findings.ts
 - src/lib/recommendation-engine/apply-operations.ts
 - src/lib/recommendation-engine/preview-operations.ts
 
@@ -94,3 +94,4 @@ git restore src/components/qa-panel/QAPanel.tsx
 ## Suggested commit message
 
 Split QA Panel findings and recommendations
+

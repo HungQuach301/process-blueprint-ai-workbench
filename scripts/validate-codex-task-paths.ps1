@@ -26,25 +26,30 @@ foreach ($line in $lines) {
   }
 
   if ($inSection -and $line -match "^- ") {
-    $path = ($line -replace "^- ", "").Trim()
-    $path = $path.Trim("`", "'", '"')
+    $candidate = ($line -replace "^- ", "").Trim()
+
+    # Remove common Markdown inline code/backtick/single-quote/double-quote wrappers safely
+    $candidate = $candidate.Trim()
+    $candidate = $candidate.Trim([char]96)
+    $candidate = $candidate.Trim([char]39)
+    $candidate = $candidate.Trim([char]34)
 
     if (
-      $path -and
-      $path -ne "..." -and
-      $path -notmatch "<" -and
-      $path -notmatch "^None$"
+      $candidate -and
+      $candidate -ne "..." -and
+      $candidate -notmatch "<" -and
+      $candidate -notmatch "^None$"
     ) {
-      $paths += $path
+      $paths += $candidate
     }
   }
 }
 
 $missing = @()
 
-foreach ($path in $paths) {
-  if (-not (Test-Path $path)) {
-    $missing += $path
+foreach ($candidatePath in $paths) {
+  if (-not (Test-Path $candidatePath)) {
+    $missing += $candidatePath
   }
 }
 

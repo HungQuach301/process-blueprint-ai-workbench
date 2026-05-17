@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-000-milestone-1-technical-status-check`.
+- Added `docs/MILESTONE_1_TECHNICAL_STATUS.md` summarizing Milestone 1 technical status, task `000` through `017` completion evidence, integration check status, User-Facing Readiness Sprint dependencies, and known risks across real AI, Product Delivery, Export Center, QA, D01/D02, and user-facing language.
+- Kept this task documentation-only; no application source code, dependencies, AI behavior, generator behavior, task queue, or runtime behavior was changed.
 - Ran task `UX-create-user-facing-readiness-tasks`.
 - Added User-Facing Readiness Sprint task definitions under `.codex/tasks/` for UX-000, UX-001 through UX-012, including Product Delivery separation, Export Center simplification, mixed-language/mock label cleanup, AI Connection status cleanup, PTR simple mode, tooltips, Getting Started, Input Brief validation timing, QA Panel cleanup, D01/D02 preview improvements, AI error/retry feedback, save/unsaved feedback, local workspace backup/restore, and final regression check.
 - Updated `.codex/TASK_QUEUE.md` to include the UX tasks in the required implementation order.

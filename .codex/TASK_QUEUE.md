@@ -33,7 +33,7 @@ Legend:
 - [x] 015-release-hardening
 - [x] 016-data-service-abstraction
 - [x] 017-user-gate-1-preparation
-- [ ] UX-000-milestone-1-technical-status-check
+- [x] UX-000-milestone-1-technical-status-check
 - [ ] UX-008-product-delivery-module-separation
 - [ ] UX-009-export-center-simplification
 - [ ] UX-010-mixed-language-and-mock-label-cleanup
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

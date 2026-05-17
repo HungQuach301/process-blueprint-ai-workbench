@@ -17,68 +17,86 @@ if (-not (Test-Path $taskPath)) {
   throw "Task file not found: $taskPath"
 }
 
+function Convert-TaskListLineToPath {
+  param(
+    [Parameter(Mandatory=$true)]
+    [string]$RawLine
+  )
+
+  $path = ($RawLine -replace "^- ", "").Trim()
+
+  # Support task lines like:
+  # - Optional: docs/ABC.md
+  # - Optional: `docs/ABC.md` if needed
+  $path = ($path -replace "^Optional:\s*", "").Trim()
+
+  if ($path -match "\s+only if\s+") {
+    $path = ($path -split "\s+only if\s+")[0].Trim()
+  }
+
+  if ($path -match "\s+if\s+") {
+    $path = ($path -split "\s+if\s+")[0].Trim()
+  }
+
+  # Strip Markdown/code quote wrappers safely
+  $path = $path.Trim()
+  $path = $path.Trim([char]96)  # backtick `
+  $path = $path.Trim([char]39)  # single quote '
+  $path = $path.Trim([char]34)  # double quote "
+
+  # Normalize Windows slashes to Git-style slashes
+  $path = $path -replace "\\", "/"
+
+  return $path
+}
+
+function Get-TaskSectionPaths {
+  param(
+    [Parameter(Mandatory=$true)]
+    [string]$SectionName
+  )
+
+  $taskLines = Get-Content $taskPath
+  $paths = @()
+  $inSection = $false
+
+  foreach ($line in $taskLines) {
+    if ($line -match "^##\s+$([regex]::Escape($SectionName))\s*$") {
+      $inSection = $true
+      continue
+    }
+
+    if ($line -match "^## " -and $inSection) {
+      break
+    }
+
+    if ($inSection -and $line -match "^- ") {
+      $path = Convert-TaskListLineToPath -RawLine $line
+
+      if (
+        $path -and
+        $path -ne "..." -and
+        $path -notmatch "<" -and
+        $path -notmatch "^None$"
+      ) {
+        $paths += $path
+      }
+    }
+  }
+
+  return $paths
+}
+
 Write-Host "Verifying before finish..." -ForegroundColor Cyan
 & "$PSScriptRoot\verify-task.ps1"
 
 Write-Host "Reading allowed changed files from task..." -ForegroundColor Cyan
 
-$taskLines = Get-Content $taskPath
-$allowed = @()
-$inAllowed = $false
-
-foreach ($line in $taskLines) {
-  if ($line -match "^## Allowed changed files\s*$") {
-    $inAllowed = $true
-    continue
-  }
-
-  if ($line -match "^## " -and $inAllowed) {
-    break
-  }
-
-  if ($inAllowed -and $line -match "^- ") {
-    $path = ($line -replace "^- ", "").Trim()
-$path = ($path -replace "^Optional:\s*", "").Trim()
-if ($path -match "\s+only if\s+") {
-  $path = ($path -split "\s+only if\s+")[0].Trim()
-}
-if ($path -match "\s+if\s+") {
-  $path = ($path -split "\s+if\s+")[0].Trim()
-}
-    if ($path -and $path -ne "...") {
-      $allowed += $path
-    }
-  }
-}
+$allowed = Get-TaskSectionPaths -SectionName "Allowed changed files"
 
 if (-not $allowed -or $allowed.Count -eq 0) {
   Write-Warning "No Allowed changed files found in task. Falling back to Files expected to change."
-
-  $inExpected = $false
-  foreach ($line in $taskLines) {
-    if ($line -match "^## Files expected to change\s*$") {
-      $inExpected = $true
-      continue
-    }
-
-    if ($line -match "^## " -and $inExpected) {
-      break
-    }
-
-    if ($inExpected -and $line -match "^- ") {
-      $path = ($line -replace "^- ", "").Trim()
-$path = ($path -replace "^Optional:\s*", "").Trim()
-if ($path -match "\s+only if\s+") {
-  $path = ($path -split "\s+only if\s+")[0].Trim()
-}
-if ($path -match "\s+if\s+") {
-  $path = ($path -split "\s+if\s+")[0].Trim()
-}
-      if ($path -and $path -ne "...") {
-        $allowed += $path
-      }
-    }
-  }
+  $allowed = Get-TaskSectionPaths -SectionName "Files expected to change"
 }
 
 if (-not $allowed -or $allowed.Count -eq 0) {
@@ -93,9 +111,9 @@ $changed = @()
 
 foreach ($line in $changedRaw) {
   if (-not [string]::IsNullOrWhiteSpace($line)) {
-    $path = $line.Substring(3).Trim()
-    $path = $path -replace "\\", "/"
-    $changed += $path
+    $filePath = $line.Substring(3).Trim()
+    $filePath = $filePath -replace "\\", "/"
+    $changed += $filePath
   }
 }
 
@@ -164,4 +182,3 @@ if ($queue -eq $oldQueue) {
 
 Write-Host "Task finished: $TaskId" -ForegroundColor Green
 git status --short
-

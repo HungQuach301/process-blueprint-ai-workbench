@@ -13,7 +13,7 @@ Legend:
 - [x] 003-ai-qa-finding-skill
 - [x] 004-qa-panel-split
 - [x] INT-01-qa-flow-integration-check
-- [ ] 005-gateverdict-framework
+- [x] 005-gateverdict-framework
 - [ ] 006a-draft-ptr-gate-v1
 - [ ] 006b-wire-draft-ptr-gate-ui
 - [ ] 007-source-coverage-advisory
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

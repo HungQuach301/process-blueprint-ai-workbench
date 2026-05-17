@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `005-gateverdict-framework`.
+- Added `src/lib/quality-engine/gate-verdict.ts` with shared GateVerdict status, issue, blocker, warning, score breakdown, summary, and pure helper types/functions for future gates.
+- Exported the GateVerdict framework from `src/lib/quality-engine/index.ts`.
+- Kept existing `runDraftProcessTaskRegisterQualityGate` unchanged; no AI route, UI, D01/D02 generator, or existing gate migration was introduced.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `INT-01-qa-flow-integration-check`.
 - Verified the QA integration flow from Rule QA issues to `QAFinding`, QA Panel Findings, AI findings via `ai-process-qa-finding`, and existing `QARecommendation` preview/apply behavior.
 - Added `docs/QA_FLOW_CHECK.md` with the integration check result, edge cases reviewed, and residual manual UI test risk.
@@ -230,6 +235,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/lib/quality-engine/gate-verdict.ts`
+- `src/lib/quality-engine/index.ts`
 - `docs/QA_FLOW_CHECK.md`
 - `src/components/qa-panel/QAPanel.tsx`
 - `src/lib/ai/skill-registry-v2.ts`

@@ -1,4 +1,4 @@
-# Task ID: 016-data-service-abstraction
+﻿# Task ID: 016-data-service-abstraction
 
 ## Task name
 
@@ -38,6 +38,11 @@ Add a small `DataService` interface and `LocalDataService` implementation as a f
 
 - src/lib/data/data-service.ts
 - Optional: src/lib/data/index.ts
+- docs/SESSION_HANDOFF.md
+
+## Allowed changed files
+
+- src/lib/data/*
 - docs/SESSION_HANDOFF.md
 
 ## Implementation instructions
@@ -87,3 +92,4 @@ git restore src/lib/data/data-service.ts src/lib/data/index.ts
 ## Suggested commit message
 
 Add local DataService abstraction
+

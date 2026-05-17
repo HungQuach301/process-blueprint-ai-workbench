@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `M1-create-remaining-task-files`.
+- Created detailed Codex task definitions for remaining Milestone 1 tasks `002` through `017`, including QA findings, GateVerdict, Draft PTR gates, provider normalizer, D01/D02 gates, chain resilience, release hardening, data service abstraction, and User Gate 1 preparation.
+- Kept this meta-task documentation-only: no application source code, AI behavior, generator behavior, dependencies, or auto-apply behavior were changed.
 - Ran task `001-qafinding-schema`.
 - Added `src/lib/qa/qa-finding.ts` with `QAFindingSeverity`, `QAFindingCategory`, `QAFinding`, `QAFindingSet`, `createFindingSummary`, `validateQAFinding`, and `mergeFindingSets`.
 - Kept `QARecommendation` schema, recommendation apply behavior, UI, AI route, and D01/D02 generators unchanged.
@@ -212,6 +215,31 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `.codex/tasks/002-rule-qa-to-findings.md`
+- `.codex/tasks/003-ai-qa-finding-skill.md`
+- `.codex/tasks/004-qa-panel-split.md`
+- `.codex/tasks/INT-01-qa-flow-integration-check.md`
+- `.codex/tasks/005-gateverdict-framework.md`
+- `.codex/tasks/006a-draft-ptr-gate-v1.md`
+- `.codex/tasks/006b-wire-draft-ptr-gate-ui.md`
+- `.codex/tasks/007-source-coverage-advisory.md`
+- `.codex/tasks/008-draft-ptr-golden-tests.md`
+- `.codex/tasks/INT-02-draft-ptr-gate-integration-check.md`
+- `.codex/tasks/009a-provider-normalizer.md`
+- `.codex/tasks/009b-wire-normalizer-route.md`
+- `.codex/tasks/010-normalizer-golden-tests.md`
+- `.codex/tasks/INT-03-ai-route-normalizer-integration-check.md`
+- `.codex/tasks/011-d01-pre-gate.md`
+- `.codex/tasks/012-d02-pre-gate.md`
+- `.codex/tasks/013a-xml-parser-strategy.md`
+- `.codex/tasks/013b-d01-post-gen-gate.md`
+- `.codex/tasks/013c-d02-post-gen-gate.md`
+- `.codex/tasks/013d-wire-post-gates-ui.md`
+- `.codex/tasks/014-chain-resilience-types.md`
+- `.codex/tasks/015-release-hardening.md`
+- `.codex/tasks/016-data-service-abstraction.md`
+- `.codex/tasks/017-user-gate-1-preparation.md`
+- `docs/SESSION_HANDOFF.md`
 - `src/lib/qa/qa-finding.ts`
 - `docs/SESSION_HANDOFF.md`
 - `docs/CODE_AUDIT_REPORT.md`

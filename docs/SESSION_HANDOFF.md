@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `001-qafinding-schema`.
+- Added `src/lib/qa/qa-finding.ts` with `QAFindingSeverity`, `QAFindingCategory`, `QAFinding`, `QAFindingSet`, `createFindingSummary`, `validateQAFinding`, and `mergeFindingSets`.
+- Kept `QARecommendation` schema, recommendation apply behavior, UI, AI route, and D01/D02 generators unchanged.
 - Ran task `000-source-code-audit`.
 - Created `docs/CODE_AUDIT_REPORT.md` to identify the real source-code entry points for `ProcessTask`, `TemplateProfile`, `QARecommendation`, rule QA, Draft PTR quality gates, `/api/ai/run-skill`, provider parse/validate/repair, D01/D02 generators and UI, Product Delivery generation/state, Generate All, and existing test framework.
 - Confirmed this task was documentation-only and did not modify app source code or AI behavior.
@@ -209,6 +212,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/lib/qa/qa-finding.ts`
+- `docs/SESSION_HANDOFF.md`
 - `docs/CODE_AUDIT_REPORT.md`
 - `docs/SESSION_HANDOFF.md`
 - `src/components/task-register/ProcessTaskRegister.tsx`

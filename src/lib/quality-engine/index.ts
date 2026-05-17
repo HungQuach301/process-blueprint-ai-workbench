@@ -21,6 +21,11 @@ export {
 
 export { runDraftPtrGateV1 } from "@/lib/quality-engine/draft-ptr-gate-v1";
 
+export {
+  D01_PRE_GENERATION_GATE_ID,
+  runD01PreGenerationGate
+} from "@/lib/quality-engine/d01-pre-generation-gate";
+
 export type {
   SourceCoverageAdvisory,
   SourceCoverageAdvisoryStatus,

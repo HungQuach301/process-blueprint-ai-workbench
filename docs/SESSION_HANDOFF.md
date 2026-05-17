@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `011-d01-pre-gate`.
+- Added `src/lib/quality-engine/d01-pre-generation-gate.ts` with pure `runD01PreGenerationGate` returning a `GateVerdict` for D01 BPMN input readiness.
+- The D01 pre-generation gate checks ProcessTask readiness for empty input, missing start/end events, missing or duplicate step ids, missing task names, invalid next-step references, gateway branch readiness, unsupported/fallback BPMN types, actor/system visibility, and selected BPMN template fit.
+- Exported `runD01PreGenerationGate` and `D01_PRE_GENERATION_GATE_ID` from `src/lib/quality-engine/index.ts`; UI wiring is deferred and D01 BPMN generator core remains unchanged.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `INT-03-ai-route-normalizer-integration-check`.
 - Added `docs/AI_ROUTE_NORMALIZER_CHECK.md` documenting source inspection, mock/local smoke test, safe metadata review, and provider-backed verification limits for the AI route normalizer integration.
 - Confirmed mock/local `/api/ai/run-skill` behavior still returns before provider normalization; smoke test passed with `mode=mock`, `externalApiCalled=false`, `validationPassed=true`, and no `outputNormalization` metadata.

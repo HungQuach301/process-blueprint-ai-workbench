@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `016-data-service-abstraction`.
+- Added `src/lib/data/data-service.ts` with a small `DataService` interface and browser-safe `LocalDataService` implementation for typed JSON read, write, and remove helpers.
+- Added fallback/result handling for unavailable `localStorage`, missing values, invalid JSON, and write/remove failures without introducing database or server persistence.
+- Added `src/lib/data/index.ts` as a stable export path for future storage work.
+- Kept existing `localStorage` usage in Process Task Register, Export Center, and Template Library unchanged; no broad storage refactor or behavior migration was performed.
 - Ran task `015-release-hardening`.
 - Added `docs/MVP1_AI_STABLE_RELEASE_CHECK.md` documenting MVP1-AI Stable hardening results, source inspection coverage, automated checks, manual browser limitations, and release follow-up items.
 - Confirmed `npx.cmd tsc --noEmit`, `npm run build`, `scripts/test-draft-ptr-gate.ps1`, and `scripts/test-provider-normalizer.ps1` pass.

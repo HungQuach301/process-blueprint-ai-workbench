@@ -31,12 +31,13 @@ Legend:
 - [x] 013d-wire-post-gates-ui
 - [x] 014-chain-resilience-types
 - [x] 015-release-hardening
-- [ ] 016-data-service-abstraction
+- [x] 016-data-service-abstraction
 - [ ] 017-user-gate-1-preparation
 
 ## Done
 
 ## Skipped
+
 
 
 

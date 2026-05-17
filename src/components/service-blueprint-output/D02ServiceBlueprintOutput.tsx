@@ -12,6 +12,10 @@ import type { TemplateRecommendation } from "@/lib/ai/ai-template-review-types";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
+import {
+  runD02PostGenerationGate,
+  type GateVerdict
+} from "@/lib/quality-engine";
 import { validateProcessTasks } from "@/lib/qa/task-register-rules";
 import type { QARecommendation } from "@/lib/recommendation-engine/types";
 import {
@@ -96,10 +100,59 @@ function readArtifactStatus(): ArtifactStatus {
   return status === "fresh" || status === "stale" ? status : "not_generated";
 }
 
+function getGateStatusClass(verdict: GateVerdict) {
+  if (verdict.status === "fail") {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+
+  if (verdict.status === "warning") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  return "border-emerald-200 bg-emerald-50 text-emerald-800";
+}
+
+function PostGateVerdictSummary({ verdict }: { verdict: GateVerdict | null }) {
+  if (!verdict) {
+    return null;
+  }
+
+  return (
+    <div className={`mb-4 rounded border p-3 text-sm ${getGateStatusClass(verdict)}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">
+          Post-generation gate: {verdict.status.toUpperCase()}
+        </p>
+        <p>
+          Blockers: {verdict.summary.blockerCount} / Warnings:{" "}
+          {verdict.summary.warningCount}
+        </p>
+      </div>
+      {verdict.issues.length > 0 ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer font-medium">
+            View gate findings
+          </summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {verdict.issues.slice(0, 6).map((issue) => (
+              <li key={`${issue.code}-${issue.title}`}>
+                <span className="font-medium">{issue.title}</span>:{" "}
+                {issue.description}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
 export function D02ServiceBlueprintOutput() {
   const [xml, setXml] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<ArtifactStatus>("not_generated");
+  const [postGateVerdict, setPostGateVerdict] =
+    useState<GateVerdict | null>(null);
   const [reviewResult, setReviewResult] = useState<ArtifactReviewResult | null>(
     null
   );
@@ -161,7 +214,10 @@ export function D02ServiceBlueprintOutput() {
         throw new Error("Generator không tạo ra draw.io XML.");
       }
 
+      const verdict = runD02PostGenerationGate(generatedXml);
+
       setXml(generatedXml);
+      setPostGateVerdict(verdict);
       setReviewResult(null);
       window.localStorage.setItem(D02_GENERATED_XML_KEY, generatedXml);
       window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "fresh");
@@ -181,6 +237,7 @@ export function D02ServiceBlueprintOutput() {
       );
     } catch (error) {
       setXml("");
+      setPostGateVerdict(null);
       setMessage(
         error instanceof Error
           ? `Không thể generate D02 Service Blueprint: ${error.message}`
@@ -295,6 +352,11 @@ export function D02ServiceBlueprintOutput() {
       return;
     }
 
+    if (postGateVerdict?.status === "fail") {
+      setMessage("D02 post-generation gate failed. Fix blockers before downloading.");
+      return;
+    }
+
     const blob = new Blob([xml], { type: "application/xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -321,6 +383,7 @@ export function D02ServiceBlueprintOutput() {
             </button>
             <button
               className="btn btn-secondary"
+              disabled={postGateVerdict?.status === "fail"}
               onClick={downloadDrawio}
               type="button"
             >
@@ -360,6 +423,8 @@ export function D02ServiceBlueprintOutput() {
               : "Not generated"}
         </p>
         {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+
+        <PostGateVerdictSummary verdict={postGateVerdict} />
 
         <div className="mb-4">
           <D02ServiceBlueprintPreview />

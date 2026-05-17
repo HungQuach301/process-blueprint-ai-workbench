@@ -28,7 +28,7 @@ Legend:
 - [x] 013a-xml-parser-strategy
 - [x] 013b-d01-post-gen-gate
 - [x] 013c-d02-post-gen-gate
-- [ ] 013d-wire-post-gates-ui
+- [x] 013d-wire-post-gates-ui
 - [ ] 014-chain-resilience-types
 - [ ] 015-release-hardening
 - [ ] 016-data-service-abstraction
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `013d-wire-post-gates-ui`.
+- Wired `runD01PostGenerationGate` into `src/components/bpmn-output/D01BpmnOutput.tsx` and `runD02PostGenerationGate` into `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx` immediately after successful XML generation.
+- D01 and D02 output UIs now show compact post-generation gate status with blocker/warning counts and collapsible findings, while preserving the existing preview and AI artifact review behavior.
+- Disabled `.bpmn` / `.drawio` downloads only when the relevant post-generation verdict is `fail`; warning verdicts remain downloadable.
+- Kept D01/D02 generator core, dependencies, Rule QA, QARecommendation types, and recommendation behavior unchanged.
 - Ran task `013c-d02-post-gen-gate`.
 - Added `src/lib/quality-engine/d02-post-generation-gate.ts` with pure `runD02PostGenerationGate(xml)` returning a `GateVerdict` for generated D02 Service Blueprint draw.io XML.
 - The D02 post-generation gate checks empty XML, XML parser availability, malformed XML, draw.io `mxfile` / `diagram` / `mxGraphModel` / `root` / base `mxCell` structures, generated task card three-box patterns, large card count, missing card geometry, and potential card overlaps from `mxGeometry` bounds.

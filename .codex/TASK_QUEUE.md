@@ -48,11 +48,12 @@ Legend:
 - [x] UX-011a-ai-error-loading-retry-feedback
 - [x] UX-011b-save-unsaved-changes-feedback
 - [x] UX-011c-workspace-backup-restore
-- [ ] UX-012-user-facing-regression-check
+- [x] UX-012-user-facing-regression-check
 
 ## Done
 
 ## Skipped
+
 
 
 

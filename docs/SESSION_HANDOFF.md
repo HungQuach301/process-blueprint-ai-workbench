@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-012-user-facing-regression-check`.
+- Added `docs/USER_FACING_READINESS_CHECK.md` summarizing UX-000 through UX-011c readiness, full-flow source evidence, app availability, real OpenAI smoke-test result, mock/local fallback result, residual risks, and User Gate 1 recommendation.
+- Confirmed `http://localhost:3000` responded with HTTP 200 during the check.
+- Ran a non-sensitive `input-brief-to-ptr` OpenAI smoke test through `/api/ai/run-skill`; the external provider call was made, but invalid provider output was safely blocked with a 422 provider-output-normalization failure before schema display/apply.
+- Ran the same `input-brief-to-ptr` payload with `providerId=mock`; mock/local fallback passed with `externalApiCalled=false`, `validationPassed=true`, and 7 draft rows.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Kept this task documentation-only; no app code, AI behavior, schemas, D01/D02 generators, dependencies, storage keys, or recommendation apply behavior were changed.
 - Ran task `UX-011c-workspace-backup-restore`.
 - Added a visible Local workspace label in `src/components/AppShell.tsx` so users know data is browser-local.
 - Added local-only workspace backup/restore helpers in `src/lib/workspace/local-workspace-backup.ts` for known browser `localStorage` keys without adding server, database, schema, dependency, or key migrations.

@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `013c-d02-post-gen-gate`.
+- Added `src/lib/quality-engine/d02-post-generation-gate.ts` with pure `runD02PostGenerationGate(xml)` returning a `GateVerdict` for generated D02 Service Blueprint draw.io XML.
+- The D02 post-generation gate checks empty XML, XML parser availability, malformed XML, draw.io `mxfile` / `diagram` / `mxGraphModel` / `root` / base `mxCell` structures, generated task card three-box patterns, large card count, missing card geometry, and potential card overlaps from `mxGeometry` bounds.
+- Exported `runD02PostGenerationGate` and `D02_POST_GENERATION_GATE_ID` from `src/lib/quality-engine/index.ts`.
+- Kept D02 generator core, D02 UI wiring, dependencies, Rule QA, QARecommendation types, and recommendation behavior unchanged.
 - Ran task `013b-d01-post-gen-gate`.
 - Added `src/lib/quality-engine/d01-post-generation-gate.ts` with pure `runD01PostGenerationGate(xml)` returning a `GateVerdict` for generated D01 BPMN XML.
 - The D01 post-generation gate checks empty XML, XML parser availability, malformed XML, BPMN `definitions`, `collaboration`, `participant`, `process`, and `laneSet` structures without mutating the generated XML.

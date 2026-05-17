@@ -36,6 +36,11 @@ export {
   runD02PreGenerationGate
 } from "@/lib/quality-engine/d02-pre-generation-gate";
 
+export {
+  D02_POST_GENERATION_GATE_ID,
+  runD02PostGenerationGate
+} from "@/lib/quality-engine/d02-post-generation-gate";
+
 export type {
   SourceCoverageAdvisory,
   SourceCoverageAdvisoryStatus,

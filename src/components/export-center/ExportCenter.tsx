@@ -1952,6 +1952,12 @@ export function ExportCenter() {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <a
+              className="btn btn-secondary"
+              href="#product-delivery-workspace"
+            >
+              Product Delivery Workspace
+            </a>
             <button
               className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               onClick={generateAllArtifacts}
@@ -2178,21 +2184,36 @@ export function ExportCenter() {
       </div>
       </details>
 
-      <div className="border-t border-slate-200 p-4">
+      <section
+        className="border-t border-indigo-200 bg-indigo-50/40 p-4"
+        id="product-delivery-workspace"
+      >
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">
           <div>
-            <p className="text-sm font-medium uppercase text-slate-500">
-              Product Delivery
+            <p className="status-badge status-badge-ai">
+              Product Delivery Workspace
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              Draft BRD, SRS, user stories, and acceptance criteria
+              Draft product delivery artifacts before export
             </h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Deterministic MVP1 Product Delivery draft generated from Process
-              Task Register, saved AI Input Brief summary when available, and
-              optional notes. Structured output is schema-validated, previewed
-              first, then exported as markdown when ready.
+              Generate and review BRD, SRS, user stories, acceptance criteria,
+              scope review, requirement QA, and deterministic Product Delivery
+              draft content from the current Process Task Register plus optional
+              context. This workspace is preview-first; downloads require
+              explicit user action.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-indigo-900">
+              <span className="rounded border border-indigo-200 bg-white/80 px-2.5 py-1">
+                Source: Process Task Register
+              </span>
+              <span className="rounded border border-indigo-200 bg-white/80 px-2.5 py-1">
+                Flow: Preview before export
+              </span>
+              <span className="rounded border border-indigo-200 bg-white/80 px-2.5 py-1">
+                Apply: No auto-apply or auto-export
+              </span>
+            </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
@@ -2918,7 +2939,7 @@ export function ExportCenter() {
             </pre>
           </div>
         ) : null}
-      </div>
+      </section>
 
       <div className="border-t border-slate-200 p-4">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,28rem)]">

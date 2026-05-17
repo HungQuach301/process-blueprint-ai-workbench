@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-008-product-delivery-module-separation`.
+- Added a dedicated Product Delivery Workspace section inside `src/components/export-center/ExportCenter.tsx` with a direct header link, distinct visual treatment, and explicit preview-before-export/no-auto-apply messaging.
+- Kept Product Delivery generation, preview, download/export behavior, AI skill route usage, ZIP export behavior, schemas, and generator core unchanged.
+- Deferred extracting `src/components/product-delivery/ProductDeliveryPanel.tsx` because Product Delivery state/actions are tightly coupled to Export Center preview and ZIP state; used the task-approved visual separation fallback instead.
 - Ran task `UX-000-milestone-1-technical-status-check`.
 - Added `docs/MILESTONE_1_TECHNICAL_STATUS.md` summarizing Milestone 1 technical status, task `000` through `017` completion evidence, integration check status, User-Facing Readiness Sprint dependencies, and known risks across real AI, Product Delivery, Export Center, QA, D01/D02, and user-facing language.
 - Kept this task documentation-only; no application source code, dependencies, AI behavior, generator behavior, task queue, or runtime behavior was changed.

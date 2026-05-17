@@ -1952,19 +1952,6 @@ export function ExportCenter() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <a
-              className="btn btn-secondary"
-              href="#product-delivery-workspace"
-            >
-              Product Delivery Workspace
-            </a>
-            <button
-              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-              onClick={generateAllArtifacts}
-              type="button"
-            >
-              Generate all artifacts
-            </button>
             <button
               className="btn btn-primary"
               disabled={isDownloading}
@@ -1980,6 +1967,19 @@ export function ExportCenter() {
             >
               Export Audit Log JSON
             </button>
+            <button
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={generateAllArtifacts}
+              type="button"
+            >
+              Prepare package artifacts
+            </button>
+            <a
+              className="rounded border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              href="#product-delivery-workspace"
+            >
+              Product Delivery
+            </a>
           </div>
         </div>
 
@@ -2214,7 +2214,15 @@ export function ExportCenter() {
                 Apply: No auto-apply or auto-export
               </span>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <details className="mt-4 rounded border border-indigo-200 bg-white/80">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-indigo-950">
+                Product Delivery generation inputs and controls
+                <span className="ml-2 text-xs font-normal text-indigo-700">
+                  Optional context, notes, provider compare, and draft generation
+                </span>
+              </summary>
+              <div className="border-t border-indigo-100 p-3">
+                <div className="grid gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
                   Optional project context
@@ -2546,6 +2554,8 @@ export function ExportCenter() {
                 ))}
               </div>
             ) : null}
+                </div>
+            </details>
           </div>
 
           <div className="rounded border border-slate-200 bg-slate-50 p-3">

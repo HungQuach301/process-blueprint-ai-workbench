@@ -35,7 +35,7 @@ Legend:
 - [x] 017-user-gate-1-preparation
 - [x] UX-000-milestone-1-technical-status-check
 - [x] UX-008-product-delivery-module-separation
-- [ ] UX-009-export-center-simplification
+- [x] UX-009-export-center-simplification
 - [ ] UX-010-mixed-language-and-mock-label-cleanup
 - [ ] UX-001-ai-connection-user-friendly-status
 - [ ] UX-004-ptr-simple-mode-business-columns
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

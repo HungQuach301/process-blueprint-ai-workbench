@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-009-export-center-simplification`.
+- Simplified `src/components/export-center/ExportCenter.tsx` so primary Export Center actions now emphasize ZIP download and audit evidence, while package preparation is visually de-emphasized.
+- Collapsed Product Delivery optional context, notes, uploaded file text, provider compare, and generation controls behind a dedicated Product Delivery preparation details section.
+- Preserved artifact readiness/status cards, Product Delivery previews, download/export actions, ZIP behavior, AI route behavior, generator behavior, and no-auto-apply/no-auto-export guarantees.
 - Ran task `UX-008-product-delivery-module-separation`.
 - Added a dedicated Product Delivery Workspace section inside `src/components/export-center/ExportCenter.tsx` with a direct header link, distinct visual treatment, and explicit preview-before-export/no-auto-apply messaging.
 - Kept Product Delivery generation, preview, download/export behavior, AI skill route usage, ZIP export behavior, schemas, and generator core unchanged.

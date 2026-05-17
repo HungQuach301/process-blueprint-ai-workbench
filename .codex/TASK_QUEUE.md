@@ -22,7 +22,7 @@ Legend:
 - [x] 009a-provider-normalizer
 - [x] 009b-wire-normalizer-route
 - [x] 010-normalizer-golden-tests
-- [ ] INT-03-ai-route-normalizer-integration-check
+- [x] INT-03-ai-route-normalizer-integration-check
 - [ ] 011-d01-pre-gate
 - [ ] 012-d02-pre-gate
 - [ ] 013a-xml-parser-strategy
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

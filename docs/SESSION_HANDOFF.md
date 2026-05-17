@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `INT-03-ai-route-normalizer-integration-check`.
+- Added `docs/AI_ROUTE_NORMALIZER_CHECK.md` documenting source inspection, mock/local smoke test, safe metadata review, and provider-backed verification limits for the AI route normalizer integration.
+- Confirmed mock/local `/api/ai/run-skill` behavior still returns before provider normalization; smoke test passed with `mode=mock`, `externalApiCalled=false`, `validationPassed=true`, and no `outputNormalization` metadata.
+- Confirmed by source inspection that provider-backed flow runs parse/repair, then `normalizeProviderOutput`, then `validateAISkillOutput`, with unsafe normalization and schema validation failures returning safe `422` responses.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `010-normalizer-golden-tests`.
 - Added `src/lib/ai/provider-output-normalizer.test-data.ts` with deterministic golden fixtures for already-normalized output, wrapped output with aliases, nested result wrapper behavior, unsafe broken references, and unknown schema handling.
 - Added `scripts/test-provider-normalizer.ps1` as a no-dependency check that verifies required fixture ids and runs `npx.cmd tsc --noEmit`.

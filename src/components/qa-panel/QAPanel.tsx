@@ -70,6 +70,30 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "mock", label: "Local analysis" }
 ];
 
+type QAAIRetryAction = "qa" | "findings" | "compare";
+
+function getFriendlyAIQAErrorMessage(error?: string, validationErrors?: string[]) {
+  if (validationErrors?.length) {
+    return "AI QA returned output that did not pass validation. Nothing was applied; adjust the current data or retry.";
+  }
+
+  const normalizedError = (error ?? "").toLowerCase();
+
+  if (normalizedError.includes("timeout") || normalizedError.includes("timed out")) {
+    return "AI QA timed out. Nothing was applied; you can retry with the current PTR.";
+  }
+
+  if (
+    normalizedError.includes("network") ||
+    normalizedError.includes("fetch") ||
+    normalizedError.includes("failed")
+  ) {
+    return "AI QA could not reach the service. Nothing was applied; check the connection or retry.";
+  }
+
+  return "AI QA could not complete. Nothing was applied; you can retry with the current PTR.";
+}
+
 const qaPanelText = {
   vi: {
     title: "Bang kiem tra QA",
@@ -378,6 +402,9 @@ export function QAPanel({
   const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
   const [isRunningAIQA, setIsRunningAIQA] = useState(false);
   const [isRunningAIFindings, setIsRunningAIFindings] = useState(false);
+  const [aiRetryAction, setAiRetryAction] = useState<QAAIRetryAction | null>(
+    null
+  );
   const [pendingRecommendation, setPendingRecommendation] = useState<{
     issue: QaIssue;
     recommendation: QARecommendation;
@@ -709,6 +736,7 @@ export function QAPanel({
     }
 
     setIsRunningCompare(true);
+    setAiRetryAction("compare");
     setCompareResults([]);
     setAiQaMessage("Running Provider Compare for AI QA...");
 
@@ -766,6 +794,10 @@ export function QAPanel({
         ]
           .filter(Boolean)
           .join(" ");
+        const friendlyErrorMessage = getFriendlyAIQAErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         nextResults.push({
           id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
@@ -778,13 +810,13 @@ export function QAPanel({
           warnings: data.meta?.warnings ?? [],
           summary: routeResponse.ok && data.ok
             ? summarizeQARecommendations(recommendations)
-            : errorMessage || "Provider run failed.",
+            : friendlyErrorMessage,
           validationStatus:
             data.meta?.validationPassed === false || !routeResponse.ok || !data.ok
               ? "failed"
               : "passed",
           recommendations: routeResponse.ok && data.ok ? recommendations : [],
-          error: routeResponse.ok && data.ok ? undefined : errorMessage
+          error: routeResponse.ok && data.ok ? undefined : friendlyErrorMessage
         });
         logAICallAudit({
           skillId: AI_PROCESS_QA_SKILL_ID,
@@ -802,8 +834,9 @@ export function QAPanel({
           }
         });
       } catch (error) {
-        const errorMessage =
+        const auditErrorMessage =
           error instanceof Error ? error.message : "Provider compare request failed.";
+        const errorMessage = getFriendlyAIQAErrorMessage(auditErrorMessage);
 
         nextResults.push({
           id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
@@ -819,7 +852,7 @@ export function QAPanel({
         logAICallAudit({
           skillId: AI_PROCESS_QA_SKILL_ID,
           success: false,
-          errorMessage,
+          errorMessage: auditErrorMessage,
           realAIEnabled: realAIQAEnabled && providerId !== "mock",
           externalApiCalled: false,
           provider: providerId,
@@ -831,6 +864,7 @@ export function QAPanel({
     }
 
     setCompareResults(nextResults);
+    setAiRetryAction(nextResults.some((result) => result.validationStatus === "failed") ? "compare" : null);
     setAiQaMessage("Provider Compare finished. Choose one provider output to preview further.");
     setIsRunningCompare(false);
   }
@@ -868,6 +902,7 @@ export function QAPanel({
     }
 
     setIsRunningAIFindings(true);
+    setAiRetryAction("findings");
     setAiQaMessage(
       realAIQAEnabled
         ? "Running real AI findings through the server route..."
@@ -906,6 +941,10 @@ export function QAPanel({
           data.error || "AI findings failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = getFriendlyAIQAErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         logAICallAudit({
           skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
@@ -915,11 +954,12 @@ export function QAPanel({
           externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
         });
         setAiFindingSet(null);
-        setAiQaMessage(errorMessage);
+        setAiQaMessage(friendlyMessage);
         return;
       }
 
       setAiFindingSet(data.result);
+      setAiRetryAction(null);
       setAiQaMessage(
         `${data.mode === "provider-backed" ? "Real AI" : "Local analysis"} findings returned ${data.result.findings.length} finding(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
       );
@@ -942,7 +982,7 @@ export function QAPanel({
         externalApiCalled: false
       });
       setAiFindingSet(null);
-      setAiQaMessage("AI findings request failed. No recommendation was applied.");
+      setAiQaMessage(getFriendlyAIQAErrorMessage("request failed"));
     } finally {
       setIsRunningAIFindings(false);
     }
@@ -955,6 +995,7 @@ export function QAPanel({
     }
 
     setIsRunningAIQA(true);
+    setAiRetryAction("qa");
     setAiQaMessage(
       realAIQAEnabled
         ? "Running real AI QA through the server route..."
@@ -996,6 +1037,10 @@ export function QAPanel({
           data.error || "AI QA failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = getFriendlyAIQAErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         logAICallAudit({
           skillId: AI_PROCESS_QA_SKILL_ID,
@@ -1005,7 +1050,7 @@ export function QAPanel({
           externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
         });
         setAiQaIssues([]);
-        setAiQaMessage(errorMessage);
+        setAiQaMessage(friendlyMessage);
         return;
       }
 
@@ -1046,6 +1091,7 @@ export function QAPanel({
           ? `${data.mode === "provider-backed" ? "Real AI" : "Local analysis"} QA returned ${recommendations.length} recommendation(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
           : "AI QA did not return recommendations for the current PTR."
       );
+      setAiRetryAction(null);
       logAICallAudit({
         skillId: AI_PROCESS_QA_SKILL_ID,
         success: true,
@@ -1066,7 +1112,7 @@ export function QAPanel({
         externalApiCalled: false
       });
       setAiQaIssues([]);
-      setAiQaMessage("AI QA request failed. No recommendation was applied.");
+      setAiQaMessage(getFriendlyAIQAErrorMessage("request failed"));
     } finally {
       setIsRunningAIQA(false);
     }
@@ -1150,6 +1196,22 @@ export function QAPanel({
     onApplyRecommendations(pendingBatchRecommendations);
     setPendingBatchRecommendations(null);
     clearSelection();
+  }
+
+  function retryAIQAAction() {
+    if (aiRetryAction === "qa") {
+      void runAiQa();
+      return;
+    }
+
+    if (aiRetryAction === "findings") {
+      void runAiFindings();
+      return;
+    }
+
+    if (aiRetryAction === "compare") {
+      void runAiQaCompare();
+    }
   }
 
   return (
@@ -1379,9 +1441,25 @@ export function QAPanel({
       ) : null}
 
       {aiQaMessage ? (
-        <p className="mb-4 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-          {aiQaMessage}
-        </p>
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+          <span>
+            {isRunningAIQA || isRunningAIFindings || isRunningCompare
+              ? aiQaMessage
+              : aiQaMessage}
+          </span>
+          {aiRetryAction &&
+          !isRunningAIQA &&
+          !isRunningAIFindings &&
+          !isRunningCompare ? (
+            <button
+              className="rounded border border-sky-300 bg-white px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+              onClick={retryAIQAAction}
+              type="button"
+            >
+              Retry
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       <section className="mb-5 rounded border border-sky-200 bg-sky-50/40">

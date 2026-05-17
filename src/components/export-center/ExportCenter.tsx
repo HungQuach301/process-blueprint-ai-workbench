@@ -130,6 +130,23 @@ type AICodingPackRouteResponse = {
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
 type ExportCompareKind = "brd" | "userStories" | "aiCodingPack";
+type ExportAIRetryAction =
+  | "compare-brd-ptr"
+  | "compare-brd-notes"
+  | "compare-stories-srs"
+  | "compare-stories-brd"
+  | "compare-ai-coding-pack"
+  | "brd-ptr"
+  | "brd-notes"
+  | "srs-brd"
+  | "srs-notes"
+  | "stories-srs"
+  | "stories-brd"
+  | "acceptance-criteria"
+  | "scope-review"
+  | "mvp-slicing"
+  | "requirement-qa"
+  | "product-ai-coding-pack";
 
 type AIRunRouteMeta = {
   providerId?: string;
@@ -183,6 +200,31 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "claude", label: "Claude" },
   { id: "mock", label: "Local analysis" }
 ];
+
+function getFriendlyExportAIErrorMessage(
+  error?: string,
+  validationErrors?: string[]
+) {
+  if (validationErrors?.length) {
+    return "AI output did not pass validation. No preview was changed; adjust the source context or retry.";
+  }
+
+  const normalizedError = (error ?? "").toLowerCase();
+
+  if (normalizedError.includes("timeout") || normalizedError.includes("timed out")) {
+    return "AI generation timed out. No preview was changed; you can retry with the current context.";
+  }
+
+  if (
+    normalizedError.includes("network") ||
+    normalizedError.includes("fetch") ||
+    normalizedError.includes("failed")
+  ) {
+    return "AI service could not be reached. No preview was changed; check the connection or retry.";
+  }
+
+  return "AI generation could not complete. No preview was changed; you can retry with the current context.";
+}
 
 function mapCodingPackPreviewToRouteFiles(files: AICodingPackFiles) {
   return [
@@ -342,6 +384,10 @@ export function ExportCenter() {
     useState(false);
   const [isGeneratingRequirementQA, setIsGeneratingRequirementQA] =
     useState(false);
+  const [isGeneratingProductAICodingPack, setIsGeneratingProductAICodingPack] =
+    useState(false);
+  const [aiRetryAction, setAiRetryAction] =
+    useState<ExportAIRetryAction | null>(null);
   const [d01Status, setD01Status] = useState<ArtifactStatus>("not_generated");
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
   const [exportPackageStatus, setExportPackageStatus] =
@@ -485,6 +531,29 @@ export function ExportCenter() {
     return "unknown";
   }
 
+  function getCompareRetryAction(
+    kind: ExportCompareKind,
+    skillId: string
+  ): ExportAIRetryAction {
+    if (kind === "brd" && skillId === "notes-to-brd") {
+      return "compare-brd-notes";
+    }
+
+    if (kind === "brd") {
+      return "compare-brd-ptr";
+    }
+
+    if (kind === "userStories" && skillId === "brd-to-user-stories") {
+      return "compare-stories-brd";
+    }
+
+    if (kind === "userStories") {
+      return "compare-stories-srs";
+    }
+
+    return "compare-ai-coding-pack";
+  }
+
   function buildBRDComparePayload(skillId: "ptr-to-brd" | "notes-to-brd") {
     const timestamp = createTimestamp();
     const sourceSummary = readInputBriefSourceSummary();
@@ -618,6 +687,7 @@ export function ExportCenter() {
     }
 
     setIsRunningCompare(true);
+    setAiRetryAction(getCompareRetryAction(kind, skillId));
     setCompareResults([]);
     setMessage("Running Provider Compare...");
 
@@ -654,6 +724,10 @@ export function ExportCenter() {
         ]
           .filter(Boolean)
           .join(" ");
+        const friendlyErrorMessage = getFriendlyExportAIErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         nextResults.push({
           id: `${skillId}-${providerId}-${Date.now()}`,
@@ -666,7 +740,7 @@ export function ExportCenter() {
           summary:
             response.ok && data.ok && data.result
               ? summarizeExportCompareResult(kind, data.result)
-              : errorMessage || "Provider run failed.",
+              : friendlyErrorMessage,
           validationStatus:
             data.meta?.validationPassed === false ||
             !response.ok ||
@@ -675,7 +749,7 @@ export function ExportCenter() {
               ? "failed"
               : "passed",
           result: response.ok && data.ok ? data.result : undefined,
-          error: response.ok && data.ok ? undefined : errorMessage
+          error: response.ok && data.ok ? undefined : friendlyErrorMessage
         });
         logRouteAIRun({
           skillId,
@@ -685,8 +759,9 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
       } catch (error) {
-        const errorMessage =
+        const auditErrorMessage =
           error instanceof Error ? error.message : "Provider compare request failed.";
+        const errorMessage = getFriendlyExportAIErrorMessage(auditErrorMessage);
 
         nextResults.push({
           id: `${skillId}-${providerId}-${Date.now()}`,
@@ -703,12 +778,13 @@ export function ExportCenter() {
         logRouteAIRun({
           skillId,
           success: false,
-          errorMessage
+          errorMessage: auditErrorMessage
         });
       }
     }
 
     setCompareResults(nextResults);
+    setAiRetryAction(nextResults.some((result) => result.validationStatus === "failed") ? getCompareRetryAction(kind, skillId) : null);
     setIsRunningCompare(false);
     setMessage("Provider Compare finished. Choose one output to preview further.");
   }
@@ -915,6 +991,7 @@ export function ExportCenter() {
 
     try {
       setIsGeneratingBRD(true);
+      setAiRetryAction(skillId === "ptr-to-brd" ? "brd-ptr" : "brd-notes");
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: {
@@ -944,9 +1021,7 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
         setMessage(
-          data.validationErrors?.length
-            ? data.validationErrors.join(" ")
-            : data.error || "Could not generate BRD preview."
+          getFriendlyExportAIErrorMessage(data.error, data.validationErrors)
         );
         return;
       }
@@ -970,6 +1045,7 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
+      setAiRetryAction(null);
       setMessage("Da tao preview BRD structured. Chua save/apply.");
     } catch (error) {
       setBRDPreview(null);
@@ -980,9 +1056,9 @@ export function ExportCenter() {
           error instanceof Error ? error.message : "Unknown BRD generation error."
       });
       setMessage(
-        error instanceof Error
-          ? `Khong the tao BRD preview: ${error.message}`
-          : "Khong the tao BRD preview. Vui long thu lai."
+        getFriendlyExportAIErrorMessage(
+          error instanceof Error ? error.message : undefined
+        )
       );
     } finally {
       setIsGeneratingBRD(false);
@@ -1015,6 +1091,7 @@ export function ExportCenter() {
 
     try {
       setIsGeneratingSRS(true);
+      setAiRetryAction(skillId === "brd-to-srs" ? "srs-brd" : "srs-notes");
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: {
@@ -1045,9 +1122,7 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
         setMessage(
-          data.validationErrors?.length
-            ? data.validationErrors.join(" ")
-            : data.error || "Could not generate SRS preview."
+          getFriendlyExportAIErrorMessage(data.error, data.validationErrors)
         );
         return;
       }
@@ -1075,6 +1150,7 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
+      setAiRetryAction(null);
       setMessage("Da tao preview SRS structured. Chua save/apply.");
     } catch (error) {
       setSRSPreview(null);
@@ -1085,9 +1161,9 @@ export function ExportCenter() {
           error instanceof Error ? error.message : "Unknown SRS generation error."
       });
       setMessage(
-        error instanceof Error
-          ? `Khong the tao SRS preview: ${error.message}`
-          : "Khong the tao SRS preview. Vui long thu lai."
+        getFriendlyExportAIErrorMessage(
+          error instanceof Error ? error.message : undefined
+        )
       );
     } finally {
       setIsGeneratingSRS(false);
@@ -1113,6 +1189,9 @@ export function ExportCenter() {
 
     try {
       setIsGeneratingUserStories(true);
+      setAiRetryAction(
+        skillId === "srs-to-user-stories" ? "stories-srs" : "stories-brd"
+      );
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: {
@@ -1145,9 +1224,7 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
         setMessage(
-          data.validationErrors?.length
-            ? data.validationErrors.join(" ")
-            : data.error || "Could not generate user stories preview."
+          getFriendlyExportAIErrorMessage(data.error, data.validationErrors)
         );
         return;
       }
@@ -1173,6 +1250,7 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
+      setAiRetryAction(null);
       setMessage("Da tao preview User Stories structured. Chua save/apply.");
     } catch (error) {
       setUserStoryPreview(null);
@@ -1186,9 +1264,9 @@ export function ExportCenter() {
             : "Unknown user story generation error."
       });
       setMessage(
-        error instanceof Error
-          ? `Khong the tao User Stories preview: ${error.message}`
-          : "Khong the tao User Stories preview. Vui long thu lai."
+        getFriendlyExportAIErrorMessage(
+          error instanceof Error ? error.message : undefined
+        )
       );
     } finally {
       setIsGeneratingUserStories(false);
@@ -1207,6 +1285,7 @@ export function ExportCenter() {
 
     try {
       setIsGeneratingAcceptanceCriteria(true);
+      setAiRetryAction("acceptance-criteria");
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: {
@@ -1239,9 +1318,7 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
         setMessage(
-          data.validationErrors?.length
-            ? data.validationErrors.join(" ")
-            : data.error || "Could not generate acceptance criteria preview."
+          getFriendlyExportAIErrorMessage(data.error, data.validationErrors)
         );
         return;
       }
@@ -1265,6 +1342,7 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
+      setAiRetryAction(null);
       setMessage("Da tao preview Acceptance Criteria structured. Chua save/apply.");
     } catch (error) {
       setAcceptanceCriteriaPreview(null);
@@ -1277,9 +1355,9 @@ export function ExportCenter() {
             : "Unknown acceptance criteria generation error."
       });
       setMessage(
-        error instanceof Error
-          ? `Khong the tao Acceptance Criteria preview: ${error.message}`
-          : "Khong the tao Acceptance Criteria preview. Vui long thu lai."
+        getFriendlyExportAIErrorMessage(
+          error instanceof Error ? error.message : undefined
+        )
       );
     } finally {
       setIsGeneratingAcceptanceCriteria(false);
@@ -1308,6 +1386,7 @@ export function ExportCenter() {
 
     try {
       setIsGeneratingProductScopeReview(true);
+      setAiRetryAction(skillId === "product-scope-review" ? "scope-review" : "mvp-slicing");
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: {
@@ -1342,9 +1421,7 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
         setMessage(
-          data.validationErrors?.length
-            ? data.validationErrors.join(" ")
-            : data.error || "Could not generate product scope review preview."
+          getFriendlyExportAIErrorMessage(data.error, data.validationErrors)
         );
         return;
       }
@@ -1371,6 +1448,7 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
+      setAiRetryAction(null);
       setMessage("Da tao preview Product Scope Review/MVP Slicing. Chua save/apply.");
     } catch (error) {
       setProductScopeReviewPreview(null);
@@ -1383,9 +1461,9 @@ export function ExportCenter() {
             : "Unknown product scope review generation error."
       });
       setMessage(
-        error instanceof Error
-          ? `Khong the tao Product Scope Review preview: ${error.message}`
-          : "Khong the tao Product Scope Review preview. Vui long thu lai."
+        getFriendlyExportAIErrorMessage(
+          error instanceof Error ? error.message : undefined
+        )
       );
     } finally {
       setIsGeneratingProductScopeReview(false);
@@ -1408,6 +1486,7 @@ export function ExportCenter() {
 
     try {
       setIsGeneratingRequirementQA(true);
+      setAiRetryAction("requirement-qa");
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: {
@@ -1444,9 +1523,7 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
         setMessage(
-          data.validationErrors?.length
-            ? data.validationErrors.join(" ")
-            : data.error || "Could not generate Requirement QA preview."
+          getFriendlyExportAIErrorMessage(data.error, data.validationErrors)
         );
         return;
       }
@@ -1475,6 +1552,7 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
+      setAiRetryAction(null);
       setMessage("Da tao preview Requirement QA. Khong save/apply tu dong.");
     } catch (error) {
       setRequirementQAPreview(null);
@@ -1487,9 +1565,9 @@ export function ExportCenter() {
             : "Unknown requirement QA generation error."
       });
       setMessage(
-        error instanceof Error
-          ? `Khong the tao Requirement QA preview: ${error.message}`
-          : "Khong the tao Requirement QA preview. Vui long thu lai."
+        getFriendlyExportAIErrorMessage(
+          error instanceof Error ? error.message : undefined
+        )
       );
     } finally {
       setIsGeneratingRequirementQA(false);
@@ -1655,6 +1733,8 @@ export function ExportCenter() {
     }
 
     try {
+      setIsGeneratingProductAICodingPack(true);
+      setAiRetryAction("product-ai-coding-pack");
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: {
@@ -1696,9 +1776,7 @@ export function ExportCenter() {
           validationErrors: data.validationErrors
         });
         setMessage(
-          data.validationErrors?.length
-            ? data.validationErrors.join(" ")
-            : data.error || "Could not generate Product Delivery AI Coding Pack."
+          getFriendlyExportAIErrorMessage(data.error, data.validationErrors)
         );
         return;
       }
@@ -1724,6 +1802,7 @@ export function ExportCenter() {
         }
       });
       logRouteAIRun({ skillId, success: true, meta: data.meta });
+      setAiRetryAction(null);
       setMessage("Da tao preview AI Coding Pack tu Product Delivery artifacts.");
     } catch (error) {
       setAICodingPack(null);
@@ -1736,10 +1815,76 @@ export function ExportCenter() {
             : "Unknown AI Coding Pack generation error."
       });
       setMessage(
-        error instanceof Error
-          ? `Khong the tao Product Delivery AI Coding Pack: ${error.message}`
-          : "Khong the tao Product Delivery AI Coding Pack. Vui long thu lai."
+        getFriendlyExportAIErrorMessage(
+          error instanceof Error ? error.message : undefined
+        )
       );
+    } finally {
+      setIsGeneratingProductAICodingPack(false);
+    }
+  }
+
+  function retryExportAIAction() {
+    switch (aiRetryAction) {
+      case "compare-brd-ptr":
+        void runExportProviderCompare({ kind: "brd", skillId: "ptr-to-brd" });
+        break;
+      case "compare-brd-notes":
+        void runExportProviderCompare({ kind: "brd", skillId: "notes-to-brd" });
+        break;
+      case "compare-stories-srs":
+        void runExportProviderCompare({
+          kind: "userStories",
+          skillId: "srs-to-user-stories"
+        });
+        break;
+      case "compare-stories-brd":
+        void runExportProviderCompare({
+          kind: "userStories",
+          skillId: "brd-to-user-stories"
+        });
+        break;
+      case "compare-ai-coding-pack":
+        void runExportProviderCompare({
+          kind: "aiCodingPack",
+          skillId: "user-stories-to-ai-coding-pack"
+        });
+        break;
+      case "brd-ptr":
+        void generateBRDPreview("ptr-to-brd");
+        break;
+      case "brd-notes":
+        void generateBRDPreview("notes-to-brd");
+        break;
+      case "srs-brd":
+        void generateSRSPreview("brd-to-srs");
+        break;
+      case "srs-notes":
+        void generateSRSPreview("notes-to-srs");
+        break;
+      case "stories-srs":
+        void generateUserStoryPreview("srs-to-user-stories");
+        break;
+      case "stories-brd":
+        void generateUserStoryPreview("brd-to-user-stories");
+        break;
+      case "acceptance-criteria":
+        void generateAcceptanceCriteriaPreview();
+        break;
+      case "scope-review":
+        void generateProductScopeReviewPreview("product-scope-review");
+        break;
+      case "mvp-slicing":
+        void generateProductScopeReviewPreview("mvp-slicing");
+        break;
+      case "requirement-qa":
+        void generateRequirementQAPreview();
+        break;
+      case "product-ai-coding-pack":
+        void previewProductDeliveryAICodingPack();
+        break;
+      default:
+        break;
     }
   }
 
@@ -1987,7 +2132,28 @@ export function ExportCenter() {
           </div>
         </div>
 
-        {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+        {message ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+            <span>{message}</span>
+            {aiRetryAction &&
+            !isRunningCompare &&
+            !isGeneratingBRD &&
+            !isGeneratingSRS &&
+            !isGeneratingUserStories &&
+            !isGeneratingAcceptanceCriteria &&
+            !isGeneratingProductScopeReview &&
+            !isGeneratingRequirementQA &&
+            !isGeneratingProductAICodingPack ? (
+              <button
+                className="rounded border border-sky-300 bg-white px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                onClick={retryExportAIAction}
+                type="button"
+              >
+                Retry
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-5">
@@ -2991,10 +3157,13 @@ export function ExportCenter() {
               </button>
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                disabled={isGeneratingProductAICodingPack}
                 onClick={() => void previewProductDeliveryAICodingPack()}
                 type="button"
               >
-                Preview Product Delivery Handoff Pack
+                {isGeneratingProductAICodingPack
+                  ? "Generating handoff pack..."
+                  : "Preview Product Delivery Handoff Pack"}
               </button>
               <button
                 className="btn btn-primary"

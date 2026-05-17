@@ -64,6 +64,33 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "mock", label: "Local analysis" }
 ];
 
+type TemplateAIRetryAction = "review" | "compare";
+
+function getFriendlyTemplateAIErrorMessage(
+  error?: string,
+  validationErrors?: string[]
+) {
+  if (validationErrors?.length) {
+    return "Template QA returned output that did not pass validation. Nothing was applied; adjust the template or retry.";
+  }
+
+  const normalizedError = (error ?? "").toLowerCase();
+
+  if (normalizedError.includes("timeout") || normalizedError.includes("timed out")) {
+    return "Template QA timed out. Nothing was applied; you can retry with the current template.";
+  }
+
+  if (
+    normalizedError.includes("network") ||
+    normalizedError.includes("fetch") ||
+    normalizedError.includes("failed")
+  ) {
+    return "Template QA could not reach the service. Nothing was applied; check the connection or retry.";
+  }
+
+  return "Template QA could not complete. Nothing was applied; you can retry with the current template.";
+}
+
 const templateHubText = {
   vi: {
     title: "Trung tâm template",
@@ -466,6 +493,8 @@ export function TemplateLibraryEditor() {
   const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
   const [compareResults, setCompareResults] = useState<TemplateCompareResult[]>([]);
   const [isRunningCompare, setIsRunningCompare] = useState(false);
+  const [aiRetryAction, setAiRetryAction] =
+    useState<TemplateAIRetryAction | null>(null);
   const [advancedModeOpen, setAdvancedModeOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(
     null
@@ -688,6 +717,7 @@ export function TemplateLibraryEditor() {
     }
 
     setIsReviewingTemplate(true);
+    setAiRetryAction("review");
     setTemplateReviewRecommendations([]);
     setTemplateQualityScore(null);
     setTemplateReviewWarnings([]);
@@ -738,6 +768,10 @@ export function TemplateLibraryEditor() {
           data.error || "AI Template QA failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = getFriendlyTemplateAIErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         logAICallAudit({
           skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
@@ -747,7 +781,7 @@ export function TemplateLibraryEditor() {
           externalApiCalled:
             data.meta?.externalApiCalled ?? realAITemplateReviewEnabled
         });
-        setMessage(errorMessage);
+        setMessage(friendlyMessage);
         return;
       }
 
@@ -755,6 +789,7 @@ export function TemplateLibraryEditor() {
       setTemplateQualityScore(data.result?.qualityScore ?? null);
       setTemplateReviewWarnings(data.result?.warnings ?? []);
       setTemplateReviewAssumptions(data.result?.assumptions ?? []);
+      setAiRetryAction(null);
       setMessage(
         `${
           data.mode === "provider-backed"
@@ -784,7 +819,7 @@ export function TemplateLibraryEditor() {
         realAIEnabled: realAITemplateReviewEnabled,
         externalApiCalled: false
       });
-      setMessage("Template QA request failed. No template change was applied.");
+      setMessage(getFriendlyTemplateAIErrorMessage("request failed"));
     } finally {
       setIsReviewingTemplate(false);
     }
@@ -853,6 +888,7 @@ export function TemplateLibraryEditor() {
     }
 
     setIsRunningCompare(true);
+    setAiRetryAction("compare");
     setCompareResults([]);
     setMessage("Running Provider Compare for Template Review...");
 
@@ -902,6 +938,10 @@ export function TemplateLibraryEditor() {
         ]
           .filter(Boolean)
           .join(" ");
+        const friendlyErrorMessage = getFriendlyTemplateAIErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         nextResults.push({
           id: `${AI_TEMPLATE_REVIEW_SKILL_ID}-${providerId}-${Date.now()}`,
@@ -918,7 +958,7 @@ export function TemplateLibraryEditor() {
                   recommendations,
                   qualityScore: data.result?.qualityScore
                 })
-              : errorMessage || "Provider run failed.",
+              : friendlyErrorMessage,
           validationStatus:
             data.meta?.validationPassed === false || !response.ok || !data.ok
               ? "failed"
@@ -926,7 +966,7 @@ export function TemplateLibraryEditor() {
           recommendations: response.ok && data.ok ? recommendations : [],
           qualityScore: response.ok && data.ok ? data.result?.qualityScore ?? null : null,
           assumptions: response.ok && data.ok ? data.result?.assumptions ?? [] : [],
-          error: response.ok && data.ok ? undefined : errorMessage
+          error: response.ok && data.ok ? undefined : friendlyErrorMessage
         });
         logAICallAudit({
           skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
@@ -945,8 +985,9 @@ export function TemplateLibraryEditor() {
           }
         });
       } catch (error) {
-        const errorMessage =
+        const auditErrorMessage =
           error instanceof Error ? error.message : "Provider compare request failed.";
+        const errorMessage = getFriendlyTemplateAIErrorMessage(auditErrorMessage);
 
         nextResults.push({
           id: `${AI_TEMPLATE_REVIEW_SKILL_ID}-${providerId}-${Date.now()}`,
@@ -965,6 +1006,7 @@ export function TemplateLibraryEditor() {
     }
 
     setCompareResults(nextResults);
+    setAiRetryAction(nextResults.some((result) => result.validationStatus === "failed") ? "compare" : null);
     setMessage("Provider Compare finished. Choose one provider output to review further.");
     setIsRunningCompare(false);
   }
@@ -974,7 +1016,19 @@ export function TemplateLibraryEditor() {
     setTemplateQualityScore(result.qualityScore);
     setTemplateReviewWarnings(result.warnings);
     setTemplateReviewAssumptions(result.assumptions);
+    setAiRetryAction(null);
     setMessage(`Selected ${result.providerId} Template Review output. No template change was auto-applied.`);
+  }
+
+  function retryTemplateAIAction() {
+    if (aiRetryAction === "review") {
+      void runTemplateReview();
+      return;
+    }
+
+    if (aiRetryAction === "compare") {
+      void runTemplateReviewCompare();
+    }
   }
 
   return (
@@ -1042,7 +1096,20 @@ export function TemplateLibraryEditor() {
         </div>
       </div>
 
-      {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+      {message ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+          <span>{message}</span>
+          {aiRetryAction && !isReviewingTemplate && !isRunningCompare ? (
+            <button
+              className="rounded border border-sky-300 bg-white px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+              onClick={retryTemplateAIAction}
+              type="button"
+            >
+              Retry
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

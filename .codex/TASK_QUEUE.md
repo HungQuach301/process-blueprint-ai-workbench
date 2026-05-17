@@ -45,7 +45,7 @@ Legend:
 - [x] UX-005-qa-panel-user-facing-cleanup
 - [x] UX-006-bpmn-preview-readability
 - [x] UX-007-blueprint-preview-scroll-affordance
-- [ ] UX-011a-ai-error-loading-retry-feedback
+- [x] UX-011a-ai-error-loading-retry-feedback
 - [ ] UX-011b-save-unsaved-changes-feedback
 - [ ] UX-011c-workspace-backup-restore
 - [ ] UX-012-user-facing-regression-check
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

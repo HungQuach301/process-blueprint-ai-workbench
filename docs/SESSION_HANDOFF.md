@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-011a-ai-error-loading-retry-feedback`.
+- Added user-friendly AI loading/error/retry feedback in AI Input Brief, QA Panel, Template Hub, D01 BPMN Output, D02 Service Blueprint Output, and Export Center.
+- Converted raw route/provider/validation failures into concise UI messages while keeping audit logging and schema/quality-gate validation behavior intact.
+- Added retry affordances only where the current local payload can be safely rerun; AI outputs remain preview-only and no auto-apply behavior was introduced.
+- Preserved `/api/ai/run-skill`, Rule QA engine, QARecommendation schema/types, QA Panel apply/preview behavior, D01/D02 generator core, and dependencies.
 - Ran task `UX-007-blueprint-preview-scroll-affordance`.
 - Updated `src/components/preview/D02ServiceBlueprintPreview.tsx` with clearer horizontal scroll affordance, scroll left/right controls, edge fade hints, and visible template/status/gate context near the D02 preview.
 - Updated `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx` so the selected D02 template name, artifact status, and post-generation gate status are visible before the preview and passed into the preview header.

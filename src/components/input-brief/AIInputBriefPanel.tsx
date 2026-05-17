@@ -623,6 +623,34 @@ function getFileDraftActionLabel(file: IntakeFileMetadata, generateLabel: string
   return `${generateLabel} to create a reviewable preview.`;
 }
 
+type DraftRetryAction =
+  | "input-brief"
+  | "chat-notes"
+  | "docx-extraction"
+  | "pdf-extraction";
+
+function getFriendlyAIDraftErrorMessage(error?: string, validationErrors?: string[]) {
+  if (validationErrors?.length) {
+    return "AI returned a draft that did not pass validation. Nothing was applied; review the inputs and retry.";
+  }
+
+  const normalizedError = (error ?? "").toLowerCase();
+
+  if (normalizedError.includes("timeout") || normalizedError.includes("timed out")) {
+    return "AI draft generation timed out. Nothing was applied; you can retry with the current input.";
+  }
+
+  if (
+    normalizedError.includes("network") ||
+    normalizedError.includes("fetch") ||
+    normalizedError.includes("failed")
+  ) {
+    return "AI draft generation could not reach the service. Nothing was applied; check the connection or retry.";
+  }
+
+  return "AI draft generation could not complete. Nothing was applied; you can retry with the current input.";
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
   const [briefMode, setBriefMode] = useState<BriefMode>("manual");
@@ -648,6 +676,8 @@ export function AIInputBriefPanel() {
   const [aiProvider, setAiProvider] = useState("mock");
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
+  const [draftRetryAction, setDraftRetryAction] =
+    useState<DraftRetryAction | null>(null);
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -1137,6 +1167,10 @@ export function AIInputBriefPanel() {
           data.error || "AI draft generation failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         saveAuditLogEntry({
           action: "generate_ai_draft",
@@ -1158,8 +1192,8 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(data.validationErrors ?? [errorMessage]);
-        setMessage(errorMessage);
+        setBlockingErrors(data.validationErrors ?? [friendlyMessage]);
+        setMessage(friendlyMessage);
         return null;
       }
 
@@ -1167,6 +1201,10 @@ export function AIInputBriefPanel() {
 
       if (!validation.ok) {
         const errorMessage = `AI output rejected: ${validation.errors.join(" ")}`;
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          undefined,
+          validation.errors
+        );
 
         saveAuditLogEntry({
           action: "generate_ai_draft",
@@ -1189,7 +1227,7 @@ export function AIInputBriefPanel() {
         setDraftTasks([]);
         setDraftMeta(null);
         setBlockingErrors(validation.errors);
-        setMessage(errorMessage);
+        setMessage(friendlyMessage);
         return null;
       }
 
@@ -1237,6 +1275,7 @@ export function AIInputBriefPanel() {
       };
 
       setBlockingErrors([]);
+      setDraftRetryAction(null);
       setDraftTasks(nextDraftMeta.draftProcessTasks);
       setDraftMeta(nextDraftMeta);
       saveAuditLogEntry({
@@ -1283,7 +1322,7 @@ export function AIInputBriefPanel() {
           validationPassed: false
         }
       });
-      setMessage("AI draft generation request failed. Draft was not applied.");
+      setMessage(getFriendlyAIDraftErrorMessage("request failed"));
       return null;
     } finally {
       setIsGeneratingWithAI(false);
@@ -1334,6 +1373,7 @@ export function AIInputBriefPanel() {
       return;
     }
 
+    setDraftRetryAction("docx-extraction");
     void generateDraftPtrViaSkill({
       skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
       payload: {
@@ -1365,6 +1405,7 @@ export function AIInputBriefPanel() {
 
     const activePdfExtraction = pdfExtraction;
 
+    setDraftRetryAction("pdf-extraction");
     void generateDraftPtrViaSkill({
       skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
       payload: {
@@ -1383,7 +1424,9 @@ export function AIInputBriefPanel() {
 
   async function generateDraftPtrFromChatNotes() {
     setHasAttemptedDraftGeneration(true);
+    setDraftRetryAction("chat-notes");
     if (chatNotes.trim().length < 20) {
+      setDraftRetryAction(null);
       setDraftTasks([]);
       setDraftMeta(null);
       setBlockingErrors(["Notes must contain enough text to generate a Draft PTR."]);
@@ -1469,6 +1512,7 @@ export function AIInputBriefPanel() {
 
   async function generateDraftPtrWithAI() {
     setHasAttemptedDraftGeneration(true);
+    setDraftRetryAction("input-brief");
     const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
@@ -1487,6 +1531,7 @@ export function AIInputBriefPanel() {
     if (!briefQualityGate.canPreview) {
       const errors = formatQualityGateErrorsVi(briefQualityGate);
 
+      setDraftRetryAction(null);
       setDraftTasks([]);
       setDraftMeta(null);
       setBlockingErrors(errors);
@@ -1536,6 +1581,7 @@ export function AIInputBriefPanel() {
       };
 
       setBlockingErrors([]);
+      setDraftRetryAction(null);
       setDraftTasks(nextResponse.draftProcessTasks);
       setDraftMeta(nextResponse);
       saveAuditLogEntry({
@@ -1593,6 +1639,10 @@ export function AIInputBriefPanel() {
           data.error || "AI draft generation failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         saveAuditLogEntry({
           action: "generate_ai_draft",
@@ -1613,8 +1663,8 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(data.validationErrors ?? [errorMessage]);
-        setMessage(errorMessage);
+        setBlockingErrors(data.validationErrors ?? [friendlyMessage]);
+        setMessage(friendlyMessage);
         return;
       }
 
@@ -1622,6 +1672,10 @@ export function AIInputBriefPanel() {
 
       if (!validation.ok) {
         const errorMessage = `AI output rejected: ${validation.errors.join(" ")}`;
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          undefined,
+          validation.errors
+        );
 
         saveAuditLogEntry({
           action: "generate_ai_draft",
@@ -1643,7 +1697,7 @@ export function AIInputBriefPanel() {
         setDraftTasks([]);
         setDraftMeta(null);
         setBlockingErrors(validation.errors);
-        setMessage(errorMessage);
+        setMessage(friendlyMessage);
         return;
       }
 
@@ -1685,6 +1739,7 @@ export function AIInputBriefPanel() {
       };
 
       setBlockingErrors([]);
+      setDraftRetryAction(null);
       setDraftTasks(nextDraftMeta.draftProcessTasks);
       setDraftMeta(nextDraftMeta);
       saveAuditLogEntry({
@@ -1728,9 +1783,30 @@ export function AIInputBriefPanel() {
           validationPassed: false
         }
       });
-      setMessage("AI draft generation request failed. Draft was not applied.");
+      setMessage(getFriendlyAIDraftErrorMessage("request failed"));
     } finally {
       setIsGeneratingWithAI(false);
+    }
+  }
+
+  function retryDraftGeneration() {
+    if (draftRetryAction === "chat-notes") {
+      void generateDraftPtrFromChatNotes();
+      return;
+    }
+
+    if (draftRetryAction === "docx-extraction") {
+      generateDraftPtrFromDocxExtraction();
+      return;
+    }
+
+    if (draftRetryAction === "pdf-extraction") {
+      generateDraftPtrFromPdfExtraction();
+      return;
+    }
+
+    if (draftRetryAction === "input-brief") {
+      void generateDraftPtrWithAI();
     }
   }
 
@@ -2325,7 +2401,20 @@ export function AIInputBriefPanel() {
               : uiText.mockMode
             : uiText.checkingAIMode}
         </span>
-        {message ? <span>{message}</span> : null}
+        {message ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{isGeneratingWithAI ? uiText.generating : message}</span>
+            {draftRetryAction && !isGeneratingWithAI ? (
+              <button
+                className="rounded border border-sky-300 bg-white px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                onClick={retryDraftGeneration}
+                type="button"
+              >
+                Retry
+              </button>
+            ) : null}
+          </span>
+        ) : null}
       </div>
 
       {!hasAttemptedDraftGeneration && draftTasks.length === 0 ? (

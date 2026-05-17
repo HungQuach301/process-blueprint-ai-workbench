@@ -95,6 +95,28 @@ function getGateStatusClass(verdict: GateVerdict) {
   return "border-emerald-200 bg-emerald-50 text-emerald-800";
 }
 
+function getFriendlyAIReviewErrorMessage(error?: string, validationErrors?: string[]) {
+  if (validationErrors?.length) {
+    return "AI review returned output that did not pass validation. Nothing was applied; adjust the source data or retry.";
+  }
+
+  const normalizedError = (error ?? "").toLowerCase();
+
+  if (normalizedError.includes("timeout") || normalizedError.includes("timed out")) {
+    return "AI review timed out. Nothing was applied; you can retry with the current XML.";
+  }
+
+  if (
+    normalizedError.includes("network") ||
+    normalizedError.includes("fetch") ||
+    normalizedError.includes("failed")
+  ) {
+    return "AI review could not reach the service. Nothing was applied; check the connection or retry.";
+  }
+
+  return "AI review could not complete. Nothing was applied; you can retry with the current XML.";
+}
+
 function PostGateVerdictSummary({ verdict }: { verdict: GateVerdict | null }) {
   if (!verdict) {
     return null;
@@ -143,6 +165,7 @@ export function D01BpmnOutput() {
   );
   const [isReviewing, setIsReviewing] = useState(false);
   const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [canRetryAIReview, setCanRetryAIReview] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -195,6 +218,7 @@ export function D01BpmnOutput() {
       setPostGateVerdict(verdict);
       setSelectedTemplateName(selectedTemplate.name);
       setReviewResult(null);
+      setCanRetryAIReview(false);
       window.localStorage.setItem(D01_GENERATED_XML_KEY, generatedXml);
       window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "fresh");
       window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
@@ -221,7 +245,7 @@ export function D01BpmnOutput() {
 
   async function reviewBpmnWithAI() {
     if (!xml.trim()) {
-      setMessage("ChÆ°a cÃ³ BPMN XML Ä‘á»ƒ review. Vui lÃ²ng generate D01 trÆ°á»›c.");
+      setMessage("Generate D01 BPMN before running AI review.");
       return;
     }
 
@@ -233,7 +257,8 @@ export function D01BpmnOutput() {
 
     setIsReviewing(true);
     setReviewResult(null);
-    setMessage("Äang review BPMN báº±ng AI...");
+    setCanRetryAIReview(false);
+    setMessage("AI review is running...");
 
     try {
       const response = await fetch("/api/ai/run-skill", {
@@ -269,6 +294,10 @@ export function D01BpmnOutput() {
           data.error ?? "AI artifact review failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = getFriendlyAIReviewErrorMessage(
+          data.error,
+          data.validationErrors
+        );
         logAICallAudit({
           skillId: ARTIFACT_REVIEW_SKILL_ID,
           success: false,
@@ -279,7 +308,7 @@ export function D01BpmnOutput() {
             artifactType: "bpmn"
           }
         });
-        throw new Error(errorMessage);
+        throw new Error(friendlyMessage);
       }
 
       const result: ArtifactReviewResult = {
@@ -301,12 +330,12 @@ export function D01BpmnOutput() {
           warningCount: result.warnings.length
         }
       });
-      setMessage("ÄÃ£ review BPMN báº±ng AI. Káº¿t quáº£ chá»‰ lÃ  preview, khÃ´ng tá»± Ä‘á»™ng sá»­a XML.");
+      setCanRetryAIReview(false);
+      setMessage("AI review completed. Results are preview only; XML was not changed.");
     } catch (error) {
+      setCanRetryAIReview(Boolean(xml.trim()));
       setMessage(
-        error instanceof Error
-          ? error.message
-          : "KhÃ´ng thá»ƒ review BPMN báº±ng AI."
+        error instanceof Error ? error.message : getFriendlyAIReviewErrorMessage()
       );
     } finally {
       setIsReviewing(false);
@@ -373,7 +402,20 @@ export function D01BpmnOutput() {
         <p className="mb-4 text-sm font-medium uppercase text-slate-500">
           D01 BPMN Output
         </p>
-        {message ? <p className="mt-3 text-sm text-slate-600">{message}</p> : null}
+        {message ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+            <span>{message}</span>
+            {canRetryAIReview && xml.trim() && !isReviewing ? (
+              <button
+                className="rounded border border-sky-300 bg-white px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                onClick={() => void reviewBpmnWithAI()}
+                type="button"
+              >
+                Retry
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <PostGateVerdictSummary verdict={postGateVerdict} />
 

@@ -85,10 +85,10 @@ const providerCards: Array<{
   {
     id: "local-model",
     serverProviderId: "mock",
-    title: "Local / Mock",
+    title: "Local analysis",
     description: {
-      vi: "Mock/local fallback, khong goi provider ben ngoai.",
-      en: "Mock/local fallback with no external provider call."
+      vi: "Phan tich cuc bo, khong goi provider ben ngoai.",
+      en: "Local analysis with no external provider call."
     }
   }
 ];
@@ -97,7 +97,7 @@ const modelProviderOptions: Array<{ value: ModelProvider; label: string }> = [
   { value: "product-ai", label: "Product AI" },
   { value: "openai-byok", label: "OpenAI" },
   { value: "claude-byok", label: "Claude" },
-  { value: "local-model", label: "Local / Mock" },
+  { value: "local-model", label: "Local analysis" },
   { value: "no-ai", label: "No-AI" }
 ];
 
@@ -125,47 +125,47 @@ const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: string }> = [
 
 const textByLocale = {
   vi: {
-    title: "Trung tâm kết nối AI",
+    title: "Trung tam ket noi AI",
     description:
-      "Chọn provider, kiểm tra kết nối và quản lý cấu hình AI không nhạy cảm.",
-    save: "Lưu thiết lập",
-    reset: "Đặt lại",
-    test: "Kiểm tra kết nối",
-    testing: "Đang kiểm tra...",
-    status: "Trạng thái",
-    selected: "Đang chọn",
-    configured: "Đã cấu hình",
-    missingEnv: "Thiếu env",
-    disabled: "Đang tắt",
-    available: "Khả dụng",
-    dataWarning: "Cảnh báo dữ liệu",
+      "Chon provider, kiem tra ket noi va quan ly cau hinh AI khong nhay cam.",
+    save: "Luu thiet lap",
+    reset: "Dat lai",
+    test: "Kiem tra ket noi",
+    testing: "Dang kiem tra...",
+    status: "Trang thai",
+    selected: "Dang chon",
+    configured: "Da cau hinh",
+    missingEnv: "Chua cau hinh",
+    disabled: "Dang tat",
+    available: "Kha dung",
+    dataWarning: "Canh bao du lieu",
     dataWarningBody:
-      "Cloud AI chỉ được gọi qua route server-side. Không nhập hoặc hiển thị API key trong browser.",
-    currentMode: "Chế độ hiện tại",
-    flags: "Feature flags",
+      "Cloud AI chi duoc goi qua route server-side. Khong nhap hoac hien thi API key trong browser.",
+    currentMode: "Che do hien tai",
+    flags: "Advanced flags",
     serverProvider: "Provider server",
     dataMode: "Data mode server",
     model: "Model",
-    advanced: "Thiết lập nâng cao",
-    show: "Hiện",
-    hide: "Ẩn",
-    defaultProvider: "Provider mặc định",
-    capability: "Năng lực model mặc định",
-    allowCloud: "Cho phép cloud AI",
-    requireApproval: "Yêu cầu phê duyệt",
-    dataUsageMode: "Chế độ sử dụng dữ liệu",
-    organizationNote: "Ghi chú tổ chức",
-    organizationPlaceholder: "Ghi chú tenant/tổ chức tùy chọn",
-    perSkillOverride: "Ghi đè theo skill",
-    inheritDefault: "Theo provider mặc định",
-    saved: "Đã lưu preference không chứa secret vào localStorage.",
-    resetDone: "Đã đặt lại về local/mock và local-only.",
-    changed: "Có thay đổi chưa lưu.",
-    mockModeSummary: "Local/mock, không gọi provider bên ngoài.",
-    realModeSummary: "Real AI qua provider đã chọn. Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
-    modelPlaceholder: "Tên hiển thị tùy chọn",
+    advanced: "Thiet lap nang cao",
+    show: "Hien",
+    hide: "An",
+    defaultProvider: "Provider mac dinh",
+    capability: "Nang luc model mac dinh",
+    allowCloud: "Cho phep cloud AI",
+    requireApproval: "Yeu cau phe duyet",
+    dataUsageMode: "Che do su dung du lieu",
+    organizationNote: "Ghi chu to chuc",
+    organizationPlaceholder: "Ghi chu tenant/to chuc tuy chon",
+    perSkillOverride: "Ghi de theo skill",
+    inheritDefault: "Theo provider mac dinh",
+    saved: "Da luu preference khong chua secret vao localStorage.",
+    resetDone: "Da dat lai ve local analysis va local-only.",
+    changed: "Co thay doi chua luu.",
+    mockModeSummary: "Phan tich cuc bo, khong goi provider ben ngoai.",
+    realModeSummary: "Real AI qua provider da chon. Du lieu co the duoc xu ly tren cloud theo cau hinh server.",
+    modelPlaceholder: "Ten hien thi tuy chon",
     effectiveProvider: "Provider thuc thi",
-    fallbackActive: "Fallback local/mock dang hoat dong vi provider da chon chua san sang.",
+    fallbackActive: "Local analysis fallback is active because the selected provider is not ready.",
     selectedStatus: "Trang thai provider da chon"
   },
   en: {
@@ -179,14 +179,14 @@ const textByLocale = {
     status: "Status",
     selected: "Selected",
     configured: "Configured",
-    missingEnv: "Missing env",
+    missingEnv: "Not configured",
     disabled: "Disabled",
     available: "Available",
     dataWarning: "Data warning",
     dataWarningBody:
       "Cloud AI is only called through the server-side route. API keys are never entered or displayed in the browser.",
     currentMode: "Current mode",
-    flags: "Feature flags",
+    flags: "Advanced flags",
     serverProvider: "Server provider",
     dataMode: "Server data mode",
     model: "Model",
@@ -203,13 +203,13 @@ const textByLocale = {
     perSkillOverride: "Per-skill override",
     inheritDefault: "Use default provider",
     saved: "Saved non-secret preferences to localStorage.",
-    resetDone: "Reset to local/mock and local-only.",
+    resetDone: "Reset to local analysis and local-only.",
     changed: "Unsaved changes.",
-    mockModeSummary: "Local/mock mode, no external provider call.",
+    mockModeSummary: "Local analysis mode, no external provider call.",
     realModeSummary: "Real AI via the selected provider. Data may be processed in the cloud according to server configuration.",
     modelPlaceholder: "Optional display name only",
     effectiveProvider: "Effective provider",
-    fallbackActive: "Local/mock fallback is active because the selected provider is not ready.",
+    fallbackActive: "Local analysis fallback dang hoat dong vi provider da chon chua san sang.",
     selectedStatus: "Selected provider status"
   }
 } satisfies Record<Locale, Record<string, string>>;
@@ -537,9 +537,6 @@ export function AIProviderSettingsPanel() {
             {text.fallbackActive}
           </p>
         ) : null}
-        <p className="mt-3 text-xs text-slate-500">
-          {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
-        </p>
       </div>
 
       <div className="mt-4 overflow-hidden rounded border border-slate-200 bg-white">
@@ -556,6 +553,9 @@ export function AIProviderSettingsPanel() {
 
         {advancedOpen ? (
           <div className="border-t border-slate-200 p-4">
+            <p className="mb-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
+            </p>
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">

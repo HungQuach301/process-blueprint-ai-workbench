@@ -1675,7 +1675,7 @@ export function AIInputBriefPanel() {
         }
       });
       setMessage(
-        `Real AI mode: Ä‘Ã£ táº¡o draft PTR há»£p lá»‡ ${validation.value.draftProcessTasks.length} dÃ²ng. HÃ£y review trÆ°á»›c khi Apply.`
+        `Real AI mode: created a valid Draft PTR with ${validation.value.draftProcessTasks.length} row(s). Review before Apply.`
       );
     } catch {
       logAICallAudit({

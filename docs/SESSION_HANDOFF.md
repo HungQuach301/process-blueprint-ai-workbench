@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-010-mixed-language-and-mock-label-cleanup`.
+- Replaced primary user-facing Mock/Local-Mock wording in AI Connection Center, QA Panel, Template Hub, and Export Center with clearer `Local analysis` / local wording while preserving internal provider id `mock`.
+- Replaced user-facing `Missing env` with `Not configured` / `Chua cau hinh` and moved AI feature flag status out of the primary AI Connection Center panel into Advanced settings.
+- Cleaned obvious mojibake/encoding artifacts in the allowed main UI files, including AI Connection Center text, AI Input Brief status message, Template Hub warning label, and Export Center messages.
+- Kept AI route behavior, provider ids, env names, schemas, generator behavior, auto-apply behavior, and dependencies unchanged.
 - Ran task `UX-009-export-center-simplification`.
 - Simplified `src/components/export-center/ExportCenter.tsx` so primary Export Center actions now emphasize ZIP download and audit evidence, while package preparation is visually de-emphasized.
 - Collapsed Product Delivery optional context, notes, uploaded file text, provider compare, and generation controls behind a dedicated Product Delivery preparation details section.

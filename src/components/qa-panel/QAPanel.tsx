@@ -67,7 +67,7 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "product-ai", label: "Product AI" },
   { id: "openai", label: "OpenAI" },
   { id: "claude", label: "Claude" },
-  { id: "mock", label: "Local/Mock" }
+  { id: "mock", label: "Local analysis" }
 ];
 
 const qaPanelText = {
@@ -79,7 +79,7 @@ const qaPanelText = {
     findings: "Phát hiện",
     findingsHelper: "Mục phát hiện là thông tin review chỉ đọc. Khu vực này không có nút áp dụng.",
     runAiFindings: "Chạy AI phát hiện",
-    runMockFindings: "Chạy mock phát hiện",
+    runMockFindings: "Chạy phát hiện cục bộ",
     runningAiFindings: "Đang chạy AI phát hiện...",
     noFindings: "Chưa có mục phát hiện nào.",
     noFindingsAndRecommendations: "Chưa có mục phát hiện hoặc đề xuất nào.",
@@ -102,7 +102,7 @@ const qaPanelText = {
     clearLocalFeedback: "Xóa feedback local",
     running: "Đang chạy AI QA...",
     runReal: "Chay AI QA",
-    runMock: "Chay mock QA",
+    runMock: "Chay QA cuc bo",
     showOnlySafe: "Chi hien de xuat an toan",
     includeMedium: "Bao gom muc trung binh",
     includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
@@ -133,7 +133,7 @@ const qaPanelText = {
     findings: "Findings",
     findingsHelper: "Findings are read-only review items. This section has no apply buttons.",
     runAiFindings: "Run AI findings",
-    runMockFindings: "Run mock findings",
+    runMockFindings: "Run local findings",
     runningAiFindings: "Running AI findings...",
     noFindings: "No findings yet.",
     noFindingsAndRecommendations: "No findings or recommendations yet.",
@@ -156,7 +156,7 @@ const qaPanelText = {
     clearLocalFeedback: "Clear local feedback",
     running: "Running AI QA...",
     runReal: "Run AI QA",
-    runMock: "Run mock QA",
+    runMock: "Run local QA",
     showOnlySafe: "Show only safe recommendations",
     includeMedium: "Include medium confidence/impact",
     includeGraph: "Show advanced structure changes",
@@ -899,7 +899,7 @@ export function QAPanel({
 
       setAiFindingSet(data.result);
       setAiQaMessage(
-        `${data.mode === "provider-backed" ? "Real" : "Mock"} AI findings returned ${data.result.findings.length} finding(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
+        `${data.mode === "provider-backed" ? "Real AI" : "Local analysis"} findings returned ${data.result.findings.length} finding(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
       );
       logAICallAudit({
         skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
@@ -1008,7 +1008,7 @@ export function QAPanel({
                 taskName:
                   data.mode === "provider-backed"
                     ? "AI QA recommendation"
-                    : "Mock AI QA recommendation",
+                    : "Local analysis QA recommendation",
                 severity: "suggestion",
                 message:
                   "AI QA returned recommendation(s) using the existing Recommendation Engine schema.",
@@ -1021,7 +1021,7 @@ export function QAPanel({
       );
       setAiQaMessage(
         recommendations.length > 0
-          ? `${data.mode === "provider-backed" ? "Real" : "Mock"} AI QA returned ${recommendations.length} recommendation(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
+          ? `${data.mode === "provider-backed" ? "Real AI" : "Local analysis"} QA returned ${recommendations.length} recommendation(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
           : "AI QA did not return recommendations for the current PTR."
       );
       logAICallAudit({

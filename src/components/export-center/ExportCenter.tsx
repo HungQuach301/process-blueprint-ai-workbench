@@ -181,7 +181,7 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "product-ai", label: "Product AI" },
   { id: "openai", label: "OpenAI" },
   { id: "claude", label: "Claude" },
-  { id: "mock", label: "Local/Mock" }
+  { id: "mock", label: "Local analysis" }
 ];
 
 function mapCodingPackPreviewToRouteFiles(files: AICodingPackFiles) {
@@ -210,7 +210,7 @@ function readJsonArray<T>(key: string, fallback: T[]) {
   const parsedValue = JSON.parse(savedValue);
 
   if (!Array.isArray(parsedValue)) {
-    throw new Error(`${key} khÃ´ng pháº£i lÃ  danh sÃ¡ch há»£p lá»‡.`);
+    throw new Error(`${key} is not a valid list.`);
   }
 
   return parsedValue as T[];
@@ -436,7 +436,7 @@ export function ExportCenter() {
         ? "Review the preview before applying or exporting."
         : validationErrors?.length
           ? "Review validation issues, adjust the source context, then rerun the skill."
-          : "Check provider status or rerun with Local/Mock fallback."
+          : "Check provider status or rerun with local analysis fallback."
     });
     refreshAIRunHistory();
   }
@@ -825,14 +825,14 @@ export function ExportCenter() {
       setArtifacts(nextArtifacts);
       setExportPackageStatus("fresh");
       refreshArtifactStatuses();
-      setMessage("ÄÃ£ generate fresh Ä‘á»§ 5 artifacts cho output package.");
+      setMessage("Prepared 5 fresh artifacts for the output package.");
     } catch (error) {
       setArtifacts(null);
       setExportPackageStatus("not_generated");
       setMessage(
         error instanceof Error
-          ? `KhÃ´ng thá»ƒ generate output package: ${error.message}`
-          : "KhÃ´ng thá»ƒ generate output package. Vui lÃ²ng kiá»ƒm tra dá»¯ liá»‡u."
+          ? `Could not prepare output package: ${error.message}`
+          : "Could not prepare output package. Please check the data."
       );
     }
   }
@@ -1537,12 +1537,12 @@ export function ExportCenter() {
       setArtifacts(currentArtifacts);
       setExportPackageStatus("fresh");
       refreshArtifactStatuses();
-      setMessage("ÄÃ£ táº¡o ZIP output package.");
+      setMessage("Created ZIP output package.");
     } catch (error) {
       setMessage(
         error instanceof Error
-          ? `KhÃ´ng thá»ƒ download ZIP: ${error.message}`
-          : "KhÃ´ng thá»ƒ download ZIP. Vui lÃ²ng thá»­ láº¡i."
+          ? `Could not download ZIP: ${error.message}`
+          : "Could not download ZIP. Please try again."
       );
     } finally {
       setIsDownloading(false);
@@ -1555,7 +1555,7 @@ export function ExportCenter() {
       `Audit_Log_${createTimestamp()}.json`,
       "application/json;charset=utf-8"
     );
-    setMessage("ÄÃ£ export audit log JSON.");
+    setMessage("Exported audit log JSON.");
   }
 
   function downloadAIRunHistory() {
@@ -1945,9 +1945,13 @@ export function ExportCenter() {
             <h2 className="mt-2 text-xl font-semibold text-slate-950">
               Output Package ZIP
             </h2>
+            <p className="hidden">
+              Legacy package description retained for compatibility.
+            </p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Generate vÃ  Ä‘Ã³ng gÃ³i D01 BPMN, D02 Service Blueprint, JSON dá»¯ liá»‡u
-              vÃ  QA Report vÃ o má»™t file ZIP.
+              Review artifact readiness, download the ZIP package, and keep
+              audit evidence for controlled delivery. Generation work is kept
+              in collapsed preparation sections below.
             </p>
           </div>
 

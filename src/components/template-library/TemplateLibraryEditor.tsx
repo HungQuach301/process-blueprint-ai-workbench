@@ -61,7 +61,7 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "product-ai", label: "Product AI" },
   { id: "openai", label: "OpenAI" },
   { id: "claude", label: "Claude" },
-  { id: "mock", label: "Local/Mock" }
+  { id: "mock", label: "Local analysis" }
 ];
 
 const templateHubText = {
@@ -759,7 +759,7 @@ export function TemplateLibraryEditor() {
         `${
           data.mode === "provider-backed"
             ? `Real provider ${data.meta?.providerId ?? "AI"}`
-            : "Mock/local"
+            : "Local analysis"
         } Template QA returned ${
           data.result?.recommendations?.length ?? 0
         } recommendation(s). No template change was auto-applied.`
@@ -1154,7 +1154,7 @@ export function TemplateLibraryEditor() {
           {templateReviewWarnings.length > 0 ? (
             <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               <p className="font-semibold">
-                {locale === "vi" ? "Cáº£nh bÃ¡o" : "Warnings"}
+                {locale === "vi" ? "Canh bao" : "Warnings"}
               </p>
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 {templateReviewWarnings.map((warning) => (

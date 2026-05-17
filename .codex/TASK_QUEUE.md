@@ -12,7 +12,7 @@ Legend:
 - [x] 002-rule-qa-to-findings
 - [x] 003-ai-qa-finding-skill
 - [x] 004-qa-panel-split
-- [ ] INT-01-qa-flow-integration-check
+- [x] INT-01-qa-flow-integration-check
 - [ ] 005-gateverdict-framework
 - [ ] 006a-draft-ptr-gate-v1
 - [ ] 006b-wire-draft-ptr-gate-ui
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

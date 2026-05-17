@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `INT-01-qa-flow-integration-check`.
+- Verified the QA integration flow from Rule QA issues to `QAFinding`, QA Panel Findings, AI findings via `ai-process-qa-finding`, and existing `QARecommendation` preview/apply behavior.
+- Added `docs/QA_FLOW_CHECK.md` with the integration check result, edge cases reviewed, and residual manual UI test risk.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass for the QA findings/recommendations flow.
 - Ran task `004-qa-panel-split`.
 - Updated `src/components/qa-panel/QAPanel.tsx` so Rule QA issues are derived into read-only `QAFinding` items via `src/lib/qa/rule-qa-to-findings.ts`.
 - Added a separate Findings section with a route-backed AI findings action using skill `ai-process-qa-finding`; findings have no apply buttons.
@@ -226,6 +230,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `docs/QA_FLOW_CHECK.md`
 - `src/components/qa-panel/QAPanel.tsx`
 - `src/lib/ai/skill-registry-v2.ts`
 - `src/lib/ai/skill-schemas.ts`

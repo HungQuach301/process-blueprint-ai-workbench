@@ -44,7 +44,7 @@ Legend:
 - [x] UX-003-input-brief-validation-behavior
 - [x] UX-005-qa-panel-user-facing-cleanup
 - [x] UX-006-bpmn-preview-readability
-- [ ] UX-007-blueprint-preview-scroll-affordance
+- [x] UX-007-blueprint-preview-scroll-affordance
 - [ ] UX-011a-ai-error-loading-retry-feedback
 - [ ] UX-011b-save-unsaved-changes-feedback
 - [ ] UX-011c-workspace-backup-restore
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

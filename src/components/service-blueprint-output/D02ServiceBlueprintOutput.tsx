@@ -153,6 +153,9 @@ export function D02ServiceBlueprintOutput() {
   const [status, setStatus] = useState<ArtifactStatus>("not_generated");
   const [postGateVerdict, setPostGateVerdict] =
     useState<GateVerdict | null>(null);
+  const [selectedTemplateName, setSelectedTemplateName] = useState(
+    sampleServiceBlueprintTemplateProfile.name
+  );
   const [reviewResult, setReviewResult] = useState<ArtifactReviewResult | null>(
     null
   );
@@ -174,6 +177,12 @@ export function D02ServiceBlueprintOutput() {
 
   useEffect(() => {
     let active = true;
+
+    try {
+      setSelectedTemplateName(readSelectedD02Template().name);
+    } catch {
+      setSelectedTemplateName(sampleServiceBlueprintTemplateProfile.name);
+    }
 
     async function loadAIMode() {
       try {
@@ -218,6 +227,7 @@ export function D02ServiceBlueprintOutput() {
 
       setXml(generatedXml);
       setPostGateVerdict(verdict);
+      setSelectedTemplateName(selectedTemplate.name);
       setReviewResult(null);
       window.localStorage.setItem(D02_GENERATED_XML_KEY, generatedXml);
       window.localStorage.setItem(D02_GENERATED_STATUS_KEY, "fresh");
@@ -406,8 +416,32 @@ export function D02ServiceBlueprintOutput() {
         <p className="mb-2 text-sm font-medium uppercase text-slate-500">
           D02 Service Blueprint Output
         </p>
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded border border-slate-200 bg-white px-2 py-1 text-slate-700">
+            Template: {selectedTemplateName}
+          </span>
+          <span
+            className={`rounded border px-2 py-1 ${
+              status === "fresh"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : status === "stale"
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-slate-200 bg-slate-50 text-slate-500"
+            }`}
+          >
+            Status:{" "}
+            {status === "fresh"
+              ? "Fresh"
+              : status === "stale"
+                ? "Stale - regenerate after data/template changes"
+                : "Not generated"}
+          </span>
+          <span className="rounded border border-slate-200 bg-white px-2 py-1 text-slate-700">
+            Gate: {postGateVerdict?.status.toUpperCase() ?? "Not generated"}
+          </span>
+        </div>
         <p
-          className={`mb-4 text-sm ${
+          className={`sr-only ${
             status === "fresh"
               ? "text-emerald-700"
               : status === "stale"
@@ -427,7 +461,17 @@ export function D02ServiceBlueprintOutput() {
         <PostGateVerdictSummary verdict={postGateVerdict} />
 
         <div className="mb-4">
-          <D02ServiceBlueprintPreview />
+          <D02ServiceBlueprintPreview
+            artifactStatus={
+              status === "fresh"
+                ? "Fresh"
+                : status === "stale"
+                  ? "Stale"
+                  : "Not generated"
+            }
+            gateStatus={postGateVerdict?.status.toUpperCase()}
+            templateName={selectedTemplateName}
+          />
         </div>
 
         {reviewResult ? (

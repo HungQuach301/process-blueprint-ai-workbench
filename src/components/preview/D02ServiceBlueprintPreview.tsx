@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -29,6 +29,12 @@ const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+
+type D02ServiceBlueprintPreviewProps = {
+  artifactStatus?: string;
+  gateStatus?: string;
+  templateName?: string;
+};
 
 const defaultRows: BlueprintRow[] = [
   "STEPS",
@@ -411,9 +417,16 @@ function SeparatorRow({ label, variant }: { label: string; variant: "solid" | "p
   );
 }
 
-export function D02ServiceBlueprintPreview() {
+export function D02ServiceBlueprintPreview({
+  artifactStatus,
+  gateStatus,
+  templateName
+}: D02ServiceBlueprintPreviewProps) {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [tasks, setTasks] = useState<ProcessTask[]>([]);
   const [template, setTemplate] = useState<TemplateProfile>(sampleServiceBlueprintTemplateProfile);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   function refreshPreviewData() {
     setTasks(readProcessTasks());
@@ -431,18 +444,112 @@ export function D02ServiceBlueprintPreview() {
 
   const phases = useMemo(() => getPhases(tasks), [tasks]);
   const rows = useMemo(() => getRows(template), [template]);
+  const resolvedTemplateName = templateName?.trim() || template.name;
+
+  function updateScrollHints() {
+    const container = scrollContainerRef.current;
+
+    if (!container) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+
+    setCanScrollLeft(container.scrollLeft > 4);
+    setCanScrollRight(
+      container.scrollLeft + container.clientWidth < container.scrollWidth - 4
+    );
+  }
+
+  function scrollPreviewBy(delta: number) {
+    const container = scrollContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    container.scrollBy({
+      behavior: "smooth",
+      left: delta
+    });
+  }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(updateScrollHints, 0);
+
+    window.addEventListener("resize", updateScrollHints);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("resize", updateScrollHints);
+    };
+  }, [phases.length, rows.length, tasks.length]);
 
   return (
     <SessionFrame
       bodyClassName="p-4"
-      description={`Template: ${template.name} | Tasks: ${tasks.length}`}
+      description={`Template: ${resolvedTemplateName} | Tasks: ${tasks.length}`}
       title="Service Blueprint read-only preview"
     >
-        <p className="mb-3 text-sm font-medium uppercase text-slate-500">
-          D02 Preview
-        </p>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium uppercase text-slate-500">
+              D02 Preview
+            </p>
+            <p className="mt-1 text-xs text-slate-600">
+              Scroll horizontally to review phases and task cards that continue off-screen.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <span className="rounded border border-slate-200 bg-white px-2 py-1">
+              Template: {resolvedTemplateName}
+            </span>
+            <span className="rounded border border-slate-200 bg-white px-2 py-1">
+              Status: {artifactStatus ?? "Not generated"}
+            </span>
+            <span className="rounded border border-slate-200 bg-white px-2 py-1">
+              Gate: {gateStatus ?? "Not generated"}
+            </span>
+          </div>
+        </div>
         <MetadataLegend />
-        <div className="mt-4 w-full max-w-full min-w-0 overflow-auto rounded border border-slate-200">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-t border border-b-0 border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+          <span>
+            {canScrollRight || canScrollLeft
+              ? "More blueprint content is available horizontally."
+              : "All visible content fits in the current preview width."}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canScrollLeft}
+              onClick={() => scrollPreviewBy(-420)}
+              type="button"
+            >
+              Scroll left
+            </button>
+            <button
+              className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canScrollRight}
+              onClick={() => scrollPreviewBy(420)}
+              type="button"
+            >
+              Scroll right
+            </button>
+          </div>
+        </div>
+        <div className="relative">
+        {canScrollLeft ? (
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-30 w-10 bg-gradient-to-r from-white to-transparent" />
+        ) : null}
+        {canScrollRight ? (
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-30 w-10 bg-gradient-to-l from-white to-transparent" />
+        ) : null}
+        <div
+          className="w-full max-w-full min-w-0 overflow-auto rounded-b border border-slate-200"
+          onScroll={updateScrollHints}
+          ref={scrollContainerRef}
+        >
         <div
           className="grid min-w-max text-sm"
           style={{
@@ -501,6 +608,7 @@ export function D02ServiceBlueprintPreview() {
               ) : null}
             </div>
           ))}
+        </div>
         </div>
         </div>
     </SessionFrame>

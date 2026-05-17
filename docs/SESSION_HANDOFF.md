@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-007-blueprint-preview-scroll-affordance`.
+- Updated `src/components/preview/D02ServiceBlueprintPreview.tsx` with clearer horizontal scroll affordance, scroll left/right controls, edge fade hints, and visible template/status/gate context near the D02 preview.
+- Updated `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx` so the selected D02 template name, artifact status, and post-generation gate status are visible before the preview and passed into the preview header.
+- Preserved D02 draw.io generator core, post-generation gate behavior, download gating, raw XML advanced view, and AI artifact review preview-only behavior.
 - Ran task `UX-006-bpmn-preview-readability`.
 - Updated `src/components/preview/BpmnPreview.tsx` with larger preview sizing, zoom percentage, fit, zoom, and expand/collapse controls for easier D01 BPMN inspection during demos.
 - Updated `src/components/bpmn-output/D01BpmnOutput.tsx` so the selected D01 template name and post-generation gate status are visible near the visual BPMN preview while keeping raw XML collapsed in Advanced view.

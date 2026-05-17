@@ -29,6 +29,10 @@
 
 - ...
 
+## Allowed changed files
+
+- ...
+
 ## Implementation instructions
 
 1. ...
@@ -47,6 +51,9 @@
 - Do not modify generator core unless explicitly required.
 - Do not add dependencies without asking.
 - Stop and report if source code does not match this task.
+- Use exactly the paths listed in Allowed changed files.
+- Do not create alternative filenames.
+- If another file must be changed, stop and ask first.
 
 ## Commands to run
 

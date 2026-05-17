@@ -22,7 +22,10 @@ git status --short
 Mandatory rules:
 - Explain the plan in Vietnamese before coding.
 - List all files expected to be changed or created.
-- If the task does not match the real source code, stop and report.
+- Use exactly the file paths listed in "Files expected to change" or "Allowed changed files".
+- Do not create alternative filenames.
+- If a required file path does not match the real source code, stop and report before coding.
+- If you need to change a file not listed in the task, stop and ask first.
 - Make the smallest possible change.
 - Do not modify unrelated files.
 - Do not change AI auto-apply behavior.
@@ -33,6 +36,7 @@ Mandatory rules:
 - Run npm run build if the task affects app code.
 - Update docs/SESSION_HANDOFF.md when done.
 - Update docs/DECISION_LOG.md only if there is a new architecture decision.
+- Before final response, run git status --short and confirm only allowed files changed.
 
 Current task:
 Read .codex/CURRENT_TASK.md and execute it.

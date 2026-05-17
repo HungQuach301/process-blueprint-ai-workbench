@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `006b-wire-draft-ptr-gate-ui`.
+- Wired `runDraftPtrGateV1` into the Draft PTR preview UI in `src/components/input-brief/AIInputBriefPanel.tsx`.
+- Draft PTR preview now shows the Draft PTR Gate verdict status, default blockers/top warnings, and advanced score/dimension breakdown.
+- Preserved existing schema/quality gate blocking and explicit Replace/Append Apply behavior; no AI route, generation, schema, or apply behavior was changed.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `006a-draft-ptr-gate-v1`.
 - Added `src/lib/quality-engine/draft-ptr-gate-v1.ts` with `runDraftPtrGateV1`, returning a `GateVerdict` for validated Draft PTR output.
 - Draft PTR Gate v1 evaluates exactly five dimensions: `schemaCompleteness`, `flowIntegrity`, `gatewaySafety`, `actorSystemCoverage`, and `decompositionQuality`.

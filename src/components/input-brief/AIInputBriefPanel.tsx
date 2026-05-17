@@ -29,8 +29,10 @@ import {
   formatQualityGateErrorsVi,
   formatQualityGateWarningsVi,
   runBriefQualityGate,
+  runDraftPtrGateV1,
   runDraftProcessTaskRegisterQualityGate
 } from "@/lib/quality-engine";
+import type { GateVerdictStatus } from "@/lib/quality-engine";
 
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
 const FILE_METADATA_STORAGE_KEY =
@@ -55,6 +57,13 @@ const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
   failed: "border-red-200 bg-red-50 text-red-800"
 };
 
+const gateVerdictStyles: Record<GateVerdictStatus, string> = {
+  pass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-800",
+  fail: "border-red-200 bg-red-50 text-red-800",
+  "not-applicable": "border-slate-200 bg-slate-50 text-slate-700"
+};
+
 const previewLabels = {
   vi: {
     sourceSummary: "Tóm tắt nguồn",
@@ -63,6 +72,12 @@ const previewLabels = {
     openQuestions: "Câu hỏi cần làm rõ",
     qualityGateWarnings: "Canh bao Quality Gate",
     qualityIssues: "Van de chat luong",
+    gateVerdict: "Draft PTR Gate",
+    gateBlockers: "Blockers",
+    gateWarnings: "Warnings",
+    gateAdvanced: "Advanced gate details",
+    gateScore: "Score",
+    gateNoIssues: "No blockers or warnings.",
     replaceCurrentPtr: "Thay PTR hiện tại",
     appendToCurrentPtr: "Thêm vào PTR hiện tại",
     cancelDraft: "Hủy draft",
@@ -83,6 +98,12 @@ const previewLabels = {
     openQuestions: "Open questions",
     qualityGateWarnings: "Quality Gate warnings",
     qualityIssues: "Quality issues",
+    gateVerdict: "Draft PTR Gate",
+    gateBlockers: "Blockers",
+    gateWarnings: "Warnings",
+    gateAdvanced: "Advanced gate details",
+    gateScore: "Score",
+    gateNoIssues: "No blockers or warnings.",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -1718,6 +1739,10 @@ export function AIInputBriefPanel() {
     setMessage("Đã reset brief local và draft preview.");
   }
 
+  const draftPtrGateVerdict = useMemo(
+    () => (draftMeta ? runDraftPtrGateV1(draftMeta) : null),
+    [draftMeta]
+  );
   const labels = previewLabels[locale];
   const uiText = inputBriefUiText[locale];
 
@@ -2264,6 +2289,15 @@ export function AIInputBriefPanel() {
               <p className="mt-1 text-sm text-slate-600">
                 {draftTasks.length} dòng draft. {t("inputBrief.reviewBeforeApply", locale)}
               </p>
+              {draftPtrGateVerdict ? (
+                <span
+                  className={`mt-2 inline-flex w-fit items-center rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+                    gateVerdictStyles[draftPtrGateVerdict.status]
+                  }`}
+                >
+                  {labels.gateVerdict}: {draftPtrGateVerdict.status}
+                </span>
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -2289,6 +2323,86 @@ export function AIInputBriefPanel() {
               </button>
             </div>
           </div>
+          {draftPtrGateVerdict ? (
+            <div className="border-b border-slate-200 bg-white px-4 py-4 text-sm">
+              {draftPtrGateVerdict.blockers.length > 0 ? (
+                <div className="rounded border border-red-200 bg-red-50 p-3">
+                  <p className="font-semibold text-red-900">{labels.gateBlockers}</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-red-800">
+                    {draftPtrGateVerdict.blockers.map((blocker) => (
+                      <li key={`${blocker.code}-${blocker.title}`}>
+                        <span className="font-medium">{blocker.title}</span>:{" "}
+                        {blocker.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {draftPtrGateVerdict.warnings.length > 0 ? (
+                <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3">
+                  <p className="font-semibold text-amber-900">{labels.gateWarnings}</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-amber-800">
+                    {draftPtrGateVerdict.warnings.slice(0, 5).map((warning) => (
+                      <li key={`${warning.code}-${warning.title}`}>
+                        <span className="font-medium">{warning.title}</span>:{" "}
+                        {warning.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {draftPtrGateVerdict.blockers.length === 0 &&
+              draftPtrGateVerdict.warnings.length === 0 ? (
+                <p className="rounded border border-emerald-200 bg-emerald-50 p-3 font-medium text-emerald-800">
+                  {labels.gateNoIssues}
+                </p>
+              ) : null}
+              <details className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer font-semibold text-slate-900">
+                  {labels.gateAdvanced}
+                </summary>
+                <div className="mt-3 space-y-3 text-slate-700">
+                  <p>
+                    {labels.gateScore}:{" "}
+                    <span className="font-semibold text-slate-950">
+                      {draftPtrGateVerdict.score?.score ?? "-"}
+                    </span>
+                  </p>
+                  {draftPtrGateVerdict.score ? (
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {draftPtrGateVerdict.score.dimensions.map((dimension) => (
+                        <div
+                          className="rounded border border-slate-200 bg-white p-3"
+                          key={dimension.id}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-semibold text-slate-900">{dimension.label}</p>
+                            <span
+                              className={`rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+                                gateVerdictStyles[dimension.status ?? "not-applicable"]
+                              }`}
+                            >
+                              {dimension.status ?? "not-applicable"}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-slate-600">
+                            {dimension.score ?? "-"}/{dimension.maxScore ?? "-"}
+                          </p>
+                          {dimension.notes && dimension.notes.length > 0 ? (
+                            <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
+                              {dimension.notes.map((note) => (
+                                <li key={note}>{note}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            </div>
+          ) : null}
           {draftMeta ? (
             <div className="grid gap-4 border-b border-slate-200 bg-white px-4 py-4 text-sm md:grid-cols-2">
               <div>

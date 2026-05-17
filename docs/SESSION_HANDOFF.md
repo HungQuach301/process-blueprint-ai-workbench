@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-006-bpmn-preview-readability`.
+- Updated `src/components/preview/BpmnPreview.tsx` with larger preview sizing, zoom percentage, fit, zoom, and expand/collapse controls for easier D01 BPMN inspection during demos.
+- Updated `src/components/bpmn-output/D01BpmnOutput.tsx` so the selected D01 template name and post-generation gate status are visible near the visual BPMN preview while keeping raw XML collapsed in Advanced view.
+- Preserved D01 BPMN generator core, post-generation gate behavior, download gating, and AI artifact review preview-only behavior.
 - Ran task `UX-005-qa-panel-user-facing-cleanup`.
 - Updated `src/components/qa-panel/QAPanel.tsx` so QA Findings and Recommendations are visually separated: Findings are marked read-only, while Recommendations keep the preview and user-confirmed apply flow.
 - Consolidated recommendation empty/filter-hidden messaging to reduce repeated "no recommendation" noise while preserving safe selection, graph-change hiding, provider compare, feedback logging, and recommendation apply behavior.

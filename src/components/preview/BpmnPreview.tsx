@@ -5,6 +5,8 @@ import NavigatedViewer from "bpmn-js/lib/NavigatedViewer";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 
 type BpmnPreviewProps = {
+  gateStatus?: string;
+  templateName?: string;
   xml: string;
 };
 
@@ -12,10 +14,11 @@ type CanvasService = {
   zoom: (mode?: "fit-viewport" | number) => number | void;
 };
 
-export function BpmnPreview({ xml }: BpmnPreviewProps) {
+export function BpmnPreview({ gateStatus, templateName, xml }: BpmnPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<NavigatedViewer | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
 
   useEffect(() => {
@@ -70,8 +73,8 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
 
         setErrorMessage(
           error instanceof Error
-            ? `Không thể hiển thị BPMN: ${error.message}`
-            : "Không thể hiển thị BPMN. XML có thể chưa hợp lệ."
+            ? `Cannot display BPMN: ${error.message}`
+            : "Cannot display BPMN. The XML may be invalid."
         );
       });
 
@@ -80,11 +83,25 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
     };
   }, [xml]);
 
+  useEffect(() => {
+    if (!isExpanded || !xml.trim()) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      fitToViewport();
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isExpanded, xml]);
+
   function fitToViewport() {
     const viewer = viewerRef.current;
 
     if (!viewer || !xml.trim()) {
-      setErrorMessage("Chưa có BPMN XML để fit vào khung nhìn.");
+      setErrorMessage("Generate BPMN XML before fitting the preview.");
       return;
     }
 
@@ -98,7 +115,7 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
     const viewer = viewerRef.current;
 
     if (!viewer || !xml.trim()) {
-      setErrorMessage("ChÆ°a cÃ³ BPMN XML Ä‘á»ƒ zoom.");
+      setErrorMessage("Generate BPMN XML before zooming the preview.");
       return;
     }
 
@@ -113,48 +130,80 @@ export function BpmnPreview({ xml }: BpmnPreviewProps) {
     setZoomLevel(nextZoom);
   }
 
-  return (
-    <SessionFrame
-      actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            className="btn btn-secondary"
-            onClick={fitToViewport}
-            type="button"
-          >
-            Fit
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => zoomBy(-0.1)}
-            type="button"
-          >
-            Zoom -
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() => zoomBy(0.1)}
-            type="button"
-          >
-            Zoom +
-          </button>
-        </div>
-      }
-      description="Preview chỉ đọc từ XML đã generate. Chưa có chỉnh sửa trực quan ở bước này."
-      title="Xem trước BPMN"
-    >
-      <p className="border-b border-slate-200 px-4 py-3 text-sm font-medium uppercase text-slate-500">
-        BPMN Preview
-      </p>
-      {errorMessage ? (
-        <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {errorMessage}
-        </p>
-      ) : null}
+  const previewChromeClass = isExpanded
+    ? "fixed inset-3 z-50 overflow-hidden rounded border border-slate-300 bg-white shadow-2xl"
+    : "";
+  const canvasHeightClass = isExpanded
+    ? "h-[calc(100vh-220px)] min-h-[420px] min-w-[960px]"
+    : "h-[620px] min-w-[960px]";
 
-      <div className="w-full max-w-full min-w-0 overflow-x-auto bg-white">
-        <div className="h-[560px] min-w-[960px]" ref={containerRef} />
-      </div>
-    </SessionFrame>
+  return (
+    <div className={previewChromeClass}>
+      {isExpanded ? <div className="fixed inset-0 -z-10 bg-slate-950/40" /> : null}
+      <SessionFrame
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="btn btn-secondary"
+              onClick={fitToViewport}
+              type="button"
+            >
+              Fit
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => zoomBy(-0.1)}
+              type="button"
+            >
+              Zoom -
+            </button>
+            <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+              {Math.round(zoomLevel * 100)}%
+            </span>
+            <button
+              className="btn btn-secondary"
+              onClick={() => zoomBy(0.1)}
+              type="button"
+            >
+              Zoom +
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setIsExpanded((currentValue) => !currentValue)}
+              type="button"
+            >
+              {isExpanded ? "Collapse" : "Expand"}
+            </button>
+          </div>
+        }
+        description="Read-only preview from generated XML. Use Fit or Expand to inspect wide BPMN diagrams during review."
+        title="BPMN Preview"
+      >
+        <div className="border-b border-slate-200 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium uppercase text-slate-500">
+              Visual preview
+            </p>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+              <span className="rounded border border-slate-200 bg-white px-2 py-1">
+                Template: {templateName?.trim() || "Not selected"}
+              </span>
+              <span className="rounded border border-slate-200 bg-white px-2 py-1">
+                Gate: {gateStatus?.trim() || "Not generated"}
+              </span>
+            </div>
+          </div>
+        </div>
+        {errorMessage ? (
+          <p className="border-b border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <div className="w-full max-w-full min-w-0 overflow-auto bg-white">
+          <div className={canvasHeightClass} ref={containerRef} />
+        </div>
+      </SessionFrame>
+    </div>
   );
 }

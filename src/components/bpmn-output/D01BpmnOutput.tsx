@@ -135,6 +135,9 @@ export function D01BpmnOutput() {
   const [message, setMessage] = useState("");
   const [postGateVerdict, setPostGateVerdict] =
     useState<GateVerdict | null>(null);
+  const [selectedTemplateName, setSelectedTemplateName] = useState(
+    sampleBpmnTemplateProfile.name
+  );
   const [reviewResult, setReviewResult] = useState<ArtifactReviewResult | null>(
     null
   );
@@ -143,6 +146,12 @@ export function D01BpmnOutput() {
 
   useEffect(() => {
     let active = true;
+
+    try {
+      setSelectedTemplateName(readSelectedD01Template().name);
+    } catch {
+      setSelectedTemplateName(sampleBpmnTemplateProfile.name);
+    }
 
     async function loadAIMode() {
       try {
@@ -184,6 +193,7 @@ export function D01BpmnOutput() {
 
       setXml(generatedXml);
       setPostGateVerdict(verdict);
+      setSelectedTemplateName(selectedTemplate.name);
       setReviewResult(null);
       window.localStorage.setItem(D01_GENERATED_XML_KEY, generatedXml);
       window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "fresh");
@@ -368,7 +378,11 @@ export function D01BpmnOutput() {
         <PostGateVerdictSummary verdict={postGateVerdict} />
 
         <div className="mb-4">
-          <BpmnPreview xml={xml} />
+          <BpmnPreview
+            gateStatus={postGateVerdict?.status.toUpperCase()}
+            templateName={selectedTemplateName}
+            xml={xml}
+          />
         </div>
 
         {reviewResult ? (

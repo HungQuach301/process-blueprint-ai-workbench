@@ -641,6 +641,8 @@ export function AIInputBriefPanel() {
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
   const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
+  const [hasAttemptedDraftGeneration, setHasAttemptedDraftGeneration] =
+    useState(false);
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
   const [aiProvider, setAiProvider] = useState("mock");
@@ -765,6 +767,33 @@ export function AIInputBriefPanel() {
       ].filter((value) => value.trim()).length,
     [brief]
   );
+  const requiredBriefFieldStatus = useMemo(
+    () => [
+      {
+        label: locale === "vi" ? "Thong tin quy trinh" : "Process information",
+        complete: brief.processInfo.trim().length > 0
+      },
+      {
+        label: locale === "vi" ? "Muc tieu nghiep vu" : "Business objective",
+        complete: brief.businessObjective.trim().length > 0
+      },
+      {
+        label: locale === "vi" ? "Pham vi / bat dau / ket thuc" : "Scope / start / end",
+        complete: brief.scopeBoundary.trim().length > 0
+      },
+      {
+        label: locale === "vi" ? "Nguoi tham gia" : "Participants",
+        complete: brief.actors.trim().length > 0
+      }
+    ],
+    [brief, locale]
+  );
+  const completedRequiredFieldCount = requiredBriefFieldStatus.filter(
+    (field) => field.complete
+  ).length;
+  const missingRequiredFieldLabels = requiredBriefFieldStatus
+    .filter((field) => !field.complete)
+    .map((field) => field.label);
 
   function getFieldOptions(field: BriefField) {
     return [
@@ -1060,6 +1089,7 @@ export function AIInputBriefPanel() {
     payload: unknown;
     sourceLabel: string;
   }) {
+    setHasAttemptedDraftGeneration(true);
     const generationMode = realAIEnabled ? "real-ai" : "mock";
 
     if (realAIEnabled && !confirmRealAICallIfNeeded(true)) {
@@ -1352,6 +1382,7 @@ export function AIInputBriefPanel() {
   }
 
   async function generateDraftPtrFromChatNotes() {
+    setHasAttemptedDraftGeneration(true);
     if (chatNotes.trim().length < 20) {
       setDraftTasks([]);
       setDraftMeta(null);
@@ -1379,6 +1410,7 @@ export function AIInputBriefPanel() {
   }
 
   function generateDraftPtr() {
+    setHasAttemptedDraftGeneration(true);
     const structuredBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
@@ -1436,6 +1468,7 @@ export function AIInputBriefPanel() {
   }
 
   async function generateDraftPtrWithAI() {
+    setHasAttemptedDraftGeneration(true);
     const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
@@ -1756,6 +1789,7 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
+    setHasAttemptedDraftGeneration(false);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
@@ -2294,7 +2328,41 @@ export function AIInputBriefPanel() {
         {message ? <span>{message}</span> : null}
       </div>
 
-      {blockingErrors.length > 0 ? (
+      {!hasAttemptedDraftGeneration && draftTasks.length === 0 ? (
+        <div className="mt-4 rounded border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="font-semibold">
+                {locale === "vi"
+                  ? "Tien do chuan bi Input Brief"
+                  : "Input Brief preparation progress"}
+              </p>
+              <p className="mt-1 leading-6">
+                {locale === "vi"
+                  ? `${completedRequiredFieldCount}/${requiredBriefFieldStatus.length} muc bat buoc da co thong tin. Ban co the bo sung dan roi bam Generate khi san sang.`
+                  : `${completedRequiredFieldCount}/${requiredBriefFieldStatus.length} required items have content. Add what you know, then Generate when ready.`}
+              </p>
+            </div>
+            <span className="w-fit rounded border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-800">
+              {locale === "vi" ? "Chua hien loi truoc khi Generate" : "No errors before Generate"}
+            </span>
+          </div>
+          {missingRequiredFieldLabels.length > 0 ? (
+            <p className="mt-2 text-blue-900">
+              {locale === "vi" ? "Nen bo sung: " : "Suggested next: "}
+              {missingRequiredFieldLabels.join(", ")}
+            </p>
+          ) : (
+            <p className="mt-2 text-blue-900">
+              {locale === "vi"
+                ? "Thong tin bat buoc da san sang. Bam Generate de tao Draft PTR preview."
+                : "Required information is ready. Generate a Draft PTR preview when you are ready."}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {hasAttemptedDraftGeneration && blockingErrors.length > 0 ? (
         <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           <p className="font-semibold">{uiText.draftBlocked}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">

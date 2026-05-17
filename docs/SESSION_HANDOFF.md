@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-003-input-brief-validation-behavior`.
+- Updated `src/components/input-brief/AIInputBriefPanel.tsx` so AI Input Brief shows progress/completion guidance before the first Draft PTR generation attempt and only shows blocking validation errors after a Generate attempt.
+- Resetting the brief clears the generation-attempt state while preserving existing draft generation, schema validation, quality gate, preview, Replace/Append Apply, stale marking, file/chat draft routes, AI route behavior, and dependencies.
 - Ran task `UX-002-dashboard-getting-started`.
 - Added a compact Getting Started section in `src/components/AppShell.tsx` with four first-time user steps: Input Brief, Draft PTR, Quality Check, and Export.
 - Wired the steps to existing in-page module anchors where available, including the embedded QA area inside Process Task Register, while preserving existing navigation behavior, AI behavior, generator/export logic, schemas, and dependencies.

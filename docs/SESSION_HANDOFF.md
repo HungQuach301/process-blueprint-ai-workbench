@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `INT-02-draft-ptr-gate-integration-check`.
+- Added `docs/DRAFT_PTR_GATE_CHECK.md` to document the Draft PTR Gate + Source Coverage advisory integration check.
+- Verified by source inspection that Draft PTR preview renders `GateVerdict` separately from Source Coverage advisory, Source Coverage remains non-blocking, and Replace/Append Apply remains explicit.
+- Kept app source, Rule QA, QARecommendation schema/types, QA Panel UI, recommendation behavior, AI auto-apply behavior, and D01/D02 generators unchanged.
+- Confirmed `scripts/test-draft-ptr-gate.ps1`, `npm run build`, and `npx.cmd tsc --noEmit` pass. The first standalone `tsc` run failed before build due to stale/missing generated Next `.next/types/routes.js`; it passed after `npm run build` regenerated Next type artifacts.
 - Ran task `008-draft-ptr-golden-tests`.
 - Added `src/lib/quality-engine/draft-ptr-gate-v1.test-data.ts` with deterministic golden fixtures for passing Draft PTR, schema blocker, gateway safety blocker, and source coverage advisory-only behavior.
 - Added `scripts/test-draft-ptr-gate.ps1` as a no-dependency check that verifies required fixture ids and runs `npx.cmd tsc --noEmit`.

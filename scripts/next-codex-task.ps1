@@ -72,9 +72,12 @@ if (-not (Test-Path $taskFile)) {
 
 Copy-Item $taskFile ".codex/CURRENT_TASK.md" -Force
 
+& "$PSScriptRoot\validate-codex-task-paths.ps1" -TaskPath ".codex/CURRENT_TASK.md"
+
 Write-Host "Current Codex task set to: $TaskId" -ForegroundColor Green
 Write-Host ""
 Write-Host "In Codex, type this one line:" -ForegroundColor Cyan
 Write-Host "Read .codex/PROMPT.md and execute .codex/CURRENT_TASK.md." -ForegroundColor Yellow
 
 code ".codex/CURRENT_TASK.md"
+

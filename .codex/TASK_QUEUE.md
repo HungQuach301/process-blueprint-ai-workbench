@@ -42,7 +42,7 @@ Legend:
 - [x] UX-004b-technical-term-tooltips
 - [x] UX-002-dashboard-getting-started
 - [x] UX-003-input-brief-validation-behavior
-- [ ] UX-005-qa-panel-user-facing-cleanup
+- [x] UX-005-qa-panel-user-facing-cleanup
 - [ ] UX-006-bpmn-preview-readability
 - [ ] UX-007-blueprint-preview-scroll-affordance
 - [ ] UX-011a-ai-error-loading-retry-feedback
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

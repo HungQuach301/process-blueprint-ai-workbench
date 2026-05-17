@@ -78,6 +78,7 @@ const qaPanelText = {
     recommendationToolbar: "Thanh de xuat",
     findings: "Phát hiện",
     findingsHelper: "Mục phát hiện là thông tin review chỉ đọc. Khu vực này không có nút áp dụng.",
+    findingsReadOnlyBadge: "Chỉ đọc",
     runAiFindings: "Chạy AI phát hiện",
     runMockFindings: "Chạy phát hiện cục bộ",
     runningAiFindings: "Đang chạy AI phát hiện...",
@@ -90,6 +91,9 @@ const qaPanelText = {
     systemSource: "System",
     info: "Thông tin",
     recommendationsSection: "Đề xuất",
+    recommendationsHelper: "Đề xuất có thể xem trước và chỉ áp dụng sau khi người dùng xác nhận.",
+    recommendationsEmpty: "Chưa có đề xuất có thể áp dụng. Findings vẫn có thể dùng để review thủ công.",
+    hiddenByFilters: "Một số đề xuất đang bị ẩn bởi bộ lọc an toàn hoặc thay đổi cấu trúc nâng cao.",
     recommendations: "de xuat",
     selected: "đã chọn",
     safeHelper: "An toan = do tin cay cao, rui ro thap va chi doi truong don gian. De xuat doi graph khong duoc chon mac dinh.",
@@ -132,6 +136,7 @@ const qaPanelText = {
     recommendationToolbar: "Recommendation toolbar",
     findings: "Findings",
     findingsHelper: "Findings are read-only review items. This section has no apply buttons.",
+    findingsReadOnlyBadge: "Read-only",
     runAiFindings: "Run AI findings",
     runMockFindings: "Run local findings",
     runningAiFindings: "Running AI findings...",
@@ -144,6 +149,9 @@ const qaPanelText = {
     systemSource: "System",
     info: "Info",
     recommendationsSection: "Recommendations",
+    recommendationsHelper: "Recommendations can be previewed and applied only after user confirmation.",
+    recommendationsEmpty: "No actionable recommendations yet. Findings can still be used for manual review.",
+    hiddenByFilters: "Some recommendations are hidden by safe filters or advanced structure settings.",
     recommendations: "recommendations",
     selected: "selected",
     safeHelper: "Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.",
@@ -499,6 +507,10 @@ export function QAPanel({
     [issues]
   );
   const hasRecommendations = recommendationEntries.length > 0;
+  const visibleRecommendationCount = visibleRecommendationIds.size;
+  const hiddenRecommendationCount =
+    recommendationEntries.length - visibleRecommendationCount;
+  const hasVisibleRecommendations = visibleRecommendationCount > 0;
   const text = qaPanelText[locale];
   const localizedSeverityLabels: Record<QaSeverity, string> = {
     error: text.critical,
@@ -569,6 +581,16 @@ export function QAPanel({
       isAdvanced: true
     }
   ];
+  const visibleRecommendationGroups = groupedIssues.map((group) => ({
+    ...group,
+    issues: group.issues.filter((issue) =>
+      (issue.recommendations ?? []).some((recommendation, index) => {
+        const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
+
+        return visibleRecommendationIds.has(recommendationId);
+      })
+    )
+  }));
   const pendingChanges = pendingRecommendation
     ? getRecommendationChangePreview(processTasks, pendingRecommendation.recommendation)
     : [];
@@ -1362,18 +1384,17 @@ export function QAPanel({
         </p>
       ) : null}
 
-      {findings.length === 0 && !hasRecommendations ? (
-        <p className="mb-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-          {text.noFindingsAndRecommendations}
-        </p>
-      ) : null}
-
-      <section className="mb-5 rounded border border-slate-200 bg-white">
-        <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:flex-row md:items-start md:justify-between">
+      <section className="mb-5 rounded border border-sky-200 bg-sky-50/40">
+        <div className="flex flex-col gap-3 border-b border-sky-200 bg-sky-50 px-4 py-3 md:flex-row md:items-start md:justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-slate-950">
-              {text.findings} ({findings.length})
-            </h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-950">
+                {text.findings} ({findings.length})
+              </h3>
+              <span className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-semibold text-sky-800">
+                {text.findingsReadOnlyBadge}
+              </span>
+            </div>
             <p className="mt-1 text-xs text-slate-600">{text.findingsHelper}</p>
           </div>
           <button
@@ -1396,7 +1417,7 @@ export function QAPanel({
               const firstStepId = finding.affectedStepIds[0];
 
               return (
-                <div className="px-4 py-3" key={getFindingId(finding, index)}>
+                <div className="border-l-4 border-sky-200 bg-white/80 px-4 py-3" key={getFindingId(finding, index)}>
                   <div className="flex flex-wrap items-center gap-2">
                     {firstStepId ? (
                       <button
@@ -1441,17 +1462,32 @@ export function QAPanel({
         )}
       </section>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-950">
-          {text.recommendationsSection} ({recommendationEntries.length})
-        </h3>
-        <p className="text-xs text-slate-500">
-          {text.totalIssues}: {displayIssues.length}
-        </p>
-      </div>
+      <section className="mb-4 rounded border border-emerald-200 bg-emerald-50/40 px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-950">
+              {text.recommendationsSection} ({visibleRecommendationCount})
+            </h3>
+            <p className="mt-1 text-xs text-slate-600">
+              {text.recommendationsHelper}
+            </p>
+          </div>
+          <p className="text-xs text-slate-500">
+            {text.totalIssues}: {displayIssues.length}
+          </p>
+        </div>
+        {hiddenRecommendationCount > 0 ? (
+          <p className="mt-2 text-xs text-emerald-800">
+            {text.hiddenByFilters} ({hiddenRecommendationCount})
+          </p>
+        ) : null}
+      </section>
 
       <div className="grid w-full max-w-full min-w-0 gap-4 overflow-x-auto">
-        {groupedIssues.map((group) => (
+        {hasVisibleRecommendations ? (
+          visibleRecommendationGroups
+            .filter((group) => group.issues.length > 0)
+            .map((group) => (
           <section className="min-w-0 rounded border border-slate-200" key={group.key}>
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
               <h3 className="text-sm font-semibold text-slate-950">
@@ -1466,9 +1502,8 @@ export function QAPanel({
               </span>
             </div>
 
-            {group.issues.length > 0 ? (
-              <div className="divide-y divide-slate-200">
-                {group.issues.map((issue) => (
+            <div className="divide-y divide-slate-200">
+              {group.issues.map((issue) => (
                   <div
                     className="block w-full max-w-full px-4 py-3 text-left hover:bg-slate-50"
                     key={issue.id}
@@ -1574,32 +1609,19 @@ export function QAPanel({
                               );
                             })()
                           ))}
-                          {issue.recommendations.every((recommendation, index) => {
-                            const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
-
-                            return !visibleRecommendationIds.has(recommendationId);
-                          }) ? (
-                            <p className="text-sm text-slate-600">
-                              {text.hiddenAdvanced}
-                            </p>
-                          ) : null}
                         </div>
-                      ) : (
-                        <p className="mt-2 text-sm text-slate-600">
-                          {text.noRecommendations}
-                        </p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="px-4 py-3 text-sm text-slate-500">
-                {text.noIssuesInGroup}
-              </p>
-            )}
+              ))}
+            </div>
           </section>
-        ))}
+            ))
+        ) : (
+          <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            {hasRecommendations ? text.hiddenByFilters : text.recommendationsEmpty}
+          </p>
+        )}
       </div>
     </SessionFrame>
 

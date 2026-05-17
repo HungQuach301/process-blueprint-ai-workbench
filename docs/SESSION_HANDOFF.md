@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-005-qa-panel-user-facing-cleanup`.
+- Updated `src/components/qa-panel/QAPanel.tsx` so QA Findings and Recommendations are visually separated: Findings are marked read-only, while Recommendations keep the preview and user-confirmed apply flow.
+- Consolidated recommendation empty/filter-hidden messaging to reduce repeated "no recommendation" noise while preserving safe selection, graph-change hiding, provider compare, feedback logging, and recommendation apply behavior.
 - Ran task `UX-003-input-brief-validation-behavior`.
 - Updated `src/components/input-brief/AIInputBriefPanel.tsx` so AI Input Brief shows progress/completion guidance before the first Draft PTR generation attempt and only shows blocking validation errors after a Generate attempt.
 - Resetting the brief clears the generation-attempt state while preserving existing draft generation, schema validation, quality gate, preview, Replace/Append Apply, stale marking, file/chat draft routes, AI route behavior, and dependencies.

@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-011c-workspace-backup-restore`.
+- Added a visible Local workspace label in `src/components/AppShell.tsx` so users know data is browser-local.
+- Added local-only workspace backup/restore helpers in `src/lib/workspace/local-workspace-backup.ts` for known browser `localStorage` keys without adding server, database, schema, dependency, or key migrations.
+- Added Export Center actions to export a Workspace JSON backup and import it with confirmation before replacing local browser data.
+- Preserved Rule QA engine, QARecommendation schema/types, QA Panel UI behavior, recommendation preview/apply behavior, D01/D02 generator behavior, AI routes, dependencies, and storage key names.
 - Ran task `UX-011b-save-unsaved-changes-feedback`.
 - Updated `src/components/task-register/ProcessTaskRegister.tsx` with browser refresh warning for unsaved PTR edits, explicit Restore saved action for the last saved in-session PTR snapshot, and confirmation before reset/sample switch discards unsaved edits.
 - Updated `src/components/template-library/TemplateLibraryEditor.tsx` with Saved/Unsaved/Saving status feedback, browser refresh warning for unsaved template edits, and reset confirmation when template edits have not been saved.

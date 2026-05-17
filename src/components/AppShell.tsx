@@ -43,6 +43,10 @@ export function AppShell() {
     sourceLabel: locale === "vi" ? "Nguồn dữ liệu chuẩn" : "Source of truth",
     releaseLabel: locale === "vi" ? "Phạm vi release" : "Release scope"
   };
+  const workspaceText = {
+    label: "Local workspace",
+    value: "Browser local only"
+  };
   const gettingStartedText = {
     title: locale === "vi" ? "Bắt đầu từ đây" : "Getting Started",
     description:
@@ -124,6 +128,9 @@ export function AppShell() {
                   <span className="status-badge status-badge-success">
                     {headerText.artifactSummary}
                   </span>
+                  <span className="status-badge status-badge-warning">
+                    {workspaceText.label}
+                  </span>
                 </div>
 
                 <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
@@ -140,7 +147,7 @@ export function AppShell() {
               </div>
             </div>
             </div>
-            <div className="grid gap-3 bg-slate-50/80 p-4 sm:grid-cols-3">
+            <div className="grid gap-3 bg-slate-50/80 p-4 sm:grid-cols-4">
               <div className="soft-panel p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{headerText.aiModeLabel}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{headerText.aiModeValue}</p>
@@ -148,6 +155,10 @@ export function AppShell() {
               <div className="soft-panel p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{headerText.sourceLabel}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">Process Task Register</p>
+              </div>
+              <div className="soft-panel p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{workspaceText.label}</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{workspaceText.value}</p>
               </div>
               <div className="soft-panel p-3">
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{headerText.releaseLabel}</p>

@@ -47,12 +47,13 @@ Legend:
 - [x] UX-007-blueprint-preview-scroll-affordance
 - [x] UX-011a-ai-error-loading-retry-feedback
 - [x] UX-011b-save-unsaved-changes-feedback
-- [ ] UX-011c-workspace-backup-restore
+- [x] UX-011c-workspace-backup-restore
 - [ ] UX-012-user-facing-regression-check
 
 ## Done
 
 ## Skipped
+
 
 
 

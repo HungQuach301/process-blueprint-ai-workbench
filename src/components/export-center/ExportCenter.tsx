@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
 import {
   exportAIRunHistoryJson,
@@ -41,6 +41,12 @@ import {
   sampleServiceBlueprintTemplateProfile,
   sampleWorkspace
 } from "@/lib/sample-data/sme-online-loan";
+import {
+  createLocalWorkspaceBackup,
+  getLocalWorkspaceBackupFileName,
+  parseLocalWorkspaceBackup,
+  restoreLocalWorkspaceBackup
+} from "@/lib/workspace/local-workspace-backup";
 
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
@@ -57,6 +63,7 @@ const D01_GENERATED_STATUS_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
 
 type ArtifactStatus = "fresh" | "stale" | "not_generated";
 
@@ -392,6 +399,7 @@ export function ExportCenter() {
   const [d02Status, setD02Status] = useState<ArtifactStatus>("not_generated");
   const [exportPackageStatus, setExportPackageStatus] =
     useState<ArtifactStatus>("not_generated");
+  const workspaceImportInputRef = useRef<HTMLInputElement | null>(null);
 
   function readArtifactStatus(key: string): ArtifactStatus {
     const status = window.localStorage.getItem(key);
@@ -1636,6 +1644,70 @@ export function ExportCenter() {
     setMessage("Exported audit log JSON.");
   }
 
+  function exportLocalWorkspaceJson() {
+    try {
+      const backup = createLocalWorkspaceBackup();
+
+      downloadBlob(
+        JSON.stringify(backup, null, 2),
+        getLocalWorkspaceBackupFileName(),
+        "application/json;charset=utf-8"
+      );
+      setMessage(
+        `Exported Local workspace backup with ${Object.keys(backup.storage).length} item(s).`
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? `Could not export Local workspace backup: ${error.message}`
+          : "Could not export Local workspace backup."
+      );
+    }
+  }
+
+  async function importLocalWorkspaceJson(file?: File) {
+    if (!file) {
+      return;
+    }
+
+    try {
+      const backup = parseLocalWorkspaceBackup(await file.text());
+      const confirmed = window.confirm(
+        `Restore Local workspace backup exported at ${backup.exportedAt}? This replaces browser local data for this workspace.`
+      );
+
+      if (!confirmed) {
+        setMessage("Workspace restore cancelled. Current local data was not changed.");
+        return;
+      }
+
+      const result = restoreLocalWorkspaceBackup(backup);
+
+      if (!result.ok) {
+        setMessage(result.error);
+        return;
+      }
+
+      refreshArtifactStatuses();
+      refreshAIRunHistory();
+      window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
+      window.dispatchEvent(new Event(PROCESS_TASKS_EVENT));
+      setMessage(
+        `Restored Local workspace backup (${result.restoredKeyCount} item(s)). Refresh the page to reload all panels.`
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not import Local workspace backup."
+      );
+    } finally {
+      if (workspaceImportInputRef.current) {
+        workspaceImportInputRef.current.value = "";
+      }
+    }
+  }
+
   function downloadAIRunHistory() {
     downloadBlob(
       exportAIRunHistoryJson(),
@@ -2101,6 +2173,15 @@ export function ExportCenter() {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <input
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(event) =>
+                void importLocalWorkspaceJson(event.target.files?.[0])
+              }
+              ref={workspaceImportInputRef}
+              type="file"
+            />
             <button
               className="btn btn-primary"
               disabled={isDownloading}
@@ -2117,6 +2198,20 @@ export function ExportCenter() {
               Export Audit Log JSON
             </button>
             <button
+              className="btn btn-secondary"
+              onClick={exportLocalWorkspaceJson}
+              type="button"
+            >
+              Export Workspace JSON
+            </button>
+            <button
+              className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+              onClick={() => workspaceImportInputRef.current?.click()}
+              type="button"
+            >
+              Import Workspace JSON
+            </button>
+            <button
               className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               onClick={generateAllArtifacts}
               type="button"
@@ -2130,6 +2225,14 @@ export function ExportCenter() {
               Product Delivery
             </a>
           </div>
+        </div>
+
+        <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-semibold">Local workspace</p>
+          <p className="mt-1">
+            Workspace backup and restore use this browser's localStorage only.
+            No server sync or database write is performed.
+          </p>
         </div>
 
         {message ? (

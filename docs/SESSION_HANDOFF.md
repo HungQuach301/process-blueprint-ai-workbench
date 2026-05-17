@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-004-ptr-simple-mode-business-columns`.
+- Refined Process Task Register Simple Mode in `src/components/task-register/ProcessTaskRegister.tsx` to focus on business-review columns: step id, task name, phase, actor, system, input, output, next step, risk/control, review status, and notes.
+- Moved technical fields such as row type, BPMN type, work type, data action/object, lane fields, and detailed gateway branch columns out of Simple Mode while keeping them available in Advanced Mode.
+- Kept `ProcessTask` schema, edit/add/duplicate/delete/save/refresh/reset/import/export behavior, AI Assistant selection behavior, recommendation apply behavior, and D01/D02 generation behavior unchanged.
 - Ran task `UX-001-ai-connection-user-friendly-status`.
 - Updated `src/components/ai-settings/AIProviderSettingsPanel.tsx` so the primary AI Connection Center status uses business-friendly labels for selected provider, connection status, current mode, and next step.
 - Moved server provider, effective provider, data mode, model, and feature flag diagnostics into Advanced settings while keeping Test Connection on the existing server-side route.

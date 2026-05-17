@@ -176,40 +176,42 @@ const ptrAIAssistantActions: Array<{
 ];
 
 const visibleColumns: EditableColumn[] = [
-  { key: "stepId", label: "Mã bước", minWidth: "110px" },
-  { key: "rowType", label: "Loại dòng", minWidth: "120px" },
-  { key: "bpmnType", label: "Loại BPMN", minWidth: "150px" },
-  { key: "taskNature", label: "Tính chất", minWidth: "150px" },
-  { key: "phase", label: "Giai đoạn", minWidth: "170px" },
-  { key: "customerInteractionType", label: "Loại tương tác KH", minWidth: "210px" },
-  { key: "channel", label: "Kênh", minWidth: "160px" },
-  { key: "actor", label: "Người thực hiện", minWidth: "160px" },
-  { key: "actorLane", label: "Lane người dùng", minWidth: "160px" },
-  { key: "system", label: "Hệ thống", minWidth: "190px" },
-  { key: "systemLane", label: "Lane hệ thống", minWidth: "150px" },
-  { key: "taskName", label: "Tên công việc", minWidth: "280px" },
-  { key: "input", label: "Đầu vào", minWidth: "260px" },
-  { key: "output", label: "Đầu ra", minWidth: "260px" },
-  { key: "dataAction", label: "Thao tác dữ liệu", minWidth: "150px" },
-  { key: "dataObject", label: "Đối tượng dữ liệu", minWidth: "230px" },
-  { key: "defaultNextStep", label: "Bước tiếp theo", minWidth: "150px" },
-  { key: "conditionQuestion", label: "Câu hỏi điều kiện", minWidth: "260px" },
-  { key: "yesNextStep", label: "Nếu Có", minWidth: "120px" },
-  { key: "noNextStep", label: "Nếu Không", minWidth: "120px" },
-  { key: "reviewStatus", label: "Trạng thái review", minWidth: "160px" },
-  { key: "comment", label: "Ghi chú", minWidth: "220px" }
+  { key: "stepId", label: "Step ID", minWidth: "110px" },
+  { key: "rowType", label: "Row type", minWidth: "120px" },
+  { key: "bpmnType", label: "BPMN type", minWidth: "150px" },
+  { key: "taskNature", label: "Work type", minWidth: "150px" },
+  { key: "phase", label: "Phase", minWidth: "170px" },
+  { key: "customerInteractionType", label: "Customer touchpoint", minWidth: "210px" },
+  { key: "channel", label: "Channel", minWidth: "160px" },
+  { key: "actor", label: "Actor", minWidth: "160px" },
+  { key: "actorLane", label: "Actor lane", minWidth: "160px" },
+  { key: "system", label: "System", minWidth: "190px" },
+  { key: "systemLane", label: "System lane", minWidth: "150px" },
+  { key: "taskName", label: "Task name", minWidth: "280px" },
+  { key: "input", label: "Input", minWidth: "260px" },
+  { key: "output", label: "Output", minWidth: "260px" },
+  { key: "dataAction", label: "Data action", minWidth: "150px" },
+  { key: "dataObject", label: "Data object", minWidth: "230px" },
+  { key: "defaultNextStep", label: "Next step", minWidth: "150px" },
+  { key: "conditionQuestion", label: "Gateway question", minWidth: "260px" },
+  { key: "yesNextStep", label: "If yes", minWidth: "120px" },
+  { key: "noNextStep", label: "If no", minWidth: "120px" },
+  { key: "riskControl", label: "Risk / control", minWidth: "240px" },
+  { key: "reviewStatus", label: "Review status", minWidth: "160px" },
+  { key: "comment", label: "Notes", minWidth: "220px" }
 ];
-
 const simpleColumnKeys: Array<keyof ProcessTask> = [
   "stepId",
-  "rowType",
-  "bpmnType",
+  "taskName",
   "phase",
   "actor",
   "system",
-  "taskName",
+  "input",
+  "output",
   "defaultNextStep",
-  "reviewStatus"
+  "riskControl",
+  "reviewStatus",
+  "comment"
 ];
 
 type ColumnMode = "simple" | "advanced";

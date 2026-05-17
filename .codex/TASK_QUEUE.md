@@ -38,7 +38,7 @@ Legend:
 - [x] UX-009-export-center-simplification
 - [x] UX-010-mixed-language-and-mock-label-cleanup
 - [x] UX-001-ai-connection-user-friendly-status
-- [ ] UX-004-ptr-simple-mode-business-columns
+- [x] UX-004-ptr-simple-mode-business-columns
 - [ ] UX-004b-technical-term-tooltips
 - [ ] UX-002-dashboard-getting-started
 - [ ] UX-003-input-brief-validation-behavior
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

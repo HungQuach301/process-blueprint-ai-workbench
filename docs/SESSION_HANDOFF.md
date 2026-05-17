@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `013a-xml-parser-strategy`.
+- Added `docs/XML_PARSER_STRATEGY.md` documenting the safe XML parser strategy for future D01 BPMN and D02 draw.io post-generation gates.
+- Checked existing dependencies first: there is no dedicated shared/server-compatible XML parser; `bpmn-js` remains a browser BPMN viewer/modeler dependency, and `DOMParser` usage is browser/client-side only.
+- Rejected regex-only XML validation; future gates should parse XML structurally through a small project-owned wrapper and ask before adding a new parser dependency.
+- Kept D01/D02 generators, output UI, Rule QA, QARecommendation types, recommendation behavior, `package.json`, and dependencies unchanged.
 - Ran task `012-d02-pre-gate`.
 - Added `src/lib/quality-engine/d02-pre-generation-gate.ts` with pure `runD02PreGenerationGate` returning a `GateVerdict` for D02 Service Blueprint input readiness.
 - The D02 pre-generation gate checks empty input, missing step id, missing phase, missing actor, missing task name, missing system/app for system-oriented tasks, too many cards in a phase/row, selected Service Blueprint template fit, row rules, and foundational card mandatory fields.

@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `014-chain-resilience-types`.
+- Added `src/lib/quality-engine/chain-resilience.ts` with type-only chain resilience foundations for future multi-artifact Product Delivery gate chains.
+- Defined `ChainStepResult`, `ChainStepResultStatus`, `CHAIN_STEP_RESULT_STATUSES`, and `ChainConfig`, with optional `GateVerdict` support plus warnings, errors, skipped reason, and chain stop/continue configuration.
+- Exported the new chain resilience types from `src/lib/quality-engine/index.ts`.
+- Kept Product Delivery model/generator behavior, Export Center, dependencies, and chain wiring unchanged.
 - Ran task `013d-wire-post-gates-ui`.
 - Wired `runD01PostGenerationGate` into `src/components/bpmn-output/D01BpmnOutput.tsx` and `runD02PostGenerationGate` into `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx` immediately after successful XML generation.
 - D01 and D02 output UIs now show compact post-generation gate status with blocker/warning counts and collapsible findings, while preserving the existing preview and AI artifact review behavior.

@@ -29,7 +29,7 @@ Legend:
 - [x] 013b-d01-post-gen-gate
 - [x] 013c-d02-post-gen-gate
 - [x] 013d-wire-post-gates-ui
-- [ ] 014-chain-resilience-types
+- [x] 014-chain-resilience-types
 - [ ] 015-release-hardening
 - [ ] 016-data-service-abstraction
 - [ ] 017-user-gate-1-preparation
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

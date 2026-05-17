@@ -19,6 +19,16 @@ export {
   splitGateIssues
 } from "@/lib/quality-engine/gate-verdict";
 
+export type {
+  ChainConfig,
+  ChainStepResult,
+  ChainStepResultStatus
+} from "@/lib/quality-engine/chain-resilience";
+
+export {
+  CHAIN_STEP_RESULT_STATUSES
+} from "@/lib/quality-engine/chain-resilience";
+
 export { runDraftPtrGateV1 } from "@/lib/quality-engine/draft-ptr-gate-v1";
 
 export {

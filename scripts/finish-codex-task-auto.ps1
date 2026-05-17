@@ -182,3 +182,4 @@ if ($queue -eq $oldQueue) {
 
 Write-Host "Task finished: $TaskId" -ForegroundColor Green
 git status --short
+

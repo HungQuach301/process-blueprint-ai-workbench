@@ -18,7 +18,8 @@ if (Test-Path "package.json") {
 }
 
 Write-Host "Git diff stat:" -ForegroundColor Cyan
-git diff --stat
+git --no-pager diff --stat
 
 Write-Host "Git status:" -ForegroundColor Cyan
 git status --short
+

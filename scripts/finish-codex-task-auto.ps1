@@ -38,6 +38,13 @@ foreach ($line in $taskLines) {
 
   if ($inAllowed -and $line -match "^- ") {
     $path = ($line -replace "^- ", "").Trim()
+$path = ($path -replace "^Optional:\s*", "").Trim()
+if ($path -match "\s+only if\s+") {
+  $path = ($path -split "\s+only if\s+")[0].Trim()
+}
+if ($path -match "\s+if\s+") {
+  $path = ($path -split "\s+if\s+")[0].Trim()
+}
     if ($path -and $path -ne "...") {
       $allowed += $path
     }
@@ -60,6 +67,13 @@ if (-not $allowed -or $allowed.Count -eq 0) {
 
     if ($inExpected -and $line -match "^- ") {
       $path = ($line -replace "^- ", "").Trim()
+$path = ($path -replace "^Optional:\s*", "").Trim()
+if ($path -match "\s+only if\s+") {
+  $path = ($path -split "\s+only if\s+")[0].Trim()
+}
+if ($path -match "\s+if\s+") {
+  $path = ($path -split "\s+if\s+")[0].Trim()
+}
       if ($path -and $path -ne "...") {
         $allowed += $path
       }
@@ -150,3 +164,4 @@ if ($queue -eq $oldQueue) {
 
 Write-Host "Task finished: $TaskId" -ForegroundColor Green
 git status --short
+

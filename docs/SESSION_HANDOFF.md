@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `017-user-gate-1-preparation`.
+- Added `docs/USER_GATE_1_GUIDE.md` as a practical 30-45 minute User Gate 1 demo and feedback guide for validating MVP1-AI Stable with real users.
+- Covered setup checklist, facilitator script, AI Input Brief, Process Task Register, QA Panel, D01 BPMN, D02 Service Blueprint, Export Center, user tasks, feedback prompts, observation notes, known limitations, sensitive data response, and follow-up capture format.
+- Documented explicit human-in-the-loop messaging: AI creates drafts, recommendations, or review findings; users preview and approve before apply or export.
+- Kept this task documentation-only; no app source code, dependencies, AI behavior, or D01/D02 generator behavior was changed.
 - Ran task `016-data-service-abstraction`.
 - Added `src/lib/data/data-service.ts` with a small `DataService` interface and browser-safe `LocalDataService` implementation for typed JSON read, write, and remove helpers.
 - Added fallback/result handling for unavailable `localStorage`, missing values, invalid JSON, and write/remove failures without introducing database or server persistence.

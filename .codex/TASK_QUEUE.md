@@ -32,11 +32,12 @@ Legend:
 - [x] 014-chain-resilience-types
 - [x] 015-release-hardening
 - [x] 016-data-service-abstraction
-- [ ] 017-user-gate-1-preparation
+- [x] 017-user-gate-1-preparation
 
 ## Done
 
 ## Skipped
+
 
 
 

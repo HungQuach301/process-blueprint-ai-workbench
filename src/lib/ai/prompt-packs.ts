@@ -109,6 +109,23 @@ export const processModelingPromptPacks: AIPromptPack[] = [
     ]
   },
   {
+    id: "process-modeling-qa-finding-v1",
+    version: "1.0.0",
+    domain: "process-modeling",
+    description:
+      "Review ProcessTask rows and return QAFindingSet objects for review only.",
+    outputContract:
+      "QAFindingSet or { findings: QAFinding[] } with existing affectedStepIds, source ai, summary, and no recommendations, operations, patches, or apply behavior.",
+    messages: [
+      ...providerNeutralPromptPack.messages,
+      {
+        role: "system",
+        content:
+          "Return QA findings only. Use ProcessTask rows, qaIssues, templateProfiles, and artifact context as review evidence. Each finding must have id, issueCode, severity, category, title, description, affectedArtifact, affectedStepIds, source ai, and optional evidence. Use only existing ProcessTask.stepId values. Do not return QARecommendation objects, operations, patches, preview changes, or apply instructions."
+      }
+    ]
+  },
+  {
     id: "process-modeling-template-review-v1",
     version: "1.0.0",
     domain: "process-modeling",

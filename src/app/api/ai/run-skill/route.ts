@@ -73,6 +73,8 @@ import {
   runDraftProcessTaskRegisterQualityGate
 } from "@/lib/quality-engine";
 import { validateAIQARecommendations } from "@/lib/recommendation-engine/qa-recommendation-schema";
+import { createFindingSummary } from "@/lib/qa/qa-finding";
+import { qaIssuesToFindingSet } from "@/lib/qa/rule-qa-to-findings";
 import type { QARecommendation } from "@/lib/recommendation-engine/types";
 import { validateTemplateReviewOutput } from "@/lib/template-recommendation-engine";
 
@@ -97,6 +99,7 @@ const LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID = "file-to-draft-ptr";
 const CHAT_TO_PTR_DRAFT_SKILL_ID = "chat-to-ptr-draft";
 const LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID = "chat-to-draft-ptr";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+const AI_PROCESS_QA_FINDING_SKILL_ID = "ai-process-qa-finding";
 const PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID =
   "process-improvement-recommendation";
 const ARTIFACT_REVIEW_SKILL_ID = "artifact-review";
@@ -226,7 +229,10 @@ function getServerDataUsageMode(
 }
 
 function isRealAIEnabledForSkill(routeSkillId: string) {
-  if (routeSkillId === AI_PROCESS_QA_SKILL_ID) {
+  if (
+    routeSkillId === AI_PROCESS_QA_SKILL_ID ||
+    routeSkillId === AI_PROCESS_QA_FINDING_SKILL_ID
+  ) {
     return process.env.ENABLE_REAL_AI_QA === "true";
   }
 
@@ -245,6 +251,7 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     CHAT_TO_PTR_DRAFT_SKILL_ID,
     LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID,
     AI_PROCESS_QA_SKILL_ID,
+    AI_PROCESS_QA_FINDING_SKILL_ID,
     PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
     ARTIFACT_REVIEW_SKILL_ID,
     AI_TEMPLATE_REVIEW_SKILL_ID,
@@ -876,7 +883,11 @@ function getValidationContext(
   routeSkillId: string,
   payload: unknown
 ): AISkillValidationContext {
-  if (routeSkillId === AI_PROCESS_QA_SKILL_ID && isAIQAPayload(payload)) {
+  if (
+    (routeSkillId === AI_PROCESS_QA_SKILL_ID ||
+      routeSkillId === AI_PROCESS_QA_FINDING_SKILL_ID) &&
+    isAIQAPayload(payload)
+  ) {
     return {
       validStepIds: payload.processTasks.map((task) => task.stepId)
     };
@@ -950,6 +961,10 @@ function normalizeValidatedResult(routeSkillId: string, value: unknown) {
     return {
       recommendations: value
     };
+  }
+
+  if (routeSkillId === AI_PROCESS_QA_FINDING_SKILL_ID) {
+    return value;
   }
 
   if (routeSkillId === ARTIFACT_REVIEW_SKILL_ID && isObject(value)) {
@@ -1143,6 +1158,93 @@ function createMockAIQAResponse({
     result: {
       recommendations: validation.recommendations
     },
+    meta: {
+      orchestrationVersion: ORCHESTRATION_VERSION,
+      externalApiCalled: false,
+      realAIQAEnabled: false,
+      validationPassed: true,
+      promptPackId: skill.promptPackId,
+      dataUsageMode,
+      audit
+    }
+  });
+}
+
+function createMockAIQAFindingResponse({
+  skill,
+  payload,
+  dataUsageMode
+}: {
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  dataUsageMode: DataUsageMode;
+}) {
+  if (!isAIQAPayload(payload)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "AI QA Finding request must include processTasks and optional templateProfiles."
+      },
+      { status: 400 }
+    );
+  }
+
+  const ruleFindingSet = qaIssuesToFindingSet(payload.qaIssues ?? []);
+  const findings = ruleFindingSet.findings.map((finding, index) => ({
+    ...finding,
+    id: finding.id
+      ? `mock-ai-${finding.id}`
+      : `mock-ai-finding-${index + 1}`,
+    source: "ai" as const,
+    metadata: {
+      ...finding.metadata,
+      derivedFrom: "rule-qa",
+      mock: true
+    }
+  }));
+  const findingSet = {
+    findings,
+    summary: createFindingSummary(findings),
+    source: "ai" as const,
+    generatedAt: new Date().toISOString()
+  };
+  const validation = validateAISkillOutput(
+    AI_PROCESS_QA_FINDING_SKILL_ID,
+    findingSet,
+    {
+      validStepIds: payload.processTasks.map((task) => task.stepId)
+    }
+  );
+
+  if (!validation.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Mock AI QA Finding output failed schema validation.",
+        validationErrors: validation.errors
+      },
+      { status: 422 }
+    );
+  }
+
+  const audit = createSafeAuditMetadata({
+    skill,
+    routeSkillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+    providerId: "mock",
+    dataUsageMode,
+    mode: "mock",
+    validationPassed: true,
+    externalApiCalled: false
+  });
+  recordServerAudit(audit);
+
+  return NextResponse.json({
+    ok: true,
+    mode: "mock",
+    provider: "mock",
+    model: getConfiguredAIModel("mock"),
+    skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+    result: validation.value,
     meta: {
       orchestrationVersion: ORCHESTRATION_VERSION,
       externalApiCalled: false,
@@ -2696,6 +2798,10 @@ function createMockResponse({
     return createMockAIQAResponse({ skill, payload, dataUsageMode });
   }
 
+  if (routeSkillId === AI_PROCESS_QA_FINDING_SKILL_ID) {
+    return createMockAIQAFindingResponse({ skill, payload, dataUsageMode });
+  }
+
   if (routeSkillId === PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID) {
     return createMockProcessImprovementResponse({ skill, payload, dataUsageMode });
   }
@@ -2792,7 +2898,11 @@ function createRouteSpecificInputValidationError(
   routeSkillId: string,
   payload: unknown
 ) {
-  if (routeSkillId === AI_PROCESS_QA_SKILL_ID && !isAIQAPayload(payload)) {
+  if (
+    (routeSkillId === AI_PROCESS_QA_SKILL_ID ||
+      routeSkillId === AI_PROCESS_QA_FINDING_SKILL_ID) &&
+    !isAIQAPayload(payload)
+  ) {
     return "AI QA request must include processTasks and optional templateProfiles.";
   }
 

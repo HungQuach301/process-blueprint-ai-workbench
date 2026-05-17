@@ -20,6 +20,13 @@ import {
 } from "@/lib/models/product-delivery";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
+import {
+  createFindingSummary,
+  validateQAFinding,
+  type QAFinding,
+  type QAFindingSet,
+  type QAFindingSource
+} from "@/lib/qa/qa-finding";
 import type { QARecommendation } from "@/lib/recommendation-engine/types";
 import type { TemplateRecommendation } from "@/lib/ai/ai-template-review-types";
 import {
@@ -45,6 +52,7 @@ export type AISkillSchemaId =
   | "ProductScopeReviewResponse"
   | "RequirementQAResponse"
   | "AICodingPackResponse"
+  | "QAFindingSetResponse"
   | "QARecommendationResponse"
   | "TemplateRecommendationResponse"
   | "ArtifactReviewResponse";
@@ -62,6 +70,7 @@ export type UserStorySetResponse = UserStorySet;
 export type AcceptanceCriteriaResponse = AcceptanceCriteriaSet;
 export type ProductScopeReviewResponse = ProductScopeReview;
 export type { RequirementQAResponse };
+export type QAFindingSetResponse = QAFindingSet;
 
 export type AICodingPackFile = {
   path: string;
@@ -308,6 +317,108 @@ export function validateAICodingPackResponse(
   };
 }
 
+function getQAFindingOutput(value: unknown) {
+  if (Array.isArray(value)) {
+    return {
+      findings: value,
+      source: "ai" as QAFindingSource,
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+  if (isObject(value)) {
+    return {
+      findings: value.findings,
+      source:
+        value.source === "rule" ||
+        value.source === "ai" ||
+        value.source === "gate" ||
+        value.source === "system"
+          ? value.source
+          : ("ai" as QAFindingSource),
+      generatedAt:
+        typeof value.generatedAt === "string"
+          ? value.generatedAt
+          : new Date().toISOString()
+    };
+  }
+
+  return {
+    findings: undefined,
+    source: "ai" as QAFindingSource,
+    generatedAt: new Date().toISOString()
+  };
+}
+
+export function validateQAFindingSetResponse(
+  value: unknown,
+  context: AISkillValidationContext = {}
+): SchemaValidationResult<QAFindingSetResponse> {
+  const errors: string[] = [];
+
+  if (isObject(value)) {
+    if (value.recommendations !== undefined) {
+      errors.push("QAFindingSetResponse must not include recommendations.");
+    }
+
+    if (value.operations !== undefined || value.patch !== undefined) {
+      errors.push("QAFindingSetResponse must not include apply operations or patches.");
+    }
+  }
+
+  const output = getQAFindingOutput(value);
+
+  if (!Array.isArray(output.findings)) {
+    return {
+      ok: false,
+      errors: [...errors, "QAFindingSetResponse must include findings array."]
+    };
+  }
+
+  const findings: QAFinding[] = [];
+
+  output.findings.forEach((finding, index) => {
+    const validation = validateQAFinding(finding);
+
+    if (!validation.ok) {
+      errors.push(
+        ...validation.errors.map((error) => `findings[${index}].${error}`)
+      );
+      return;
+    }
+
+    if (
+      context.validStepIds &&
+      validation.value.affectedStepIds.some(
+        (stepId) => !context.validStepIds?.includes(stepId)
+      )
+    ) {
+      errors.push(`findings[${index}].affectedStepIds contains unknown stepId.`);
+      return;
+    }
+
+    findings.push(validation.value);
+  });
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      findings,
+      summary: createFindingSummary(findings),
+      source: output.source,
+      generatedAt: output.generatedAt
+    },
+    errors: []
+  };
+}
+
 export function normalizeDeterministicCodingPack(
   files: AICodingPackFiles,
   assumptions: string[] = [],
@@ -462,6 +573,7 @@ export function validateAISkillInput(
   if (
     [
       "ai-process-qa",
+      "ai-process-qa-finding",
       "process-qa-recommendation",
       "process-improvement-recommendation",
       "artifact-review",
@@ -692,6 +804,12 @@ export function validateAISkillOutput(
     skillId === "chat-to-draft-ptr"
   ) {
     return validateDraftProcessTaskRegister(value);
+  }
+
+  if (
+    skillId === "ai-process-qa-finding"
+  ) {
+    return validateQAFindingSetResponse(value, context);
   }
 
   if (

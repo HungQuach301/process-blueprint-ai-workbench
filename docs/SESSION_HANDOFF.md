@@ -6,7 +6,7 @@
 
 ## Current branch
 
-`feature/m2-m3-full-ai`
+`feature/quality-gate-overhaul`
 
 ## Current product phase
 
@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `003-ai-qa-finding-skill`.
+- Added skill `ai-process-qa-finding` as a review-only AI QA finding skill that returns `QAFindingSet` output.
+- Added prompt pack `process-modeling-qa-finding-v1` and schema validation for `QAFindingSet` or `{ findings: QAFinding[] }`, explicitly rejecting recommendations, operations, and patches.
+- Added mock/local route support in `/api/ai/run-skill` that derives AI-source findings from existing Rule QA issue context through `src/lib/qa/rule-qa-to-findings.ts`.
+- Kept existing `ai-process-qa` behavior returning `QARecommendation[]`; no Rule QA engine, `QARecommendation` schema/types, QA Panel UI, preview/apply behavior, or recommendation apply logic was changed.
 - Ran task `002-rule-qa-to-findings`.
 - Added `src/lib/qa/rule-qa-to-findings.ts` to convert existing Rule QA `QaIssue[]` into `QAFindingSet` without changing `validateProcessTasks`, `QARecommendation`, QA Panel UI, or recommendation apply behavior.
 - Ran task `M1-create-remaining-task-files`.
@@ -217,6 +222,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/skill-schemas.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/app/api/ai/run-skill/route.ts`
 - `src/lib/qa/rule-qa-to-findings.ts`
 - `docs/SESSION_HANDOFF.md`
 - `.codex/tasks/002-rule-qa-to-findings.md`

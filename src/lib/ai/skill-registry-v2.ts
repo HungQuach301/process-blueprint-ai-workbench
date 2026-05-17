@@ -133,6 +133,28 @@ export const aiSkillRegistryV2: AISkillDefinitionV2[] = [
     promptPackId: "process-modeling-qa-recommendation-v1"
   },
   {
+    skillId: "ai-process-qa-finding",
+    version: "1.0.0",
+    module: "module-2-process-modeling",
+    status: "real-ai-ready",
+    description:
+      "Generate review-only QA findings for Process Task Register issues.",
+    inputSchema: {
+      id: "ProcessTaskRegisterContext",
+      description: "ProcessTask[] with optional template profiles and QA issue context.",
+      validatorId: "validateAISkillInput"
+    },
+    outputSchema: {
+      id: "QAFindingSetResponse",
+      description: "QAFindingSet review findings without apply operations.",
+      validatorId: "validateQAFindingSetResponse"
+    },
+    allowedProviders: allProviders,
+    requiresApproval: true,
+    dataSensitivity: "confidential",
+    promptPackId: "process-modeling-qa-finding-v1"
+  },
+  {
     skillId: "process-improvement-recommendation",
     version: "1.0.0",
     module: "module-2-process-modeling",

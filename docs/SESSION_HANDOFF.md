@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `015-release-hardening`.
+- Added `docs/MVP1_AI_STABLE_RELEASE_CHECK.md` documenting MVP1-AI Stable hardening results, source inspection coverage, automated checks, manual browser limitations, and release follow-up items.
+- Confirmed `npx.cmd tsc --noEmit`, `npm run build`, `scripts/test-draft-ptr-gate.ps1`, and `scripts/test-provider-normalizer.ps1` pass.
+- Verified by source inspection that QA findings/recommendations, Draft PTR gate/advisory, AI route normalizer, D01/D02 pre/post gates, and Export Center Generate All/ZIP paths remain scoped and preview/user-approval oriented.
+- Kept application behavior, AI auto-apply behavior, provider key handling, generator core, dependencies, and Export Center implementation unchanged.
 - Ran task `014-chain-resilience-types`.
 - Added `src/lib/quality-engine/chain-resilience.ts` with type-only chain resilience foundations for future multi-artifact Product Delivery gate chains.
 - Defined `ChainStepResult`, `ChainStepResultStatus`, `CHAIN_STEP_RESULT_STATUSES`, and `ChainConfig`, with optional `GateVerdict` support plus warnings, errors, skipped reason, and chain stop/continue configuration.

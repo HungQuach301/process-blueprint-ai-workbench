@@ -39,7 +39,7 @@ Legend:
 - [x] UX-010-mixed-language-and-mock-label-cleanup
 - [x] UX-001-ai-connection-user-friendly-status
 - [x] UX-004-ptr-simple-mode-business-columns
-- [ ] UX-004b-technical-term-tooltips
+- [x] UX-004b-technical-term-tooltips
 - [ ] UX-002-dashboard-getting-started
 - [ ] UX-003-input-brief-validation-behavior
 - [ ] UX-005-qa-panel-user-facing-cleanup
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

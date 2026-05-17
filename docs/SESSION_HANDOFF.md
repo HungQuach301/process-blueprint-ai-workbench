@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-004b-technical-term-tooltips`.
+- Added compact browser-native tooltip/help text in `src/components/task-register/ProcessTaskRegister.tsx` for technical Process Task Register terms, including `rowType`, `bpmnType`, Data interaction, User Task, Service Task, Send Task, and Exclusive Gateway.
+- Kept help text non-intrusive with short header/select titles and preserved canonical enum values, schema, D01/D02 generation behavior, AI auto-apply behavior, recommendation behavior, and dependencies.
 - Ran task `UX-004-ptr-simple-mode-business-columns`.
 - Refined Process Task Register Simple Mode in `src/components/task-register/ProcessTaskRegister.tsx` to focus on business-review columns: step id, task name, phase, actor, system, input, output, next step, risk/control, review status, and notes.
 - Moved technical fields such as row type, BPMN type, work type, data action/object, lane fields, and detailed gateway branch columns out of Simple Mode while keeping them available in Advanced Mode.

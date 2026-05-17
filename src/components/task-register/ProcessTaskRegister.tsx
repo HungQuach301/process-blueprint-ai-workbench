@@ -144,11 +144,13 @@ type EditableColumn = {
   key: keyof ProcessTask;
   label: string;
   minWidth: string;
+  helpText?: string;
 };
 
 type SelectOption = {
   value: string;
   label: string;
+  helpText?: string;
 };
 
 type SampleProcessId = "sme-online-loan" | "corporate-account-opening";
@@ -177,11 +179,31 @@ const ptrAIAssistantActions: Array<{
 
 const visibleColumns: EditableColumn[] = [
   { key: "stepId", label: "Step ID", minWidth: "110px" },
-  { key: "rowType", label: "Row type", minWidth: "120px" },
-  { key: "bpmnType", label: "BPMN type", minWidth: "150px" },
-  { key: "taskNature", label: "Work type", minWidth: "150px" },
+  {
+    key: "rowType",
+    label: "Row type",
+    minWidth: "120px",
+    helpText: "Loai dong: task, gateway, event, data interaction hoac ghi chu."
+  },
+  {
+    key: "bpmnType",
+    label: "BPMN type",
+    minWidth: "150px",
+    helpText: "Loai BPMN quy dinh cach buoc nay duoc ve trong D01 BPMN."
+  },
+  {
+    key: "taskNature",
+    label: "Work type",
+    minWidth: "150px",
+    helpText: "Tinh chat cong viec: thu cong, tu dong, phe duyet, tich hop..."
+  },
   { key: "phase", label: "Phase", minWidth: "170px" },
-  { key: "customerInteractionType", label: "Customer touchpoint", minWidth: "210px" },
+  {
+    key: "customerInteractionType",
+    label: "Customer touchpoint",
+    minWidth: "210px",
+    helpText: "Vi tri cua buoc trong hanh trinh dich vu hoac service blueprint."
+  },
   { key: "channel", label: "Channel", minWidth: "160px" },
   { key: "actor", label: "Actor", minWidth: "160px" },
   { key: "actorLane", label: "Actor lane", minWidth: "160px" },
@@ -190,12 +212,37 @@ const visibleColumns: EditableColumn[] = [
   { key: "taskName", label: "Task name", minWidth: "280px" },
   { key: "input", label: "Input", minWidth: "260px" },
   { key: "output", label: "Output", minWidth: "260px" },
-  { key: "dataAction", label: "Data action", minWidth: "150px" },
-  { key: "dataObject", label: "Data object", minWidth: "230px" },
+  {
+    key: "dataAction",
+    label: "Data action",
+    minWidth: "150px",
+    helpText: "Hanh dong voi du lieu: tao, doc, cap nhat, gui, nhan, luu..."
+  },
+  {
+    key: "dataObject",
+    label: "Data object",
+    minWidth: "230px",
+    helpText: "Du lieu, ho so hoac tai lieu nghiep vu lien quan den buoc nay."
+  },
   { key: "defaultNextStep", label: "Next step", minWidth: "150px" },
-  { key: "conditionQuestion", label: "Gateway question", minWidth: "260px" },
-  { key: "yesNextStep", label: "If yes", minWidth: "120px" },
-  { key: "noNextStep", label: "If no", minWidth: "120px" },
+  {
+    key: "conditionQuestion",
+    label: "Gateway question",
+    minWidth: "260px",
+    helpText: "Cau hoi quyet dinh dung de tach nhanh yes/no cho gateway."
+  },
+  {
+    key: "yesNextStep",
+    label: "If yes",
+    minWidth: "120px",
+    helpText: "Step ID tiep theo khi cau tra loi la yes."
+  },
+  {
+    key: "noNextStep",
+    label: "If no",
+    minWidth: "120px",
+    helpText: "Step ID tiep theo khi cau tra loi la no."
+  },
   { key: "riskControl", label: "Risk / control", minWidth: "240px" },
   { key: "reviewStatus", label: "Review status", minWidth: "160px" },
   { key: "comment", label: "Notes", minWidth: "220px" }
@@ -260,11 +307,19 @@ const nullableColumns: Array<keyof ProcessTask> = [
 const selectOptions: Partial<Record<keyof ProcessTask, SelectOption[]>> = {
   rowType: [
     { value: "task", label: "Task" },
-    { value: "gateway", label: "Gateway" },
+    {
+      value: "gateway",
+      label: "Gateway",
+      helpText: "Diem quyet dinh trong quy trinh, thuong can cau hoi va nhanh yes/no."
+    },
     { value: "start", label: "Start" },
     { value: "end", label: "End" },
     { value: "event", label: "Event" },
-    { value: "data", label: "Data interaction" },
+    {
+      value: "data",
+      label: "Data interaction",
+      helpText: "Data interaction: dong the hien buoc tao, doc, cap nhat, gui, nhan hoac luu du lieu."
+    },
     { value: "phase", label: "Phase" },
     { value: "group", label: "Group" },
     { value: "annotation", label: "Annotation" }
@@ -272,13 +327,29 @@ const selectOptions: Partial<Record<keyof ProcessTask, SelectOption[]>> = {
   bpmnType: [
     { value: "startEvent", label: "Start Event" },
     { value: "endEvent", label: "End Event" },
-    { value: "userTask", label: "User Task" },
+    {
+      value: "userTask",
+      label: "User Task",
+      helpText: "User Task: cong viec do con nguoi thuc hien trong he thong."
+    },
     { value: "manualTask", label: "Manual Task" },
-    { value: "serviceTask", label: "Service Task" },
-    { value: "sendTask", label: "Send Task" },
+    {
+      value: "serviceTask",
+      label: "Service Task",
+      helpText: "Service Task: buoc he thong hoac service tu dong thuc hien."
+    },
+    {
+      value: "sendTask",
+      label: "Send Task",
+      helpText: "Send Task: buoc gui thong bao, email, SMS hoac message ra ngoai."
+    },
     { value: "businessRuleTask", label: "Business Rule Task" },
     { value: "scriptTask", label: "Script Task" },
-    { value: "exclusiveGateway", label: "Exclusive Gateway" },
+    {
+      value: "exclusiveGateway",
+      label: "Exclusive Gateway",
+      helpText: "Exclusive Gateway: diem re nhanh chi chon mot duong di theo dieu kien."
+    },
     { value: "parallelGateway", label: "Parallel Gateway" },
     { value: "inclusiveGateway", label: "Inclusive Gateway" },
     { value: "dataObject", label: "Data Object" },
@@ -348,16 +419,32 @@ const selectOptions: Partial<Record<keyof ProcessTask, SelectOption[]>> = {
 
 const bpmnTypeOptionsByRowType: Record<string, SelectOption[]> = {
   task: [
-    { value: "userTask", label: "User Task" },
+    {
+      value: "userTask",
+      label: "User Task",
+      helpText: "User Task: cong viec do con nguoi thuc hien trong he thong."
+    },
     { value: "manualTask", label: "Manual Task" },
-    { value: "serviceTask", label: "Service Task" },
-    { value: "sendTask", label: "Send Task" },
+    {
+      value: "serviceTask",
+      label: "Service Task",
+      helpText: "Service Task: buoc he thong hoac service tu dong thuc hien."
+    },
+    {
+      value: "sendTask",
+      label: "Send Task",
+      helpText: "Send Task: buoc gui thong bao, email, SMS hoac message ra ngoai."
+    },
     { value: "businessRuleTask", label: "Business Rule Task" },
     { value: "scriptTask", label: "Script Task" },
     { value: "task", label: "Generic Task" }
   ],
   gateway: [
-    { value: "exclusiveGateway", label: "Exclusive Gateway" },
+    {
+      value: "exclusiveGateway",
+      label: "Exclusive Gateway",
+      helpText: "Exclusive Gateway: diem re nhanh chi chon mot duong di theo dieu kien."
+    },
     { value: "parallelGateway", label: "Parallel Gateway" },
     { value: "inclusiveGateway", label: "Inclusive Gateway" }
   ],
@@ -1547,10 +1634,16 @@ export function ProcessTaskRegister() {
                     <th className="border-b border-r border-slate-200 px-3 py-2">
                       stepId
                     </th>
-                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                    <th
+                      className="border-b border-r border-slate-200 px-3 py-2"
+                      title="rowType: loai dong trong Process Task Register."
+                    >
                       rowType
                     </th>
-                    <th className="border-b border-r border-slate-200 px-3 py-2">
+                    <th
+                      className="border-b border-r border-slate-200 px-3 py-2"
+                      title="bpmnType: loai BPMN duoc dung khi ve D01 BPMN."
+                    >
                       bpmnType
                     </th>
                     <th className="border-b border-r border-slate-200 px-3 py-2">
@@ -1631,8 +1724,19 @@ export function ProcessTaskRegister() {
                     }`}
                     key={column.key}
                     style={{ minWidth: column.minWidth }}
+                    title={column.helpText}
                   >
-                    {column.label}
+                    <span className="inline-flex items-center gap-1">
+                      {column.label}
+                      {column.helpText ? (
+                        <span
+                          aria-hidden="true"
+                          className="text-xs font-semibold text-slate-400"
+                        >
+                          ?
+                        </span>
+                      ) : null}
+                    </span>
                   </th>
                 ))}
                 <th className="sticky right-0 top-0 z-40 w-24 border-b border-l border-slate-200 bg-slate-100 px-3 py-3 font-semibold">
@@ -1666,6 +1770,9 @@ export function ProcessTaskRegister() {
                   {displayedColumns.map((column) => {
                     const cellValue = String(getCellValue(task, column.key));
                     const options = getSelectOptions(column.key, cellValue, task);
+                    const selectedOptionHelp = options.find(
+                      (option) => option.value === cellValue
+                    )?.helpText;
                     const hasInvalidValue = isInvalidSelectValue(column.key, cellValue, task);
                     const invalidMessage =
                       column.key === "bpmnType"
@@ -1695,10 +1802,15 @@ export function ProcessTaskRegister() {
                             onChange={(event) =>
                               updateCell(index, column.key, event.target.value)
                             }
+                            title={selectedOptionHelp ?? column.helpText}
                             value={cellValue}
                           >
                             {options.map((option) => (
-                              <option key={option.value} value={option.value}>
+                              <option
+                                key={option.value}
+                                title={option.helpText}
+                                value={option.value}
+                              >
                                 {option.label}
                               </option>
                             ))}
@@ -1710,6 +1822,7 @@ export function ProcessTaskRegister() {
                             onChange={(event) =>
                               updateCell(index, column.key, event.target.value)
                             }
+                            title={column.helpText}
                             type="text"
                             value={cellValue}
                           />

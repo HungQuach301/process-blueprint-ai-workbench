@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `004-qa-panel-split`.
+- Updated `src/components/qa-panel/QAPanel.tsx` so Rule QA issues are derived into read-only `QAFinding` items via `src/lib/qa/rule-qa-to-findings.ts`.
+- Added a separate Findings section with a route-backed AI findings action using skill `ai-process-qa-finding`; findings have no apply buttons.
+- Kept the existing Recommendations section, safe-selection controls, provider compare, preview/apply confirmations, and recommendation feedback logging unchanged.
 - Ran task `003-ai-qa-finding-skill`.
 - Added skill `ai-process-qa-finding` as a review-only AI QA finding skill that returns `QAFindingSet` output.
 - Added prompt pack `process-modeling-qa-finding-v1` and schema validation for `QAFindingSet` or `{ findings: QAFinding[] }`, explicitly rejecting recommendations, operations, and patches.
@@ -222,6 +226,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/components/qa-panel/QAPanel.tsx`
 - `src/lib/ai/skill-registry-v2.ts`
 - `src/lib/ai/skill-schemas.ts`
 - `src/lib/ai/prompt-packs.ts`

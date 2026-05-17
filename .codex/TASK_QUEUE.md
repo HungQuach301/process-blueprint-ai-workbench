@@ -11,7 +11,7 @@ Legend:
 - [x] 001-qafinding-schema
 - [x] 002-rule-qa-to-findings
 - [x] 003-ai-qa-finding-skill
-- [ ] 004-qa-panel-split
+- [x] 004-qa-panel-split
 - [ ] INT-01-qa-flow-integration-check
 - [ ] 005-gateverdict-framework
 - [ ] 006a-draft-ptr-gate-v1
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

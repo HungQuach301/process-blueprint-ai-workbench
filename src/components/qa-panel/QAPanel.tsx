@@ -16,6 +16,13 @@ import {
   getRecommendationChangePreview
 } from "@/lib/qa/apply-recommendation";
 import {
+  mergeFindingSets,
+  type QAFinding,
+  type QAFindingSet,
+  type QAFindingSeverity
+} from "@/lib/qa/qa-finding";
+import { qaIssuesToFindingSet } from "@/lib/qa/rule-qa-to-findings";
+import {
   isGraphChangingRecommendation,
   normalizeRecommendationOperations,
   previewRecommendationBatch
@@ -39,6 +46,7 @@ const TEMPLATES_STORAGE_KEY =
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+const AI_PROCESS_QA_FINDING_SKILL_ID = "ai-process-qa-finding";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
@@ -68,6 +76,20 @@ const qaPanelText = {
     description: "QA chay lai tu dong khi du lieu trong bang thay doi. Chon issue de nhay toi dong lien quan neu con ton tai.",
     downloadReport: "Tai bao cao QA",
     recommendationToolbar: "Thanh de xuat",
+    findings: "Phát hiện",
+    findingsHelper: "Mục phát hiện là thông tin review chỉ đọc. Khu vực này không có nút áp dụng.",
+    runAiFindings: "Chạy AI phát hiện",
+    runMockFindings: "Chạy mock phát hiện",
+    runningAiFindings: "Đang chạy AI phát hiện...",
+    noFindings: "Chưa có mục phát hiện nào.",
+    noFindingsAndRecommendations: "Chưa có mục phát hiện hoặc đề xuất nào.",
+    source: "Nguồn",
+    aiSource: "AI",
+    ruleSource: "Rule",
+    gateSource: "Gate",
+    systemSource: "System",
+    info: "Thông tin",
+    recommendationsSection: "Đề xuất",
     recommendations: "de xuat",
     selected: "đã chọn",
     safeHelper: "An toan = do tin cay cao, rui ro thap va chi doi truong don gian. De xuat doi graph khong duoc chon mac dinh.",
@@ -108,6 +130,20 @@ const qaPanelText = {
     description: "QA reruns automatically when table data changes. Click an issue to jump to the related row when it still exists.",
     downloadReport: "Download QA Report",
     recommendationToolbar: "Recommendation toolbar",
+    findings: "Findings",
+    findingsHelper: "Findings are read-only review items. This section has no apply buttons.",
+    runAiFindings: "Run AI findings",
+    runMockFindings: "Run mock findings",
+    runningAiFindings: "Running AI findings...",
+    noFindings: "No findings yet.",
+    noFindingsAndRecommendations: "No findings or recommendations yet.",
+    source: "Source",
+    aiSource: "AI",
+    ruleSource: "Rule",
+    gateSource: "Gate",
+    systemSource: "System",
+    info: "Info",
+    recommendationsSection: "Recommendations",
     recommendations: "recommendations",
     selected: "selected",
     safeHelper: "Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.",
@@ -170,6 +206,13 @@ const recommendationCardStyles: Record<QaSeverity, string> = {
   error: "border-red-200 bg-white",
   warning: "border-amber-200 bg-white",
   suggestion: "border-sky-200 bg-white"
+};
+
+const findingSeverityStyles: Record<QAFindingSeverity, string> = {
+  critical: "border-red-200 bg-red-50 text-red-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-800",
+  suggestion: "border-sky-200 bg-sky-50 text-sky-800",
+  info: "border-slate-200 bg-slate-50 text-slate-700"
 };
 
 const advancedGroupStyles = "border-violet-200 bg-violet-50 text-violet-800";
@@ -252,6 +295,13 @@ function canSelectAsSafeRecommendation(
   return includeMediumImpact && recommendation.confidence === "medium";
 }
 
+function getFindingId(finding: QAFinding, index: number) {
+  return (
+    finding.id ??
+    `${finding.issueCode}:${finding.affectedArtifact}:${finding.affectedStepIds.join(",")}:${index}`
+  );
+}
+
 function createRecommendationFeedback(
   recommendation: QARecommendation,
   userAction: RecommendationUserAction,
@@ -315,9 +365,11 @@ export function QAPanel({
 }: QAPanelProps) {
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [aiQaIssues, setAiQaIssues] = useState<QaIssue[]>([]);
+  const [aiFindingSet, setAiFindingSet] = useState<QAFindingSet | null>(null);
   const [aiQaMessage, setAiQaMessage] = useState("");
   const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
   const [isRunningAIQA, setIsRunningAIQA] = useState(false);
+  const [isRunningAIFindings, setIsRunningAIFindings] = useState(false);
   const [pendingRecommendation, setPendingRecommendation] = useState<{
     issue: QaIssue;
     recommendation: QARecommendation;
@@ -335,6 +387,7 @@ export function QAPanel({
   useEffect(() => {
     setActiveLocale(getLocale());
     setAiQaIssues([]);
+    setAiFindingSet(null);
     setAiQaMessage("");
   }, [processTasks]);
 
@@ -387,6 +440,15 @@ export function QAPanel({
     () => [...aiQaIssues, ...issues],
     [aiQaIssues, issues]
   );
+  const ruleFindingSet = useMemo(() => qaIssuesToFindingSet(issues), [issues]);
+  const findingSet = useMemo(
+    () =>
+      aiFindingSet
+        ? mergeFindingSets(ruleFindingSet, aiFindingSet)
+        : ruleFindingSet,
+    [aiFindingSet, ruleFindingSet]
+  );
+  const findings = findingSet.findings;
 
   const recommendationEntries = useMemo(
     () =>
@@ -442,6 +504,18 @@ export function QAPanel({
     error: text.critical,
     warning: text.warnings,
     suggestion: text.suggestions
+  };
+  const localizedFindingSeverityLabels: Record<QAFindingSeverity, string> = {
+    critical: text.critical,
+    warning: text.warnings,
+    suggestion: text.suggestions,
+    info: text.info
+  };
+  const findingSourceLabels = {
+    ai: text.aiSource,
+    rule: text.ruleSource,
+    gate: text.gateSource,
+    system: text.systemSource
   };
   const groupedIssues = [
     {
@@ -763,6 +837,93 @@ export function QAPanel({
     );
     clearSelection();
     setAiQaMessage(`Selected ${result.providerId} output for AI QA preview.`);
+  }
+
+  async function runAiFindings() {
+    if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
+      setAiQaMessage("AI findings run cancelled. No finding was added.");
+      return;
+    }
+
+    setIsRunningAIFindings(true);
+    setAiQaMessage(
+      realAIQAEnabled
+        ? "Running real AI findings through the server route..."
+        : "Running mock AI findings. Real AI QA is disabled."
+    );
+
+    try {
+      const routeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+          payload: {
+            processTasks,
+            qaIssues: issues,
+            templateProfiles: readSelectedTemplateProfiles()
+          }
+        })
+      });
+      const data = (await routeResponse.json()) as {
+        ok?: boolean;
+        mode?: "mock" | "provider-backed";
+        result?: QAFindingSet;
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+          realAIQAEnabled?: boolean;
+        };
+      };
+
+      if (!routeResponse.ok || !data.ok || !data.result) {
+        const errorMessage = [
+          data.error || "AI findings failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: realAIQAEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
+        });
+        setAiFindingSet(null);
+        setAiQaMessage(errorMessage);
+        return;
+      }
+
+      setAiFindingSet(data.result);
+      setAiQaMessage(
+        `${data.mode === "provider-backed" ? "Real" : "Mock"} AI findings returned ${data.result.findings.length} finding(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
+      );
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+        success: true,
+        realAIEnabled: data.mode === "provider-backed",
+        externalApiCalled: data.meta?.externalApiCalled === true,
+        extraMetadata: {
+          findingCount: data.result.findings.length,
+          ruleIssueCount: issues.length
+        }
+      });
+    } catch {
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+        success: false,
+        errorMessage: "AI findings request failed.",
+        realAIEnabled: realAIQAEnabled,
+        externalApiCalled: false
+      });
+      setAiFindingSet(null);
+      setAiQaMessage("AI findings request failed. No recommendation was applied.");
+    } finally {
+      setIsRunningAIFindings(false);
+    }
   }
 
   async function runAiQa() {
@@ -1201,9 +1362,93 @@ export function QAPanel({
         </p>
       ) : null}
 
-      <p className="mb-4 text-sm font-semibold text-slate-950">
-        {text.totalIssues}: {displayIssues.length}
-      </p>
+      {findings.length === 0 && !hasRecommendations ? (
+        <p className="mb-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          {text.noFindingsAndRecommendations}
+        </p>
+      ) : null}
+
+      <section className="mb-5 rounded border border-slate-200 bg-white">
+        <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-950">
+              {text.findings} ({findings.length})
+            </h3>
+            <p className="mt-1 text-xs text-slate-600">{text.findingsHelper}</p>
+          </div>
+          <button
+            className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={isRunningAIFindings}
+            onClick={() => void runAiFindings()}
+            type="button"
+          >
+            {isRunningAIFindings
+              ? text.runningAiFindings
+              : realAIQAEnabled
+                ? text.runAiFindings
+                : text.runMockFindings}
+          </button>
+        </div>
+
+        {findings.length > 0 ? (
+          <div className="divide-y divide-slate-200">
+            {findings.map((finding, index) => {
+              const firstStepId = finding.affectedStepIds[0];
+
+              return (
+                <div className="px-4 py-3" key={getFindingId(finding, index)}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {firstStepId ? (
+                      <button
+                        className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                        onClick={() => onIssueClick(firstStepId)}
+                        type="button"
+                      >
+                        {finding.affectedStepIds.join(", ")}
+                      </button>
+                    ) : (
+                      <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                        {text.none}
+                      </span>
+                    )}
+                    <span
+                      className={`rounded border px-2 py-1 text-xs font-semibold ${findingSeverityStyles[finding.severity]}`}
+                    >
+                      {localizedFindingSeverityLabels[finding.severity]}
+                    </span>
+                    <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+                      {text.source}:{" "}
+                      {finding.source ? findingSourceLabels[finding.source] : text.none}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {finding.title}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {finding.description}
+                  </p>
+                  {finding.evidence?.length ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {finding.evidence.join(" | ")}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="px-4 py-3 text-sm text-slate-500">{text.noFindings}</p>
+        )}
+      </section>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-950">
+          {text.recommendationsSection} ({recommendationEntries.length})
+        </h3>
+        <p className="text-xs text-slate-500">
+          {text.totalIssues}: {displayIssues.length}
+        </p>
+      </div>
 
       <div className="grid w-full max-w-full min-w-0 gap-4 overflow-x-auto">
         {groupedIssues.map((group) => (

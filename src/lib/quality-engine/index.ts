@@ -26,6 +26,11 @@ export {
   runD01PreGenerationGate
 } from "@/lib/quality-engine/d01-pre-generation-gate";
 
+export {
+  D02_PRE_GENERATION_GATE_ID,
+  runD02PreGenerationGate
+} from "@/lib/quality-engine/d02-pre-generation-gate";
+
 export type {
   SourceCoverageAdvisory,
   SourceCoverageAdvisoryStatus,

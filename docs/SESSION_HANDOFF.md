@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `012-d02-pre-gate`.
+- Added `src/lib/quality-engine/d02-pre-generation-gate.ts` with pure `runD02PreGenerationGate` returning a `GateVerdict` for D02 Service Blueprint input readiness.
+- The D02 pre-generation gate checks empty input, missing step id, missing phase, missing actor, missing task name, missing system/app for system-oriented tasks, too many cards in a phase/row, selected Service Blueprint template fit, row rules, and foundational card mandatory fields.
+- Exported `runD02PreGenerationGate` and `D02_PRE_GENERATION_GATE_ID` from `src/lib/quality-engine/index.ts`; UI wiring is deferred and D02 draw.io generator core remains unchanged.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `011-d01-pre-gate`.
 - Added `src/lib/quality-engine/d01-pre-generation-gate.ts` with pure `runD01PreGenerationGate` returning a `GateVerdict` for D01 BPMN input readiness.
 - The D01 pre-generation gate checks ProcessTask readiness for empty input, missing start/end events, missing or duplicate step ids, missing task names, invalid next-step references, gateway branch readiness, unsupported/fallback BPMN types, actor/system visibility, and selected BPMN template fit.

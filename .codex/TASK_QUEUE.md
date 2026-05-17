@@ -24,7 +24,7 @@ Legend:
 - [x] 010-normalizer-golden-tests
 - [x] INT-03-ai-route-normalizer-integration-check
 - [x] 011-d01-pre-gate
-- [ ] 012-d02-pre-gate
+- [x] 012-d02-pre-gate
 - [ ] 013a-xml-parser-strategy
 - [ ] 013b-d01-post-gen-gate
 - [ ] 013c-d02-post-gen-gate
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

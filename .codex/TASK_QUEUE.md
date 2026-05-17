@@ -40,7 +40,7 @@ Legend:
 - [x] UX-001-ai-connection-user-friendly-status
 - [x] UX-004-ptr-simple-mode-business-columns
 - [x] UX-004b-technical-term-tooltips
-- [ ] UX-002-dashboard-getting-started
+- [x] UX-002-dashboard-getting-started
 - [ ] UX-003-input-brief-validation-behavior
 - [ ] UX-005-qa-panel-user-facing-cleanup
 - [ ] UX-006-bpmn-preview-readability
@@ -53,6 +53,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-002-dashboard-getting-started`.
+- Added a compact Getting Started section in `src/components/AppShell.tsx` with four first-time user steps: Input Brief, Draft PTR, Quality Check, and Export.
+- Wired the steps to existing in-page module anchors where available, including the embedded QA area inside Process Task Register, while preserving existing navigation behavior, AI behavior, generator/export logic, schemas, and dependencies.
 - Ran task `UX-004b-technical-term-tooltips`.
 - Added compact browser-native tooltip/help text in `src/components/task-register/ProcessTaskRegister.tsx` for technical Process Task Register terms, including `rowType`, `bpmnType`, Data interaction, User Task, Service Task, Send Task, and Exclusive Gateway.
 - Kept help text non-intrusive with short header/select titles and preserved canonical enum values, schema, D01/D02 generation behavior, AI auto-apply behavior, recommendation behavior, and dependencies.

@@ -43,6 +43,48 @@ export function AppShell() {
     sourceLabel: locale === "vi" ? "Nguồn dữ liệu chuẩn" : "Source of truth",
     releaseLabel: locale === "vi" ? "Phạm vi release" : "Release scope"
   };
+  const gettingStartedText = {
+    title: locale === "vi" ? "Bắt đầu từ đây" : "Getting Started",
+    description:
+      locale === "vi"
+        ? "Đi theo 4 bước chính để biến ý định nghiệp vụ thành artifact có thể review và export."
+        : "Follow these 4 core steps to turn business intent into reviewable and exportable artifacts.",
+    actionLabel: locale === "vi" ? "Mở bước này" : "Open step"
+  };
+  const gettingStartedSteps = [
+    {
+      title: "Input Brief",
+      href: "#input-brief",
+      description:
+        locale === "vi"
+          ? "Nhập mục tiêu, phạm vi, actor, hệ thống và dữ liệu để tạo bản nháp đầu tiên."
+          : "Capture the goal, scope, actors, systems, and data for the first draft."
+    },
+    {
+      title: "Draft PTR",
+      href: "#process-task-register",
+      description:
+        locale === "vi"
+          ? "Review draft trong Process Task Register, nguồn chuẩn cho BPMN, Service Blueprint và export."
+          : "Review the draft in Process Task Register, the source for BPMN, Service Blueprint, and exports."
+    },
+    {
+      title: "Quality Check",
+      href: "#process-task-register",
+      description:
+        locale === "vi"
+          ? "Kiểm tra lỗi, cảnh báo và recommendation trong khu vực QA của Process Task Register."
+          : "Check issues, warnings, and recommendations in the Process Task Register QA area."
+    },
+    {
+      title: "Export",
+      href: "#export-center",
+      description:
+        locale === "vi"
+          ? "Xuất PTR, QA report, BPMN, Service Blueprint và ZIP sau khi đã review."
+          : "Export PTR, QA report, BPMN, Service Blueprint, and ZIP after review."
+    }
+  ];
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -113,6 +155,40 @@ export function AppShell() {
               </div>
             </div>
           </header>
+
+          <section className="surface-card mb-6 overflow-hidden" id="getting-started">
+            <div className="border-b border-slate-200 bg-white p-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                {gettingStartedText.title}
+              </p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                {gettingStartedText.description}
+              </p>
+            </div>
+
+            <div className="grid gap-0 divide-y divide-slate-200 bg-white md:grid-cols-4 md:divide-x md:divide-y-0">
+              {gettingStartedSteps.map((step, index) => (
+                <a
+                  className="group block p-4 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+                  href={step.href}
+                  key={`${step.title}-${index}`}
+                >
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 group-hover:bg-blue-100">
+                    {index + 1}
+                  </span>
+                  <h2 className="mt-3 text-base font-semibold text-slate-950">
+                    {step.title}
+                  </h2>
+                  <p className="mt-2 min-h-16 text-sm leading-6 text-slate-600">
+                    {step.description}
+                  </p>
+                  <span className="mt-3 inline-flex text-sm font-semibold text-blue-700 group-hover:text-blue-900">
+                    {gettingStartedText.actionLabel}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
 
           <div className="grid min-w-0 gap-5">
             <div className="min-w-0 max-w-full" id="ai-settings">

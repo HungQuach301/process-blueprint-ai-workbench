@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   confirmRealAICallIfNeeded,
@@ -65,6 +65,7 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
 ];
 
 type TemplateAIRetryAction = "review" | "compare";
+type TemplateSaveState = "saved" | "unsaved" | "saving";
 
 function getFriendlyTemplateAIErrorMessage(
   error?: string,
@@ -101,6 +102,9 @@ const templateHubText = {
     running: "Đang chạy...",
     save: "Lưu",
     reset: "Reset",
+    saved: "Saved",
+    unsaved: "Unsaved changes",
+    saving: "Saving",
     recommendations: "Recommendation từ Template QA",
     reviewRequired: "Cần người dùng review. Không có thay đổi template nào được auto-apply.",
     starterPack: "Banking Starter Pack và template đã lưu",
@@ -138,6 +142,9 @@ const templateHubText = {
     running: "Running...",
     save: "Save",
     reset: "Reset",
+    saved: "Saved",
+    unsaved: "Unsaved changes",
+    saving: "Saving",
     recommendations: "Template QA Recommendations",
     aiTemplateReview: "AI Template Review",
     reviewWarnings: "Warnings",
@@ -495,6 +502,7 @@ export function TemplateLibraryEditor() {
   const [isRunningCompare, setIsRunningCompare] = useState(false);
   const [aiRetryAction, setAiRetryAction] =
     useState<TemplateAIRetryAction | null>(null);
+  const [saveState, setSaveState] = useState<TemplateSaveState>("saved");
   const [advancedModeOpen, setAdvancedModeOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(
     null
@@ -506,6 +514,7 @@ export function TemplateLibraryEditor() {
     scopeType: "",
     status: ""
   });
+  const saveStateTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -559,6 +568,31 @@ export function TemplateLibraryEditor() {
   }, []);
 
   useEffect(() => {
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (saveState !== "unsaved") {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [saveState]);
+
+  useEffect(() => {
+    return () => {
+      if (saveStateTimeoutRef.current) {
+        window.clearTimeout(saveStateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     async function loadTemplateReviewMode() {
@@ -598,6 +632,11 @@ export function TemplateLibraryEditor() {
     ? findTemplate(drafts, previewTemplateId)
     : null;
   const text = templateHubText[locale];
+  const saveStateStyles: Record<TemplateSaveState, string> = {
+    saved: "status-badge status-badge-success",
+    unsaved: "status-badge status-badge-warning",
+    saving: "status-badge status-badge-primary"
+  };
 
   const filteredDrafts = useMemo(
     () =>
@@ -614,6 +653,34 @@ export function TemplateLibraryEditor() {
     [drafts, filters]
   );
 
+  function markUnsaved() {
+    if (saveStateTimeoutRef.current) {
+      window.clearTimeout(saveStateTimeoutRef.current);
+      saveStateTimeoutRef.current = null;
+    }
+
+    setSaveState("unsaved");
+  }
+
+  function markSaved() {
+    if (saveStateTimeoutRef.current) {
+      window.clearTimeout(saveStateTimeoutRef.current);
+      saveStateTimeoutRef.current = null;
+    }
+
+    setSaveState("saved");
+  }
+
+  function confirmDiscardUnsavedTemplateChanges(actionLabel: string) {
+    if (saveState !== "unsaved") {
+      return true;
+    }
+
+    return window.confirm(
+      `${actionLabel} will discard template edits that have not been saved. Continue?`
+    );
+  }
+
   function updateDraft(field: keyof TemplateDraft, value: string) {
     if (!activeDraft) {
       return;
@@ -625,11 +692,18 @@ export function TemplateLibraryEditor() {
       )
     );
     markGeneratedArtifactsStale();
+    markUnsaved();
     setMessage("There are unsaved template changes.");
   }
 
   function saveTemplates() {
     try {
+      if (saveStateTimeoutRef.current) {
+        window.clearTimeout(saveStateTimeoutRef.current);
+        saveStateTimeoutRef.current = null;
+      }
+
+      setSaveState("saving");
       const profiles = drafts.map(draftToProfile);
 
       window.localStorage.setItem(
@@ -639,8 +713,13 @@ export function TemplateLibraryEditor() {
       window.localStorage.setItem(D01_STORAGE_KEY, selectedD01TemplateId);
       window.localStorage.setItem(D02_STORAGE_KEY, selectedD02TemplateId);
       markGeneratedArtifactsStale();
+      saveStateTimeoutRef.current = window.setTimeout(() => {
+        setSaveState("saved");
+        saveStateTimeoutRef.current = null;
+      }, 350);
       setMessage("Saved template profiles and D01/D02 selections.");
     } catch (error) {
+      setSaveState("unsaved");
       setMessage(
         error instanceof Error
           ? `Cannot save: ${error.message}`
@@ -650,6 +729,11 @@ export function TemplateLibraryEditor() {
   }
 
   function resetTemplates() {
+    if (!confirmDiscardUnsavedTemplateChanges("Reset templates")) {
+      setMessage("Reset cancelled. Unsaved template edits are still in the editor.");
+      return;
+    }
+
     const nextDrafts = sampleDrafts();
 
     setDrafts(nextDrafts);
@@ -664,6 +748,7 @@ export function TemplateLibraryEditor() {
     window.localStorage.removeItem(D01_STORAGE_KEY);
     window.localStorage.removeItem(D02_STORAGE_KEY);
     markGeneratedArtifactsStale();
+    markSaved();
     setMessage("Reset to sample and banking starter templates.");
   }
 
@@ -1035,6 +1120,9 @@ export function TemplateLibraryEditor() {
     <SessionFrame
       actions={
         <>
+          <span className={saveStateStyles[saveState]}>
+            {text[saveState]}
+          </span>
           <button
             className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
             onClick={changeTemplate}

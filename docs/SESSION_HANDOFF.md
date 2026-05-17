@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-011b-save-unsaved-changes-feedback`.
+- Updated `src/components/task-register/ProcessTaskRegister.tsx` with browser refresh warning for unsaved PTR edits, explicit Restore saved action for the last saved in-session PTR snapshot, and confirmation before reset/sample switch discards unsaved edits.
+- Updated `src/components/template-library/TemplateLibraryEditor.tsx` with Saved/Unsaved/Saving status feedback, browser refresh warning for unsaved template edits, and reset confirmation when template edits have not been saved.
+- Preserved existing localStorage keys and persistence behavior, artifact stale marking, Recommendation preview/apply safety, schemas, AI routes, generator behavior, and dependencies.
 - Ran task `UX-011a-ai-error-loading-retry-feedback`.
 - Added user-friendly AI loading/error/retry feedback in AI Input Brief, QA Panel, Template Hub, D01 BPMN Output, D02 Service Blueprint Output, and Export Center.
 - Converted raw route/provider/validation failures into concise UI messages while keeping audit logging and schema/quality-gate validation behavior intact.

@@ -87,6 +87,7 @@ const ptrText = {
     saved: "Saved",
     unsaved: "Unsaved changes",
     saving: "Saving",
+    restoreSaved: "Restore saved",
     selectRows: "Chọn dòng",
     selectedRows: "dòng đã chọn",
     oneRow: "Một dòng = một task/gateway/event/data interaction.",
@@ -130,6 +131,7 @@ const ptrText = {
     saved: "Saved",
     unsaved: "Unsaved changes",
     saving: "Saving",
+    restoreSaved: "Restore saved",
     selectRows: "Select rows",
     selectedRows: "selected rows",
     oneRow: "One row = one task, gateway, event, or data interaction.",
@@ -679,6 +681,7 @@ export function ProcessTaskRegister() {
   const [ptrAiIssues, setPtrAiIssues] = useState<QaIssue[]>([]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const saveStateTimeoutRef = useRef<number | null>(null);
+  const lastSavedTasksRef = useRef<ProcessTask[]>(cloneSampleTasks());
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -694,7 +697,9 @@ export function ProcessTaskRegister() {
         const parsedTasks = JSON.parse(savedTasks);
 
         if (Array.isArray(parsedTasks)) {
-          setTasks(parsedTasks as ProcessTask[]);
+          const nextTasks = parsedTasks as ProcessTask[];
+          setTasks(nextTasks);
+          lastSavedTasksRef.current = nextTasks.map((task) => ({ ...task }));
           markSaved();
           return true;
         }
@@ -711,7 +716,9 @@ export function ProcessTaskRegister() {
     setSelectedSampleProcessId(savedSampleProcess.id);
 
     if (!loadSavedTasks()) {
-      setTasks(cloneSampleTasks(savedSampleProcess.id));
+      const sampleTasks = cloneSampleTasks(savedSampleProcess.id);
+      setTasks(sampleTasks);
+      lastSavedTasksRef.current = sampleTasks.map((task) => ({ ...task }));
     }
 
     window.addEventListener(PROCESS_TASKS_EVENT, loadSavedTasks);
@@ -739,6 +746,23 @@ export function ProcessTaskRegister() {
       window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
     };
   }, []);
+
+  useEffect(() => {
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (saveState !== "unsaved") {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", warnBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", warnBeforeUnload);
+    };
+  }, [saveState]);
 
   useEffect(() => {
     setPtrAiIssues([]);
@@ -797,6 +821,28 @@ export function ProcessTaskRegister() {
     }
 
     setSaveState("saved");
+  }
+
+  function confirmDiscardUnsavedChanges(actionLabel: string) {
+    if (saveState !== "unsaved") {
+      return true;
+    }
+
+    return window.confirm(
+      `${actionLabel} will discard changes that have not been explicitly saved. Continue?`
+    );
+  }
+
+  function restoreLastSavedTasks() {
+    const lastSavedTasks = lastSavedTasksRef.current.map((task) => ({ ...task }));
+
+    setTasks(persistTasks(lastSavedTasks));
+    setImportPreview(null);
+    setPtrAiIssues([]);
+    setHighlightedStepId(null);
+    markGeneratedArtifactsStale();
+    markSaved();
+    setSaveMessage("Restored the last explicitly saved Process Task Register.");
   }
 
   function focusIssueRow(stepId: string) {
@@ -1035,8 +1081,14 @@ export function ProcessTaskRegister() {
   }
 
   function saveTasks() {
+    if (saveStateTimeoutRef.current) {
+      window.clearTimeout(saveStateTimeoutRef.current);
+      saveStateTimeoutRef.current = null;
+    }
+
     setSaveState("saving");
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    lastSavedTasksRef.current = tasks.map((task) => ({ ...task }));
     markGeneratedArtifactsStale();
     saveStateTimeoutRef.current = window.setTimeout(() => {
       setSaveState("saved");
@@ -1046,9 +1098,15 @@ export function ProcessTaskRegister() {
   }
 
   function resetTasks() {
+    if (!confirmDiscardUnsavedChanges("Reset sample")) {
+      setSaveMessage("Reset cancelled. Unsaved changes are still in the table.");
+      return;
+    }
+
     const sampleTasks = cloneSampleTasks(selectedSampleProcessId);
 
     setTasks(sampleTasks);
+    lastSavedTasksRef.current = sampleTasks.map((task) => ({ ...task }));
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, selectedSampleProcessId);
     markGeneratedArtifactsStale();
@@ -1060,6 +1118,11 @@ export function ProcessTaskRegister() {
     const nextSampleProcess = getSampleProcess(sampleId);
 
     if (nextSampleProcess.id === selectedSampleProcessId) {
+      return;
+    }
+
+    if (!confirmDiscardUnsavedChanges("Switch sample")) {
+      setSaveMessage("Sample switch cancelled. Unsaved changes are still in the table.");
       return;
     }
 
@@ -1075,6 +1138,7 @@ export function ProcessTaskRegister() {
 
     setSelectedSampleProcessId(nextSampleProcess.id);
     setTasks(persistTasks(sampleTasks));
+    lastSavedTasksRef.current = sampleTasks.map((task) => ({ ...task }));
     window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, nextSampleProcess.id);
     setImportPreview(null);
     setHighlightedStepId(null);
@@ -1276,7 +1340,10 @@ export function ProcessTaskRegister() {
       return;
     }
 
-    setTasks(persistTasks(importPreview.tasks));
+    const nextTasks = persistTasks(importPreview.tasks);
+
+    setTasks(nextTasks);
+    lastSavedTasksRef.current = nextTasks.map((task) => ({ ...task }));
     markGeneratedArtifactsStale();
     saveAuditLogEntry({
       action: "import_excel",
@@ -1372,6 +1439,15 @@ export function ProcessTaskRegister() {
             >
               {text.saveChanges}
             </button>
+            {saveState === "unsaved" ? (
+              <button
+                className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+                onClick={restoreLastSavedTasks}
+                type="button"
+              >
+                {text.restoreSaved}
+              </button>
+            ) : null}
             <input
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"

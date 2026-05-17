@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-001-ai-connection-user-friendly-status`.
+- Updated `src/components/ai-settings/AIProviderSettingsPanel.tsx` so the primary AI Connection Center status uses business-friendly labels for selected provider, connection status, current mode, and next step.
+- Moved server provider, effective provider, data mode, model, and feature flag diagnostics into Advanced settings while keeping Test Connection on the existing server-side route.
+- Strengthened the trust message that provider API keys stay server-side and are not stored or exposed in browser code.
+- Kept provider ids, env interpretation, feature flags, AI route behavior, AI auto-apply behavior, and dependencies unchanged.
 - Ran task `UX-010-mixed-language-and-mock-label-cleanup`.
 - Replaced primary user-facing Mock/Local-Mock wording in AI Connection Center, QA Panel, Template Hub, and Export Center with clearer `Local analysis` / local wording while preserving internal provider id `mock`.
 - Replaced user-facing `Missing env` with `Not configured` / `Chua cau hinh` and moved AI feature flag status out of the primary AI Connection Center panel into Advanced settings.

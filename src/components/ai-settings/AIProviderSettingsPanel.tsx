@@ -134,16 +134,23 @@ const textByLocale = {
     testing: "Dang kiem tra...",
     status: "Trang thai",
     selected: "Dang chon",
-    configured: "Da cau hinh",
+    configured: "San sang",
     missingEnv: "Chua cau hinh",
     disabled: "Dang tat",
-    available: "Kha dung",
-    dataWarning: "Canh bao du lieu",
+    available: "Phan tich cuc bo",
+    dataWarning: "Tin cay va an toan du lieu",
     dataWarningBody:
-      "Cloud AI chi duoc goi qua route server-side. Khong nhap hoac hien thi API key trong browser.",
+      "Test Connection va cac tac vu AI luon goi route server-side. API key cua provider khong duoc luu hoac hien thi trong browser.",
     currentMode: "Che do hien tai",
     flags: "Advanced flags",
     serverProvider: "Provider server",
+    selectedProvider: "Provider da chon",
+    connectionStatus: "Trang thai ket noi",
+    nextStep: "Buoc tiep theo",
+    technicalDiagnostics: "Chan doan ky thuat",
+    localModeLabel: "Phan tich cuc bo",
+    realModeLabel: "Real AI server-side",
+    serverSideOnly: "Server-side only",
     dataMode: "Data mode server",
     model: "Model",
     advanced: "Thiet lap nang cao",
@@ -165,7 +172,11 @@ const textByLocale = {
     realModeSummary: "Real AI qua provider da chon. Du lieu co the duoc xu ly tren cloud theo cau hinh server.",
     modelPlaceholder: "Ten hien thi tuy chon",
     effectiveProvider: "Provider thuc thi",
-    fallbackActive: "Local analysis fallback is active because the selected provider is not ready.",
+    fallbackActive: "Dang dung phan tich cuc bo vi provider da chon chua san sang.",
+    localNextStep: "Co the tiep tuc demo hoac chay workflow ma khong goi provider ben ngoai.",
+    readyNextStep: "Provider da san sang cho cac tac vu AI server-side khi duoc phep.",
+    notConfiguredNextStep: "Can hoan tat cau hinh provider tren server truoc khi dung real AI.",
+    disabledNextStep: "Real AI dang tat. Dung phan tich cuc bo hoac mo Advanced de xem cau hinh.",
     selectedStatus: "Trang thai provider da chon"
   },
   en: {
@@ -178,16 +189,23 @@ const textByLocale = {
     testing: "Testing...",
     status: "Status",
     selected: "Selected",
-    configured: "Configured",
+    configured: "Ready",
     missingEnv: "Not configured",
     disabled: "Disabled",
-    available: "Available",
-    dataWarning: "Data warning",
+    available: "Local analysis",
+    dataWarning: "Trust and data safety",
     dataWarningBody:
-      "Cloud AI is only called through the server-side route. API keys are never entered or displayed in the browser.",
+      "Test Connection and AI tasks call the server-side route. Provider API keys are not stored or exposed in browser code.",
     currentMode: "Current mode",
     flags: "Advanced flags",
     serverProvider: "Server provider",
+    selectedProvider: "Selected provider",
+    connectionStatus: "Connection status",
+    nextStep: "Next step",
+    technicalDiagnostics: "Technical diagnostics",
+    localModeLabel: "Local analysis",
+    realModeLabel: "Server-side real AI",
+    serverSideOnly: "Server-side only",
     dataMode: "Server data mode",
     model: "Model",
     advanced: "Advanced Settings",
@@ -209,7 +227,11 @@ const textByLocale = {
     realModeSummary: "Real AI via the selected provider. Data may be processed in the cloud according to server configuration.",
     modelPlaceholder: "Optional display name only",
     effectiveProvider: "Effective provider",
-    fallbackActive: "Local analysis fallback dang hoat dong vi provider da chon chua san sang.",
+    fallbackActive: "Local analysis fallback is active because the selected provider is not ready.",
+    localNextStep: "You can keep demoing or running workflows without an external provider call.",
+    readyNextStep: "The provider is ready for server-side AI tasks when a skill allows it.",
+    notConfiguredNextStep: "Finish server-side provider setup before using real AI.",
+    disabledNextStep: "Real AI is disabled. Use local analysis or open Advanced to inspect setup.",
     selectedStatus: "Selected provider status"
   }
 } satisfies Record<Locale, Record<string, string>>;
@@ -245,6 +267,24 @@ function getStatusText(status: ProviderDisplayStatus, locale: Locale) {
   }
 
   return text.available;
+}
+
+function getNextStepText(status: ProviderDisplayStatus, locale: Locale) {
+  const text = textByLocale[locale];
+
+  if (status === "configured") {
+    return text.readyNextStep;
+  }
+
+  if (status === "missing env") {
+    return text.notConfiguredNextStep;
+  }
+
+  if (status === "disabled") {
+    return text.disabledNextStep;
+  }
+
+  return text.localNextStep;
 }
 
 export function AIProviderSettingsPanel() {
@@ -305,6 +345,16 @@ export function AIProviderSettingsPanel() {
     () => serverStatus.providers ?? [],
     [serverStatus.providers]
   );
+  const selectedProviderCard =
+    providerCards.find((card) => card.id === settings.providerMode) ??
+    providerCards[3];
+  const selectedConnectionStatus =
+    serverStatus.displayStatus ??
+    getCardStatus(selectedProviderCard, providerStatuses, realAIEnabled);
+  const isUsingLocalAnalysis =
+    !realAIEnabled ||
+    effectiveServerProvider === "mock" ||
+    selectedProviderCard.serverProviderId === "mock";
 
   function updateSettings(nextSettings: AIProviderSettings) {
     setSettings(nextSettings);
@@ -492,43 +542,34 @@ export function AIProviderSettingsPanel() {
               {text.currentMode}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {realAIEnabled ? "Real AI" : "Local/mock"}
+              {isUsingLocalAnalysis ? text.localModeLabel : text.realModeLabel}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              {realAIEnabled ? text.realModeSummary : text.mockModeSummary}
+              {isUsingLocalAnalysis ? text.mockModeSummary : text.realModeSummary}
             </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.serverProvider}
+              {text.selectedProvider}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {serverStatus.provider ?? "mock"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {text.selectedStatus}:{" "}
-              {serverStatus.displayStatus
-                ? getStatusText(serverStatus.displayStatus, locale)
-                : "-"}
+              {selectedProviderCard.title}
             </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.dataMode}
+              {text.connectionStatus}
             </p>
             <p className="mt-1 font-semibold text-slate-950">
-              {serverStatus.dataUsageMode ?? "local-only"}
+              {getStatusText(selectedConnectionStatus, locale)}
             </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.model}
+              {text.nextStep}
             </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {serverStatus.model || settings.modelName || "-"}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {text.effectiveProvider}: {effectiveServerProvider}
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              {getNextStepText(selectedConnectionStatus, locale)}
             </p>
           </div>
         </div>
@@ -553,6 +594,45 @@ export function AIProviderSettingsPanel() {
 
         {advancedOpen ? (
           <div className="border-t border-slate-200 p-4">
+            <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-semibold text-slate-950">
+                {text.technicalDiagnostics}
+              </p>
+              <div className="mt-3 grid gap-3 text-xs text-slate-600 md:grid-cols-4">
+                <div>
+                  <p className="font-semibold uppercase text-slate-500">
+                    {text.serverProvider}
+                  </p>
+                  <p className="mt-1 text-slate-900">
+                    {serverStatus.provider ?? "mock"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold uppercase text-slate-500">
+                    {text.effectiveProvider}
+                  </p>
+                  <p className="mt-1 text-slate-900">
+                    {effectiveServerProvider}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold uppercase text-slate-500">
+                    {text.dataMode}
+                  </p>
+                  <p className="mt-1 text-slate-900">
+                    {serverStatus.dataUsageMode ?? "local-only"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold uppercase text-slate-500">
+                    {text.model}
+                  </p>
+                  <p className="mt-1 text-slate-900">
+                    {serverStatus.model || settings.modelName || "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
             <p className="mb-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
               {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
             </p>

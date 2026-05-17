@@ -1,4 +1,4 @@
-# Task ID: 008-draft-ptr-golden-tests
+﻿# Task ID: 008-draft-ptr-golden-tests
 
 ## Task name
 
@@ -41,6 +41,12 @@ Add initial deterministic golden tests for Draft PTR Gate v1 and source coverage
 - src/lib/quality-engine/draft-ptr-gate-v1.test-data.ts
 - Optional: scripts/test-draft-ptr-gate.ps1
 - Optional: package.json only if user approves adding a test script/dependency
+- docs/SESSION_HANDOFF.md
+
+## Allowed changed files
+
+- src/lib/quality-engine/draft-ptr-gate-v1.test-data.ts
+- scripts/test-draft-ptr-gate.ps1
 - docs/SESSION_HANDOFF.md
 
 ## Implementation instructions
@@ -90,3 +96,4 @@ git restore src/lib/quality-engine/draft-ptr-gate-v1.test-data.ts scripts/test-d
 ## Suggested commit message
 
 Add Draft PTR Gate golden fixtures
+

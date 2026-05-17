@@ -14,7 +14,7 @@ Legend:
 - [x] 004-qa-panel-split
 - [x] INT-01-qa-flow-integration-check
 - [x] 005-gateverdict-framework
-- [ ] 006a-draft-ptr-gate-v1
+- [x] 006a-draft-ptr-gate-v1
 - [ ] 006b-wire-draft-ptr-gate-ui
 - [ ] 007-source-coverage-advisory
 - [ ] 008-draft-ptr-golden-tests
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

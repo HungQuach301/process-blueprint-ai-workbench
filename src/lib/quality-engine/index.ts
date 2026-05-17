@@ -19,6 +19,8 @@ export {
   splitGateIssues
 } from "@/lib/quality-engine/gate-verdict";
 
+export { runDraftPtrGateV1 } from "@/lib/quality-engine/draft-ptr-gate-v1";
+
 export type {
   QualityGateIssue,
   QualityGateResult,

@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `006a-draft-ptr-gate-v1`.
+- Added `src/lib/quality-engine/draft-ptr-gate-v1.ts` with `runDraftPtrGateV1`, returning a `GateVerdict` for validated Draft PTR output.
+- Draft PTR Gate v1 evaluates exactly five dimensions: `schemaCompleteness`, `flowIntegrity`, `gatewaySafety`, `actorSystemCoverage`, and `decompositionQuality`.
+- Kept source coverage out of scoring/blocking logic and did not migrate or replace `runDraftProcessTaskRegisterQualityGate`.
+- Exported `runDraftPtrGateV1` from `src/lib/quality-engine/index.ts`.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `005-gateverdict-framework`.
 - Added `src/lib/quality-engine/gate-verdict.ts` with shared GateVerdict status, issue, blocker, warning, score breakdown, summary, and pure helper types/functions for future gates.
 - Exported the GateVerdict framework from `src/lib/quality-engine/index.ts`.
@@ -235,6 +241,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `src/lib/quality-engine/draft-ptr-gate-v1.ts`
 - `src/lib/quality-engine/gate-verdict.ts`
 - `src/lib/quality-engine/index.ts`
 - `docs/QA_FLOW_CHECK.md`

@@ -33,6 +33,22 @@ Legend:
 - [x] 015-release-hardening
 - [x] 016-data-service-abstraction
 - [x] 017-user-gate-1-preparation
+- [ ] UX-000-milestone-1-technical-status-check
+- [ ] UX-008-product-delivery-module-separation
+- [ ] UX-009-export-center-simplification
+- [ ] UX-010-mixed-language-and-mock-label-cleanup
+- [ ] UX-001-ai-connection-user-friendly-status
+- [ ] UX-004-ptr-simple-mode-business-columns
+- [ ] UX-004b-technical-term-tooltips
+- [ ] UX-002-dashboard-getting-started
+- [ ] UX-003-input-brief-validation-behavior
+- [ ] UX-005-qa-panel-user-facing-cleanup
+- [ ] UX-006-bpmn-preview-readability
+- [ ] UX-007-blueprint-preview-scroll-affordance
+- [ ] UX-011a-ai-error-loading-retry-feedback
+- [ ] UX-011b-save-unsaved-changes-feedback
+- [ ] UX-011c-workspace-backup-restore
+- [ ] UX-012-user-facing-regression-check
 
 ## Done
 

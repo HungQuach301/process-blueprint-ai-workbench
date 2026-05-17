@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `UX-create-user-facing-readiness-tasks`.
+- Added User-Facing Readiness Sprint task definitions under `.codex/tasks/` for UX-000, UX-001 through UX-012, including Product Delivery separation, Export Center simplification, mixed-language/mock label cleanup, AI Connection status cleanup, PTR simple mode, tooltips, Getting Started, Input Brief validation timing, QA Panel cleanup, D01/D02 preview improvements, AI error/retry feedback, save/unsaved feedback, local workspace backup/restore, and final regression check.
+- Updated `.codex/TASK_QUEUE.md` to include the UX tasks in the required implementation order.
+- Kept this task meta/documentation-only; no application source code, dependencies, AI behavior, or generator behavior was changed.
 - Ran task `017-user-gate-1-preparation`.
 - Added `docs/USER_GATE_1_GUIDE.md` as a practical 30-45 minute User Gate 1 demo and feedback guide for validating MVP1-AI Stable with real users.
 - Covered setup checklist, facilitator script, AI Input Brief, Process Task Register, QA Panel, D01 BPMN, D02 Service Blueprint, Export Center, user tasks, feedback prompts, observation notes, known limitations, sensitive data response, and follow-up capture format.

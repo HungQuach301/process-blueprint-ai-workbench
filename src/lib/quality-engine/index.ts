@@ -27,6 +27,11 @@ export {
 } from "@/lib/quality-engine/d01-pre-generation-gate";
 
 export {
+  D01_POST_GENERATION_GATE_ID,
+  runD01PostGenerationGate
+} from "@/lib/quality-engine/d01-post-generation-gate";
+
+export {
   D02_PRE_GENERATION_GATE_ID,
   runD02PreGenerationGate
 } from "@/lib/quality-engine/d02-pre-generation-gate";

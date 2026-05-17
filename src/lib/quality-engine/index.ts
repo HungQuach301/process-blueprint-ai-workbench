@@ -22,6 +22,17 @@ export {
 export { runDraftPtrGateV1 } from "@/lib/quality-engine/draft-ptr-gate-v1";
 
 export type {
+  SourceCoverageAdvisory,
+  SourceCoverageAdvisoryStatus,
+  SourceCoverageMode,
+  SourceCoverageSignal
+} from "@/lib/quality-engine/source-coverage-advisory";
+
+export {
+  createSourceCoverageAdvisory
+} from "@/lib/quality-engine/source-coverage-advisory";
+
+export type {
   QualityGateIssue,
   QualityGateResult,
   QualityGateSeverity

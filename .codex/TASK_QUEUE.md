@@ -16,7 +16,7 @@ Legend:
 - [x] 005-gateverdict-framework
 - [x] 006a-draft-ptr-gate-v1
 - [x] 006b-wire-draft-ptr-gate-ui
-- [ ] 007-source-coverage-advisory
+- [x] 007-source-coverage-advisory
 - [ ] 008-draft-ptr-golden-tests
 - [ ] INT-02-draft-ptr-gate-integration-check
 - [ ] 009a-provider-normalizer
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `007-source-coverage-advisory`.
+- Added `src/lib/quality-engine/source-coverage-advisory.ts` as a pure, non-blocking helper for Draft PTR source coverage signals and warnings.
+- Exported the source coverage advisory helper from `src/lib/quality-engine/index.ts`.
+- Updated Draft PTR preview UI to show source coverage status, source mode, coverage percent, row-level `sourceRef` coverage, and advisory warnings separately from `GateVerdict`.
+- Kept source coverage out of `GateVerdict` score/blockers and preserved explicit Replace/Append Apply behavior.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `006b-wire-draft-ptr-gate-ui`.
 - Wired `runDraftPtrGateV1` into the Draft PTR preview UI in `src/components/input-brief/AIInputBriefPanel.tsx`.
 - Draft PTR preview now shows the Draft PTR Gate verdict status, default blockers/top warnings, and advanced score/dimension breakdown.

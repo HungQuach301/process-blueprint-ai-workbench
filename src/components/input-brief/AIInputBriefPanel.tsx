@@ -26,13 +26,17 @@ import type { StructuredProcessBrief } from "@/lib/ai-intake";
 import { getLocale, t, type Locale } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
 import {
+  createSourceCoverageAdvisory,
   formatQualityGateErrorsVi,
   formatQualityGateWarningsVi,
   runBriefQualityGate,
   runDraftPtrGateV1,
   runDraftProcessTaskRegisterQualityGate
 } from "@/lib/quality-engine";
-import type { GateVerdictStatus } from "@/lib/quality-engine";
+import type {
+  GateVerdictStatus,
+  SourceCoverageAdvisoryStatus
+} from "@/lib/quality-engine";
 
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
 const FILE_METADATA_STORAGE_KEY =
@@ -64,6 +68,12 @@ const gateVerdictStyles: Record<GateVerdictStatus, string> = {
   "not-applicable": "border-slate-200 bg-slate-50 text-slate-700"
 };
 
+const sourceCoverageStyles: Record<SourceCoverageAdvisoryStatus, string> = {
+  good: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  review: "border-amber-200 bg-amber-50 text-amber-800",
+  missing: "border-slate-200 bg-slate-50 text-slate-700"
+};
+
 const previewLabels = {
   vi: {
     sourceSummary: "Tóm tắt nguồn",
@@ -78,6 +88,12 @@ const previewLabels = {
     gateAdvanced: "Advanced gate details",
     gateScore: "Score",
     gateNoIssues: "No blockers or warnings.",
+    sourceCoverage: "Source coverage",
+    sourceCoverageNonBlocking: "Advisory only - does not block Apply",
+    sourceCoverageMode: "Source mode",
+    sourceCoverageRows: "Rows with sourceRef",
+    sourceCoverageWarnings: "Coverage warnings",
+    sourceCoverageNoWarnings: "No source coverage warnings.",
     replaceCurrentPtr: "Thay PTR hiện tại",
     appendToCurrentPtr: "Thêm vào PTR hiện tại",
     cancelDraft: "Hủy draft",
@@ -104,6 +120,12 @@ const previewLabels = {
     gateAdvanced: "Advanced gate details",
     gateScore: "Score",
     gateNoIssues: "No blockers or warnings.",
+    sourceCoverage: "Source coverage",
+    sourceCoverageNonBlocking: "Advisory only - does not block Apply",
+    sourceCoverageMode: "Source mode",
+    sourceCoverageRows: "Rows with sourceRef",
+    sourceCoverageWarnings: "Coverage warnings",
+    sourceCoverageNoWarnings: "No source coverage warnings.",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -1743,6 +1765,10 @@ export function AIInputBriefPanel() {
     () => (draftMeta ? runDraftPtrGateV1(draftMeta) : null),
     [draftMeta]
   );
+  const sourceCoverageAdvisory = useMemo(
+    () => (draftMeta ? createSourceCoverageAdvisory(draftMeta) : null),
+    [draftMeta]
+  );
   const labels = previewLabels[locale];
   const uiText = inputBriefUiText[locale];
 
@@ -2401,6 +2427,70 @@ export function AIInputBriefPanel() {
                   ) : null}
                 </div>
               </details>
+            </div>
+          ) : null}
+          {sourceCoverageAdvisory ? (
+            <div className="border-b border-slate-200 bg-white px-4 py-4 text-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-slate-900">
+                      {labels.sourceCoverage}
+                    </p>
+                    <span
+                      className={`rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+                        sourceCoverageStyles[sourceCoverageAdvisory.status]
+                      }`}
+                    >
+                      {sourceCoverageAdvisory.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-slate-600">
+                    {labels.sourceCoverageNonBlocking}
+                  </p>
+                </div>
+                <div className="grid gap-2 text-slate-700 md:grid-cols-3">
+                  <div className="rounded border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      {labels.sourceCoverageMode}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {sourceCoverageAdvisory.signals.sourceMode}
+                    </p>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      {labels.sourceCoverage}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {sourceCoverageAdvisory.signals.coveragePercent}%
+                    </p>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      {labels.sourceCoverageRows}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {sourceCoverageAdvisory.signals.rowsWithSourceRef}/
+                      {sourceCoverageAdvisory.signals.totalDraftRows}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {sourceCoverageAdvisory.warnings.length > 0 ? (
+                <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                  <p className="font-semibold">{labels.sourceCoverageWarnings}</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {sourceCoverageAdvisory.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-3 font-medium text-emerald-800">
+                  {labels.sourceCoverageNoWarnings}
+                </p>
+              )}
             </div>
           ) : null}
           {draftMeta ? (

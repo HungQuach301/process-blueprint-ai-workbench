@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-11
+2026-05-17
 
 ## Current branch
 
@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `000-source-code-audit`.
+- Created `docs/CODE_AUDIT_REPORT.md` to identify the real source-code entry points for `ProcessTask`, `TemplateProfile`, `QARecommendation`, rule QA, Draft PTR quality gates, `/api/ai/run-skill`, provider parse/validate/repair, D01/D02 generators and UI, Product Delivery generation/state, Generate All, and existing test framework.
+- Confirmed this task was documentation-only and did not modify app source code or AI behavior.
 - Polished File Intake and AI Development Handoff Pack UX for MVP1-AI RC2.
 - Added clearer File Intake supported-format guidance: text-based PDF, DOCX, and XLSX are supported locally; Image/OCR/Voice intake is coming soon.
 - Made selected File Intake rows show file name, file type, processing status, next step, Generate Draft PTR, and Clear file actions.
@@ -206,6 +209,8 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Files changed
 
+- `docs/CODE_AUDIT_REPORT.md`
+- `docs/SESSION_HANDOFF.md`
 - `src/components/task-register/ProcessTaskRegister.tsx`
 - `src/components/export-center/ExportCenter.tsx`
 - `src/components/task-register/ProcessTaskRegister.tsx`

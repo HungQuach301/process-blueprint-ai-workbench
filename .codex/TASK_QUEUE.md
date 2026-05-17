@@ -7,7 +7,7 @@ Legend:
 
 ## Pending
 
-- [ ] 000-source-code-audit
+- [x] 000-source-code-audit
 - [ ] 001-qafinding-schema
 - [ ] 002-rule-qa-to-findings
 - [ ] 003-ai-qa-finding-skill
@@ -37,4 +37,5 @@ Legend:
 ## Done
 
 ## Skipped
+
 

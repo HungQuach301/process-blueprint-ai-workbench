@@ -43,6 +43,11 @@ Verify the QA flow end to end after findings are introduced, without adding new 
 - docs/SESSION_HANDOFF.md
 - Optional: docs/QA_FLOW_CHECK.md if a written check report is useful
 
+## Allowed changed files
+
+- docs/SESSION_HANDOFF.md
+- docs/QA_FLOW_CHECK.md
+
 ## Implementation instructions
 
 1. Run TypeScript and build.
@@ -91,4 +96,5 @@ git restore docs/QA_FLOW_CHECK.md
 ## Suggested commit message
 
 Verify QA findings integration flow
+
 

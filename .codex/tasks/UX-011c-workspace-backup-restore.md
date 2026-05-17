@@ -1,4 +1,4 @@
-# Task ID: UX-011c-workspace-backup-restore
+﻿# Task ID: UX-011c-workspace-backup-restore
 
 ## Task name
 
@@ -47,11 +47,11 @@ Give local-first users a simple way to identify, export, and restore their local
 
 ## Allowed changed files
 
-- `src/components/AppShell.tsx`
-- `src/components/export-center/ExportCenter.tsx`
-- `src/lib/workspace/local-workspace-backup.ts`
-- `src/lib/data/index.ts`
-- `docs/SESSION_HANDOFF.md`
+- src/components/AppShell.tsx
+- src/components/export-center/ExportCenter.tsx
+- src/lib/workspace/*
+- src/lib/data/index.ts
+- docs/SESSION_HANDOFF.md
 
 ## Implementation instructions
 
@@ -106,3 +106,4 @@ if (Test-Path src/lib/workspace/local-workspace-backup.ts) { Remove-Item -Litera
 ## Suggested commit message
 
 Add local workspace backup and restore
+

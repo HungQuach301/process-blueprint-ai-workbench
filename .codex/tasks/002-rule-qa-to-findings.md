@@ -1,4 +1,4 @@
-# Task ID: 002-rule-qa-to-findings
+﻿# Task ID: 002-rule-qa-to-findings
 
 ## Task name
 
@@ -38,12 +38,12 @@ Create a small adapter that converts existing Rule QA `QaIssue` objects into `QA
 
 ## Files expected to change
 
-- src/lib/qa/qa-finding-adapter.ts
+- src/lib/qa/rule-qa-to-findings.ts
 - docs/SESSION_HANDOFF.md
 
 ## Implementation instructions
 
-1. Create `src/lib/qa/qa-finding-adapter.ts`.
+1. Create `src/lib/qa/rule-qa-to-findings.ts`.
 2. Add severity mapping: `error -> critical`, `warning -> warning`, `suggestion -> suggestion`.
 3. Add category mapping from existing `QaIssueCode` values to closest `QAFindingCategory`.
 4. Preserve `issue.code`, `issue.message`, `issue.task?.stepId`, and related artifact context where available.
@@ -81,7 +81,7 @@ npm run build
 If the task fails before commit:
 
 git status --short
-git restore src/lib/qa/qa-finding-adapter.ts
+git restore src/lib/qa/rule-qa-to-findings.ts
 
 ## Docs to update
 
@@ -90,3 +90,4 @@ git restore src/lib/qa/qa-finding-adapter.ts
 ## Suggested commit message
 
 Add Rule QA to QAFinding adapter
+

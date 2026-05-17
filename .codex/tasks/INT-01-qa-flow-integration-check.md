@@ -1,4 +1,4 @@
-# Task ID: INT-01-qa-flow-integration-check
+﻿# Task ID: INT-01-qa-flow-integration-check
 
 ## Task name
 
@@ -34,7 +34,7 @@ Verify the QA flow end to end after findings are introduced, without adding new 
 - src/components/qa-panel/QAPanel.tsx
 - src/lib/qa/task-register-rules.ts
 - src/lib/qa/qa-finding.ts
-- src/lib/qa/qa-finding-adapter.ts
+- src/lib/qa/rule-qa-to-findings.ts
 - src/app/api/ai/run-skill/route.ts
 - src/lib/recommendation-engine/qa-recommendation-schema.ts
 
@@ -91,3 +91,4 @@ git restore docs/QA_FLOW_CHECK.md
 ## Suggested commit message
 
 Verify QA findings integration flow
+

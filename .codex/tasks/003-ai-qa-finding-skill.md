@@ -1,4 +1,4 @@
-# Task ID: 003-ai-qa-finding-skill
+﻿# Task ID: 003-ai-qa-finding-skill
 
 ## Task name
 
@@ -32,7 +32,7 @@ Add a new AI skill `ai-process-qa-finding` that returns `QAFinding` / `QAFinding
 
 - docs/CODE_AUDIT_REPORT.md
 - src/lib/qa/qa-finding.ts
-- src/lib/qa/qa-finding-adapter.ts
+- src/lib/qa/rule-qa-to-findings.ts
 - src/lib/ai/skill-registry-v2.ts
 - src/lib/ai/skill-schemas.ts
 - src/lib/ai/prompt-packs.ts
@@ -97,3 +97,4 @@ git restore src/lib/ai/skill-registry-v2.ts src/lib/ai/skill-schemas.ts src/lib/
 ## Suggested commit message
 
 Add AI QA finding skill
+

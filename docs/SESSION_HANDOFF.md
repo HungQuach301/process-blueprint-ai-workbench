@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `008-draft-ptr-golden-tests`.
+- Added `src/lib/quality-engine/draft-ptr-gate-v1.test-data.ts` with deterministic golden fixtures for passing Draft PTR, schema blocker, gateway safety blocker, and source coverage advisory-only behavior.
+- Added `scripts/test-draft-ptr-gate.ps1` as a no-dependency check that verifies required fixture ids and runs `npx.cmd tsc --noEmit`.
+- Kept Draft PTR Gate v1 logic, source coverage advisory logic, AI behavior, UI, package scripts, and dependencies unchanged.
+- Confirmed `scripts/test-draft-ptr-gate.ps1`, `npx.cmd tsc --noEmit`, and `npm run build` pass.
 - Ran task `007-source-coverage-advisory`.
 - Added `src/lib/quality-engine/source-coverage-advisory.ts` as a pure, non-blocking helper for Draft PTR source coverage signals and warnings.
 - Exported the source coverage advisory helper from `src/lib/quality-engine/index.ts`.

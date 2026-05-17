@@ -17,7 +17,7 @@ Legend:
 - [x] 006a-draft-ptr-gate-v1
 - [x] 006b-wire-draft-ptr-gate-ui
 - [x] 007-source-coverage-advisory
-- [ ] 008-draft-ptr-golden-tests
+- [x] 008-draft-ptr-golden-tests
 - [ ] INT-02-draft-ptr-gate-integration-check
 - [ ] 009a-provider-normalizer
 - [ ] 009b-wire-normalizer-route
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

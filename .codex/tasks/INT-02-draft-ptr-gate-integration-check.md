@@ -1,4 +1,4 @@
-# Task ID: INT-02-draft-ptr-gate-integration-check
+﻿# Task ID: INT-02-draft-ptr-gate-integration-check
 
 ## Task name
 
@@ -41,6 +41,11 @@ Verify Input Brief to Draft PTR to GateVerdict to Source Coverage advisory flow 
 
 - docs/SESSION_HANDOFF.md
 - Optional: docs/DRAFT_PTR_GATE_CHECK.md
+
+## Allowed changed files
+
+- docs/SESSION_HANDOFF.md
+- docs/DRAFT_PTR_GATE_CHECK.md
 
 ## Implementation instructions
 
@@ -89,3 +94,4 @@ git restore docs/DRAFT_PTR_GATE_CHECK.md
 ## Suggested commit message
 
 Verify Draft PTR gate integration
+

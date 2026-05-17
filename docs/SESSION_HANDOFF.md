@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `010-normalizer-golden-tests`.
+- Added `src/lib/ai/provider-output-normalizer.test-data.ts` with deterministic golden fixtures for already-normalized output, wrapped output with aliases, nested result wrapper behavior, unsafe broken references, and unknown schema handling.
+- Added `scripts/test-provider-normalizer.ps1` as a no-dependency check that verifies required fixture ids and runs `npx.cmd tsc --noEmit`.
+- Kept provider normalizer behavior, `/api/ai/run-skill` wiring, mock/local behavior, schemas, dependencies, and D01/D02 generators unchanged.
+- Confirmed `scripts/test-provider-normalizer.ps1`, `npx.cmd tsc --noEmit`, and `npm run build` pass.
 - Ran task `009b-wire-normalizer-route`.
 - Wired `normalizeProviderOutput` into the provider-backed `/api/ai/run-skill` flow after JSON parse/repair and before `validateAISkillOutput`.
 - Provider output normalization now returns safe 422 responses for unsafe normalization errors, while normalizer warning/error counts, changed paths, and safe issue summaries are included in provider response metadata.

@@ -21,7 +21,7 @@ Legend:
 - [x] INT-02-draft-ptr-gate-integration-check
 - [x] 009a-provider-normalizer
 - [x] 009b-wire-normalizer-route
-- [ ] 010-normalizer-golden-tests
+- [x] 010-normalizer-golden-tests
 - [ ] INT-03-ai-route-normalizer-integration-check
 - [ ] 011-d01-pre-gate
 - [ ] 012-d02-pre-gate
@@ -37,6 +37,7 @@ Legend:
 ## Done
 
 ## Skipped
+
 
 
 

@@ -40,6 +40,11 @@ import type {
   TemplateRecommendation
 } from "@/lib/ai/ai-template-review-types";
 import {
+  normalizeProviderOutput,
+  type ProviderOutputNormalizerIssue,
+  type ProviderOutputNormalizerResult
+} from "@/lib/ai/provider-output-normalizer";
+import {
   createConfiguredAIProvider,
   getAIProviderStatus,
   getConfiguredAIModel,
@@ -426,6 +431,26 @@ function createProviderMeta(
     latencyMs: result.latencyMs,
     warnings: result.warnings,
     ...additionalMeta
+  };
+}
+
+function summarizeNormalizerIssue(issue: ProviderOutputNormalizerIssue) {
+  return {
+    code: issue.code,
+    path: issue.path,
+    message: issue.message
+  };
+}
+
+function createOutputNormalizationMeta(
+  normalization: ProviderOutputNormalizerResult
+) {
+  return {
+    warningCount: normalization.warnings.length,
+    errorCount: normalization.errors.length,
+    changedPaths: normalization.changedPaths,
+    warnings: normalization.warnings.map(summarizeNormalizerIssue),
+    errors: normalization.errors.map(summarizeNormalizerIssue)
   };
 }
 
@@ -3288,10 +3313,67 @@ export async function POST(request: Request) {
       );
     }
 
+    const validationContext = getValidationContext(
+      routeSkillId,
+      inputValidation.value
+    );
+    const outputNormalization = normalizeProviderOutput(
+      parseResult.parsedResult,
+      {
+        skillId: routeSkillId,
+        outputSchemaId: skill.outputSchema.id,
+        validStepIds: validationContext.validStepIds
+      }
+    );
+    const outputNormalizationMeta =
+      createOutputNormalizationMeta(outputNormalization);
+
+    if (outputNormalization.errors.length > 0) {
+      const audit = createSafeAuditMetadata({
+        skill,
+        routeSkillId,
+        providerId: parseResult.providerResult.providerId,
+        dataUsageMode,
+        mode: "provider-backed",
+        validationPassed: false,
+        requestId: parseResult.providerResult.requestId,
+        latencyMs: parseResult.providerResult.latencyMs,
+        externalApiCalled: parseResult.providerResult.externalApiCalled,
+        outputRepairAttempted: parseResult.repairAttempted,
+        errorCode: "provider_output_normalization_failed"
+      });
+      recordServerAudit(audit);
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "AI output failed provider output normalization.",
+          validationErrors: outputNormalization.errors.map(
+            (issue) => issue.message
+          ),
+          resultPreview: {
+            outputSchema: skill.outputSchema.id,
+            reviewRequired: true
+          },
+          meta: createProviderMeta(parseResult.providerResult, {
+            skillId: routeSkillId,
+            registrySkillId,
+            promptPackId: skill.promptPackId,
+            dataUsageMode,
+            outputRepairAttempted: parseResult.repairAttempted,
+            outputNormalization: outputNormalizationMeta,
+            validationPassed: false,
+            audit
+          })
+        },
+        { status: 422 }
+      );
+    }
+
     const outputValidation = validateAISkillOutput(
       routeSkillId,
-      parseResult.parsedResult,
-      getValidationContext(routeSkillId, inputValidation.value)
+      outputNormalization.normalizedOutput,
+      validationContext
     );
 
     if (!outputValidation.ok) {
@@ -3325,6 +3407,7 @@ export async function POST(request: Request) {
             promptPackId: skill.promptPackId,
             dataUsageMode,
             outputRepairAttempted: parseResult.repairAttempted,
+            outputNormalization: outputNormalizationMeta,
             validationPassed: false,
             audit
           })
@@ -3358,6 +3441,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: true
             })
           },
@@ -3393,6 +3477,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: true
             })
           },
@@ -3428,6 +3513,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: true
             })
           },
@@ -3464,6 +3550,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: true
             })
           },
@@ -3499,6 +3586,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: true
             })
           },
@@ -3556,6 +3644,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: true
             })
           },
@@ -3598,6 +3687,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: false
             })
           },
@@ -3622,6 +3712,7 @@ export async function POST(request: Request) {
               promptPackId: skill.promptPackId,
               dataUsageMode,
               outputRepairAttempted: parseResult.repairAttempted,
+              outputNormalization: outputNormalizationMeta,
               validationPassed: true
             })
           },
@@ -3672,6 +3763,7 @@ export async function POST(request: Request) {
         dataUsageMode,
         requiresApproval: skill.requiresApproval,
         outputRepairAttempted: parseResult.repairAttempted,
+        outputNormalization: outputNormalizationMeta,
         validationPassed: true,
         audit,
         ...additionalMeta

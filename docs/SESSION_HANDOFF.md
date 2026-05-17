@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Ran task `009b-wire-normalizer-route`.
+- Wired `normalizeProviderOutput` into the provider-backed `/api/ai/run-skill` flow after JSON parse/repair and before `validateAISkillOutput`.
+- Provider output normalization now returns safe 422 responses for unsafe normalization errors, while normalizer warning/error counts, changed paths, and safe issue summaries are included in provider response metadata.
+- Kept mock/local behavior unchanged because `createMockResponse` still returns before the provider-backed normalizer path.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Ran task `009a-provider-normalizer`.
 - Added `src/lib/ai/provider-output-normalizer.ts` as a pure, route-unwired helper for provider output normalization.
 - The normalizer accepts parsed provider output with skill/schema context, unwraps shallow `{ result }` / `{ data }` payloads, normalizes common shallow field aliases, reports missing required arrays, and reports broken step references as errors without silently nulling them.

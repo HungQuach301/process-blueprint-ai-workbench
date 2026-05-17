@@ -32,8 +32,29 @@ if (-not (Test-Path ".codex/tasks")) {
 }
 
 if ([string]::IsNullOrWhiteSpace($TaskId)) {
-  $queue = Get-Content ".codex/TASK_QUEUE.md"
-  $nextLine = $queue | Where-Object { $_ -match "^- \[ \] " } | Select-Object -First 1
+  $queueLines = Get-Content ".codex/TASK_QUEUE.md"
+
+  $inPendingSection = $false
+  $pendingLines = @()
+
+  foreach ($line in $queueLines) {
+    if ($line -match "^## Pending\s*$") {
+      $inPendingSection = $true
+      continue
+    }
+
+    if ($line -match "^## " -and $inPendingSection) {
+      break
+    }
+
+    if ($inPendingSection) {
+      $pendingLines += $line
+    }
+  }
+
+  $nextLine = $pendingLines |
+    Where-Object { $_ -match "^- \[ \] [A-Za-z0-9][A-Za-z0-9_.-]*\s*$" } |
+    Select-Object -First 1
 
   if (-not $nextLine) {
     Write-Host "No pending task found." -ForegroundColor Yellow

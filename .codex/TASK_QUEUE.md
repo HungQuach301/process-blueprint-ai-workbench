@@ -1,0 +1,40 @@
+﻿# Codex Task Queue
+
+Legend:
+- [ ] pending
+- [x] done
+- [~] skipped
+
+## Pending
+
+- [ ] 000-source-code-audit
+- [ ] 001-qafinding-schema
+- [ ] 002-rule-qa-to-findings
+- [ ] 003-ai-qa-finding-skill
+- [ ] 004-qa-panel-split
+- [ ] INT-01-qa-flow-integration-check
+- [ ] 005-gateverdict-framework
+- [ ] 006a-draft-ptr-gate-v1
+- [ ] 006b-wire-draft-ptr-gate-ui
+- [ ] 007-source-coverage-advisory
+- [ ] 008-draft-ptr-golden-tests
+- [ ] INT-02-draft-ptr-gate-integration-check
+- [ ] 009a-provider-normalizer
+- [ ] 009b-wire-normalizer-route
+- [ ] 010-normalizer-golden-tests
+- [ ] INT-03-ai-route-normalizer-integration-check
+- [ ] 011-d01-pre-gate
+- [ ] 012-d02-pre-gate
+- [ ] 013a-xml-parser-strategy
+- [ ] 013b-d01-post-gen-gate
+- [ ] 013c-d02-post-gen-gate
+- [ ] 013d-wire-post-gates-ui
+- [ ] 014-chain-resilience-types
+- [ ] 015-release-hardening
+- [ ] 016-data-service-abstraction
+- [ ] 017-user-gate-1-preparation
+
+## Done
+
+## Skipped
+

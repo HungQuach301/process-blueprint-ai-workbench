@@ -508,6 +508,40 @@ function recordServerAudit(metadata: ReturnType<typeof createSafeAuditMetadata>)
   console.info("ai_orchestration_audit", metadata);
 }
 
+function logAISkillCall({
+  skillId,
+  response,
+  latencyMs
+}: {
+  skillId: string;
+  response: AIProviderResponse;
+  latencyMs: number;
+}) {
+  console.log(
+    JSON.stringify({
+      event: "ai_skill_call",
+      skillId,
+      provider: response.providerId,
+      model: response.model,
+      input_tokens: response.tokenUsage?.inputTokens ?? "unknown",
+      output_tokens: response.tokenUsage?.outputTokens ?? "unknown",
+      total_tokens: response.tokenUsage?.totalTokens ?? "unknown",
+      latency_ms: latencyMs,
+      timestamp: new Date().toISOString()
+    })
+  );
+
+  if (!response.tokenUsage) {
+    console.log(
+      JSON.stringify({
+        event: "ai_skill_call_no_usage",
+        skillId,
+        latency_ms: latencyMs
+      })
+    );
+  }
+}
+
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -3270,7 +3304,14 @@ export async function POST(request: Request) {
         payload: inputValidation.value
       })
     };
+    const startTime = Date.now();
     const result = await runConfiguredProviderWithTimeout(aiRequest, selectedProvider);
+    const latencyMs = Date.now() - startTime;
+    logAISkillCall({
+      skillId: routeSkillId,
+      response: result,
+      latencyMs
+    });
     const parseResult = await parseProviderJsonWithOptionalRepair({
       skill,
       routeSkillId,

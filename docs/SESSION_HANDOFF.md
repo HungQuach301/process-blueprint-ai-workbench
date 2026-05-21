@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-17
+2026-05-21
 
 ## Current branch
 
@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added server-side AI skill call usage/latency logging in `src/app/api/ai/run-skill/route.ts` immediately after the primary provider-backed response is received.
+- Logged provider id, model, token usage when available, route-measured latency, and a no-usage warning event when normalized token usage is missing.
+- Preserved AI route behavior, provider adapters, schema/quality validation, mock/local fallback, dependencies, response shape, and human-in-the-loop apply behavior.
 - Ran task `UX-012-user-facing-regression-check`.
 - Added `docs/USER_FACING_READINESS_CHECK.md` summarizing UX-000 through UX-011c readiness, full-flow source evidence, app availability, real OpenAI smoke-test result, mock/local fallback result, residual risks, and User Gate 1 recommendation.
 - Confirmed `http://localhost:3000` responded with HTTP 200 during the check.

@@ -53,7 +53,30 @@ export const processModelingPromptPacks: AIPromptPack[] = [
       {
         role: "system",
         content:
-          "Generate a draft Process Task Register from a structured business brief. Use canonical ProcessTask enum values and set uncertain rows to needsReview."
+          [
+            "Generate a draft Process Task Register from a structured business brief. Use canonical ProcessTask enum values and set uncertain rows to needsReview.",
+            "Return only a DraftProcessTaskRegister JSON object. The top-level array key must be draftProcessTasks, not processTaskRegister, processTasks, tasks, or rows.",
+            "Required top-level fields are: draftProcessTasks, assumptions, openQuestions, qualityIssues, sourceSummary, confidence, inputLanguage, outputLanguage.",
+            "Set inputLanguage to vi when the source brief is Vietnamese; otherwise use en. Set outputLanguage to bilingual unless the request explicitly asks for vi or en only.",
+            "Exact expected JSON structure:",
+            "{\"draftProcessTasks\":[{\"stepId\":\"S001\",\"taskName\":\"Ten cong viec\",\"rowType\":\"task\",\"bpmnType\":\"userTask\",\"actor\":\"Ten actor\",\"system\":\"Ten he thong\",\"phase\":\"Ten giai doan\",\"input\":\"Du lieu dau vao\",\"output\":\"Du lieu dau ra\",\"defaultNextStep\":\"S002\"}],\"assumptions\":[\"Gia dinh 1\"],\"openQuestions\":[\"Cau hoi mo 1\"],\"qualityIssues\":[],\"sourceSummary\":\"Tom tat nguon\",\"confidence\":\"medium\",\"inputLanguage\":\"vi\",\"outputLanguage\":\"bilingual\"}",
+            "Field rules for every draftProcessTasks row:",
+            "- stepId must use S001, S002, S003 sequence. Never use step-1, step_1, or free-form ids.",
+            "- rowType values must be one of: phase, group, task, gateway, start, end, event, data, annotation. Use event for start and end rows.",
+            "- bpmnType values must be one of: none, startEvent, endEvent, task, userTask, manualTask, serviceTask, sendTask, scriptTask, businessRuleTask, exclusiveGateway, parallelGateway, inclusiveGateway, dataObject, dataStore.",
+            "- dataAction values must be one of: none, pull, push, store, create, read, update, delete, validate, approve, reject, send, receive.",
+            "- Include exactly one startEvent as the first row and one endEvent as the last row.",
+            "- taskName must be a string. Never use processTask as a field name.",
+            "- system must be a single string. Never return systems as an array.",
+            "- input and output must be strings. Never return inputs or outputs arrays.",
+            "- phase must be a string on every row.",
+            "- defaultNextStep must point to the next row stepId. The final endEvent must use defaultNextStep null.",
+            "- Every defaultNextStep, yesNextStep, and noNextStep must point to a stepId that exists in draftProcessTasks. If there is no next step, use null.",
+            "- Use actor for human owner when known; use an empty string only when truly unknown and add an assumption or open question.",
+            "- Add id equal to stepId, parentStepId null, taskNature, group, actorLane, systemLane, dataObject, dataAction, conditionQuestion, yesNextStep, noNextStep, exception, exceptionHandling, sla, riskControl, sourceRef, reviewStatus, and comment when possible to match the ProcessTask contract.",
+            "Example output pattern:",
+            "{\"draftProcessTasks\":[{\"id\":\"S001\",\"stepId\":\"S001\",\"parentStepId\":null,\"rowType\":\"event\",\"bpmnType\":\"startEvent\",\"taskNature\":\"manual\",\"phase\":\"Khoi tao\",\"group\":\"\",\"actor\":\"Customer\",\"actorLane\":\"Customer\",\"system\":\"\",\"systemLane\":\"\",\"dataObject\":\"\",\"dataAction\":\"none\",\"taskName\":\"Bat dau quy trinh\",\"input\":\"\",\"output\":\"Yeu cau duoc khoi tao\",\"defaultNextStep\":\"S002\",\"conditionQuestion\":\"\",\"yesNextStep\":null,\"noNextStep\":null,\"exception\":\"\",\"exceptionHandling\":\"\",\"sla\":\"\",\"riskControl\":\"\",\"sourceRef\":\"AI Input Brief\",\"reviewStatus\":\"needsReview\",\"comment\":\"\"},{\"id\":\"S002\",\"stepId\":\"S002\",\"parentStepId\":null,\"rowType\":\"task\",\"bpmnType\":\"userTask\",\"taskNature\":\"manual\",\"phase\":\"Tiep nhan\",\"group\":\"\",\"actor\":\"Relationship Manager\",\"actorLane\":\"Relationship Manager\",\"system\":\"Loan Origination System\",\"systemLane\":\"Loan Origination System\",\"dataObject\":\"Application form\",\"dataAction\":\"create\",\"taskName\":\"Tiep nhan ho so vay\",\"input\":\"Thong tin khach hang va ho so vay\",\"output\":\"Ho so vay duoc ghi nhan\",\"defaultNextStep\":\"S003\",\"conditionQuestion\":\"\",\"yesNextStep\":null,\"noNextStep\":null,\"exception\":\"Ho so thieu thong tin\",\"exceptionHandling\":\"Yeu cau bo sung thong tin\",\"sla\":\"\",\"riskControl\":\"Kiem tra tinh day du cua ho so\",\"sourceRef\":\"AI Input Brief\",\"reviewStatus\":\"needsReview\",\"comment\":\"\"},{\"id\":\"S003\",\"stepId\":\"S003\",\"parentStepId\":null,\"rowType\":\"event\",\"bpmnType\":\"endEvent\",\"taskNature\":\"manual\",\"phase\":\"Ket thuc\",\"group\":\"\",\"actor\":\"\",\"actorLane\":\"\",\"system\":\"\",\"systemLane\":\"\",\"dataObject\":\"\",\"dataAction\":\"none\",\"taskName\":\"Ket thuc quy trinh\",\"input\":\"Ho so da xu ly\",\"output\":\"Quy trinh ket thuc\",\"defaultNextStep\":null,\"conditionQuestion\":\"\",\"yesNextStep\":null,\"noNextStep\":null,\"exception\":\"\",\"exceptionHandling\":\"\",\"sla\":\"\",\"riskControl\":\"\",\"sourceRef\":\"AI Input Brief\",\"reviewStatus\":\"needsReview\",\"comment\":\"\"}],\"assumptions\":[\"Actor hoac he thong chua ro can nguoi dung xac nhan.\"],\"openQuestions\":[\"He thong nao la nguon luu ho so chinh?\"],\"qualityIssues\":[],\"sourceSummary\":\"Draft tu AI Input Brief.\",\"confidence\":\"medium\",\"inputLanguage\":\"vi\",\"outputLanguage\":\"bilingual\"}"
+          ].join("\n")
       }
     ]
   },

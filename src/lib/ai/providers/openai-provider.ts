@@ -13,14 +13,48 @@ type OpenAIProviderOptions = {
   model: string;
 };
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function getOpenAIOutputText(raw: unknown) {
+  if (isObject(raw) && Array.isArray(raw.output)) {
+    const outputMessage = raw.output.find(
+      (item) => isObject(item) && item.type === "message"
+    );
+
+    if (isObject(outputMessage) && Array.isArray(outputMessage.content)) {
+      const textContent = outputMessage.content.find(
+        (item) =>
+          isObject(item) &&
+          (item.type === "output_text" || item.type === "text") &&
+          typeof item.text === "string"
+      );
+
+      if (isObject(textContent) && typeof textContent.text === "string") {
+        return textContent.text;
+      }
+    }
+  }
+
   if (
-    typeof raw === "object" &&
-    raw !== null &&
+    isObject(raw) &&
     "output_text" in raw &&
     typeof raw.output_text === "string"
   ) {
     return raw.output_text;
+  }
+
+  if (isObject(raw) && Array.isArray(raw.choices)) {
+    const firstChoice = raw.choices[0];
+
+    if (
+      isObject(firstChoice) &&
+      isObject(firstChoice.message) &&
+      typeof firstChoice.message.content === "string"
+    ) {
+      return firstChoice.message.content;
+    }
   }
 
   return "";

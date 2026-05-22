@@ -510,36 +510,101 @@ function recordServerAudit(metadata: ReturnType<typeof createSafeAuditMetadata>)
 
 function logAISkillCall({
   skillId,
-  response,
+  provider,
+  inputTokens,
+  outputTokens,
+  totalTokens,
   latencyMs
 }: {
   skillId: string;
-  response: AIProviderResponse;
+  provider: string;
+  inputTokens: number | "unknown";
+  outputTokens: number | "unknown";
+  totalTokens: number | "unknown";
   latencyMs: number;
 }) {
   console.log(
     JSON.stringify({
       event: "ai_skill_call",
       skillId,
-      provider: response.providerId,
-      model: response.model,
-      input_tokens: response.tokenUsage?.inputTokens ?? "unknown",
-      output_tokens: response.tokenUsage?.outputTokens ?? "unknown",
-      total_tokens: response.tokenUsage?.totalTokens ?? "unknown",
-      latency_ms: latencyMs,
+      provider,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      latencyMs,
       timestamp: new Date().toISOString()
     })
   );
+}
 
-  if (!response.tokenUsage) {
-    console.log(
-      JSON.stringify({
-        event: "ai_skill_call_no_usage",
-        skillId,
-        latency_ms: latencyMs
-      })
-    );
-  }
+function logAIRawOutput({
+  skillId,
+  rawOutput
+}: {
+  skillId: string;
+  rawOutput: unknown;
+}) {
+  const rawOutputText =
+    typeof rawOutput === "string"
+      ? rawOutput
+      : JSON.stringify(rawOutput ?? "");
+
+  console.log(
+    JSON.stringify({
+      event: "ai_raw_output",
+      skillId,
+      rawOutputPreview: rawOutputText.substring(0, 500),
+      rawOutputLength: rawOutputText.length
+    })
+  );
+}
+
+function logAIExtractedContent({
+  skillId,
+  extractedContent
+}: {
+  skillId: string;
+  extractedContent: unknown;
+}) {
+  const contentText =
+    typeof extractedContent === "string"
+      ? extractedContent
+      : JSON.stringify(extractedContent ?? "");
+
+  console.log(
+    JSON.stringify({
+      event: "ai_extracted_content",
+      skillId,
+      contentPreview: contentText.substring(0, 1000),
+      contentType: typeof extractedContent,
+      contentLength: contentText.length
+    })
+  );
+}
+
+function logAINormalizerInput(normalizerInput: unknown) {
+  console.log(
+    JSON.stringify({
+      event: "ai_normalizer_input",
+      inputPreview: JSON.stringify(normalizerInput).substring(0, 1000),
+      inputType: typeof normalizerInput
+    })
+  );
+}
+
+function logAIStepResult({
+  event,
+  success
+}: {
+  event: "ai_after_parse" | "ai_after_normalize" | "ai_after_validate";
+  success: boolean;
+}) {
+  console.log(
+    JSON.stringify({
+      event,
+      success
+    })
+  );
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number) {
@@ -3267,12 +3332,24 @@ export async function POST(request: Request) {
     !isAIProviderConfigured(selectedProvider);
 
   if (mustUseMock) {
-    return createMockResponse({
+    const aiStartTime = Date.now();
+    const mockResponse = createMockResponse({
       routeSkillId,
       skill,
       payload: inputValidation.value,
       dataUsageMode
     });
+    const aiLatencyMs = Date.now() - aiStartTime;
+    logAISkillCall({
+      skillId: routeSkillId,
+      provider: dataUsageMode === "local-only" ? "local" : "mock",
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      latencyMs: aiLatencyMs
+    });
+
+    return mockResponse;
   }
 
   if (!isRouteBackedByDeterministicMock(routeSkillId) && skill.status === "planned") {
@@ -3304,19 +3381,34 @@ export async function POST(request: Request) {
         payload: inputValidation.value
       })
     };
-    const startTime = Date.now();
+    const aiStartTime = Date.now();
     const result = await runConfiguredProviderWithTimeout(aiRequest, selectedProvider);
-    const latencyMs = Date.now() - startTime;
+    const aiLatencyMs = Date.now() - aiStartTime;
     logAISkillCall({
       skillId: routeSkillId,
-      response: result,
-      latencyMs
+      provider: result.providerId,
+      inputTokens: result.tokenUsage?.inputTokens ?? "unknown",
+      outputTokens: result.tokenUsage?.outputTokens ?? "unknown",
+      totalTokens: result.tokenUsage?.totalTokens ?? "unknown",
+      latencyMs: aiLatencyMs
+    });
+    logAIRawOutput({
+      skillId: routeSkillId,
+      rawOutput: result.rawText || result.rawJson
+    });
+    logAIExtractedContent({
+      skillId: routeSkillId,
+      extractedContent: result.rawText
     });
     const parseResult = await parseProviderJsonWithOptionalRepair({
       skill,
       routeSkillId,
       payload: inputValidation.value,
       result
+    });
+    logAIStepResult({
+      event: "ai_after_parse",
+      success: parseResult.parsedResult !== undefined
     });
 
     if (parseResult.parsedResult === undefined) {
@@ -3358,6 +3450,7 @@ export async function POST(request: Request) {
       routeSkillId,
       inputValidation.value
     );
+    logAINormalizerInput(parseResult.parsedResult);
     const outputNormalization = normalizeProviderOutput(
       parseResult.parsedResult,
       {
@@ -3368,6 +3461,10 @@ export async function POST(request: Request) {
     );
     const outputNormalizationMeta =
       createOutputNormalizationMeta(outputNormalization);
+    logAIStepResult({
+      event: "ai_after_normalize",
+      success: outputNormalization.errors.length === 0
+    });
 
     if (outputNormalization.errors.length > 0) {
       const audit = createSafeAuditMetadata({
@@ -3416,6 +3513,10 @@ export async function POST(request: Request) {
       outputNormalization.normalizedOutput,
       validationContext
     );
+    logAIStepResult({
+      event: "ai_after_validate",
+      success: outputValidation.ok
+    });
 
     if (!outputValidation.ok) {
       const audit = createSafeAuditMetadata({

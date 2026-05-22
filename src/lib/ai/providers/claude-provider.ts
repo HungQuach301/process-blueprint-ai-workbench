@@ -5,9 +5,9 @@ import {
   type AIModelMessage,
   type AIModelRequest,
   type AIProviderAdapter,
-  type AIProviderResponse,
-  type AITokenUsage
+  type AIProviderResponse
 } from "@/lib/ai/providers/provider-types";
+import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
 
 type ClaudeProviderOptions = {
   apiKey: string;
@@ -38,67 +38,6 @@ function splitClaudeMessages(messages: AIModelMessage[]) {
             }
           ]
   };
-}
-
-function getClaudeOutputText(raw: unknown) {
-  if (typeof raw !== "object" || raw === null || !("content" in raw)) {
-    return "";
-  }
-
-  const content = raw.content;
-
-  if (!Array.isArray(content)) {
-    return "";
-  }
-
-  return content
-    .map((item) => {
-      if (
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "text" &&
-        "text" in item &&
-        typeof item.text === "string"
-      ) {
-        return item.text;
-      }
-
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n");
-}
-
-function getClaudeTokenUsage(raw: unknown): AITokenUsage | undefined {
-  if (typeof raw !== "object" || raw === null || !("usage" in raw)) {
-    return undefined;
-  }
-
-  const usage = raw.usage;
-
-  if (typeof usage !== "object" || usage === null) {
-    return undefined;
-  }
-
-  const inputTokens =
-    "input_tokens" in usage && typeof usage.input_tokens === "number"
-      ? usage.input_tokens
-      : undefined;
-  const outputTokens =
-    "output_tokens" in usage && typeof usage.output_tokens === "number"
-      ? usage.output_tokens
-      : undefined;
-  const totalTokens =
-    inputTokens !== undefined && outputTokens !== undefined
-      ? inputTokens + outputTokens
-      : undefined;
-
-  return inputTokens !== undefined ||
-    outputTokens !== undefined ||
-    totalTokens !== undefined
-    ? { inputTokens, outputTokens, totalTokens }
-    : undefined;
 }
 
 export function createClaudeProvider(
@@ -142,16 +81,21 @@ export function createClaudeProvider(
       }
 
       const rawJson = await response.json();
-      const rawText = getClaudeOutputText(rawJson);
+      const adapted = adaptProviderResponse(rawJson, "claude");
+      const rawText = adapted.content;
 
       return {
         rawText,
         rawJson,
         parsedJson: parseJsonIfPossible(rawText),
         providerId: "claude",
-        model,
+        model: adapted.model === "unknown" ? model : adapted.model,
         requestId,
-        tokenUsage: getClaudeTokenUsage(rawJson),
+        tokenUsage: {
+          inputTokens: adapted.inputTokens,
+          outputTokens: adapted.outputTokens,
+          totalTokens: adapted.totalTokens
+        },
         latencyMs: Date.now() - startedAt,
         warnings: rawText ? [] : ["Claude response did not include text content."],
         externalApiCalled: true

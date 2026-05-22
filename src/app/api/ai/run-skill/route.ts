@@ -53,11 +53,13 @@ import {
 } from "@/lib/ai/providers/provider-factory";
 import {
   extractJsonText,
+  parseJsonIfPossible,
   type AIModelMessage,
   type AIModelRequest,
   type AIProviderId,
   type AIProviderResponse
 } from "@/lib/ai/providers/provider-types";
+import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
 import {
   getAISkillDefinitionV2,
   getPromptPackForSkill,
@@ -3384,27 +3386,44 @@ export async function POST(request: Request) {
     const aiStartTime = Date.now();
     const result = await runConfiguredProviderWithTimeout(aiRequest, selectedProvider);
     const aiLatencyMs = Date.now() - aiStartTime;
+    const adapted = adaptProviderResponse(
+      result.rawJson ?? result.rawText,
+      selectedProvider
+    );
+    const contentText = adapted.content;
+    const adaptedResult: AIProviderResponse = {
+      ...result,
+      rawText: contentText,
+      rawJson: undefined,
+      parsedJson: parseJsonIfPossible(contentText),
+      model: adapted.model === "unknown" ? result.model : adapted.model,
+      tokenUsage: {
+        inputTokens: adapted.inputTokens,
+        outputTokens: adapted.outputTokens,
+        totalTokens: adapted.totalTokens
+      }
+    };
     logAISkillCall({
       skillId: routeSkillId,
-      provider: result.providerId,
-      inputTokens: result.tokenUsage?.inputTokens ?? "unknown",
-      outputTokens: result.tokenUsage?.outputTokens ?? "unknown",
-      totalTokens: result.tokenUsage?.totalTokens ?? "unknown",
+      provider: adaptedResult.providerId,
+      inputTokens: adapted.inputTokens,
+      outputTokens: adapted.outputTokens,
+      totalTokens: adapted.totalTokens,
       latencyMs: aiLatencyMs
     });
     logAIRawOutput({
       skillId: routeSkillId,
-      rawOutput: result.rawText || result.rawJson
+      rawOutput: result.rawJson ?? result.rawText
     });
     logAIExtractedContent({
       skillId: routeSkillId,
-      extractedContent: result.rawText
+      extractedContent: contentText
     });
     const parseResult = await parseProviderJsonWithOptionalRepair({
       skill,
       routeSkillId,
       payload: inputValidation.value,
-      result
+      result: adaptedResult
     });
     logAIStepResult({
       event: "ai_after_parse",

@@ -4,9 +4,9 @@ import {
   parseJsonIfPossible,
   type AIModelRequest,
   type AIProviderAdapter,
-  type AIProviderResponse,
-  type AITokenUsage
+  type AIProviderResponse
 } from "@/lib/ai/providers/provider-types";
+import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
 
 type ProductAIProviderOptions = {
   endpoint: string;
@@ -16,23 +16,6 @@ type ProductAIProviderOptions = {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function getProductAIRawText(rawJson: unknown) {
-  if (!isObject(rawJson)) {
-    return "";
-  }
-
-  const candidates = [
-    rawJson.rawText,
-    rawJson.output_text,
-    rawJson.outputText,
-    rawJson.content,
-    rawJson.text
-  ];
-  const textCandidate = candidates.find((value) => typeof value === "string");
-
-  return typeof textCandidate === "string" ? textCandidate : "";
 }
 
 function getProductAIParsedJson(rawJson: unknown, rawText: string) {
@@ -45,20 +28,6 @@ function getProductAIParsedJson(rawJson: unknown, rawText: string) {
   }
 
   return parseJsonIfPossible(rawText);
-}
-
-function getProductAITokenUsage(rawJson: unknown): AITokenUsage | undefined {
-  if (!isObject(rawJson) || !isObject(rawJson.tokenUsage)) {
-    return undefined;
-  }
-
-  const { inputTokens, outputTokens, totalTokens } = rawJson.tokenUsage;
-
-  return {
-    inputTokens: typeof inputTokens === "number" ? inputTokens : undefined,
-    outputTokens: typeof outputTokens === "number" ? outputTokens : undefined,
-    totalTokens: typeof totalTokens === "number" ? totalTokens : undefined
-  };
 }
 
 function getProductAIWarnings(rawJson: unknown) {
@@ -116,16 +85,21 @@ export function createProductAIProvider(
       }
 
       const rawJson = await response.json();
-      const rawText = getProductAIRawText(rawJson);
+      const adapted = adaptProviderResponse(rawJson, "product-ai");
+      const rawText = adapted.content;
 
       return {
         rawText,
         rawJson,
         parsedJson: getProductAIParsedJson(rawJson, rawText),
         providerId: "product-ai",
-        model,
+        model: adapted.model === "unknown" ? model : adapted.model,
         requestId,
-        tokenUsage: getProductAITokenUsage(rawJson),
+        tokenUsage: {
+          inputTokens: adapted.inputTokens,
+          outputTokens: adapted.outputTokens,
+          totalTokens: adapted.totalTokens
+        },
         latencyMs: Date.now() - startedAt,
         warnings: getProductAIWarnings(rawJson),
         externalApiCalled: true

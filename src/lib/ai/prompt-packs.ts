@@ -64,6 +64,7 @@ export const processModelingPromptPacks: AIPromptPack[] = [
             "- stepId must use S001, S002, S003 sequence. Never use step-1, step_1, or free-form ids.",
             "- rowType values must be one of: phase, group, task, gateway, start, end, event, data, annotation. Use event for start and end rows.",
             "- bpmnType values must be one of: none, startEvent, endEvent, task, userTask, manualTask, serviceTask, sendTask, scriptTask, businessRuleTask, exclusiveGateway, parallelGateway, inclusiveGateway, dataObject, dataStore.",
+            "- taskNature values must be one of: manual, automatic, semiAutomatic, system, decision, approval, integration, notification, control, data.",
             "- dataAction values must be one of: none, pull, push, store, create, read, update, delete, validate, approve, reject, send, receive.",
             "- Include exactly one startEvent as the first row and one endEvent as the last row.",
             "- taskName must be a string. Never use processTask as a field name.",

@@ -5,6 +5,7 @@ import {
   type AIProviderAdapter,
   type AIProviderResponse
 } from "@/lib/ai/providers/provider-types";
+import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
 
 type MockProviderOptions = {
   model?: string;
@@ -24,15 +25,21 @@ export function createMockProvider(
         skillId: request.skillId,
         payload: request.payload
       };
-      const rawText = JSON.stringify(rawJson);
+      const adapted = adaptProviderResponse(rawJson, "mock");
+      const rawText = adapted.content;
 
       return {
         rawText,
         rawJson,
         parsedJson: parseJsonIfPossible(rawText),
         providerId: "mock",
-        model: request.model || options.model || "mock-local",
+        model: request.model || options.model || adapted.model || "mock-local",
         requestId,
+        tokenUsage: {
+          inputTokens: adapted.inputTokens,
+          outputTokens: adapted.outputTokens,
+          totalTokens: adapted.totalTokens
+        },
         latencyMs: Date.now() - startedAt,
         warnings: ["Mock provider only. No external API call was made."],
         externalApiCalled: false

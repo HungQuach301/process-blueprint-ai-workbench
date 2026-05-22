@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:eval": "npx tsx evals/input-brief-to-ptr/run-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
@@ -26,6 +27,7 @@
     "eslint-config-next": "latest",
     "postcss": "latest",
     "tailwindcss": "latest",
+    "tsx": "^4.22.3",
     "typescript": "latest"
   }
 }

@@ -1,6 +1,7 @@
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type {
   AIProviderSettings,
+  AISkillOverrideId,
   DataUsageMode,
   DefaultModelCapability,
   ModelProvider
@@ -18,9 +19,37 @@ export const defaultAIProviderSettings: AIProviderSettings = {
   defaultModelCapability: "basic",
   allowCloudAI: false,
   requireApprovalForAIOutput: true,
+  defaultModelName: "local-mock",
   modelName: "",
   organizationId: "",
   tenantId: ""
+};
+
+export type ServerAIProviderId = "product-ai" | "openai" | "claude" | "mock";
+
+export const aiModelOptionsByProvider: Record<
+  ModelProvider,
+  Array<{ value: string; label: string }>
+> = {
+  "product-ai": [{ value: "product-ai-default", label: "product-ai-default" }],
+  "openai-byok": [
+    { value: "gpt-4.1-mini", label: "gpt-4.1-mini" },
+    { value: "gpt-4.1", label: "gpt-4.1" },
+    { value: "gpt-4o", label: "gpt-4o" },
+    { value: "gpt-5.5", label: "gpt-5.5" }
+  ],
+  "claude-byok": [
+    { value: "claude-sonnet-4", label: "claude-sonnet-4" },
+    { value: "claude-opus-4", label: "claude-opus-4" }
+  ],
+  "azure-openai": [
+    { value: "gpt-4.1-mini", label: "gpt-4.1-mini" },
+    { value: "gpt-4.1", label: "gpt-4.1" },
+    { value: "gpt-4o", label: "gpt-4o" },
+    { value: "gpt-5.5", label: "gpt-5.5" }
+  ],
+  "local-model": [{ value: "local-mock", label: "local-mock" }],
+  "no-ai": [{ value: "local-mock", label: "local-mock" }]
 };
 
 const modelProviders: ModelProvider[] = [
@@ -112,11 +141,115 @@ export function readAIProviderSettings(): AIProviderSettings {
         parsedSettings.perSkillProviderOverrides !== null
           ? parsedSettings.perSkillProviderOverrides
           : undefined,
+      defaultModelName:
+        typeof parsedSettings.defaultModelName === "string"
+          ? parsedSettings.defaultModelName
+          : typeof parsedSettings.modelName === "string" && parsedSettings.modelName
+            ? parsedSettings.modelName
+            : getDefaultModelForProvider(providerMode),
+      perSkillModelOverrides:
+        typeof parsedSettings.perSkillModelOverrides === "object" &&
+        parsedSettings.perSkillModelOverrides !== null
+          ? parsedSettings.perSkillModelOverrides
+          : undefined,
       provider: undefined
     };
   } catch {
     return defaultAIProviderSettings;
   }
+}
+
+export function getDefaultModelForProvider(providerMode: ModelProvider) {
+  return aiModelOptionsByProvider[providerMode][0]?.value ?? "local-mock";
+}
+
+export function getModelOptionsForProvider(providerMode: ModelProvider) {
+  return aiModelOptionsByProvider[providerMode] ?? aiModelOptionsByProvider["local-model"];
+}
+
+export function isModelValidForProvider(providerMode: ModelProvider, model: string) {
+  return getModelOptionsForProvider(providerMode).some((option) => option.value === model);
+}
+
+export function mapModelProviderToServerProvider(
+  providerMode: ModelProvider
+): ServerAIProviderId {
+  if (providerMode === "product-ai") {
+    return "product-ai";
+  }
+
+  if (providerMode === "openai-byok" || providerMode === "azure-openai") {
+    return "openai";
+  }
+
+  if (providerMode === "claude-byok") {
+    return "claude";
+  }
+
+  return "mock";
+}
+
+export function mapServerProviderToModelProvider(
+  providerId: ServerAIProviderId
+): ModelProvider {
+  if (providerId === "product-ai") {
+    return "product-ai";
+  }
+
+  if (providerId === "openai") {
+    return "openai-byok";
+  }
+
+  if (providerId === "claude") {
+    return "claude-byok";
+  }
+
+  return "local-model";
+}
+
+export function resolveAISkillModelSelection(
+  skillId: string,
+  requestedProviderId?: ServerAIProviderId
+) {
+  const settings = readAIProviderSettings();
+  const overrideKey = skillId as AISkillOverrideId;
+  const providerMode = requestedProviderId
+    ? mapServerProviderToModelProvider(requestedProviderId)
+    : settings.perSkillProviderOverrides?.[overrideKey] ?? settings.providerMode;
+  const providerId = mapModelProviderToServerProvider(providerMode);
+  const configuredModel =
+    settings.perSkillModelOverrides?.[overrideKey] ??
+    settings.defaultModelName ??
+    settings.modelName ??
+    "";
+  const model = isModelValidForProvider(providerMode, configuredModel)
+    ? configuredModel
+    : getDefaultModelForProvider(providerMode);
+
+  return {
+    providerId,
+    model,
+    providerMode
+  };
+}
+
+export function createAISkillRequestBody({
+  skillId,
+  payload,
+  providerId
+}: {
+  skillId: string;
+  payload: unknown;
+  providerId?: ServerAIProviderId;
+}) {
+  const selection = resolveAISkillModelSelection(skillId, providerId);
+
+  return {
+    skillId,
+    payload,
+    providerId: providerId ?? selection.providerId,
+    model: selection.model
+  };
 }
 
 export function confirmRealAICallIfNeeded(realAIEnabled: boolean) {

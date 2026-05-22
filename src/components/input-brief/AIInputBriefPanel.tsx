@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   confirmRealAICallIfNeeded,
+  createAISkillRequestBody,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
@@ -144,6 +145,10 @@ const previewLabels = {
 
 const inputBriefUiText = {
   vi: {
+    chatNotes: "Chat / Notes",
+    chatNotesHelper: "Paste nội dung chat, ghi chú workshop hoặc meeting notes để tạo Draft PTR preview.",
+    chatNotesPlaceholder: "Ví dụ: Khách hàng gửi yêu cầu mở tài khoản. RM kiểm tra hồ sơ. Ops tạo CIF...",
+    generateFromChatNotes: "Tạo Draft PTR từ ghi chú",
     generateProcessRegister: "Tạo bảng quy trình",
     generateWithAI: "Tạo bằng AI",
     generating: "Đang tạo...",
@@ -269,7 +274,7 @@ type BriefField = {
   rows: number;
 };
 
-type BriefMode = "manual" | "import-file" | "voice";
+type BriefMode = "manual" | "import-file" | "chat-notes" | "voice";
 
 const emptyBrief: InputBriefFormState = {
   processInfo: "",
@@ -1149,10 +1154,7 @@ export function AIInputBriefPanel() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId,
-          payload
-        })
+        body: JSON.stringify(createAISkillRequestBody({ skillId, payload }))
       });
       const data = (await routeResponse.json()) as {
         ok?: boolean;
@@ -1514,6 +1516,59 @@ export function AIInputBriefPanel() {
   }
 
   function generateProcessRegister() {
+    if (briefMode === "chat-notes") {
+      void generateDraftPtrFromChatNotes();
+      return;
+    }
+
+    if (briefMode === "import-file") {
+      if (docxExtraction) {
+        generateDraftPtrFromDocxExtraction();
+        return;
+      }
+
+      if (pdfExtraction) {
+        generateDraftPtrFromPdfExtraction();
+        return;
+      }
+
+      const activeFile = selectedFileObjects.find((file) =>
+        [".xlsx", ".docx", ".pdf"].some((extension) =>
+          file.name.toLowerCase().endsWith(extension)
+        )
+      );
+
+      if (!activeFile) {
+        setHasAttemptedDraftGeneration(true);
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors([
+          locale === "vi"
+            ? "Vui lòng chọn file .xlsx, .docx hoặc .pdf trước khi tạo bảng quy trình."
+            : "Select an .xlsx, .docx, or .pdf file before generating the process register."
+        ]);
+        setMessage(
+          locale === "vi"
+            ? "Chưa có file phù hợp để tạo Draft PTR."
+            : "No supported file is available for Draft PTR generation."
+        );
+        return;
+      }
+
+      if (activeFile.name.toLowerCase().endsWith(".xlsx")) {
+        void extractExcelFile(activeFile);
+        return;
+      }
+
+      if (activeFile.name.toLowerCase().endsWith(".docx")) {
+        void generateDraftPtrFromDocxFile(activeFile);
+        return;
+      }
+
+      void generateDraftPtrFromPdfFile(activeFile);
+      return;
+    }
+
     if (realAIEnabled) {
       void generateDraftPtrWithAI();
       return;
@@ -1630,10 +1685,12 @@ export function AIInputBriefPanel() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
-          payload: structuredBrief
-        })
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+            payload: structuredBrief
+          })
+        )
       });
       const data = (await routeResponse.json()) as {
         ok?: boolean;
@@ -1952,24 +2009,6 @@ export function AIInputBriefPanel() {
 
   return (
     <SessionFrame
-      actions={
-        <>
-          <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={saveBrief}
-            type="button"
-          >
-            {t("inputBrief.saveBrief", locale)}
-          </button>
-          <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={resetBrief}
-            type="button"
-          >
-            {t("inputBrief.resetBrief", locale)}
-          </button>
-        </>
-      }
       bodyClassName="p-4"
       description={t("inputBrief.description", locale)}
       title={t("inputBrief.title", locale)}
@@ -1978,6 +2017,7 @@ export function AIInputBriefPanel() {
         {[
           { id: "manual" as const, label: uiText.manualInput, disabled: false },
           { id: "import-file" as const, label: uiText.importFile, disabled: false },
+          { id: "chat-notes" as const, label: uiText.chatNotes, disabled: false },
           { id: "voice" as const, label: uiText.voiceInputComingSoon, disabled: false }
         ].map((mode) => (
           <button
@@ -2027,40 +2067,35 @@ export function AIInputBriefPanel() {
               {dataDocumentBriefFields.map(renderBriefField)}
             </div>
           </div>
-          <div className="w-full min-w-0 rounded border border-slate-200 bg-white p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-950">
-                  {locale === "vi" ? "Chat / ghi chu" : "Chat / notes"}
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {locale === "vi"
-                    ? "Paste noi dung trao doi, ghi chu workshop hoac manual text de tao Draft PTR preview."
-                    : "Paste chat, workshop notes, or manual text to generate a Draft PTR preview."}
-                </p>
-              </div>
-              <button
-                className="w-fit rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={isGeneratingWithAI || chatNotes.trim().length < 20}
-                onClick={() => void generateDraftPtrFromChatNotes()}
-                type="button"
-              >
-                {locale === "vi"
-                  ? "Tao Draft PTR tu ghi chu"
-                  : "Generate Draft PTR from notes"}
-              </button>
+        </div>
+      ) : null}
+
+      {briefMode === "chat-notes" ? (
+        <div className="rounded border border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">
+                {uiText.chatNotes}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {uiText.chatNotesHelper}
+              </p>
             </div>
-            <textarea
-              className="mt-3 min-h-32 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
-              onChange={(event) => setChatNotes(event.target.value)}
-              placeholder={
-                locale === "vi"
-                  ? "Vi du: Khach hang gui yeu cau mo tai khoan. RM kiem tra ho so. Ops tao CIF..."
-                  : "Example: Customer submits account opening request. RM checks documents. Ops creates CIF..."
-              }
-              value={chatNotes}
-            />
+            <button
+              className="w-fit rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isGeneratingWithAI || chatNotes.trim().length < 20}
+              onClick={() => void generateDraftPtrFromChatNotes()}
+              type="button"
+            >
+              {uiText.generateFromChatNotes}
+            </button>
           </div>
+          <textarea
+            className="mt-3 min-h-64 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+            onChange={(event) => setChatNotes(event.target.value)}
+            placeholder={uiText.chatNotesPlaceholder}
+            value={chatNotes}
+          />
         </div>
       ) : null}
 
@@ -2386,15 +2421,33 @@ export function AIInputBriefPanel() {
       </div>
       ) : null}
 
-      <div className="mt-6 flex justify-end border-t border-slate-200 pt-4">
-        <button
-          className="btn btn-ai px-5 py-3 text-base shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isGeneratingWithAI}
-          onClick={generateProcessRegister}
-          type="button"
-        >
-          {isGeneratingWithAI ? uiText.generating : uiText.generateProcessRegister}
-        </button>
+      <div className="sticky bottom-0 z-20 -mx-4 mt-6 flex flex-col gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={saveBrief}
+            type="button"
+          >
+            {t("inputBrief.saveBrief", locale)}
+          </button>
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={resetBrief}
+            type="button"
+          >
+            {t("inputBrief.resetBrief", locale)}
+          </button>
+        </div>
+        <div className="flex justify-end">
+          <button
+            className="btn btn-ai px-5 py-3 text-base shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isGeneratingWithAI}
+            onClick={generateProcessRegister}
+            type="button"
+          >
+            {isGeneratingWithAI ? uiText.generating : uiText.generateProcessRegister}
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">

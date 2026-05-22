@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   confirmRealAICallIfNeeded,
+  createAISkillRequestBody,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
@@ -752,16 +753,18 @@ export function QAPanel({
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            skillId: AI_PROCESS_QA_SKILL_ID,
-            providerId,
-            payload: {
+          body: JSON.stringify(
+            createAISkillRequestBody({
+              skillId: AI_PROCESS_QA_SKILL_ID,
+              providerId,
+              payload: {
               processTasks,
               qaIssues: issues,
               existingRecommendations: existingRuleRecommendations,
               templateProfiles: readSelectedTemplateProfiles()
             }
-          })
+            })
+          )
         });
         const data = (await routeResponse.json()) as {
           ok?: boolean;
@@ -918,14 +921,16 @@ export function QAPanel({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+            payload: {
             processTasks,
             qaIssues: issues,
             templateProfiles: readSelectedTemplateProfiles()
           }
-        })
+          })
+        )
       });
       const data = (await routeResponse.json()) as {
         ok?: boolean;
@@ -1011,15 +1016,17 @@ export function QAPanel({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: AI_PROCESS_QA_SKILL_ID,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: AI_PROCESS_QA_SKILL_ID,
+            payload: {
             processTasks,
             qaIssues: issues,
             existingRecommendations: existingRuleRecommendations,
             templateProfiles: readSelectedTemplateProfiles()
           }
-        })
+          })
+        )
       });
       const data = (await routeResponse.json()) as {
         ok?: boolean;

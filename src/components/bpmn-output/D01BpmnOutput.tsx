@@ -6,6 +6,7 @@ import { BpmnPreview } from "@/components/preview/BpmnPreview";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import {
   confirmRealAICallIfNeeded,
+  createAISkillRequestBody,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
@@ -267,16 +268,18 @@ export function D01BpmnOutput() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: ARTIFACT_REVIEW_SKILL_ID,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: ARTIFACT_REVIEW_SKILL_ID,
+            payload: {
             artifactType: "bpmn",
             artifactXml: xml,
             processTasks,
             selectedTemplate,
             qaIssues: validateProcessTasks(processTasks)
           }
-        })
+          })
+        )
       });
       const data = (await response.json()) as {
         ok?: boolean;

@@ -4,6 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   AI_PROVIDER_SETTINGS_STORAGE_KEY,
+  getDefaultModelForProvider,
+  getModelOptionsForProvider,
+  isModelValidForProvider,
   defaultAIProviderSettings,
   readAIProviderSettings
 } from "@/lib/ai/ai-governance";
@@ -11,7 +14,6 @@ import type {
   AIProviderSettings,
   AISkillOverrideId,
   DataUsageMode,
-  DefaultModelCapability,
   ModelProvider
 } from "@/lib/ai/model-provider-types";
 import { getLocale, type Locale } from "@/lib/i18n";
@@ -108,15 +110,6 @@ const dataUsageModeOptions: Array<{ value: DataUsageMode; label: string }> = [
   { value: "organization-private-learning", label: "Organization-private learning" }
 ];
 
-const modelCapabilityOptions: Array<{
-  value: DefaultModelCapability;
-  label: string;
-}> = [
-  { value: "basic", label: "Basic" },
-  { value: "advanced", label: "Advanced" },
-  { value: "reasoning", label: "Reasoning" }
-];
-
 const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: string }> = [
   { id: "input-brief-to-ptr", label: "Input Brief to PTR" },
   { id: "ai-process-qa", label: "Process QA" },
@@ -157,7 +150,7 @@ const textByLocale = {
     show: "Hien",
     hide: "An",
     defaultProvider: "Provider mac dinh",
-    capability: "Nang luc model mac dinh",
+    capability: "Model mac dinh",
     allowCloud: "Cho phep cloud AI",
     requireApproval: "Yeu cau phe duyet",
     dataUsageMode: "Che do su dung du lieu",
@@ -170,7 +163,7 @@ const textByLocale = {
     changed: "Co thay doi chua luu.",
     mockModeSummary: "Phan tich cuc bo, khong goi provider ben ngoai.",
     realModeSummary: "Real AI qua provider da chon. Du lieu co the duoc xu ly tren cloud theo cau hinh server.",
-    modelPlaceholder: "Ten hien thi tuy chon",
+    modelPlaceholder: "Chon model",
     effectiveProvider: "Provider thuc thi",
     fallbackActive: "Dang dung phan tich cuc bo vi provider da chon chua san sang.",
     localNextStep: "Co the tiep tuc demo hoac chay workflow ma khong goi provider ben ngoai.",
@@ -212,7 +205,7 @@ const textByLocale = {
     show: "Show",
     hide: "Hide",
     defaultProvider: "Default provider",
-    capability: "Default model/capability",
+    capability: "Default model",
     allowCloud: "Allow cloud AI",
     requireApproval: "Require approval",
     dataUsageMode: "Data usage mode",
@@ -225,7 +218,7 @@ const textByLocale = {
     changed: "Unsaved changes.",
     mockModeSummary: "Local analysis mode, no external provider call.",
     realModeSummary: "Real AI via the selected provider. Data may be processed in the cloud according to server configuration.",
-    modelPlaceholder: "Optional display name only",
+    modelPlaceholder: "Choose a model",
     effectiveProvider: "Effective provider",
     fallbackActive: "Local analysis fallback is active because the selected provider is not ready.",
     localNextStep: "You can keep demoing or running workflows without an external provider call.",
@@ -369,6 +362,8 @@ export function AIProviderSettingsPanel() {
       allowCloudAI: settings.allowCloudAI,
       requireApprovalForAIOutput: settings.requireApprovalForAIOutput,
       perSkillProviderOverrides: settings.perSkillProviderOverrides,
+      defaultModelName: settings.defaultModelName,
+      perSkillModelOverrides: settings.perSkillModelOverrides,
       modelName: settings.modelName,
       organizationId: settings.organizationId,
       tenantId: settings.tenantId
@@ -388,9 +383,18 @@ export function AIProviderSettingsPanel() {
   }
 
   function selectProvider(providerMode: ModelProvider) {
+    const defaultModelName = isModelValidForProvider(
+      providerMode,
+      settings.defaultModelName ?? ""
+    )
+      ? settings.defaultModelName
+      : getDefaultModelForProvider(providerMode);
+
     updateSettings({
       ...settings,
       providerMode,
+      defaultModelName,
+      modelName: defaultModelName,
       dataUsageMode:
         providerMode === "local-model" || providerMode === "no-ai"
           ? "local-only"
@@ -439,9 +443,32 @@ export function AIProviderSettingsPanel() {
       nextOverrides[skillId] = providerMode;
     }
 
+    const nextModelOverrides = {
+      ...(settings.perSkillModelOverrides ?? {})
+    };
+
+    if (!providerMode) {
+      delete nextModelOverrides[skillId];
+    } else if (
+      !isModelValidForProvider(providerMode, nextModelOverrides[skillId] ?? "")
+    ) {
+      nextModelOverrides[skillId] = getDefaultModelForProvider(providerMode);
+    }
+
     updateSettings({
       ...settings,
-      perSkillProviderOverrides: nextOverrides
+      perSkillProviderOverrides: nextOverrides,
+      perSkillModelOverrides: nextModelOverrides
+    });
+  }
+
+  function updateSkillModelOverride(skillId: AISkillOverrideId, model: string) {
+    updateSettings({
+      ...settings,
+      perSkillModelOverrides: {
+        ...(settings.perSkillModelOverrides ?? {}),
+        [skillId]: model
+      }
     });
   }
 
@@ -628,7 +655,7 @@ export function AIProviderSettingsPanel() {
                     {text.model}
                   </p>
                   <p className="mt-1 text-slate-900">
-                    {serverStatus.model || settings.modelName || "-"}
+                    {serverStatus.model || settings.defaultModelName || settings.modelName || "-"}
                   </p>
                 </div>
               </div>
@@ -644,10 +671,7 @@ export function AIProviderSettingsPanel() {
                 <select
                   className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
                   onChange={(event) =>
-                    updateSettings({
-                      ...settings,
-                      providerMode: event.target.value as ModelProvider
-                    })
+                    selectProvider(event.target.value as ModelProvider)
                   }
                   value={settings.providerMode}
                 >
@@ -690,37 +714,29 @@ export function AIProviderSettingsPanel() {
                   onChange={(event) =>
                     updateSettings({
                       ...settings,
-                      defaultModelCapability: event.target
-                        .value as DefaultModelCapability
+                      defaultModelName: event.target.value,
+                      modelName: event.target.value
                     })
                   }
-                  value={settings.defaultModelCapability}
+                  value={
+                    isModelValidForProvider(
+                      settings.providerMode,
+                      settings.defaultModelName ?? ""
+                    )
+                      ? settings.defaultModelName
+                      : getDefaultModelForProvider(settings.providerMode)
+                  }
+                  disabled={
+                    settings.providerMode === "local-model" ||
+                    settings.providerMode === "no-ai"
+                  }
                 >
-                  {modelCapabilityOptions.map((option) => (
+                  {getModelOptionsForProvider(settings.providerMode).map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
-              </label>
-
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  {text.model}
-                </span>
-                <input
-                  className="mt-2 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
-                  onChange={(event) =>
-                    updateSettings({
-                      ...settings,
-                      modelName: event.target.value
-                    })
-                  }
-                  aria-label={text.model}
-                  placeholder={text.modelPlaceholder}
-                  type="text"
-                  value={settings.modelName ?? ""}
-                />
               </label>
 
               <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
@@ -778,30 +794,63 @@ export function AIProviderSettingsPanel() {
                   {text.perSkillOverride}
                 </p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  {skillOverrideOptions.map((skill) => (
-                    <label className="block" key={skill.id}>
-                      <span className="text-xs font-semibold text-slate-600">
-                        {skill.label}
-                      </span>
-                      <select
-                        className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                        onChange={(event) =>
-                          updateSkillOverride(
-                            skill.id,
-                            event.target.value as ModelProvider | ""
-                          )
-                        }
-                        value={settings.perSkillProviderOverrides?.[skill.id] ?? ""}
-                      >
-                        <option value="">{text.inheritDefault}</option>
-                        {modelProviderOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
+                  {skillOverrideOptions.map((skill) => {
+                    const skillProviderMode =
+                      settings.perSkillProviderOverrides?.[skill.id] ??
+                      settings.providerMode;
+                    const skillModel =
+                      settings.perSkillModelOverrides?.[skill.id] ??
+                      settings.defaultModelName ??
+                      getDefaultModelForProvider(skillProviderMode);
+
+                    return (
+                      <div className="block" key={skill.id}>
+                        <span className="text-xs font-semibold text-slate-600">
+                          {skill.label}
+                        </span>
+                        <div className="mt-1 grid gap-2">
+                          <select
+                            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                            onChange={(event) =>
+                              updateSkillOverride(
+                                skill.id,
+                                event.target.value as ModelProvider | ""
+                              )
+                            }
+                            value={settings.perSkillProviderOverrides?.[skill.id] ?? ""}
+                          >
+                            <option value="">{text.inheritDefault}</option>
+                            {modelProviderOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                            disabled={
+                              skillProviderMode === "local-model" ||
+                              skillProviderMode === "no-ai"
+                            }
+                            onChange={(event) =>
+                              updateSkillModelOverride(skill.id, event.target.value)
+                            }
+                            value={
+                              isModelValidForProvider(skillProviderMode, skillModel)
+                                ? skillModel
+                                : getDefaultModelForProvider(skillProviderMode)
+                            }
+                          >
+                            {getModelOptionsForProvider(skillProviderMode).map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

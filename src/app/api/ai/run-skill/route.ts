@@ -93,6 +93,7 @@ type RunSkillRequestBody = {
   skillId?: unknown;
   payload?: unknown;
   providerId?: unknown;
+  model?: unknown;
 };
 
 type DataUsageMode =
@@ -3246,6 +3247,10 @@ export async function POST(request: Request) {
   const selectedProvider = isAIProviderId(body.providerId)
     ? body.providerId
     : getProviderName();
+  const selectedModel =
+    typeof body.model === "string" && body.model.trim().length > 0
+      ? body.model.trim()
+      : getConfiguredAIModel(selectedProvider);
   const realAIEnabled = isRealAIEnabledForSkill(routeSkillId);
   const dataUsageMode = getServerDataUsageMode(realAIEnabled, selectedProvider);
   const routeSpecificValidationError = createRouteSpecificInputValidationError(
@@ -3385,6 +3390,7 @@ export async function POST(request: Request) {
     const aiRequest: AIModelRequest = {
       skillId: routeSkillId,
       payload: inputValidation.value,
+      model: selectedModel,
       supportsStructuredOutput:
         routeSkillId === INPUT_BRIEF_TO_PTR_SKILL_ID &&
         getSupportsStructuredOutput(routeSkillId),

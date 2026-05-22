@@ -18,6 +18,7 @@ import {
   RecommendationApplyValidationError,
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
+import { createAISkillRequestBody } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import {
   type QaIssue,
@@ -907,9 +908,10 @@ export function ProcessTaskRegister() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: PTR_AI_ASSISTANT_SKILL_ID,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: PTR_AI_ASSISTANT_SKILL_ID,
+            payload: {
             processTasks: tasks,
             templateProfiles: readTemplateProfiles(),
             targetStepIds: targetTasks.map((task) => task.stepId),
@@ -919,7 +921,8 @@ export function ProcessTaskRegister() {
               selectedRowCount: targetTasks.length
             }
           }
-        })
+          })
+        )
       });
       const data = (await response.json()) as {
         ok?: boolean;

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   confirmRealAICallIfNeeded,
+  createAISkillRequestBody,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
@@ -471,6 +472,30 @@ function TemplateSummary({ draft }: { draft: TemplateDraft }) {
   );
 }
 
+function getTemplateOutputBadgeLabel(outputType: string) {
+  if (outputType === "bpmn") {
+    return "BPMN";
+  }
+
+  if (outputType === "serviceBlueprint") {
+    return "Service Blueprint";
+  }
+
+  return outputType || "Template";
+}
+
+function getTemplateOutputBadgeClass(outputType: string) {
+  if (outputType === "bpmn") {
+    return "border-blue-200 bg-blue-50 text-blue-800";
+  }
+
+  if (outputType === "serviceBlueprint") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
 export function TemplateLibraryEditor() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [drafts, setDrafts] = useState<TemplateDraft[]>(() => sampleDrafts());
@@ -825,15 +850,17 @@ export function TemplateLibraryEditor() {
       const response = await fetch("/api/ai/run-skill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+            payload: {
             selectedTemplate,
             outputType: selectedTemplate.outputType,
             processType: selectedTemplate.processType,
             businessDomain: selectedTemplate.businessDomain
           }
-        })
+          })
+        )
       });
       const data = (await response.json()) as {
         ok?: boolean;
@@ -985,16 +1012,18 @@ export function TemplateLibraryEditor() {
         const response = await fetch("/api/ai/run-skill", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
-            providerId,
-            payload: {
+          body: JSON.stringify(
+            createAISkillRequestBody({
+              skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+              providerId,
+              payload: {
               selectedTemplate,
               outputType: selectedTemplate.outputType,
               processType: selectedTemplate.processType,
               businessDomain: selectedTemplate.businessDomain
             }
-          })
+            })
+          )
         });
         const data = (await response.json()) as {
           ok?: boolean;
@@ -1419,6 +1448,11 @@ export function TemplateLibraryEditor() {
         <div className="mt-4 grid gap-3 xl:grid-cols-2">
           {filteredDrafts.map((draft) => {
             const isActive = draft.id === activeTemplateId;
+            const shortDescription = [
+              draft.businessDomain || text.notClassified,
+              draft.processType || text.notClassified,
+              draft.scopeType || text.notClassified
+            ].join(" · ");
 
             return (
               <article
@@ -1433,12 +1467,24 @@ export function TemplateLibraryEditor() {
                     onClick={() => setActiveTemplateId(draft.id)}
                     type="button"
                   >
-                    <span className="block text-sm font-semibold text-slate-950">
+                    <span
+                      className={`mb-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${getTemplateOutputBadgeClass(
+                        draft.outputType
+                      )}`}
+                    >
+                      {getTemplateOutputBadgeLabel(draft.outputType)}
+                    </span>
+                    <span className="block text-lg font-bold text-slate-950">
                       {draft.name}
                     </span>
-                    <span className="mt-1 block text-xs text-slate-500">
-                      {draft.type} | v{draft.version} | {draft.status}
+                    <span className="mt-2 block text-sm text-slate-600">
+                      {shortDescription}
                     </span>
+                    {draft.status !== "active" ? (
+                      <span className="mt-2 inline-flex rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-800">
+                        {draft.status}
+                      </span>
+                    ) : null}
                   </button>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
@@ -1463,9 +1509,6 @@ export function TemplateLibraryEditor() {
                       {text.useD02}
                     </button>
                   </div>
-                </div>
-                <div className="mt-3">
-                  <TemplateSummary draft={draft} />
                 </div>
               </article>
             );

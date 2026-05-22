@@ -30,6 +30,8 @@ export type AIProviderSettings = {
   allowCloudAI: boolean;
   requireApprovalForAIOutput: boolean;
   perSkillProviderOverrides?: Partial<Record<AISkillOverrideId, ModelProviderMode>>;
+  defaultModelName?: string;
+  perSkillModelOverrides?: Partial<Record<AISkillOverrideId, string>>;
   provider?: ModelProvider;
   modelName?: string;
   organizationId?: string;

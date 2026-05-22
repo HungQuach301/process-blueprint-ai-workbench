@@ -11,6 +11,7 @@ import {
 } from "@/lib/audit/audit-log";
 import {
   confirmRealAICallIfNeeded,
+  createAISkillRequestBody,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
@@ -717,11 +718,13 @@ export function ExportCenter() {
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            skillId,
-            providerId,
-            payload: comparePayload.payload
-          })
+          body: JSON.stringify(
+            createAISkillRequestBody({
+              skillId,
+              providerId,
+              payload: comparePayload.payload
+            })
+          )
         });
         const data =
           (await response.json()) as AISkillRouteResponse<
@@ -1006,9 +1009,10 @@ export function ExportCenter() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId,
+            payload: {
             processTasks: skillId === "ptr-to-brd" ? processTasks : undefined,
             projectContext: productDeliveryContext,
             notes: productDeliveryNotes,
@@ -1016,7 +1020,8 @@ export function ExportCenter() {
             uploadedFileText: productDeliveryFileText,
             generatedAt: timestamp
           }
-        })
+          })
+        )
       });
       const data = (await response.json()) as AISkillRouteResponse<BRD>;
 
@@ -1106,9 +1111,10 @@ export function ExportCenter() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId,
+            payload: {
             brd: brdPreview?.brd,
             processTasks,
             projectContext: productDeliveryContext,
@@ -1117,7 +1123,8 @@ export function ExportCenter() {
             uploadedFileText: productDeliveryFileText,
             generatedAt: timestamp
           }
-        })
+          })
+        )
       });
       const data = (await response.json()) as AISkillRouteResponse<SRS>;
 
@@ -1206,9 +1213,10 @@ export function ExportCenter() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId,
+            payload: {
             srs: srsPreview?.srs,
             brd: brdPreview?.brd,
             processTasks,
@@ -1218,7 +1226,8 @@ export function ExportCenter() {
             uploadedFileText: productDeliveryFileText,
             generatedAt: timestamp
           }
-        })
+          })
+        )
       });
       const data = (await response.json()) as AISkillRouteResponse<UserStorySet>;
 
@@ -1300,9 +1309,10 @@ export function ExportCenter() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: "user-stories-to-acceptance-criteria",
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: "user-stories-to-acceptance-criteria",
+            payload: {
             userStorySet: userStoryPreview?.userStorySet,
             processTasks,
             projectContext: productDeliveryContext,
@@ -1311,7 +1321,8 @@ export function ExportCenter() {
             uploadedFileText: productDeliveryFileText,
             generatedAt: timestamp
           }
-        })
+          })
+        )
       });
       const data =
         (await response.json()) as AISkillRouteResponse<AcceptanceCriteriaSet>;
@@ -1401,9 +1412,10 @@ export function ExportCenter() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId,
+            payload: {
             brd: brdPreview?.brd,
             srs: srsPreview?.srs,
             userStorySet: userStoryPreview?.userStorySet,
@@ -1415,7 +1427,8 @@ export function ExportCenter() {
             businessObjective: brdPreview?.brd.businessObjective,
             generatedAt: timestamp
           }
-        })
+          })
+        )
       });
       const data =
         (await response.json()) as AISkillRouteResponse<ProductScopeReview>;
@@ -1501,9 +1514,10 @@ export function ExportCenter() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: "requirement-quality-check",
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: "requirement-quality-check",
+            payload: {
             brd: brdPreview?.brd,
             srs: srsPreview?.srs,
             userStorySet: userStoryPreview?.userStorySet,
@@ -1516,7 +1530,8 @@ export function ExportCenter() {
               : undefined,
             generatedAt: new Date().toISOString()
           }
-        })
+          })
+        )
       });
       const data =
         (await response.json()) as AISkillRouteResponse<RequirementQAResponse>;
@@ -1813,9 +1828,10 @@ export function ExportCenter() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: "user-stories-to-ai-coding-pack",
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: "user-stories-to-ai-coding-pack",
+            payload: {
             brd: brdPreview?.brd,
             srs: srsPreview?.srs,
             userStorySet: userStoryPreview?.userStorySet,
@@ -1833,7 +1849,8 @@ export function ExportCenter() {
             ],
             generatedAt: timestamp
           }
-        })
+          })
+        )
       });
       const data =
         (await response.json()) as AISkillRouteResponse<AICodingPackRouteResponse>;

@@ -11,6 +11,7 @@ export type AIModelRequest = {
   model?: string;
   messages?: AIModelMessage[];
   requestId?: string;
+  supportsStructuredOutput?: boolean;
 };
 
 export type AITokenUsage = {

@@ -65,6 +65,7 @@ import {
   getPromptPackForSkill,
   type AISkillDefinitionV2
 } from "@/lib/ai/skill-registry-v2";
+import { getSkillDefinition } from "@/lib/skill-engine/skill-registry";
 import {
   normalizeDeterministicCodingPack,
   runAICodingPackQualityGate,
@@ -434,6 +435,13 @@ function createProviderMeta(
     warnings: result.warnings,
     ...additionalMeta
   };
+}
+
+function getSupportsStructuredOutput(routeSkillId: string) {
+  return (
+    getSkillDefinition(routeSkillId)?.modelRequirements.supportsStructuredOutput ===
+    true
+  );
 }
 
 function summarizeNormalizerIssue(issue: ProviderOutputNormalizerIssue) {
@@ -3377,6 +3385,9 @@ export async function POST(request: Request) {
     const aiRequest: AIModelRequest = {
       skillId: routeSkillId,
       payload: inputValidation.value,
+      supportsStructuredOutput:
+        routeSkillId === INPUT_BRIEF_TO_PTR_SKILL_ID &&
+        getSupportsStructuredOutput(routeSkillId),
       messages: createProviderMessages({
         skill,
         routeSkillId,

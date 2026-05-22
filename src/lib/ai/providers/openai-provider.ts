@@ -6,12 +6,16 @@ import {
   type AIProviderAdapter,
   type AIProviderResponse
 } from "@/lib/ai/providers/provider-types";
+import { DRAFT_PTR_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/draft-ptr-output-schema";
 import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
 
 type OpenAIProviderOptions = {
   apiKey: string;
   model: string;
 };
+
+const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
+const DRAFT_PTR_SCHEMA_NAME = "draft_process_task_register";
 
 export function createOpenAIProvider(
   options: OpenAIProviderOptions
@@ -31,16 +35,45 @@ export function createOpenAIProvider(
 
       const requestId = request.requestId ?? createRequestId("openai");
       const startedAt = Date.now();
+      const useStructuredOutput =
+        request.skillId === INPUT_BRIEF_TO_PTR_SKILL_ID &&
+        request.supportsStructuredOutput === true;
+      const requestBody = {
+        model,
+        input: buildDefaultMessages(request),
+        ...(useStructuredOutput
+          ? {
+              text: {
+                format: {
+                  type: "json_schema",
+                  name: DRAFT_PTR_SCHEMA_NAME,
+                  schema: DRAFT_PTR_OUTPUT_SCHEMA,
+                  strict: true
+                }
+              }
+            }
+          : {})
+      };
+
+      if (useStructuredOutput) {
+        console.log(
+          JSON.stringify({
+            event: "structured_output_mode",
+            skillId: request.skillId,
+            provider: "openai",
+            mode: "json_schema",
+            schemaName: DRAFT_PTR_SCHEMA_NAME
+          })
+        );
+      }
+
       const response = await fetch("https://api.openai.com/v1/responses", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${options.apiKey}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          model,
-          input: buildDefaultMessages(request)
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {

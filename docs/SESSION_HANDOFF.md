@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-21
+2026-05-22
 
 ## Current branch
 
@@ -18,6 +18,14 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Replaced raw AI schema validation error display in main UI surfaces with the user-friendly message `Kết quả AI chưa đạt yêu cầu chất lượng. Vui lòng thử lại.` while keeping technical validation details in console/audit paths.
+- Applied the friendly validation error handling across AI Input Brief, Process Task Register AI Assistant, QA Panel, Template Hub, D01 BPMN Output, D02 Service Blueprint Output, and Export Center.
+- Added a minimal Retry action for Process Task Register AI Assistant failures to match existing AI retry behavior in other modules.
+- Merged the two Input Brief generation buttons into one primary bottom CTA: `Tạo bảng quy trình` / `Generate Process Register`; it uses real AI when enabled and falls back to the existing local deterministic Draft PTR generation when real AI is disabled.
+- Simplified Process Task Register AI actions into one primary `Kiểm tra & Đề xuất` / `AI QA & Suggest` button plus a smaller `...` menu for advanced AI actions; the primary action now runs on selected rows or the whole PTR when nothing is selected.
+- Updated QA Panel so the top toolbar always shows `Kiểm tra & Đề xuất` / `Run QA & Suggestions`, plus prominent `Apply All Safe` and `Apply Selected (X)` actions while preserving preview/confirmation apply behavior and existing filters/provider compare controls.
+- Preserved AI route behavior, schema validation, normalizer logic, provider behavior, prompt packs, recommendation preview/apply behavior, dependencies, and existing audit metadata.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Added server-side AI skill call usage/latency logging in `src/app/api/ai/run-skill/route.ts` immediately after the primary provider-backed response is received.
 - Logged provider id, model, token usage when available, route-measured latency, and a no-usage warning event when normalized token usage is missing.
 - Preserved AI route behavior, provider adapters, schema/quality validation, mock/local fallback, dependencies, response shape, and human-in-the-loop apply behavior.

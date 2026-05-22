@@ -6,6 +6,7 @@ import {
   confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import type {
   TemplateQualityScore,
   TemplateRecommendation
@@ -72,7 +73,7 @@ function getFriendlyTemplateAIErrorMessage(
   validationErrors?: string[]
 ) {
   if (validationErrors?.length) {
-    return "Template QA returned output that did not pass validation. Nothing was applied; adjust the template or retry.";
+    return getAIValidationUserMessage(validationErrors);
   }
 
   const normalizedError = (error ?? "").toLowerCase();

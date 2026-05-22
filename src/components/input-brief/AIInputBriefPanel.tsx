@@ -6,6 +6,7 @@ import {
   confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
@@ -143,6 +144,7 @@ const previewLabels = {
 
 const inputBriefUiText = {
   vi: {
+    generateProcessRegister: "Tạo bảng quy trình",
     generateWithAI: "Tạo bằng AI",
     generating: "Đang tạo...",
     manualInput: "Nhập thủ công",
@@ -183,6 +185,7 @@ const inputBriefUiText = {
     draftRows: "dòng"
   },
   en: {
+    generateProcessRegister: "Generate Process Register",
     generateWithAI: "Generate with AI",
     generating: "Generating...",
     manualInput: "Manual Input",
@@ -631,7 +634,7 @@ type DraftRetryAction =
 
 function getFriendlyAIDraftErrorMessage(error?: string, validationErrors?: string[]) {
   if (validationErrors?.length) {
-    return "AI returned a draft that did not pass validation. Nothing was applied; review the inputs and retry.";
+    return getAIValidationUserMessage(validationErrors);
   }
 
   const normalizedError = (error ?? "").toLowerCase();
@@ -1192,7 +1195,7 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(data.validationErrors ?? [friendlyMessage]);
+        setBlockingErrors([friendlyMessage]);
         setMessage(friendlyMessage);
         return null;
       }
@@ -1226,7 +1229,7 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(validation.errors);
+        setBlockingErrors([friendlyMessage]);
         setMessage(friendlyMessage);
         return null;
       }
@@ -1510,6 +1513,15 @@ export function AIInputBriefPanel() {
     );
   }
 
+  function generateProcessRegister() {
+    if (realAIEnabled) {
+      void generateDraftPtrWithAI();
+      return;
+    }
+
+    generateDraftPtr();
+  }
+
   async function generateDraftPtrWithAI() {
     setHasAttemptedDraftGeneration(true);
     setDraftRetryAction("input-brief");
@@ -1663,7 +1675,7 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(data.validationErrors ?? [friendlyMessage]);
+        setBlockingErrors([friendlyMessage]);
         setMessage(friendlyMessage);
         return;
       }
@@ -1696,7 +1708,7 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(validation.errors);
+        setBlockingErrors([friendlyMessage]);
         setMessage(friendlyMessage);
         return;
       }
@@ -1955,21 +1967,6 @@ export function AIInputBriefPanel() {
             type="button"
           >
             {t("inputBrief.resetBrief", locale)}
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={generateDraftPtr}
-            type="button"
-          >
-            {t("inputBrief.generateDraftProcessTaskRegister", locale)}
-          </button>
-          <button
-            className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isGeneratingWithAI}
-            onClick={generateDraftPtrWithAI}
-            type="button"
-          >
-            {isGeneratingWithAI ? uiText.generating : uiText.generateWithAI}
           </button>
         </>
       }
@@ -2388,6 +2385,17 @@ export function AIInputBriefPanel() {
         ) : null}
       </div>
       ) : null}
+
+      <div className="mt-6 flex justify-end border-t border-slate-200 pt-4">
+        <button
+          className="btn btn-ai px-5 py-3 text-base shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={isGeneratingWithAI}
+          onClick={generateProcessRegister}
+          type="button"
+        >
+          {isGeneratingWithAI ? uiText.generating : uiText.generateProcessRegister}
+        </button>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
         <span>

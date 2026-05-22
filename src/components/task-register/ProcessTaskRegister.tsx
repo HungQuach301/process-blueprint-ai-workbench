@@ -18,6 +18,7 @@ import {
   RecommendationApplyValidationError,
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import {
   type QaIssue,
   type QARecommendation,
@@ -65,7 +66,9 @@ const ptrText = {
     exportJson: "Export JSON",
     sample: "Mẫu",
     autoSuggest: "Auto-suggest interaction fields",
+    aiQaSuggest: "Kiểm tra & Đề xuất",
     aiAssistant: "AI Assistant",
+    aiMoreActions: "Thêm tác vụ AI",
     aiNoSelection: "Chọn ít nhất một dòng trước khi chạy AI Assistant.",
     aiRunning: "Đang chạy AI Assistant...",
     aiNoRecommendations: "AI Assistant không trả recommendation nào cho các dòng đã chọn.",
@@ -109,7 +112,9 @@ const ptrText = {
     exportJson: "Export JSON",
     sample: "Sample",
     autoSuggest: "Auto-suggest interaction fields",
+    aiQaSuggest: "AI QA & Suggest",
     aiAssistant: "AI Assistant",
+    aiMoreActions: "More AI actions",
     aiNoSelection: "Select at least one row before running AI Assistant.",
     aiRunning: "Running AI Assistant...",
     aiNoRecommendations: "AI Assistant did not return recommendations for the selected rows.",
@@ -166,6 +171,7 @@ type PtrAIAssistantActionId =
   | "suggest-interaction-channel";
 
 const PTR_AI_ASSISTANT_SKILL_ID = "process-improvement-recommendation";
+const PTR_AI_DEFAULT_ACTION_ID: PtrAIAssistantActionId = "normalize-selected-rows";
 
 const ptrAIAssistantActions: Array<{
   id: PtrAIAssistantActionId;
@@ -178,6 +184,10 @@ const ptrAIAssistantActions: Array<{
   { id: "generate-missing-input-output", textKey: "generateInputOutput" },
   { id: "suggest-interaction-channel", textKey: "suggestInteractionChannel" }
 ];
+
+const ptrAIAssistantSecondaryActions = ptrAIAssistantActions.filter(
+  (action) => action.id !== PTR_AI_DEFAULT_ACTION_ID
+);
 
 const visibleColumns: EditableColumn[] = [
   { key: "stepId", label: "Step ID", minWidth: "110px" },
@@ -674,6 +684,8 @@ export function ProcessTaskRegister() {
   const [isRegisterMoreMenuOpen, setIsRegisterMoreMenuOpen] = useState(false);
   const [isPtrAIMenuOpen, setIsPtrAIMenuOpen] = useState(false);
   const [isRunningPtrAI, setIsRunningPtrAI] = useState(false);
+  const [ptrAIRetryAction, setPtrAIRetryAction] =
+    useState<PtrAIAssistantActionId | null>(null);
   const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(() => new Set());
   const [columnMode, setColumnMode] = useState<ColumnMode>("simple");
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -874,9 +886,14 @@ export function ProcessTaskRegister() {
     );
   }
 
-  async function runPtrAIAssistantAction(actionId: PtrAIAssistantActionId) {
-    if (selectedTasks.length === 0) {
-      setSaveMessage(text.aiNoSelection);
+  async function runPtrAIAssistantAction(
+    actionId: PtrAIAssistantActionId,
+    actionLabel?: string
+  ) {
+    const targetTasks = selectedTasks.length > 0 ? selectedTasks : tasks;
+
+    if (targetTasks.length === 0) {
+      setSaveMessage("No Process Task Register rows are available for AI review.");
       return;
     }
 
@@ -895,11 +912,11 @@ export function ProcessTaskRegister() {
           payload: {
             processTasks: tasks,
             templateProfiles: readTemplateProfiles(),
-            targetStepIds: selectedTasks.map((task) => task.stepId),
+            targetStepIds: targetTasks.map((task) => task.stepId),
             metadata: {
               ptrAiAction: actionId,
-              selectedOnly: true,
-              selectedRowCount: selectedTasks.length
+              selectedOnly: selectedTasks.length > 0,
+              selectedRowCount: targetTasks.length
             }
           }
         })
@@ -919,8 +936,11 @@ export function ProcessTaskRegister() {
 
       if (!response.ok || !data.ok) {
         setPtrAiIssues([]);
+        setPtrAIRetryAction(actionId);
         setSaveMessage(
-          [data.error ?? "PTR AI Assistant failed.", ...(data.validationErrors ?? [])].join(" ")
+          data.validationErrors?.length
+            ? getAIValidationUserMessage(data.validationErrors)
+            : data.error ?? "PTR AI Assistant failed."
         );
         saveAuditLogEntry({
           action: "ai_call",
@@ -929,7 +949,7 @@ export function ProcessTaskRegister() {
           metadata: {
             skillId: PTR_AI_ASSISTANT_SKILL_ID,
             actionId,
-            selectedRowCount: selectedTasks.length,
+            selectedRowCount: targetTasks.length,
             externalApiCalled: data.meta?.externalApiCalled === true
           }
         });
@@ -946,11 +966,12 @@ export function ProcessTaskRegister() {
 
       if (recommendations.length === 0) {
         setPtrAiIssues([]);
+        setPtrAIRetryAction(null);
         setSaveMessage(text.aiNoRecommendations);
         return;
       }
 
-      const firstSelectedTask = selectedTasks[0];
+      const firstTargetTask = targetTasks[0];
 
       setPtrAiIssues([
         {
@@ -959,10 +980,13 @@ export function ProcessTaskRegister() {
             actionId === "suggest-split-complex-task"
               ? "MULTI_ACTION_TASK"
               : "SERVICE_BLUEPRINT_CARD_READINESS",
-          stepId: firstSelectedTask.stepId,
-          taskName: firstSelectedTask.taskName || firstSelectedTask.stepId,
+          stepId: firstTargetTask.stepId,
+          taskName: firstTargetTask.taskName || firstTargetTask.stepId,
           severity: "suggestion",
-          message: `${text.aiAssistant}: ${text[ptrAIAssistantActions.find((action) => action.id === actionId)?.textKey ?? "aiAssistant"]}`,
+          message: `${text.aiAssistant}: ${
+            actionLabel ??
+            text[ptrAIAssistantActions.find((action) => action.id === actionId)?.textKey ?? "aiAssistant"]
+          }`,
           suggestedFix:
             "Review the AI recommendations in this panel, then apply selected items only after confirmation.",
           recommendations
@@ -973,6 +997,7 @@ export function ProcessTaskRegister() {
           data.mode === "provider-backed" ? "provider-backed" : "mock/local"
         })`
       );
+      setPtrAIRetryAction(null);
       saveAuditLogEntry({
         action: "ai_call",
         status: "success",
@@ -980,7 +1005,7 @@ export function ProcessTaskRegister() {
         metadata: {
           skillId: PTR_AI_ASSISTANT_SKILL_ID,
           actionId,
-          selectedRowCount: selectedTasks.length,
+          selectedRowCount: targetTasks.length,
           recommendationCount: recommendations.length,
           mode: data.mode ?? "mock",
           externalApiCalled: data.meta?.externalApiCalled === true
@@ -988,6 +1013,7 @@ export function ProcessTaskRegister() {
       });
     } catch {
       setPtrAiIssues([]);
+      setPtrAIRetryAction(actionId);
       setSaveMessage("PTR AI Assistant request failed. No change was applied.");
       saveAuditLogEntry({
         action: "ai_call",
@@ -996,7 +1022,7 @@ export function ProcessTaskRegister() {
         metadata: {
           skillId: PTR_AI_ASSISTANT_SKILL_ID,
           actionId,
-          selectedRowCount: selectedTasks.length,
+          selectedRowCount: targetTasks.length,
           externalApiCalled: false
         }
       });
@@ -1598,15 +1624,30 @@ export function ProcessTaskRegister() {
                 <div className="relative flex flex-wrap gap-2">
                   <button
                     className="btn btn-ai"
-                    disabled={isRunningPtrAI || selectedTasks.length === 0}
-                    onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
+                    disabled={isRunningPtrAI || tasks.length === 0}
+                    onClick={() =>
+                      void runPtrAIAssistantAction(
+                        PTR_AI_DEFAULT_ACTION_ID,
+                        text.aiQaSuggest
+                      )
+                    }
                     type="button"
                   >
-                    {isRunningPtrAI ? text.aiRunning : text.aiAssistant}
+                    {isRunningPtrAI ? text.aiRunning : text.aiQaSuggest}
+                  </button>
+                  <button
+                    aria-label={text.aiMoreActions}
+                    className="rounded border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-800 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={isRunningPtrAI || tasks.length === 0}
+                    onClick={() => setIsPtrAIMenuOpen((isOpen) => !isOpen)}
+                    title={text.aiMoreActions}
+                    type="button"
+                  >
+                    ...
                   </button>
                   {isPtrAIMenuOpen ? (
-                    <div className="absolute left-0 top-11 z-30 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
-                      {ptrAIAssistantActions.map((action) => (
+                    <div className="absolute right-0 top-11 z-30 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                      {ptrAIAssistantSecondaryActions.map((action) => (
                         <button
                           className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
                           disabled={isRunningPtrAI}
@@ -1641,7 +1682,18 @@ export function ProcessTaskRegister() {
             </p>
           </div>
           {saveMessage ? (
-            <p className="mt-3 text-sm text-slate-600">{saveMessage}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+              <p>{saveMessage}</p>
+              {ptrAIRetryAction && !isRunningPtrAI ? (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => void runPtrAIAssistantAction(ptrAIRetryAction)}
+                  type="button"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </div>
           ) : null}
 
         {importPreview ? (

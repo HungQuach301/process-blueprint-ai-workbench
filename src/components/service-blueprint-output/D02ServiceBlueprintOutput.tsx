@@ -8,6 +8,7 @@ import {
   confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import type { TemplateRecommendation } from "@/lib/ai/ai-template-review-types";
 import { generateServiceBlueprintDrawioXml } from "@/lib/generators/drawio-service-blueprint-generator";
 import type { ProcessTask } from "@/lib/models/process-task";
@@ -114,7 +115,7 @@ function getGateStatusClass(verdict: GateVerdict) {
 
 function getFriendlyAIReviewErrorMessage(error?: string, validationErrors?: string[]) {
   if (validationErrors?.length) {
-    return "AI review returned output that did not pass validation. Nothing was applied; adjust the source data or retry.";
+    return getAIValidationUserMessage(validationErrors);
   }
 
   const normalizedError = (error ?? "").toLowerCase();

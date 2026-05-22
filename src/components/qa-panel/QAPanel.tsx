@@ -6,6 +6,7 @@ import {
   confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
@@ -74,7 +75,7 @@ type QAAIRetryAction = "qa" | "findings" | "compare";
 
 function getFriendlyAIQAErrorMessage(error?: string, validationErrors?: string[]) {
   if (validationErrors?.length) {
-    return "AI QA returned output that did not pass validation. Nothing was applied; adjust the current data or retry.";
+    return getAIValidationUserMessage(validationErrors);
   }
 
   const normalizedError = (error ?? "").toLowerCase();
@@ -125,10 +126,11 @@ const qaPanelText = {
     applySelected: "Ap dung muc da chon",
     more: "Thêm",
     clearSelection: "Xóa lựa chọn",
-    applyAllSafe: "Ap dung tat ca de xuat an toan",
+    applyAllSafe: "Ap dung tat ca an toan",
     exportFeedback: "Xuat feedback JSON",
     clearLocalFeedback: "Xóa feedback local",
     running: "Đang chạy AI QA...",
+    runQaSuggestions: "Kiểm tra & Đề xuất",
     runReal: "Chay AI QA",
     runMock: "Chay QA cuc bo",
     showOnlySafe: "Chi hien de xuat an toan",
@@ -180,13 +182,14 @@ const qaPanelText = {
     selected: "selected",
     safeHelper: "Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.",
     selectSafe: "Select safe",
-    applySelected: "Apply selected",
+    applySelected: "Apply Selected",
     more: "More",
     clearSelection: "Clear selection",
-    applyAllSafe: "Apply all safe recommendations",
+    applyAllSafe: "Apply All Safe",
     exportFeedback: "Export feedback JSON",
     clearLocalFeedback: "Clear local feedback",
     running: "Running AI QA...",
+    runQaSuggestions: "Run QA & Suggestions",
     runReal: "Run AI QA",
     runMock: "Run local QA",
     showOnlySafe: "Show only safe recommendations",
@@ -1214,6 +1217,19 @@ export function QAPanel({
     }
   }
 
+  function runQaAndSuggestions() {
+    if (realAIQAEnabled) {
+      void runAiQa();
+      return;
+    }
+
+    setAiQaIssues([]);
+    setAiRetryAction(null);
+    setAiQaMessage(
+      `${text.runQaSuggestions}: ${issues.length} rule QA issue(s), ${existingRuleRecommendations.length} local recommendation(s).`
+    );
+  }
+
   return (
     <>
     <SessionFrame
@@ -1232,8 +1248,7 @@ export function QAPanel({
       description={text.description}
       title={text.title}
     >
-      {hasRecommendations ? (
-        <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
+      <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold uppercase text-emerald-800">
@@ -1249,20 +1264,36 @@ export function QAPanel({
 
             <div className="flex max-w-full flex-wrap items-center gap-2">
               <button
+                className="rounded border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isRunningAIQA}
+                onClick={runQaAndSuggestions}
+                type="button"
+              >
+                {isRunningAIQA ? text.running : text.runQaSuggestions}
+              </button>
+              <button
+                className="btn btn-success px-4 py-3 text-sm"
+                disabled={safeRecommendations.length === 0}
+                onClick={applyAllSafeRecommendations}
+                type="button"
+              >
+                {text.applyAllSafe}
+              </button>
+              <button
+                className="rounded border border-emerald-400 bg-white px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={selectedRecommendations.length === 0}
+                onClick={applySelectedRecommendations}
+                type="button"
+              >
+                {text.applySelected} ({selectedRecommendations.length})
+              </button>
+              <button
                 className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={safeRecommendations.length === 0}
                 onClick={selectSafeRecommendations}
                 type="button"
               >
                 {text.selectSafe}
-              </button>
-              <button
-                className="btn btn-success text-xs"
-                disabled={selectedRecommendations.length === 0}
-                onClick={applySelectedRecommendations}
-                type="button"
-              >
-                {text.applySelected} ({selectedRecommendations.length})
               </button>
               <div className="relative">
                 <button
@@ -1284,17 +1315,6 @@ export function QAPanel({
                       type="button"
                     >
                       {text.clearSelection}
-                    </button>
-                    <button
-                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={safeRecommendations.length === 0}
-                      onClick={() => {
-                        applyAllSafeRecommendations();
-                        setIsMoreMenuOpen(false);
-                      }}
-                      type="button"
-                    >
-                      {text.applyAllSafe}
                     </button>
                     <button
                       className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
@@ -1323,18 +1343,6 @@ export function QAPanel({
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-emerald-900">
-            <button
-              className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isRunningAIQA}
-              onClick={runAiQa}
-              type="button"
-            >
-              {isRunningAIQA
-                ? text.running
-                : realAIQAEnabled
-                  ? text.runReal
-                  : text.runMock}
-            </button>
             <label className="flex items-center gap-2">
               <input
                 checked={compareModeEnabled}
@@ -1391,7 +1399,6 @@ export function QAPanel({
             </label>
           </div>
         </div>
-      ) : null}
 
       {compareResults.length > 0 ? (
         <div className="mb-4 grid gap-3 lg:grid-cols-2">

@@ -13,6 +13,7 @@ import {
   confirmRealAICallIfNeeded,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import {
   generateAICodingPack,
   type AICodingPackFiles
@@ -213,7 +214,7 @@ function getFriendlyExportAIErrorMessage(
   validationErrors?: string[]
 ) {
   if (validationErrors?.length) {
-    return "AI output did not pass validation. No preview was changed; adjust the source context or retry.";
+    return getAIValidationUserMessage(validationErrors);
   }
 
   const normalizedError = (error ?? "").toLowerCase();

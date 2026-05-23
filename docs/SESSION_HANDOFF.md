@@ -578,6 +578,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - Process Task Register AI Assistant now hides raw schema/validation dumps behind console technical logs, shows a retryable friendly failure message, and displays the active AI/local mode under the main AI QA & Suggest button.
 - AppShell now has a guided workspace hero with Input Brief/PTR/Export CTAs plus a footer trust/governance banner covering server-side AI calls, no browser API keys, Draft/Preview/Approve, and local workspace backup.
 - Template Hub is no longer rendered as a full default workflow module; AppShell now shows a compact D01/D02 selected-template summary and mounts the full Template Library editor only when users open Template Hub from Settings/Manage templates.
+- AI Connection Center has been upgraded toward a Provider Capability Center with a separate model catalog, compact default summary, model/runtime preferences, custom model ids, and advanced tabs for Provider, Models, Skill defaults, and Advanced params. Browser settings remain non-secret and do not call provider APIs directly.
 - MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
 - The active planning branch is now `feature/m2-m3-full-ai`.
 - The release target is now `v0.8.0-mvp1-ai`.

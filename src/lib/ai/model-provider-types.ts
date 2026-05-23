@@ -18,6 +18,24 @@ export type DefaultModelCapability = "basic" | "advanced" | "reasoning";
 
 export type ProviderStatus = "configured" | "not configured" | "mock-only";
 
+export type AIRuntimeMode =
+  | "fast"
+  | "balanced"
+  | "reasoning"
+  | "coding"
+  | "long-context"
+  | "structured-output";
+
+export type AIReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh";
+
+export type AIThinkingType = "none" | "auto" | "budgeted" | "extended";
+
+export type AIRuntimeOptions = {
+  mode?: AIRuntimeMode;
+  reasoningEffort?: AIReasoningEffort;
+  thinkingType?: AIThinkingType;
+};
+
 export type AISkillOverrideId =
   | "input-brief-to-ptr"
   | "file-to-ptr-draft"
@@ -47,6 +65,9 @@ export type AIProviderSettings = {
   allowCloudAI: boolean;
   requireApprovalForAIOutput: boolean;
   perSkillProviderOverrides?: Partial<Record<AISkillOverrideId, ModelProviderMode>>;
+  defaultRuntimeOptions?: AIRuntimeOptions;
+  perSkillRuntimeOverrides?: Partial<Record<AISkillOverrideId, AIRuntimeOptions>>;
+  customModelIds?: Partial<Record<ModelProviderMode, string[]>>;
   defaultModelName?: string;
   perSkillModelOverrides?: Partial<Record<AISkillOverrideId, string>>;
   provider?: ModelProvider;

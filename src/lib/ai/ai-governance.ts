@@ -1,11 +1,17 @@
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type {
   AIProviderSettings,
+  AIRuntimeOptions,
   AISkillOverrideId,
   DataUsageMode,
   DefaultModelCapability,
   ModelProvider
 } from "@/lib/ai/model-provider-types";
+import {
+  findProviderModel,
+  getDefaultCatalogModelId,
+  getProviderModelCatalog
+} from "@/lib/ai/provider-model-catalog";
 
 export const AI_PROVIDER_SETTINGS_STORAGE_KEY =
   "process-blueprint-ai-workbench:ai-provider-settings";
@@ -19,6 +25,11 @@ export const defaultAIProviderSettings: AIProviderSettings = {
   defaultModelCapability: "basic",
   allowCloudAI: false,
   requireApprovalForAIOutput: true,
+  defaultRuntimeOptions: {
+    mode: "balanced",
+    reasoningEffort: "none",
+    thinkingType: "none"
+  },
   defaultModelName: "local-rules",
   modelName: "",
   organizationId: "",
@@ -27,75 +38,31 @@ export const defaultAIProviderSettings: AIProviderSettings = {
 
 export type ServerAIProviderId = "product-ai" | "openai" | "claude" | "mock";
 
-export const PROVIDER_MODELS: Record<
-  string,
-  Array<{ id: string; label: string; default?: boolean }>
-> = {
-  "product-ai": [
-    { id: "product-ai-default", label: "Product AI default", default: true }
-  ],
-  openai: [
-    { id: "gpt-4.1-mini", label: "GPT-4.1 Mini (nhanh, re)", default: true },
-    { id: "gpt-4.1", label: "GPT-4.1 (can bang)" },
-    { id: "gpt-4o", label: "GPT-4o (manh)" },
-    { id: "o4-mini", label: "o4-mini (reasoning)" }
-  ],
-  claude: [
-    {
-      id: "claude-sonnet-4-20250514",
-      label: "Claude Sonnet 4 (can bang)",
-      default: true
-    },
-    { id: "claude-opus-4-20250514", label: "Claude Opus 4 (manh nhat)" }
-  ],
-  gemini: [
-    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash (nhanh)", default: true },
-    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro (manh)" }
-  ],
-  local: [{ id: "local-rules", label: "Local Rules Engine", default: true }]
-};
-
-function getProviderModelKey(providerMode: ModelProvider) {
-  if (providerMode === "product-ai") {
-    return "product-ai";
-  }
-
-  if (providerMode === "openai-byok" || providerMode === "azure-openai") {
-    return "openai";
-  }
-
-  if (providerMode === "claude-byok") {
-    return "claude";
-  }
-
-  return "local";
-}
-
 export const aiModelOptionsByProvider: Record<
   ModelProvider,
   Array<{ value: string; label: string }>
 > = {
-  "product-ai": PROVIDER_MODELS["product-ai"].map((model) => ({
+  "product-ai": getProviderModelCatalog("product-ai").map((model) => ({
     value: model.id,
     label: model.label
   })),
-  "openai-byok": PROVIDER_MODELS.openai.map((model) => ({
+  "openai-byok": getProviderModelCatalog("openai-byok").map((model) => ({
     value: model.id,
     label: model.label
   })),
-  "claude-byok": PROVIDER_MODELS.claude.map((model) => ({
+  "claude-byok": getProviderModelCatalog("claude-byok").map((model) => ({
     value: model.id,
     label: model.label
   })),
-  "azure-openai": PROVIDER_MODELS.openai.map((model) => ({
+  "azure-openai": getProviderModelCatalog("azure-openai").map((model) => ({
     value: model.id,
     label: model.label
   })),
-  "local-model": PROVIDER_MODELS.local.map((model) => ({
+  "local-model": getProviderModelCatalog("local-model").map((model) => ({
     value: model.id,
     label: model.label
   })),
-  "no-ai": PROVIDER_MODELS.local.map((model) => ({
+  "no-ai": getProviderModelCatalog("no-ai").map((model) => ({
     value: model.id,
     label: model.label
   }))
@@ -139,6 +106,68 @@ function isDefaultModelCapability(
 
 function isBoolean(value: unknown): value is boolean {
   return typeof value === "boolean";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeRuntimeOptions(value: unknown): AIRuntimeOptions | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    mode:
+      typeof value.mode === "string"
+        ? (value.mode as AIRuntimeOptions["mode"])
+        : undefined,
+    reasoningEffort:
+      typeof value.reasoningEffort === "string"
+        ? (value.reasoningEffort as AIRuntimeOptions["reasoningEffort"])
+        : undefined,
+    thinkingType:
+      typeof value.thinkingType === "string"
+        ? (value.thinkingType as AIRuntimeOptions["thinkingType"])
+        : undefined
+  };
+}
+
+function normalizeRuntimeOverrides(value: unknown) {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([skillId, runtimeOptions]) => [
+        skillId,
+        normalizeRuntimeOptions(runtimeOptions)
+      ])
+      .filter((entry): entry is [string, AIRuntimeOptions] =>
+        Boolean(entry[1])
+      )
+  ) as Partial<Record<AISkillOverrideId, AIRuntimeOptions>>;
+}
+
+function normalizeCustomModelIds(value: unknown) {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([providerMode, modelIds]) => [
+        providerMode,
+        Array.isArray(modelIds)
+          ? modelIds.filter(
+              (modelId): modelId is string =>
+                typeof modelId === "string" && modelId.trim().length > 0
+            )
+          : []
+      ])
+      .filter(([, modelIds]) => modelIds.length > 0)
+  ) as Partial<Record<ModelProvider, string[]>>;
 }
 
 export function readAIProviderSettings(): AIProviderSettings {
@@ -185,6 +214,13 @@ export function readAIProviderSettings(): AIProviderSettings {
       )
         ? parsedSettings.requireApprovalForAIOutput
         : defaultAIProviderSettings.requireApprovalForAIOutput,
+      defaultRuntimeOptions:
+        normalizeRuntimeOptions(parsedSettings.defaultRuntimeOptions) ??
+        defaultAIProviderSettings.defaultRuntimeOptions,
+      perSkillRuntimeOverrides: normalizeRuntimeOverrides(
+        parsedSettings.perSkillRuntimeOverrides
+      ),
+      customModelIds: normalizeCustomModelIds(parsedSettings.customModelIds),
       perSkillProviderOverrides:
         typeof parsedSettings.perSkillProviderOverrides === "object" &&
         parsedSettings.perSkillProviderOverrides !== null
@@ -209,22 +245,35 @@ export function readAIProviderSettings(): AIProviderSettings {
 }
 
 export function getDefaultModelForProvider(providerMode: ModelProvider) {
-  const providerModelKey = getProviderModelKey(providerMode);
-  const modelOptions = PROVIDER_MODELS[providerModelKey] ?? PROVIDER_MODELS.local;
+  return getDefaultCatalogModelId(providerMode);
+}
 
-  return (
-    modelOptions.find((model) => model.default)?.id ??
-    modelOptions[0]?.id ??
-    "local-rules"
+export function getModelOptionsForProvider(
+  providerMode: ModelProvider,
+  customModelIds?: Partial<Record<ModelProvider, string[]>>
+) {
+  const catalogOptions =
+    aiModelOptionsByProvider[providerMode] ??
+    aiModelOptionsByProvider["local-model"];
+  const customOptions = (customModelIds?.[providerMode] ?? []).map((modelId) => ({
+    value: modelId,
+    label: modelId
+  }));
+
+  return [...catalogOptions, ...customOptions].filter(
+    (option, index, list) =>
+      list.findIndex((item) => item.value === option.value) === index
   );
 }
 
-export function getModelOptionsForProvider(providerMode: ModelProvider) {
-  return aiModelOptionsByProvider[providerMode] ?? aiModelOptionsByProvider["local-model"];
-}
-
-export function isModelValidForProvider(providerMode: ModelProvider, model: string) {
-  return getModelOptionsForProvider(providerMode).some((option) => option.value === model);
+export function isModelValidForProvider(
+  providerMode: ModelProvider,
+  model: string,
+  customModelIds?: Partial<Record<ModelProvider, string[]>>
+) {
+  return getModelOptionsForProvider(providerMode, customModelIds).some(
+    (option) => option.value === model
+  );
 }
 
 export function mapModelProviderToServerProvider(
@@ -278,14 +327,25 @@ export function resolveAISkillModelSelection(
     settings.defaultModelName ??
     settings.modelName ??
     "";
-  const model = isModelValidForProvider(providerMode, configuredModel)
+  const model = isModelValidForProvider(
+    providerMode,
+    configuredModel,
+    settings.customModelIds
+  )
     ? configuredModel
     : getDefaultModelForProvider(providerMode);
+  const runtimeOptions = {
+    ...(settings.defaultRuntimeOptions ?? {}),
+    ...(settings.perSkillRuntimeOverrides?.[overrideKey] ?? {})
+  };
+  const modelMetadata = findProviderModel(providerMode, model);
 
   return {
     providerId,
     model,
-    providerMode
+    providerMode,
+    runtimeOptions,
+    modelMetadata
   };
 }
 

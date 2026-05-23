@@ -14,10 +14,17 @@ import {
 import { aiSkillRegistryV2 } from "@/lib/ai/skill-registry-v2";
 import type {
   AIProviderSettings,
+  AIRuntimeMode,
+  AIRuntimeOptions,
   AISkillOverrideId,
+  AIReasoningEffort,
+  AIThinkingType,
   DataUsageMode,
   ModelProvider
 } from "@/lib/ai/model-provider-types";
+import {
+  findProviderModel
+} from "@/lib/ai/provider-model-catalog";
 import { getLocale, type Locale } from "@/lib/i18n";
 
 const LOCALE_EVENT = "process-blueprint-locale-change";
@@ -25,6 +32,7 @@ const LOCALE_EVENT = "process-blueprint-locale-change";
 type ProviderCardId = "product-ai" | "openai-byok" | "claude-byok" | "local-model";
 type ServerProviderId = "product-ai" | "openai" | "claude" | "mock";
 type ProviderDisplayStatus = "configured" | "missing env" | "disabled" | "available";
+type AdvancedTabId = "provider" | "models" | "skills" | "params";
 
 type ProviderStatusItem = {
   providerId: ServerProviderId;
@@ -112,6 +120,30 @@ const dataUsageModeOptions: Array<{ value: DataUsageMode; label: string }> = [
   { value: "organization-private-learning", label: "Organization-private learning" }
 ];
 
+const runtimeModeOptions: Array<{ value: AIRuntimeMode; label: string }> = [
+  { value: "fast", label: "Fast" },
+  { value: "balanced", label: "Balanced" },
+  { value: "reasoning", label: "Reasoning" },
+  { value: "coding", label: "Coding" },
+  { value: "long-context", label: "Long context" },
+  { value: "structured-output", label: "Structured output" }
+];
+
+const reasoningEffortOptions: Array<{ value: AIReasoningEffort; label: string }> = [
+  { value: "none", label: "None" },
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "xhigh", label: "Extra high" }
+];
+
+const thinkingTypeOptions: Array<{ value: AIThinkingType; label: string }> = [
+  { value: "none", label: "None" },
+  { value: "auto", label: "Auto" },
+  { value: "budgeted", label: "Budgeted" },
+  { value: "extended", label: "Extended" }
+];
+
 const skillLabelOverrides: Partial<Record<AISkillOverrideId, string>> = {
   "input-brief-to-ptr": "Input Brief to PTR",
   "file-to-ptr-draft": "File to PTR",
@@ -169,6 +201,8 @@ const textByLocale = {
     title: "Trung tam ket noi AI",
     description:
       "Chon provider, kiem tra ket noi va quan ly cau hinh AI khong nhay cam.",
+    compactTitle: "Provider Capability Center",
+    compactDescription: "Chon provider, model va che do runtime. Khong luu API key trong browser.",
     save: "Luu thiet lap",
     reset: "Dat lai",
     test: "Kiem tra ket noi",
@@ -184,6 +218,18 @@ const textByLocale = {
       "Test Connection va cac tac vu AI luon goi route server-side. API key cua provider khong duoc luu hoac hien thi trong browser.",
     localModeLabel: "Phan tich cuc bo",
     advanced: "Thiet lap nang cao",
+    manageModels: "Quan ly models & modes",
+    providerTab: "Provider",
+    modelsTab: "Models",
+    skillDefaultsTab: "Skill defaults",
+    advancedParamsTab: "Advanced params",
+    runtimeMode: "Mode",
+    reasoningEffort: "Reasoning",
+    thinkingType: "Thinking",
+    customModelIds: "Custom model id",
+    addCustomModel: "Them custom model",
+    costWarning: "Reasoning/thinking cao hon co the tang latency va chi phi.",
+    modelCapabilities: "Model capabilities",
     show: "Hien",
     hide: "An",
     defaultProvider: "Provider mac dinh",
@@ -209,6 +255,8 @@ const textByLocale = {
     title: "AI Connection Center",
     description:
       "Choose providers, test connection, and manage non-secret AI preferences.",
+    compactTitle: "Provider Capability Center",
+    compactDescription: "Choose provider, model, and runtime mode. Browser settings never store API keys.",
     save: "Save settings",
     reset: "Reset",
     test: "Test connection",
@@ -224,6 +272,18 @@ const textByLocale = {
       "Test Connection and AI tasks call the server-side route. Provider API keys are not stored or exposed in browser code.",
     localModeLabel: "Local analysis",
     advanced: "Advanced Settings",
+    manageModels: "Manage models & modes",
+    providerTab: "Provider",
+    modelsTab: "Models",
+    skillDefaultsTab: "Skill defaults",
+    advancedParamsTab: "Advanced params",
+    runtimeMode: "Mode",
+    reasoningEffort: "Reasoning",
+    thinkingType: "Thinking",
+    customModelIds: "Custom model id",
+    addCustomModel: "Add custom model",
+    costWarning: "Higher reasoning/thinking may increase latency and cost.",
+    modelCapabilities: "Model capabilities",
     show: "Show",
     hide: "Hide",
     defaultProvider: "Default provider",
@@ -333,6 +393,23 @@ function isProviderModeConfigured(
   );
 }
 
+function getRuntimeOptionsWithDefaults(
+  runtimeOptions?: AIRuntimeOptions
+): Required<AIRuntimeOptions> {
+  return {
+    mode: runtimeOptions?.mode ?? "balanced",
+    reasoningEffort: runtimeOptions?.reasoningEffort ?? "none",
+    thinkingType: runtimeOptions?.thinkingType ?? "none"
+  };
+}
+
+function getModelDescription(providerMode: ModelProvider, modelId: string) {
+  return (
+    findProviderModel(providerMode, modelId)?.description ??
+    "Custom model id configured as a non-secret browser preference."
+  );
+}
+
 export function AIProviderSettingsPanel() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [settings, setSettings] = useState<AIProviderSettings>(
@@ -340,6 +417,9 @@ export function AIProviderSettingsPanel() {
   );
   const [message, setMessage] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [activeAdvancedTab, setActiveAdvancedTab] =
+    useState<AdvancedTabId>("provider");
+  const [customModelDraft, setCustomModelDraft] = useState("");
   const [isTesting, setIsTesting] = useState(false);
   const [serverStatus, setServerStatus] = useState<AIStatusResponse>({});
   const text = textByLocale[locale];
@@ -415,6 +495,20 @@ export function AIProviderSettingsPanel() {
     providerStatuses,
     realAIEnabled
   );
+  const selectedDefaultModel = isModelValidForProvider(
+    settings.providerMode,
+    settings.defaultModelName ?? "",
+    settings.customModelIds
+  )
+    ? settings.defaultModelName ?? getDefaultModelForProvider(settings.providerMode)
+    : getDefaultModelForProvider(settings.providerMode);
+  const defaultRuntimeOptions = getRuntimeOptionsWithDefaults(
+    settings.defaultRuntimeOptions
+  );
+  const selectedModelMetadata = findProviderModel(
+    settings.providerMode,
+    selectedDefaultModel
+  );
   const connectionBadge = isUsingLocalAnalysis
     ? `⚙ ${text.localModeLabel}`
     : selectedConnectionStatus === "configured"
@@ -436,6 +530,9 @@ export function AIProviderSettingsPanel() {
       allowCloudAI: settings.allowCloudAI,
       requireApprovalForAIOutput: settings.requireApprovalForAIOutput,
       perSkillProviderOverrides: settings.perSkillProviderOverrides,
+      defaultRuntimeOptions: settings.defaultRuntimeOptions,
+      perSkillRuntimeOverrides: settings.perSkillRuntimeOverrides,
+      customModelIds: settings.customModelIds,
       defaultModelName: settings.defaultModelName,
       perSkillModelOverrides: settings.perSkillModelOverrides,
       modelName: settings.modelName,
@@ -459,7 +556,8 @@ export function AIProviderSettingsPanel() {
   function selectProvider(providerMode: ModelProvider) {
     const defaultModelName = isModelValidForProvider(
       providerMode,
-      settings.defaultModelName ?? ""
+      settings.defaultModelName ?? "",
+      settings.customModelIds
     )
       ? settings.defaultModelName
       : getDefaultModelForProvider(providerMode);
@@ -524,7 +622,11 @@ export function AIProviderSettingsPanel() {
     if (!providerMode) {
       delete nextModelOverrides[skillId];
     } else if (
-      !isModelValidForProvider(providerMode, nextModelOverrides[skillId] ?? "")
+      !isModelValidForProvider(
+        providerMode,
+        nextModelOverrides[skillId] ?? "",
+        settings.customModelIds
+      )
     ) {
       nextModelOverrides[skillId] = getDefaultModelForProvider(providerMode);
     }
@@ -544,6 +646,52 @@ export function AIProviderSettingsPanel() {
         [skillId]: model
       }
     });
+  }
+
+  function updateDefaultRuntimeOptions(nextRuntimeOptions: AIRuntimeOptions) {
+    updateSettings({
+      ...settings,
+      defaultRuntimeOptions: {
+        ...(settings.defaultRuntimeOptions ?? {}),
+        ...nextRuntimeOptions
+      }
+    });
+  }
+
+  function updateSkillRuntimeOverride(
+    skillId: AISkillOverrideId,
+    runtimeOptions: AIRuntimeOptions
+  ) {
+    updateSettings({
+      ...settings,
+      perSkillRuntimeOverrides: {
+        ...(settings.perSkillRuntimeOverrides ?? {}),
+        [skillId]: {
+          ...(settings.perSkillRuntimeOverrides?.[skillId] ?? {}),
+          ...runtimeOptions
+        }
+      }
+    });
+  }
+
+  function addCustomModelId() {
+    const modelId = customModelDraft.trim();
+
+    if (!modelId) {
+      return;
+    }
+
+    const existingModelIds = settings.customModelIds?.[settings.providerMode] ?? [];
+    updateSettings({
+      ...settings,
+      customModelIds: {
+        ...(settings.customModelIds ?? {}),
+        [settings.providerMode]: [...new Set([...existingModelIds, modelId])]
+      },
+      defaultModelName: modelId,
+      modelName: modelId
+    });
+    setCustomModelDraft("");
   }
 
   return (
@@ -577,85 +725,90 @@ export function AIProviderSettingsPanel() {
       description={text.description}
       title={text.title}
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {visibleProviderCards.map((card) => {
-          const status = getCardStatus(card, providerStatuses, realAIEnabled);
-          const isSelected = settings.providerMode === card.id;
-          const isServerSelected = selectedServerProvider === card.serverProviderId;
-
-          return (
-            <button
-              className={`min-h-44 rounded border p-4 text-left transition ${
-                isSelected
-                  ? "border-violet-300 bg-violet-600 text-white shadow-md"
-                  : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
+      <div className="rounded border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                {text.compactTitle}
+              </p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                {text.compactDescription}
+              </p>
+            </div>
+            <span
+              className={`inline-flex w-fit rounded-full border px-3 py-1 text-sm font-semibold ${
+                isUsingLocalAnalysis
+                  ? "border-slate-300 bg-white text-slate-800"
+                  : selectedConnectionStatus === "configured"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-rose-200 bg-rose-50 text-rose-800"
               }`}
-              key={card.id}
-              onClick={() => selectProvider(card.id)}
-              type="button"
             >
-              <span className="block text-sm font-semibold">{card.title}</span>
-              <span
-                className={`mt-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
-                  isSelected
-                    ? "border-white/30 bg-white/10 text-white"
-                    : status === "configured" || status === "available"
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                      : status === "missing env"
-                        ? "border-amber-200 bg-amber-50 text-amber-800"
-                        : "border-slate-200 bg-slate-100 text-slate-600"
-                }`}
-              >
-                {getStatusText(status, locale)}
-              </span>
-              {isServerSelected ? (
-                <span
-                  className={`ml-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
-                    isSelected
-                      ? "border-white/30 bg-white/10 text-white"
-                      : "border-sky-200 bg-sky-50 text-sky-800"
-                  }`}
-                >
-                  {text.selected}
-                </span>
-              ) : null}
-              <span
-                className={`mt-3 block text-sm leading-6 ${
-                  isSelected ? "text-slate-200" : "text-slate-600"
-                }`}
-              >
-                {card.description[locale]}
-              </span>
-            </button>
-          );
-        })}
+              {connectionBadge}
+            </span>
+          </div>
+        </div>
+        <div className="grid gap-3 bg-slate-50/80 p-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="soft-panel p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Provider
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-950">
+              {selectedProviderCard.title}
+            </p>
+          </div>
+          <div className="soft-panel p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Model
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-950">
+              {selectedDefaultModel}
+            </p>
+          </div>
+          <div className="soft-panel p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              {text.runtimeMode}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-950">
+              {defaultRuntimeOptions.mode}
+            </p>
+          </div>
+          <div className="soft-panel p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              {text.dataUsageMode}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-950">
+              {settings.dataUsageMode}
+            </p>
+          </div>
+          <div className="soft-panel p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              {text.requireApproval}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-950">
+              {settings.requireApprovalForAIOutput ? "Required" : "Optional"}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-3 border-t border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <p className="text-sm leading-6 text-slate-600">
+            {getNextStepText(selectedConnectionStatus, locale)}
+          </p>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setAdvancedOpen((isOpen) => !isOpen)}
+            type="button"
+          >
+            {text.manageModels}
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         <p className="font-semibold">{text.dataWarning}</p>
         <p className="mt-1">{text.dataWarningBody}</p>
-      </div>
-
-      <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
-        <span
-          className={`inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${
-            isUsingLocalAnalysis
-              ? "border-slate-300 bg-white text-slate-800"
-              : selectedConnectionStatus === "configured"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-rose-200 bg-rose-50 text-rose-800"
-          }`}
-        >
-          {connectionBadge}
-        </span>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          {getNextStepText(selectedConnectionStatus, locale)}
-        </p>
-        {serverStatus.fallbackActive ? (
-          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
-            {text.fallbackActive}
-          </p>
-        ) : null}
+        <p className="mt-2 text-xs font-semibold">{text.costWarning}</p>
       </div>
 
       <div className="mt-4 overflow-hidden rounded border border-slate-200 bg-white">
@@ -671,135 +824,161 @@ export function AIProviderSettingsPanel() {
         </button>
 
         {advancedOpen ? (
-          <div className="border-t border-slate-200 p-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  {text.defaultProvider}
-                </span>
-                <select
-                  className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  onChange={(event) =>
-                    selectProvider(event.target.value as ModelProvider)
-                  }
-                  value={settings.providerMode}
+          <div className="border-t border-slate-200">
+            <div className="flex flex-wrap gap-2 border-b border-slate-200 bg-slate-50 p-3">
+              {[
+                { id: "provider", label: text.providerTab },
+                { id: "models", label: text.modelsTab },
+                { id: "skills", label: text.skillDefaultsTab },
+                { id: "params", label: text.advancedParamsTab }
+              ].map((tab) => (
+                <button
+                  className={`rounded px-3 py-2 text-sm font-semibold ${
+                    activeAdvancedTab === tab.id
+                      ? "bg-violet-600 text-white"
+                      : "bg-white text-slate-700 hover:bg-slate-100"
+                  }`}
+                  key={tab.id}
+                  onClick={() => setActiveAdvancedTab(tab.id as AdvancedTabId)}
+                  type="button"
                 >
-                  {modelProviderOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  {text.dataUsageMode}
-                </span>
-                <select
-                  className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  onChange={(event) =>
-                    updateSettings({
-                      ...settings,
-                      dataUsageMode: event.target.value as DataUsageMode
-                    })
-                  }
-                  value={settings.dataUsageMode}
-                >
-                  {dataUsageModeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            {activeAdvancedTab === "provider" ? (
+              <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-4">
+                {visibleProviderCards.map((card) => {
+                  const status = getCardStatus(card, providerStatuses, realAIEnabled);
+                  const isSelected = settings.providerMode === card.id;
+                  const isServerSelected = selectedServerProvider === card.serverProviderId;
 
-              <label className="block">
-                <span className="text-sm font-medium text-slate-700">
-                  {text.capability}
-                </span>
-                <select
-                  className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                  onChange={(event) =>
-                    updateSettings({
-                      ...settings,
-                      defaultModelName: event.target.value,
-                      modelName: event.target.value
-                    })
-                  }
-                  value={
-                    isModelValidForProvider(
-                      settings.providerMode,
-                      settings.defaultModelName ?? ""
-                    )
-                      ? settings.defaultModelName
-                      : getDefaultModelForProvider(settings.providerMode)
-                  }
-                  disabled={defaultModelDisabled}
-                >
-                  {getModelOptionsForProvider(settings.providerMode).map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  return (
+                    <button
+                      className={`min-h-36 rounded border p-4 text-left transition ${
+                        isSelected
+                          ? "border-violet-300 bg-violet-600 text-white shadow-md"
+                          : "border-slate-200 bg-white text-slate-800 hover:border-slate-400"
+                      }`}
+                      key={card.id}
+                      onClick={() => selectProvider(card.id)}
+                      type="button"
+                    >
+                      <span className="block text-sm font-semibold">{card.title}</span>
+                      <span
+                        className={`mt-2 inline-flex rounded border px-2 py-1 text-xs font-semibold ${
+                          isSelected
+                            ? "border-white/30 bg-white/10 text-white"
+                            : status === "configured" || status === "available"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                              : status === "missing env"
+                                ? "border-amber-200 bg-amber-50 text-amber-800"
+                                : "border-slate-200 bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {getStatusText(status, locale)}
+                      </span>
+                      {isServerSelected ? (
+                        <span className="ml-2 inline-flex rounded border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-semibold text-sky-800">
+                          {text.selected}
+                        </span>
+                      ) : null}
+                      <span className={`mt-3 block text-sm leading-6 ${isSelected ? "text-slate-200" : "text-slate-600"}`}>
+                        {card.description[locale]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
 
-              <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                <input
-                  checked={settings.allowCloudAI}
-                  className="mt-1"
-                  onChange={(event) =>
-                    updateSettings({
-                      ...settings,
-                      allowCloudAI: event.target.checked
-                    })
-                  }
-                  type="checkbox"
-                />
-                <span className="font-medium text-slate-900">{text.allowCloud}</span>
-              </label>
+            {activeAdvancedTab === "models" ? (
+              <div className="grid gap-4 p-4 lg:grid-cols-2">
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    {text.defaultProvider}
+                  </span>
+                  <select
+                    className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) =>
+                      selectProvider(event.target.value as ModelProvider)
+                    }
+                    value={settings.providerMode}
+                  >
+                    {modelProviderOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    {text.capability}
+                  </span>
+                  <select
+                    className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    disabled={defaultModelDisabled}
+                    onChange={(event) =>
+                      updateSettings({
+                        ...settings,
+                        defaultModelName: event.target.value,
+                        modelName: event.target.value
+                      })
+                    }
+                    value={selectedDefaultModel}
+                  >
+                    {getModelOptionsForProvider(settings.providerMode, settings.customModelIds).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="rounded border border-slate-200 bg-slate-50 p-3 lg:col-span-2">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {text.modelCapabilities}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {getModelDescription(settings.providerMode, selectedDefaultModel)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    {(selectedModelMetadata?.recommendedFor ?? ["balanced"]).map((tag) => (
+                      <span className="rounded-full border border-slate-200 bg-white px-2 py-1 font-semibold text-slate-600" key={tag}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded border border-slate-200 bg-white p-3 lg:col-span-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">
+                      {text.customModelIds}
+                    </span>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                        onChange={(event) => setCustomModelDraft(event.target.value)}
+                        placeholder="provider-model-id"
+                        type="text"
+                        value={customModelDraft}
+                      />
+                      <button className="btn btn-secondary" onClick={addCustomModelId} type="button">
+                        {text.addCustomModel}
+                      </button>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            ) : null}
 
-              <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
-                <input
-                  checked={settings.requireApprovalForAIOutput}
-                  className="mt-1"
-                  onChange={(event) =>
-                    updateSettings({
-                      ...settings,
-                      requireApprovalForAIOutput: event.target.checked
-                    })
-                  }
-                  type="checkbox"
-                />
-                <span className="font-medium text-slate-900">
-                  {text.requireApproval}
-                </span>
-              </label>
-
-              <label className="block lg:col-span-2">
-                <span className="text-sm font-medium text-slate-700">
-                  {text.organizationNote}
-                </span>
-                <input
-                  className="mt-2 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
-                  onChange={(event) =>
-                    updateSettings({
-                      ...settings,
-                      organizationId: event.target.value
-                    })
-                  }
-                  placeholder={text.organizationPlaceholder}
-                  type="text"
-                  value={settings.organizationId ?? ""}
-                />
-              </label>
-
-              <div className="lg:col-span-2 rounded border border-slate-200 bg-slate-50 p-3">
-                <p className="text-sm font-semibold text-slate-900">
-                  {text.perSkillOverride}
+            {activeAdvancedTab === "skills" ? (
+              <div className="p-4">
+                <p className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+                  {text.costWarning}
                 </p>
-                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   {providerBackedSkillOptions.map((skill) => {
                     const skillProviderMode =
                       settings.perSkillProviderOverrides?.[skill.id] ??
@@ -808,6 +987,10 @@ export function AIProviderSettingsPanel() {
                       settings.perSkillModelOverrides?.[skill.id] ??
                       settings.defaultModelName ??
                       getDefaultModelForProvider(skillProviderMode);
+                    const skillRuntime = getRuntimeOptionsWithDefaults({
+                      ...settings.defaultRuntimeOptions,
+                      ...settings.perSkillRuntimeOverrides?.[skill.id]
+                    });
                     const skillModelDisabled = !isProviderModeConfigured(
                       skillProviderMode,
                       providerStatuses,
@@ -815,11 +998,11 @@ export function AIProviderSettingsPanel() {
                     );
 
                     return (
-                      <div className="block" key={skill.id}>
-                        <span className="text-xs font-semibold text-slate-600">
+                      <div className="rounded border border-slate-200 bg-slate-50 p-3" key={skill.id}>
+                        <span className="text-sm font-semibold text-slate-900">
                           {skill.label}
                         </span>
-                        <div className="mt-1 grid gap-2">
+                        <div className="mt-2 grid gap-2">
                           <select
                             className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
                             onChange={(event) =>
@@ -844,24 +1027,204 @@ export function AIProviderSettingsPanel() {
                               updateSkillModelOverride(skill.id, event.target.value)
                             }
                             value={
-                              isModelValidForProvider(skillProviderMode, skillModel)
+                              isModelValidForProvider(skillProviderMode, skillModel, settings.customModelIds)
                                 ? skillModel
                                 : getDefaultModelForProvider(skillProviderMode)
                             }
                           >
-                            {getModelOptionsForProvider(skillProviderMode).map((option) => (
+                            {getModelOptionsForProvider(skillProviderMode, settings.customModelIds).map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>
                             ))}
                           </select>
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            <select
+                              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              onChange={(event) =>
+                                updateSkillRuntimeOverride(skill.id, {
+                                  mode: event.target.value as AIRuntimeMode
+                                })
+                              }
+                              value={skillRuntime.mode}
+                            >
+                              {runtimeModeOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              onChange={(event) =>
+                                updateSkillRuntimeOverride(skill.id, {
+                                  reasoningEffort: event.target.value as AIReasoningEffort
+                                })
+                              }
+                              value={skillRuntime.reasoningEffort}
+                            >
+                              {reasoningEffortOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              onChange={(event) =>
+                                updateSkillRuntimeOverride(skill.id, {
+                                  thinkingType: event.target.value as AIThinkingType
+                                })
+                              }
+                              value={skillRuntime.thinkingType}
+                            >
+                              {thinkingTypeOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </div>
+            ) : null}
+
+            {activeAdvancedTab === "params" ? (
+              <div className="grid gap-4 p-4 lg:grid-cols-2">
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    {text.dataUsageMode}
+                  </span>
+                  <select
+                    className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) =>
+                      updateSettings({
+                        ...settings,
+                        dataUsageMode: event.target.value as DataUsageMode
+                      })
+                    }
+                    value={settings.dataUsageMode}
+                  >
+                    {dataUsageModeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    {text.runtimeMode}
+                  </span>
+                  <select
+                    className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) =>
+                      updateDefaultRuntimeOptions({
+                        mode: event.target.value as AIRuntimeMode
+                      })
+                    }
+                    value={defaultRuntimeOptions.mode}
+                  >
+                    {runtimeModeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    {text.reasoningEffort}
+                  </span>
+                  <select
+                    className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) =>
+                      updateDefaultRuntimeOptions({
+                        reasoningEffort: event.target.value as AIReasoningEffort
+                      })
+                    }
+                    value={defaultRuntimeOptions.reasoningEffort}
+                  >
+                    {reasoningEffortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">
+                    {text.thinkingType}
+                  </span>
+                  <select
+                    className="mt-2 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) =>
+                      updateDefaultRuntimeOptions({
+                        thinkingType: event.target.value as AIThinkingType
+                      })
+                    }
+                    value={defaultRuntimeOptions.thinkingType}
+                  >
+                    {thinkingTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                  <input
+                    checked={settings.allowCloudAI}
+                    className="mt-1"
+                    onChange={(event) =>
+                      updateSettings({
+                        ...settings,
+                        allowCloudAI: event.target.checked
+                      })
+                    }
+                    type="checkbox"
+                  />
+                  <span className="font-medium text-slate-900">{text.allowCloud}</span>
+                </label>
+                <label className="flex items-start gap-3 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+                  <input
+                    checked={settings.requireApprovalForAIOutput}
+                    className="mt-1"
+                    onChange={(event) =>
+                      updateSettings({
+                        ...settings,
+                        requireApprovalForAIOutput: event.target.checked
+                      })
+                    }
+                    type="checkbox"
+                  />
+                  <span className="font-medium text-slate-900">
+                    {text.requireApproval}
+                  </span>
+                </label>
+                <label className="block lg:col-span-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    {text.organizationNote}
+                  </span>
+                  <input
+                    className="mt-2 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800"
+                    onChange={(event) =>
+                      updateSettings({
+                        ...settings,
+                        organizationId: event.target.value
+                      })
+                    }
+                    placeholder={text.organizationPlaceholder}
+                    type="text"
+                    value={settings.organizationId ?? ""}
+                  />
+                </label>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

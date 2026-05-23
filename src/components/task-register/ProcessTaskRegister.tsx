@@ -29,6 +29,10 @@ import {
   validateProcessTasks
 } from "@/lib/qa/task-register-rules";
 import {
+  runD01PostGenerationGate,
+  runD02PostGenerationGate
+} from "@/lib/quality-engine";
+import {
   inferChannel,
   inferCustomerInteractionType
 } from "@/lib/utils/process-task-inference";
@@ -52,6 +56,10 @@ const D01_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d01-bpmn-status";
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
+const D01_GENERATED_XML_KEY =
+  "process-blueprint-ai-workbench:generated-d01-bpmn-xml";
+const D02_GENERATED_XML_KEY =
+  "process-blueprint-ai-workbench:generated-d02-service-blueprint-xml";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
@@ -95,6 +103,15 @@ const ptrText = {
     unsaved: "Unsaved changes",
     saving: "Saving",
     restoreSaved: "Restore saved",
+    readinessTitle: "Artifact readiness",
+    ptrReadiness: "PTR",
+    qaReadiness: "QA findings",
+    d01Readiness: "D01",
+    d02Readiness: "D02",
+    exportReadiness: "Export ZIP",
+    exportReady: "Ready",
+    exportNotReady: "Not ready",
+    gateLabel: "Gate",
     selectRows: "Chọn dòng",
     selectedRows: "dòng đã chọn",
     oneRow: "Một dòng = một task/gateway/event/data interaction.",
@@ -141,6 +158,15 @@ const ptrText = {
     unsaved: "Unsaved changes",
     saving: "Saving",
     restoreSaved: "Restore saved",
+    readinessTitle: "Artifact readiness",
+    ptrReadiness: "PTR",
+    qaReadiness: "QA findings",
+    d01Readiness: "D01",
+    d02Readiness: "D02",
+    exportReadiness: "Export ZIP",
+    exportReady: "Ready",
+    exportNotReady: "Not ready",
+    gateLabel: "Gate",
     selectRows: "Select rows",
     selectedRows: "selected rows",
     oneRow: "One row = one task, gateway, event, or data interaction.",
@@ -225,7 +251,7 @@ const visibleColumns: EditableColumn[] = [
   { key: "actorLane", label: "Actor lane", minWidth: "160px" },
   { key: "system", label: "System", minWidth: "190px" },
   { key: "systemLane", label: "System lane", minWidth: "150px" },
-  { key: "taskName", label: "Task name", minWidth: "280px" },
+  { key: "taskName", label: "Task name", minWidth: "380px" },
   { key: "input", label: "Input", minWidth: "260px" },
   { key: "output", label: "Output", minWidth: "260px" },
   {
@@ -269,16 +295,20 @@ const simpleColumnKeys: Array<keyof ProcessTask> = [
   "phase",
   "actor",
   "system",
-  "input",
-  "output",
   "defaultNextStep",
-  "riskControl",
-  "reviewStatus",
-  "comment"
+  "reviewStatus"
 ];
 
 type ColumnMode = "simple" | "advanced";
 type SaveState = "saved" | "unsaved" | "saving";
+type ArtifactStatus = "fresh" | "stale" | "not_generated";
+
+type ArtifactReadiness = {
+  d01Status: ArtifactStatus;
+  d02Status: ArtifactStatus;
+  d01GateStatus: string;
+  d02GateStatus: string;
+};
 
 const excelColumns: Array<Pick<EditableColumn, "key" | "label">> = [
   { key: "id", label: "ID" },
@@ -656,6 +686,47 @@ function markGeneratedArtifactsStale() {
   window.dispatchEvent(new Event(ARTIFACT_STATUS_EVENT));
 }
 
+function readArtifactStatus(key: string): ArtifactStatus {
+  const status = window.localStorage.getItem(key);
+
+  return status === "fresh" || status === "stale" ? status : "not_generated";
+}
+
+function readArtifactGateStatus({
+  xmlKey,
+  runGate
+}: {
+  xmlKey: string;
+  runGate: (xml: string) => { status: string };
+}) {
+  try {
+    const xml = window.localStorage.getItem(xmlKey);
+
+    if (!xml?.trim()) {
+      return "not generated";
+    }
+
+    return runGate(xml).status;
+  } catch {
+    return "unknown";
+  }
+}
+
+function readArtifactReadiness(): ArtifactReadiness {
+  return {
+    d01Status: readArtifactStatus(D01_GENERATED_STATUS_KEY),
+    d02Status: readArtifactStatus(D02_GENERATED_STATUS_KEY),
+    d01GateStatus: readArtifactGateStatus({
+      xmlKey: D01_GENERATED_XML_KEY,
+      runGate: runD01PostGenerationGate
+    }),
+    d02GateStatus: readArtifactGateStatus({
+      xmlKey: D02_GENERATED_XML_KEY,
+      runGate: runD02PostGenerationGate
+    })
+  };
+}
+
 function persistTasks(nextTasks: ProcessTask[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextTasks));
   return nextTasks;
@@ -753,6 +824,14 @@ export function ProcessTaskRegister() {
   const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(() => new Set());
   const [columnMode, setColumnMode] = useState<ColumnMode>("simple");
   const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [artifactReadiness, setArtifactReadiness] = useState<ArtifactReadiness>(
+    () => ({
+      d01Status: "not_generated",
+      d02Status: "not_generated",
+      d01GateStatus: "not generated",
+      d02GateStatus: "not generated"
+    })
+  );
   const [openRowActionTaskId, setOpenRowActionTaskId] = useState<string | null>(null);
   const [ptrAiIssues, setPtrAiIssues] = useState<QaIssue[]>([]);
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -861,6 +940,19 @@ export function ProcessTaskRegister() {
   }, []);
 
   useEffect(() => {
+    function refreshArtifactReadiness() {
+      setArtifactReadiness(readArtifactReadiness());
+    }
+
+    refreshArtifactReadiness();
+    window.addEventListener(ARTIFACT_STATUS_EVENT, refreshArtifactReadiness);
+
+    return () => {
+      window.removeEventListener(ARTIFACT_STATUS_EVENT, refreshArtifactReadiness);
+    };
+  }, []);
+
+  useEffect(() => {
     function warnBeforeUnload(event: BeforeUnloadEvent) {
       if (saveState !== "unsaved") {
         return;
@@ -906,7 +998,11 @@ export function ProcessTaskRegister() {
   const displayedColumns = useMemo(
     () =>
       columnMode === "simple"
-        ? visibleColumns.filter((column) => simpleColumnKeys.includes(column.key))
+        ? simpleColumnKeys
+            .map((columnKey) =>
+              visibleColumns.find((column) => column.key === columnKey)
+            )
+            .filter((column): column is EditableColumn => Boolean(column))
         : visibleColumns,
     [columnMode]
   );
@@ -925,6 +1021,12 @@ export function ProcessTaskRegister() {
     unsaved: "status-badge status-badge-warning",
     saving: "status-badge status-badge-primary"
   };
+  const exportZipReady =
+    saveState === "saved" &&
+    artifactReadiness.d01Status === "fresh" &&
+    artifactReadiness.d02Status === "fresh" &&
+    artifactReadiness.d01GateStatus !== "fail" &&
+    artifactReadiness.d02GateStatus !== "fail";
 
   function markUnsaved() {
     if (saveStateTimeoutRef.current) {
@@ -1818,6 +1920,67 @@ export function ProcessTaskRegister() {
             </div>
           ) : null}
 
+          <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-semibold text-slate-900">
+              {text.readinessTitle}
+            </p>
+            <div className="mt-3 grid gap-2 md:grid-cols-5">
+              {[
+                {
+                  label: text.ptrReadiness,
+                  value: text[saveState],
+                  tone:
+                    saveState === "saved"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : saveState === "saving"
+                        ? "border-sky-200 bg-sky-50 text-sky-800"
+                        : "border-amber-200 bg-amber-50 text-amber-800"
+                },
+                {
+                  label: text.qaReadiness,
+                  value: String(displayQaIssues.length),
+                  tone:
+                    displayQaIssues.length === 0
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-amber-200 bg-amber-50 text-amber-800"
+                },
+                {
+                  label: text.d01Readiness,
+                  value: `${artifactReadiness.d01Status} | ${text.gateLabel}: ${artifactReadiness.d01GateStatus}`,
+                  tone:
+                    artifactReadiness.d01Status === "fresh" &&
+                    artifactReadiness.d01GateStatus !== "fail"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-amber-200 bg-amber-50 text-amber-800"
+                },
+                {
+                  label: text.d02Readiness,
+                  value: `${artifactReadiness.d02Status} | ${text.gateLabel}: ${artifactReadiness.d02GateStatus}`,
+                  tone:
+                    artifactReadiness.d02Status === "fresh" &&
+                    artifactReadiness.d02GateStatus !== "fail"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : "border-amber-200 bg-amber-50 text-amber-800"
+                },
+                {
+                  label: text.exportReadiness,
+                  value: exportZipReady ? text.exportReady : text.exportNotReady,
+                  tone: exportZipReady
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-slate-200 bg-white text-slate-600"
+                }
+              ].map((item) => (
+                <div
+                  className={`rounded border px-3 py-2 ${item.tone}`}
+                  key={item.label}
+                >
+                  <p className="text-xs font-semibold uppercase">{item.label}</p>
+                  <p className="mt-1 text-sm font-semibold">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
         {importPreview ? (
           <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -1966,9 +2129,9 @@ export function ProcessTaskRegister() {
                 {displayedColumns.map((column) => (
                   <th
                     className={`border-b border-r border-slate-200 px-3 py-3 font-semibold ${
-                      column.key === "stepId"
+                      columnMode === "simple" && column.key === "stepId"
                         ? "sticky left-[6.5rem] top-0 z-40 bg-slate-100"
-                        : column.key === "taskName"
+                        : columnMode === "simple" && column.key === "taskName"
                           ? "sticky left-[13.375rem] top-0 z-40 bg-slate-100"
                           : ""
                     }`}
@@ -2032,9 +2195,9 @@ export function ProcessTaskRegister() {
                     return (
                       <td
                         className={`border-b border-r border-slate-200 p-1 ${
-                          column.key === "stepId"
+                          columnMode === "simple" && column.key === "stepId"
                             ? "sticky left-[6.5rem] z-20 bg-inherit"
-                            : column.key === "taskName"
+                            : columnMode === "simple" && column.key === "taskName"
                               ? "sticky left-[13.375rem] z-20 bg-inherit shadow-[8px_0_12px_-12px_rgba(15,23,42,0.45)]"
                               : ""
                         }`}

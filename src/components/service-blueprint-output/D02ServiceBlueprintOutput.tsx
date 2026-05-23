@@ -96,6 +96,31 @@ type ArtifactReviewResult = {
   warnings: string[];
 };
 
+type ArtifactBusinessSummary = {
+  taskCount: number;
+  actorCount: number;
+  systemCount: number;
+  actors: string[];
+  systems: string[];
+};
+
+function summarizeProcessTasks(tasks: ProcessTask[]): ArtifactBusinessSummary {
+  const actors = Array.from(
+    new Set(tasks.map((task) => task.actor).filter(Boolean))
+  ).sort();
+  const systems = Array.from(
+    new Set(tasks.map((task) => task.system).filter(Boolean))
+  ).sort();
+
+  return {
+    taskCount: tasks.length,
+    actorCount: actors.length,
+    systemCount: systems.length,
+    actors,
+    systems
+  };
+}
+
 function readArtifactStatus(): ArtifactStatus {
   const status = window.localStorage.getItem(D02_GENERATED_STATUS_KEY);
 
@@ -180,6 +205,10 @@ export function D02ServiceBlueprintOutput() {
   const [selectedTemplateName, setSelectedTemplateName] = useState(
     sampleServiceBlueprintTemplateProfile.name
   );
+  const [businessSummary, setBusinessSummary] =
+    useState<ArtifactBusinessSummary>(() =>
+      summarizeProcessTasks(sampleProcessTasks)
+    );
   const [reviewResult, setReviewResult] = useState<ArtifactReviewResult | null>(
     null
   );
@@ -205,8 +234,10 @@ export function D02ServiceBlueprintOutput() {
 
     try {
       setSelectedTemplateName(readSelectedD02Template().name);
+      setBusinessSummary(summarizeProcessTasks(readProcessTasks()));
     } catch {
       setSelectedTemplateName(sampleServiceBlueprintTemplateProfile.name);
+      setBusinessSummary(summarizeProcessTasks(sampleProcessTasks));
     }
 
     async function loadAIMode() {
@@ -253,6 +284,7 @@ export function D02ServiceBlueprintOutput() {
       setXml(generatedXml);
       setPostGateVerdict(verdict);
       setSelectedTemplateName(selectedTemplate.name);
+      setBusinessSummary(summarizeProcessTasks(processTasks));
       setReviewResult(null);
       setCanRetryAIReview(false);
       window.localStorage.setItem(D02_GENERATED_XML_KEY, generatedXml);
@@ -499,6 +531,55 @@ export function D02ServiceBlueprintOutput() {
             ) : null}
           </div>
         ) : null}
+
+        <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3">
+          <p className="text-sm font-semibold text-slate-900">
+            Business summary
+          </p>
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
+            <div className="rounded border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                Tasks
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-950">
+                {businessSummary.taskCount}
+              </p>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                Actors
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-950">
+                {businessSummary.actorCount}
+              </p>
+              <p className="mt-1 truncate text-xs text-slate-500">
+                {businessSummary.actors.join(", ") || "None"}
+              </p>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                Systems
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-950">
+                {businessSummary.systemCount}
+              </p>
+              <p className="mt-1 truncate text-xs text-slate-500">
+                {businessSummary.systems.join(", ") || "None"}
+              </p>
+            </div>
+            <div className="rounded border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                Template / Gate
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-950">
+                {selectedTemplateName}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Gate: {postGateVerdict?.status.toUpperCase() ?? "Not generated"}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <PostGateVerdictSummary verdict={postGateVerdict} />
 

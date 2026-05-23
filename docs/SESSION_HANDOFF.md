@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Improved Process Task Register readability by tightening Simple Mode to checkbox, row number, stepId, taskName, phase, actor, system, next step, review status, and actions.
+- Made `taskName` wider and sticky only in Simple Mode so business task wording remains visible during horizontal scroll without changing `ProcessTask` schema.
+- Added an Artifact Readiness Bar in Process Task Register for PTR saved/unsaved, QA findings count, D01 status/gate, D02 status/gate, and Export ZIP ready/not ready.
+- Added D01/D02 business summaries before previews: task count, actor count/list, system count/list, selected template, and gate status.
+- Preserved AI route, ProcessTask schema, D01/D02 generators, QA/recommendation logic, and export logic.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Redesigned QA Panel toward summary-first review: top counts now show findings, recommendations, safe recommendations, medium/high risk recommendations, and selected recommendations.
 - Updated QA Panel actions to emphasize `Apply All Safe`, `Preview All Recommendations`, and advanced `Apply All After Review` while preserving preview-before-apply and feedback logging.
 - Added batch preview grouping by recommendation risk (`low`, `medium`, `high`, `graph-changing`), affected stepIds, warnings, and an explicit confirmation checkbox for apply-all-after-review.

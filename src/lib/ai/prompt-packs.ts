@@ -122,13 +122,13 @@ export const processModelingPromptPacks: AIPromptPack[] = [
     description:
       "Review ProcessTask rows and return QARecommendation objects for user approval.",
     outputContract:
-      "QARecommendation[] or { recommendations: QARecommendation[] } with existing targetStepIds and requiresConfirmation true.",
+      "{ recommendations: QARecommendation[] } only. Each recommendation must include id, source, title, description, rationale, confidence, impact, riskLevel, targetStepIds, recommendationType, operations, previewText, warnings, and requiresConfirmation true.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Return process QA recommendations only. Rule QA runs first, so use qaIssues and existingRecommendations as context. Do not duplicate a rule recommendation unless you add clearer rationale, better prioritization, or a safer operation; use source hybrid when extending a rule recommendation. Use existing stepIds, explain the rationale, and never select graph-changing changes by default. When metadata.ptrAiAction is provided, focus only on that selected-row action and return QARecommendation[] patches or graph-changing previews for human approval."
+          "Return process QA recommendations only as a JSON object with exactly one top-level field: recommendations. Rule QA runs first, so use qaIssues and existingRecommendations as context. Do not duplicate a rule recommendation unless you add clearer rationale, better prioritization, or a safer operation; use source hybrid when extending a rule recommendation. Use source ai for new AI-only recommendations. Each recommendation must include id, source, title, description, rationale, confidence, impact, riskLevel, targetStepIds, recommendationType, operations, previewText, warnings, and requiresConfirmation true. targetStepIds and every step reference inside operations must use existing ProcessTask.stepId values. recommendationType must be one of UpdateField, SplitTask, CreateTask, CreateLane, AssignSystem, AssignActor, ChangeBpmnType, ChangeRowType, SetInteractionType, MarkReviewStatus, AddGatewayBranch. operation kind must be one of UpdateTaskField, CreateTaskAfter, CreateTaskBefore, InsertTaskBetween, SplitTask, CreateGateway, AddGatewayBranch, UpdateConnection, CreateLane, AssignActor, AssignSystem, SetInteractionType, MarkReviewStatus. Graph-changing operations must use impact high, riskLevel high, requiresConfirmation true, and include a warning. Do not auto-apply any change. When metadata.ptrAiAction is provided, focus only on that selected-row action and return reviewable operations or graph-changing previews for human approval."
       }
     ]
   },

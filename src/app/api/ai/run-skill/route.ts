@@ -58,9 +58,12 @@ import {
   type AIModelMessage,
   type AIModelRequest,
   type AIProviderId,
-  type AIProviderResponse
+  type AIProviderResponse,
+  type AIProviderStructuredOutputSchema
 } from "@/lib/ai/providers/provider-types";
 import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
+import { DRAFT_PTR_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/draft-ptr-output-schema";
+import { QA_RECOMMENDATION_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/qa-recommendation-output-schema";
 import {
   getAISkillDefinitionV2,
   getPromptPackForSkill,
@@ -445,6 +448,35 @@ function getSupportsStructuredOutput(routeSkillId: string) {
     getSkillDefinition(routeSkillId)?.modelRequirements.supportsStructuredOutput ===
     true
   );
+}
+
+function getStructuredOutputSchemaForSkill(
+  routeSkillId: string,
+  providerId: AIProviderId
+): AIProviderStructuredOutputSchema | undefined {
+  if (providerId !== "openai") {
+    return undefined;
+  }
+
+  if (routeSkillId === INPUT_BRIEF_TO_PTR_SKILL_ID) {
+    if (!getSupportsStructuredOutput(routeSkillId)) {
+      return undefined;
+    }
+
+    return {
+      name: "draft_process_task_register",
+      schema: DRAFT_PTR_OUTPUT_SCHEMA
+    };
+  }
+
+  if (routeSkillId === PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID) {
+    return {
+      name: "qa_recommendation_response",
+      schema: QA_RECOMMENDATION_OUTPUT_SCHEMA
+    };
+  }
+
+  return undefined;
 }
 
 function summarizeNormalizerIssue(issue: ProviderOutputNormalizerIssue) {
@@ -3392,14 +3424,17 @@ export async function POST(request: Request) {
   }
 
   try {
+    const structuredOutputSchema = getStructuredOutputSchemaForSkill(
+      routeSkillId,
+      selectedProvider
+    );
     const aiRequest: AIModelRequest = {
       skillId: routeSkillId,
       payload: inputValidation.value,
       model: selectedModel,
       runtimeOptions: runtimeOptionsValidation.runtimeOptions,
-      supportsStructuredOutput:
-        routeSkillId === INPUT_BRIEF_TO_PTR_SKILL_ID &&
-        getSupportsStructuredOutput(routeSkillId),
+      supportsStructuredOutput: structuredOutputSchema !== undefined,
+      structuredOutputSchema,
       messages: createProviderMessages({
         skill,
         routeSkillId,

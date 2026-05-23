@@ -18,6 +18,13 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added OpenAI json_schema structured output support for `process-improvement-recommendation`.
+- Created `src/lib/ai/output-schemas/qa-recommendation-output-schema.ts` with strict `{ recommendations: [...] }` output, required QA recommendation fields, supported recommendation types, and validator-supported operation kinds.
+- Updated `/api/ai/run-skill` to select structured output schemas per OpenAI-backed skill, preserving the existing `input-brief-to-ptr` schema path and adding `qa_recommendation_response` for process improvement recommendations.
+- Updated the OpenAI provider adapter to accept a route-supplied structured output schema instead of hardcoding only the Draft PTR schema.
+- Tightened the `process-modeling-qa-recommendation-v1` prompt pack so provider output uses the object contract, existing stepIds, supported operation kinds, human confirmation, and no auto-apply behavior.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
 - Added `docs/STRUCTURED_OUTPUT_SCHEMA_AUDIT.md` as the Bài 3 Structured Output & Schema Engineering audit for `process-improvement-recommendation` and `artifact-review`.
 - Audited the existing `input-brief-to-ptr` json_schema pattern, current route structured-output gate, `QARecommendation` operation risks, `TemplateRecommendation` validation risks, shared schema fragments, artifact-review split direction, and exact next implementation plan.
 - Kept this schema audit slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.

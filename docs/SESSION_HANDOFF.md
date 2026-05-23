@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Redesigned QA Panel toward summary-first review: top counts now show findings, recommendations, safe recommendations, medium/high risk recommendations, and selected recommendations.
+- Updated QA Panel actions to emphasize `Apply All Safe`, `Preview All Recommendations`, and advanced `Apply All After Review` while preserving preview-before-apply and feedback logging.
+- Added batch preview grouping by recommendation risk (`low`, `medium`, `high`, `graph-changing`), affected stepIds, warnings, and an explicit confirmation checkbox for apply-all-after-review.
+- Kept findings read-only, sorted by existing priority order, and collapsed long finding lists by default with an expand/collapse control.
+- Preserved QARecommendation schema, AI route, recommendation engine apply helpers, D01/D02 generators, and no-auto-apply governance.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Added non-secret runtime option flow from AI Connection Center/per-skill settings into `/api/ai/run-skill` through `createAISkillRequestBody`.
 - Extended the server AI provider request type with defensive runtime option normalization, warning on unknown/unsupported values without failing missing or invalid options.
 - Mapped OpenAI runtime options to Responses API request parameters, including `reasoning.effort` for reasoning-capable models while preserving the existing `input-brief-to-ptr` JSON schema structured output path.

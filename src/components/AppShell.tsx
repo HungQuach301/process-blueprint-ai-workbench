@@ -48,6 +48,57 @@ export function AppShell() {
     label: "Local workspace",
     value: "Browser local only"
   };
+  const heroText = {
+    positioning:
+      locale === "vi"
+        ? "Từ quy trình nghiệp vụ đến bộ artifact sẵn sàng cho AI delivery"
+        : "From business process to AI-ready delivery artifacts",
+    description:
+      locale === "vi"
+        ? "Tạo Process Task Register, QA, BPMN, Service Blueprint, BRD, SRS, User Stories và AI Coding Pack với validation, approval và traceability trong một workspace có kiểm soát."
+        : "Create Process Task Register, QA, BPMN, Service Blueprint, BRD, SRS, User Stories, and AI Coding Pack with validation, approval, and traceability in one controlled workspace.",
+    ctas: [
+      {
+        href: "#input-brief",
+        label: locale === "vi" ? "Bắt đầu với Input Brief" : "Start with Input Brief"
+      },
+      {
+        href: "#process-task-register",
+        label:
+          locale === "vi"
+            ? "Review Process Register"
+            : "Review Process Register"
+      },
+      {
+        href: "#export-center",
+        label: locale === "vi" ? "Export Package" : "Export Package"
+      }
+    ]
+  };
+  const governanceText = {
+    title:
+      locale === "vi"
+        ? "Governance mặc định cho dữ liệu doanh nghiệp"
+        : "Default governance for enterprise data",
+    description:
+      locale === "vi"
+        ? "Workspace giữ luồng làm việc có kiểm soát: AI chỉ tạo draft hoặc recommendation, người dùng review trước khi apply hoặc export."
+        : "The workspace keeps a controlled flow: AI creates drafts or recommendations, and users review before applying or exporting.",
+    items:
+      locale === "vi"
+        ? [
+            "Server-side AI calls",
+            "Không có API key trong browser",
+            "Draft / Preview / Approve",
+            "Local workspace backup"
+          ]
+        : [
+            "Server-side AI calls",
+            "No browser API keys",
+            "Draft / Preview / Approve",
+            "Local workspace backup"
+          ]
+  };
   const gettingStartedText = {
     title: locale === "vi" ? "Bắt đầu từ đây" : "Getting Started",
     description:
@@ -108,45 +159,63 @@ export function AppShell() {
         <section className="min-w-0 max-w-full flex-1">
           <header className="surface-card mb-6 overflow-hidden">
             <div className="border-b border-slate-200 bg-white p-6">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="status-badge status-badge-primary">
-                  {t("session.mvpSkeleton", locale)}
-                </p>
-                <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-                  Process Blueprint AI Workbench
-                </h1>
-                <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                  {t("session.appDescription", locale)}
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-3 lg:items-end">
-                <div className="flex flex-wrap gap-2">
-                  <span className="status-badge status-badge-ai">
-                    {headerText.aiStatus}
-                  </span>
-                  <span className="status-badge status-badge-success">
-                    {headerText.artifactSummary}
-                  </span>
-                  <span className="status-badge status-badge-warning">
-                    {workspaceText.label}
-                  </span>
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="status-badge status-badge-primary">
+                    {t("session.mvpSkeleton", locale)}
+                  </p>
+                  <h1 className="mt-2 text-3xl font-semibold text-slate-950">
+                    Process Blueprint AI Workbench
+                  </h1>
+                  <p className="mt-3 text-sm font-bold uppercase tracking-wide text-blue-700">
+                    {heroText.positioning}
+                  </p>
+                  <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+                    {heroText.description}
+                  </p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {heroText.ctas.map((cta, index) => (
+                      <a
+                        className={
+                          index === 0
+                            ? "btn btn-primary"
+                            : "btn btn-secondary"
+                        }
+                        href={cta.href}
+                        key={cta.href}
+                      >
+                        {cta.label}
+                      </a>
+                    ))}
+                  </div>
                 </div>
 
-                <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
-                  {t("common.language", locale)}
-                  <select
-                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
-                    onChange={(event) => switchLocale(event.target.value as Locale)}
-                    value={locale}
-                  >
-                    <option value="vi">{t("common.vietnamese", locale)}</option>
-                    <option value="en">{t("common.english", locale)}</option>
-                  </select>
-                </label>
+                <div className="flex flex-col gap-3 lg:items-end">
+                  <div className="flex flex-wrap gap-2 lg:justify-end">
+                    <span className="status-badge status-badge-ai">
+                      {headerText.aiStatus}
+                    </span>
+                    <span className="status-badge status-badge-success">
+                      {headerText.artifactSummary}
+                    </span>
+                    <span className="status-badge status-badge-warning">
+                      {workspaceText.label}
+                    </span>
+                  </div>
+
+                  <label className="flex w-fit items-center gap-2 text-sm font-medium text-slate-700">
+                    {t("common.language", locale)}
+                    <select
+                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm"
+                      onChange={(event) => switchLocale(event.target.value as Locale)}
+                      value={locale}
+                    >
+                      <option value="vi">{t("common.vietnamese", locale)}</option>
+                      <option value="en">{t("common.english", locale)}</option>
+                    </select>
+                  </label>
+                </div>
               </div>
-            </div>
             </div>
             <div className="grid gap-3 bg-slate-50/80 p-4 sm:grid-cols-4">
               <div className="soft-panel p-3">
@@ -231,6 +300,29 @@ export function AppShell() {
               <ExportCenter />
             </div>
           </div>
+
+          <footer className="surface-card mt-6 overflow-hidden">
+            <div className="border-b border-slate-200 bg-white p-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Trust & Governance
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-slate-950">
+                {governanceText.title}
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                {governanceText.description}
+              </p>
+            </div>
+            <div className="grid gap-3 bg-slate-50/80 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              {governanceText.items.map((item) => (
+                <div className="soft-panel p-3" key={item}>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {item}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </footer>
         </section>
       </div>
     </main>

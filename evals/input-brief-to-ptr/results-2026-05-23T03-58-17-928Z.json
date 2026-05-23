@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-05-23T03:58:17.933Z",
+  "apiUrl": "http://localhost:3000/api/ai/run-skill",
+  "results": [
+    {
+      "id": "eval-001",
+      "name": "Banking lending - day du",
+      "status": "PARTIAL",
+      "missingCriteria": [
+        "minTasks",
+        "allStepsHaveActor"
+      ],
+      "passedCriteria": 4,
+      "totalCriteria": 6,
+      "taskCount": 7
+    },
+    {
+      "id": "eval-002",
+      "name": "Account opening KYC - don gian",
+      "status": "PARTIAL",
+      "missingCriteria": [
+        "hasGateway"
+      ],
+      "passedCriteria": 4,
+      "totalCriteria": 5,
+      "taskCount": 6
+    },
+    {
+      "id": "eval-003",
+      "name": "Payment processing - nhieu he thong",
+      "status": "PASS",
+      "missingCriteria": [],
+      "passedCriteria": 5,
+      "totalCriteria": 5,
+      "taskCount": 8
+    },
+    {
+      "id": "eval-004",
+      "name": "Brief toi thieu - chi ten process",
+      "status": "PARTIAL",
+      "missingCriteria": [
+        "confidenceLow"
+      ],
+      "passedCriteria": 4,
+      "totalCriteria": 5,
+      "taskCount": 3
+    },
+    {
+      "id": "eval-005",
+      "name": "Brief phuc tap - nhieu exception",
+      "status": "PARTIAL",
+      "missingCriteria": [
+        "hasGateway",
+        "gatewayCount"
+      ],
+      "passedCriteria": 4,
+      "totalCriteria": 6,
+      "taskCount": 12
+    }
+  ]
+}

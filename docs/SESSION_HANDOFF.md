@@ -576,6 +576,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - Product Delivery BRD, SRS, story, criteria, scope/MVP, and AI Coding Pack flows are now route-backed real-ai-ready, preview/export only.
 - Product Delivery Workspace UI is now organized by artifact row (BRD, SRS, Stories, AC, Scope, QA, Package) with small download actions, AI/local indicators, collapsed optional inputs, and generated-count summaries.
 - Process Task Register AI Assistant now hides raw schema/validation dumps behind console technical logs, shows a retryable friendly failure message, and displays the active AI/local mode under the main AI QA & Suggest button.
+- AppShell now has a guided workspace hero with Input Brief/PTR/Export CTAs plus a footer trust/governance banner covering server-side AI calls, no browser API keys, Draft/Preview/Approve, and local workspace backup.
 - MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
 - The active planning branch is now `feature/m2-m3-full-ai`.
 - The release target is now `v0.8.0-mvp1-ai`.

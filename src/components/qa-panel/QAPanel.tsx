@@ -5,7 +5,8 @@ import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   confirmRealAICallIfNeeded,
   createAISkillRequestBody,
-  logAICallAudit
+  logAICallAudit,
+  resolveAISkillModelSelection
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import type { ProcessTask } from "@/lib/models/process-task";
@@ -74,6 +75,17 @@ const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
 
 type QAAIRetryAction = "qa" | "findings" | "compare";
 
+function formatProviderLabel(providerId: string) {
+  const providerLabels: Record<string, string> = {
+    openai: "OpenAI",
+    claude: "Claude",
+    "product-ai": "Product AI",
+    mock: "Local"
+  };
+
+  return providerLabels[providerId] ?? providerId;
+}
+
 function getFriendlyAIQAErrorMessage(error?: string, validationErrors?: string[]) {
   if (validationErrors?.length) {
     return getAIValidationUserMessage(validationErrors);
@@ -106,7 +118,7 @@ const qaPanelText = {
     findingsHelper: "Mục phát hiện là thông tin review chỉ đọc. Khu vực này không có nút áp dụng.",
     findingsReadOnlyBadge: "Chỉ đọc",
     runAiFindings: "Chạy AI phát hiện",
-    runMockFindings: "Chạy phát hiện cục bộ",
+    runMockFindings: "Chạy kiểm tra Rule",
     runningAiFindings: "Đang chạy AI phát hiện...",
     noFindings: "Chưa có mục phát hiện nào.",
     noFindingsAndRecommendations: "Chưa có mục phát hiện hoặc đề xuất nào.",
@@ -133,7 +145,9 @@ const qaPanelText = {
     running: "Đang chạy AI QA...",
     runQaSuggestions: "Kiểm tra & Đề xuất",
     runReal: "Chay AI QA",
-    runMock: "Chay QA cuc bo",
+    runMock: "Chạy kiểm tra Rule",
+    localIndicator: "Phân tích cục bộ (Local)",
+    aiSuggestionUnavailable: "Đề xuất AI chưa tạo được. Bạn vẫn có thể dùng kiểm tra Rule.",
     showOnlySafe: "Chi hien de xuat an toan",
     includeMedium: "Bao gom muc trung binh",
     includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
@@ -165,7 +179,7 @@ const qaPanelText = {
     findingsHelper: "Findings are read-only review items. This section has no apply buttons.",
     findingsReadOnlyBadge: "Read-only",
     runAiFindings: "Run AI findings",
-    runMockFindings: "Run local findings",
+    runMockFindings: "Run Rule Check",
     runningAiFindings: "Running AI findings...",
     noFindings: "No findings yet.",
     noFindingsAndRecommendations: "No findings or recommendations yet.",
@@ -192,7 +206,9 @@ const qaPanelText = {
     running: "Running AI QA...",
     runQaSuggestions: "Run QA & Suggestions",
     runReal: "Run AI QA",
-    runMock: "Run local QA",
+    runMock: "Run Rule Check",
+    localIndicator: "Local analysis",
+    aiSuggestionUnavailable: "AI suggestions could not be generated. You can still use Rule Check.",
     showOnlySafe: "Show only safe recommendations",
     includeMedium: "Include medium confidence/impact",
     includeGraph: "Show advanced structure changes",
@@ -404,6 +420,10 @@ export function QAPanel({
   const [aiFindingSet, setAiFindingSet] = useState<QAFindingSet | null>(null);
   const [aiQaMessage, setAiQaMessage] = useState("");
   const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
+  const [qaAiSelection, setQaAiSelection] = useState<{
+    providerId: string;
+    model: string;
+  } | null>(null);
   const [isRunningAIQA, setIsRunningAIQA] = useState(false);
   const [isRunningAIFindings, setIsRunningAIFindings] = useState(false);
   const [aiRetryAction, setAiRetryAction] = useState<QAAIRetryAction | null>(
@@ -459,11 +479,19 @@ export function QAPanel({
         };
 
         if (active) {
-          setRealAIQAEnabled(data.realAIQAEnabled === true);
+          const isRealAIQAEnabled = data.realAIQAEnabled === true;
+          const selection = resolveAISkillModelSelection(AI_PROCESS_QA_SKILL_ID);
+
+          setRealAIQAEnabled(isRealAIQAEnabled);
+          setQaAiSelection({
+            providerId: selection.providerId,
+            model: selection.model
+          });
         }
       } catch {
         if (active) {
           setRealAIQAEnabled(false);
+          setQaAiSelection(null);
         }
       }
     }
@@ -543,6 +571,19 @@ export function QAPanel({
     recommendationEntries.length - visibleRecommendationCount;
   const hasVisibleRecommendations = visibleRecommendationCount > 0;
   const text = qaPanelText[locale];
+  const qaModeIndicator =
+    realAIQAEnabled && qaAiSelection
+      ? locale === "vi"
+        ? `Sử dụng ${formatProviderLabel(qaAiSelection.providerId)} ${qaAiSelection.model}`
+        : `Using ${formatProviderLabel(qaAiSelection.providerId)} ${qaAiSelection.model}`
+      : text.localIndicator;
+  const findingSourceBadge =
+    aiFindingSet && aiFindingSet.findings.length > 0
+      ? `${findings.length} ${text.findings.toLowerCase()} (${text.ruleSource} + ${text.aiSource})`
+      : `${findings.length} ${text.findings.toLowerCase()} (${text.ruleSource})`;
+  const recommendationSourceLabel =
+    aiQaIssues.length > 0 && realAIQAEnabled ? text.aiSource : "Local";
+  const recommendationSourceBadge = `${visibleRecommendationCount} ${text.recommendations} (${recommendationSourceLabel})`;
   const localizedSeverityLabels: Record<QaSeverity, string> = {
     error: text.critical,
     warning: text.warnings,
@@ -949,10 +990,7 @@ export function QAPanel({
           data.error || "AI findings failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
-        const friendlyMessage = getFriendlyAIQAErrorMessage(
-          data.error,
-          data.validationErrors
-        );
+        const friendlyMessage = text.aiSuggestionUnavailable;
 
         logAICallAudit({
           skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
@@ -990,7 +1028,7 @@ export function QAPanel({
         externalApiCalled: false
       });
       setAiFindingSet(null);
-      setAiQaMessage(getFriendlyAIQAErrorMessage("request failed"));
+      setAiQaMessage(text.aiSuggestionUnavailable);
     } finally {
       setIsRunningAIFindings(false);
     }
@@ -1047,10 +1085,7 @@ export function QAPanel({
           data.error || "AI QA failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
-        const friendlyMessage = getFriendlyAIQAErrorMessage(
-          data.error,
-          data.validationErrors
-        );
+        const friendlyMessage = text.aiSuggestionUnavailable;
 
         logAICallAudit({
           skillId: AI_PROCESS_QA_SKILL_ID,
@@ -1122,7 +1157,7 @@ export function QAPanel({
         externalApiCalled: false
       });
       setAiQaIssues([]);
-      setAiQaMessage(getFriendlyAIQAErrorMessage("request failed"));
+      setAiQaMessage(text.aiSuggestionUnavailable);
     } finally {
       setIsRunningAIQA(false);
     }
@@ -1270,14 +1305,17 @@ export function QAPanel({
             </div>
 
             <div className="flex max-w-full flex-wrap items-center gap-2">
-              <button
-                className="rounded border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isRunningAIQA}
-                onClick={runQaAndSuggestions}
-                type="button"
-              >
-                {isRunningAIQA ? text.running : text.runQaSuggestions}
-              </button>
+              <div>
+                <button
+                  className="rounded border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isRunningAIQA}
+                  onClick={runQaAndSuggestions}
+                  type="button"
+                >
+                  {isRunningAIQA ? text.running : text.runQaSuggestions}
+                </button>
+                <p className="mt-1 text-xs text-slate-500">{qaModeIndicator}</p>
+              </div>
               <button
                 className="btn btn-success px-4 py-3 text-sm"
                 disabled={safeRecommendations.length === 0}
@@ -1483,6 +1521,9 @@ export function QAPanel({
               <h3 className="text-sm font-semibold text-slate-950">
                 {text.findings} ({findings.length})
               </h3>
+              <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+                {findingSourceBadge}
+              </span>
               <span className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-semibold text-sky-800">
                 {text.findingsReadOnlyBadge}
               </span>
@@ -1560,6 +1601,9 @@ export function QAPanel({
             <h3 className="text-sm font-semibold text-slate-950">
               {text.recommendationsSection} ({visibleRecommendationCount})
             </h3>
+            <span className="mt-2 inline-flex rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+              {recommendationSourceBadge}
+            </span>
             <p className="mt-1 text-xs text-slate-600">
               {text.recommendationsHelper}
             </p>

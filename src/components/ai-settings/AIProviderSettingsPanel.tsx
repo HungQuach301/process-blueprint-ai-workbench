@@ -7,9 +7,11 @@ import {
   getDefaultModelForProvider,
   getModelOptionsForProvider,
   isModelValidForProvider,
+  mapModelProviderToServerProvider,
   defaultAIProviderSettings,
   readAIProviderSettings
 } from "@/lib/ai/ai-governance";
+import { aiSkillRegistryV2 } from "@/lib/ai/skill-registry-v2";
 import type {
   AIProviderSettings,
   AISkillOverrideId,
@@ -110,11 +112,57 @@ const dataUsageModeOptions: Array<{ value: DataUsageMode; label: string }> = [
   { value: "organization-private-learning", label: "Organization-private learning" }
 ];
 
-const skillOverrideOptions: Array<{ id: AISkillOverrideId; label: string }> = [
-  { id: "input-brief-to-ptr", label: "Input Brief to PTR" },
-  { id: "ai-process-qa", label: "Process QA" },
-  { id: "ai-template-review", label: "Template Review" }
-];
+const skillLabelOverrides: Partial<Record<AISkillOverrideId, string>> = {
+  "input-brief-to-ptr": "Input Brief to PTR",
+  "file-to-ptr-draft": "File to PTR",
+  "chat-to-ptr-draft": "Chat / Notes to PTR",
+  "ai-process-qa": "Process QA",
+  "ai-process-qa-finding": "Process QA Findings",
+  "process-improvement-recommendation": "PTR AI Assistant",
+  "artifact-review": "Artifact Review",
+  "ai-template-review": "Template Review",
+  "notes-to-brd": "BRD Generation",
+  "ptr-to-brd": "PTR to BRD",
+  "brd-to-srs": "SRS Generation",
+  "notes-to-srs": "Notes to SRS",
+  "srs-to-user-stories": "User Story Generation",
+  "brd-to-user-stories": "BRD to User Stories",
+  "user-stories-to-acceptance-criteria": "Acceptance Criteria",
+  "product-scope-review": "Product Scope Review",
+  "mvp-slicing": "MVP Slicing",
+  "requirement-quality-check": "Requirement Quality Check",
+  "user-stories-to-ai-coding-pack": "AI Coding Pack"
+};
+
+const providerBackedSkillOptions: Array<{
+  id: AISkillOverrideId;
+  label: string;
+}> = aiSkillRegistryV2
+  .filter(
+    (skill) =>
+      skill.status === "real-ai-ready" &&
+      skill.allowedProviders.some((provider) => provider !== "mock")
+  )
+  .map((skill) => ({
+    id:
+      skill.skillId === "template-review"
+        ? "ai-template-review"
+        : (skill.skillId as AISkillOverrideId),
+    label:
+      skillLabelOverrides[
+        skill.skillId === "template-review"
+          ? "ai-template-review"
+          : (skill.skillId as AISkillOverrideId)
+      ] ??
+      skill.description
+        .replace(/\.$/, "")
+        .replace(/^Generate\s+/i, "")
+        .replace(/^Review\s+/i, "Review ")
+  }))
+  .filter(
+    (skill, index, list) =>
+      list.findIndex((item) => item.id === skill.id) === index
+  );
 
 const textByLocale = {
   vi: {
@@ -134,18 +182,7 @@ const textByLocale = {
     dataWarning: "Tin cay va an toan du lieu",
     dataWarningBody:
       "Test Connection va cac tac vu AI luon goi route server-side. API key cua provider khong duoc luu hoac hien thi trong browser.",
-    currentMode: "Che do hien tai",
-    flags: "Advanced flags",
-    serverProvider: "Provider server",
-    selectedProvider: "Provider da chon",
-    connectionStatus: "Trang thai ket noi",
-    nextStep: "Buoc tiep theo",
-    technicalDiagnostics: "Chan doan ky thuat",
     localModeLabel: "Phan tich cuc bo",
-    realModeLabel: "Real AI server-side",
-    serverSideOnly: "Server-side only",
-    dataMode: "Data mode server",
-    model: "Model",
     advanced: "Thiet lap nang cao",
     show: "Hien",
     hide: "An",
@@ -161,16 +198,12 @@ const textByLocale = {
     saved: "Da luu preference khong chua secret vao localStorage.",
     resetDone: "Da dat lai ve local analysis va local-only.",
     changed: "Co thay doi chua luu.",
-    mockModeSummary: "Phan tich cuc bo, khong goi provider ben ngoai.",
-    realModeSummary: "Real AI qua provider da chon. Du lieu co the duoc xu ly tren cloud theo cau hinh server.",
     modelPlaceholder: "Chon model",
-    effectiveProvider: "Provider thuc thi",
     fallbackActive: "Dang dung phan tich cuc bo vi provider da chon chua san sang.",
     localNextStep: "Co the tiep tuc demo hoac chay workflow ma khong goi provider ben ngoai.",
     readyNextStep: "Provider da san sang cho cac tac vu AI server-side khi duoc phep.",
     notConfiguredNextStep: "Can hoan tat cau hinh provider tren server truoc khi dung real AI.",
-    disabledNextStep: "Real AI dang tat. Dung phan tich cuc bo hoac mo Advanced de xem cau hinh.",
-    selectedStatus: "Trang thai provider da chon"
+    disabledNextStep: "Real AI dang tat. Dung phan tich cuc bo hoac mo Advanced de xem cau hinh."
   },
   en: {
     title: "AI Connection Center",
@@ -189,18 +222,7 @@ const textByLocale = {
     dataWarning: "Trust and data safety",
     dataWarningBody:
       "Test Connection and AI tasks call the server-side route. Provider API keys are not stored or exposed in browser code.",
-    currentMode: "Current mode",
-    flags: "Advanced flags",
-    serverProvider: "Server provider",
-    selectedProvider: "Selected provider",
-    connectionStatus: "Connection status",
-    nextStep: "Next step",
-    technicalDiagnostics: "Technical diagnostics",
     localModeLabel: "Local analysis",
-    realModeLabel: "Server-side real AI",
-    serverSideOnly: "Server-side only",
-    dataMode: "Server data mode",
-    model: "Model",
     advanced: "Advanced Settings",
     show: "Show",
     hide: "Hide",
@@ -216,16 +238,12 @@ const textByLocale = {
     saved: "Saved non-secret preferences to localStorage.",
     resetDone: "Reset to local analysis and local-only.",
     changed: "Unsaved changes.",
-    mockModeSummary: "Local analysis mode, no external provider call.",
-    realModeSummary: "Real AI via the selected provider. Data may be processed in the cloud according to server configuration.",
     modelPlaceholder: "Choose a model",
-    effectiveProvider: "Effective provider",
     fallbackActive: "Local analysis fallback is active because the selected provider is not ready.",
     localNextStep: "You can keep demoing or running workflows without an external provider call.",
     readyNextStep: "The provider is ready for server-side AI tasks when a skill allows it.",
     notConfiguredNextStep: "Finish server-side provider setup before using real AI.",
-    disabledNextStep: "Real AI is disabled. Use local analysis or open Advanced to inspect setup.",
-    selectedStatus: "Selected provider status"
+    disabledNextStep: "Real AI is disabled. Use local analysis or open Advanced to inspect setup."
   }
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -278,6 +296,41 @@ function getNextStepText(status: ProviderDisplayStatus, locale: Locale) {
   }
 
   return text.localNextStep;
+}
+
+function getStatusForModelProvider(
+  providerMode: ModelProvider,
+  providerStatuses: ProviderStatusItem[],
+  realAIEnabled: boolean
+) {
+  if (providerMode === "local-model" || providerMode === "no-ai") {
+    return "available";
+  }
+
+  const serverProviderId = mapModelProviderToServerProvider(providerMode);
+
+  return (
+    providerStatuses.find((item) => item.providerId === serverProviderId)
+      ?.status ?? (realAIEnabled ? "missing env" : "disabled")
+  );
+}
+
+function isProviderModeConfigured(
+  providerMode: ModelProvider,
+  providerStatuses: ProviderStatusItem[],
+  realAIEnabled: boolean
+) {
+  const status = getStatusForModelProvider(
+    providerMode,
+    providerStatuses,
+    realAIEnabled
+  );
+
+  return (
+    providerMode === "local-model" ||
+    providerMode === "no-ai" ||
+    status === "configured"
+  );
 }
 
 export function AIProviderSettingsPanel() {
@@ -341,13 +394,34 @@ export function AIProviderSettingsPanel() {
   const selectedProviderCard =
     providerCards.find((card) => card.id === settings.providerMode) ??
     providerCards[3];
-  const selectedConnectionStatus =
-    serverStatus.displayStatus ??
-    getCardStatus(selectedProviderCard, providerStatuses, realAIEnabled);
+  const selectedConnectionStatus = getCardStatus(
+    selectedProviderCard,
+    providerStatuses,
+    realAIEnabled
+  );
   const isUsingLocalAnalysis =
     !realAIEnabled ||
     effectiveServerProvider === "mock" ||
     selectedProviderCard.serverProviderId === "mock";
+  const visibleProviderCards = providerCards.filter((card) => {
+    if (card.serverProviderId === "mock") {
+      return true;
+    }
+
+    return getCardStatus(card, providerStatuses, realAIEnabled) === "configured";
+  });
+  const defaultModelDisabled = !isProviderModeConfigured(
+    settings.providerMode,
+    providerStatuses,
+    realAIEnabled
+  );
+  const connectionBadge = isUsingLocalAnalysis
+    ? `⚙ ${text.localModeLabel}`
+    : selectedConnectionStatus === "configured"
+      ? `✅ ${selectedProviderCard.title} Ready`
+      : locale === "vi"
+        ? "❌ Chua ket noi"
+        : "❌ Not connected";
 
   function updateSettings(nextSettings: AIProviderSettings) {
     setSettings(nextSettings);
@@ -504,7 +578,7 @@ export function AIProviderSettingsPanel() {
       title={text.title}
     >
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {providerCards.map((card) => {
+        {visibleProviderCards.map((card) => {
           const status = getCardStatus(card, providerStatuses, realAIEnabled);
           const isSelected = settings.providerMode === card.id;
           const isServerSelected = selectedServerProvider === card.serverProviderId;
@@ -563,43 +637,20 @@ export function AIProviderSettingsPanel() {
       </div>
 
       <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
-        <div className="grid gap-3 text-sm md:grid-cols-4">
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.currentMode}
-            </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {isUsingLocalAnalysis ? text.localModeLabel : text.realModeLabel}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              {isUsingLocalAnalysis ? text.mockModeSummary : text.realModeSummary}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.selectedProvider}
-            </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {selectedProviderCard.title}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.connectionStatus}
-            </p>
-            <p className="mt-1 font-semibold text-slate-950">
-              {getStatusText(selectedConnectionStatus, locale)}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase text-slate-500">
-              {text.nextStep}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">
-              {getNextStepText(selectedConnectionStatus, locale)}
-            </p>
-          </div>
-        </div>
+        <span
+          className={`inline-flex rounded-full border px-3 py-1 text-sm font-semibold ${
+            isUsingLocalAnalysis
+              ? "border-slate-300 bg-white text-slate-800"
+              : selectedConnectionStatus === "configured"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-rose-200 bg-rose-50 text-rose-800"
+          }`}
+        >
+          {connectionBadge}
+        </span>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {getNextStepText(selectedConnectionStatus, locale)}
+        </p>
         {serverStatus.fallbackActive ? (
           <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
             {text.fallbackActive}
@@ -621,48 +672,6 @@ export function AIProviderSettingsPanel() {
 
         {advancedOpen ? (
           <div className="border-t border-slate-200 p-4">
-            <div className="mb-4 rounded border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm font-semibold text-slate-950">
-                {text.technicalDiagnostics}
-              </p>
-              <div className="mt-3 grid gap-3 text-xs text-slate-600 md:grid-cols-4">
-                <div>
-                  <p className="font-semibold uppercase text-slate-500">
-                    {text.serverProvider}
-                  </p>
-                  <p className="mt-1 text-slate-900">
-                    {serverStatus.provider ?? "mock"}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold uppercase text-slate-500">
-                    {text.effectiveProvider}
-                  </p>
-                  <p className="mt-1 text-slate-900">
-                    {effectiveServerProvider}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold uppercase text-slate-500">
-                    {text.dataMode}
-                  </p>
-                  <p className="mt-1 text-slate-900">
-                    {serverStatus.dataUsageMode ?? "local-only"}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-semibold uppercase text-slate-500">
-                    {text.model}
-                  </p>
-                  <p className="mt-1 text-slate-900">
-                    {serverStatus.model || settings.defaultModelName || settings.modelName || "-"}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <p className="mb-4 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              {text.flags}: ENABLE_REAL_AI={String(serverStatus.realAIEnabled === true)}, ENABLE_REAL_AI_QA={String(serverStatus.realAIQAEnabled === true)}, ENABLE_REAL_AI_TEMPLATE_REVIEW={String(serverStatus.realAITemplateReviewEnabled === true)}
-            </p>
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
@@ -726,10 +735,7 @@ export function AIProviderSettingsPanel() {
                       ? settings.defaultModelName
                       : getDefaultModelForProvider(settings.providerMode)
                   }
-                  disabled={
-                    settings.providerMode === "local-model" ||
-                    settings.providerMode === "no-ai"
-                  }
+                  disabled={defaultModelDisabled}
                 >
                   {getModelOptionsForProvider(settings.providerMode).map((option) => (
                     <option key={option.value} value={option.value}>
@@ -794,7 +800,7 @@ export function AIProviderSettingsPanel() {
                   {text.perSkillOverride}
                 </p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
-                  {skillOverrideOptions.map((skill) => {
+                  {providerBackedSkillOptions.map((skill) => {
                     const skillProviderMode =
                       settings.perSkillProviderOverrides?.[skill.id] ??
                       settings.providerMode;
@@ -802,6 +808,11 @@ export function AIProviderSettingsPanel() {
                       settings.perSkillModelOverrides?.[skill.id] ??
                       settings.defaultModelName ??
                       getDefaultModelForProvider(skillProviderMode);
+                    const skillModelDisabled = !isProviderModeConfigured(
+                      skillProviderMode,
+                      providerStatuses,
+                      realAIEnabled
+                    );
 
                     return (
                       <div className="block" key={skill.id}>
@@ -828,10 +839,7 @@ export function AIProviderSettingsPanel() {
                           </select>
                           <select
                             className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
-                            disabled={
-                              skillProviderMode === "local-model" ||
-                              skillProviderMode === "no-ai"
-                            }
+                            disabled={skillModelDisabled}
                             onChange={(event) =>
                               updateSkillModelOverride(skill.id, event.target.value)
                             }

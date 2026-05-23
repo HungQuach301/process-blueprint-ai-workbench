@@ -18,7 +18,10 @@ import {
   RecommendationApplyValidationError,
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
-import { createAISkillRequestBody } from "@/lib/ai/ai-governance";
+import {
+  createAISkillRequestBody,
+  resolveAISkillModelSelection
+} from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import {
   type QaIssue,
@@ -666,6 +669,61 @@ function formatRecommendationApplyError(error: unknown) {
   return "Không apply recommendation vì dữ liệu sau apply không hợp lệ.";
 }
 
+function formatProviderLabel(providerId: string) {
+  const providerLabels: Record<string, string> = {
+    openai: "OpenAI",
+    claude: "Claude",
+    "product-ai": "Product AI",
+    mock: "Local"
+  };
+
+  return providerLabels[providerId] ?? providerId;
+}
+
+function isRawSchemaError(error?: string) {
+  const normalizedError = (error ?? "").toLowerCase();
+
+  return (
+    normalizedError.includes("recommendations[") ||
+    normalizedError.includes("must be a string") ||
+    normalizedError.includes("must be an array") ||
+    normalizedError.includes("is invalid") ||
+    normalizedError.includes("schema") ||
+    normalizedError.includes("validation")
+  );
+}
+
+function getFriendlyPtrAIErrorMessage({
+  error,
+  validationErrors,
+  locale
+}: {
+  error?: string;
+  validationErrors?: string[];
+  locale: Locale;
+}) {
+  if (validationErrors?.length) {
+    return getAIValidationUserMessage(validationErrors);
+  }
+
+  if (isRawSchemaError(error)) {
+    console.log(
+      JSON.stringify({
+        event: "ptr_ai_assistant_technical_error",
+        error
+      })
+    );
+
+    return locale === "vi"
+      ? "Kết quả AI chưa đạt yêu cầu. Vui lòng thử lại."
+      : "AI output did not meet quality requirements. Please try again.";
+  }
+
+  return locale === "vi"
+    ? "AI Assistant chưa tạo được đề xuất. Vui lòng thử lại."
+    : "AI Assistant could not create suggestions. Please try again.";
+}
+
 function isEmptyInteractionType(task: ProcessTask) {
   return !task.customerInteractionType || task.customerInteractionType === "None";
 }
@@ -687,6 +745,11 @@ export function ProcessTaskRegister() {
   const [isRunningPtrAI, setIsRunningPtrAI] = useState(false);
   const [ptrAIRetryAction, setPtrAIRetryAction] =
     useState<PtrAIAssistantActionId | null>(null);
+  const [realPtrAIEnabled, setRealPtrAIEnabled] = useState(false);
+  const [ptrAISelection, setPtrAISelection] = useState<{
+    providerId: string;
+    model: string;
+  } | null>(null);
   const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(() => new Set());
   const [columnMode, setColumnMode] = useState<ColumnMode>("simple");
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -761,6 +824,43 @@ export function ProcessTaskRegister() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    async function loadPtrAIMode() {
+      try {
+        const response = await fetch("/api/ai/run-skill", {
+          method: "GET"
+        });
+        const data = (await response.json()) as {
+          realAIEnabled?: boolean;
+        };
+        const selection = resolveAISkillModelSelection(
+          PTR_AI_ASSISTANT_SKILL_ID
+        );
+
+        if (active) {
+          setRealPtrAIEnabled(data.realAIEnabled === true);
+          setPtrAISelection({
+            providerId: selection.providerId,
+            model: selection.model
+          });
+        }
+      } catch {
+        if (active) {
+          setRealPtrAIEnabled(false);
+          setPtrAISelection(null);
+        }
+      }
+    }
+
+    loadPtrAIMode();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     function warnBeforeUnload(event: BeforeUnloadEvent) {
       if (saveState !== "unsaved") {
         return;
@@ -812,6 +912,14 @@ export function ProcessTaskRegister() {
   );
   const activeSampleProcess = getSampleProcess(selectedSampleProcessId);
   const text = ptrText[locale];
+  const ptrAIModeIndicator =
+    realPtrAIEnabled && ptrAISelection
+      ? locale === "vi"
+        ? `Sử dụng ${formatProviderLabel(ptrAISelection.providerId)} ${ptrAISelection.model}`
+        : `Using ${formatProviderLabel(ptrAISelection.providerId)} ${ptrAISelection.model}`
+      : locale === "vi"
+        ? "Phân tích cục bộ"
+        : "Local analysis";
   const saveStateStyles: Record<SaveState, string> = {
     saved: "status-badge status-badge-success",
     unsaved: "status-badge status-badge-warning",
@@ -941,9 +1049,11 @@ export function ProcessTaskRegister() {
         setPtrAiIssues([]);
         setPtrAIRetryAction(actionId);
         setSaveMessage(
-          data.validationErrors?.length
-            ? getAIValidationUserMessage(data.validationErrors)
-            : data.error ?? "PTR AI Assistant failed."
+          getFriendlyPtrAIErrorMessage({
+            error: data.error,
+            validationErrors: data.validationErrors,
+            locale
+          })
         );
         saveAuditLogEntry({
           action: "ai_call",
@@ -1017,7 +1127,11 @@ export function ProcessTaskRegister() {
     } catch {
       setPtrAiIssues([]);
       setPtrAIRetryAction(actionId);
-      setSaveMessage("PTR AI Assistant request failed. No change was applied.");
+      setSaveMessage(
+        locale === "vi"
+          ? "AI Assistant chưa tạo được đề xuất. Vui lòng thử lại."
+          : "AI Assistant could not create suggestions. Please try again."
+      );
       saveAuditLogEntry({
         action: "ai_call",
         status: "failure",
@@ -1625,19 +1739,24 @@ export function ProcessTaskRegister() {
                   </p>
                 </div>
                 <div className="relative flex flex-wrap gap-2">
-                  <button
-                    className="btn btn-ai"
-                    disabled={isRunningPtrAI || tasks.length === 0}
-                    onClick={() =>
-                      void runPtrAIAssistantAction(
-                        PTR_AI_DEFAULT_ACTION_ID,
-                        text.aiQaSuggest
-                      )
-                    }
-                    type="button"
-                  >
-                    {isRunningPtrAI ? text.aiRunning : text.aiQaSuggest}
-                  </button>
+                  <div className="flex flex-col">
+                    <button
+                      className="btn btn-ai"
+                      disabled={isRunningPtrAI || tasks.length === 0}
+                      onClick={() =>
+                        void runPtrAIAssistantAction(
+                          PTR_AI_DEFAULT_ACTION_ID,
+                          text.aiQaSuggest
+                        )
+                      }
+                      type="button"
+                    >
+                      {isRunningPtrAI ? text.aiRunning : text.aiQaSuggest}
+                    </button>
+                    <span className="mt-1 text-xs text-slate-500">
+                      {ptrAIModeIndicator}
+                    </span>
+                  </div>
                   <button
                     aria-label={text.aiMoreActions}
                     className="rounded border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-800 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"

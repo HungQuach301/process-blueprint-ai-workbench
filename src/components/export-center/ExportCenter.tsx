@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import JSZip from "jszip";
 import {
   exportAIRunHistoryJson,
@@ -12,7 +13,9 @@ import {
 import {
   confirmRealAICallIfNeeded,
   createAISkillRequestBody,
-  logAICallAudit
+  logAICallAudit,
+  readAIProviderSettings,
+  resolveAISkillModelSelection
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import {
@@ -203,6 +206,8 @@ type ExportCompareResult = {
   error?: string;
 };
 
+type ProductDeliveryActionStatus = "idle" | "generated" | "running" | "error";
+
 const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
   { id: "product-ai", label: "Product AI" },
   { id: "openai", label: "OpenAI" },
@@ -364,6 +369,13 @@ export function ExportCenter() {
   const [productDeliveryContext, setProductDeliveryContext] = useState("");
   const [productDeliveryNotes, setProductDeliveryNotes] = useState("");
   const [productDeliveryFileText, setProductDeliveryFileText] = useState("");
+  const [productDeliveryInputsOpen, setProductDeliveryInputsOpen] =
+    useState(false);
+  const [productDeliveryAIIndicator, setProductDeliveryAIIndicator] = useState(
+    "Phân tích cục bộ"
+  );
+  const [productDeliveryActionSuffix, setProductDeliveryActionSuffix] =
+    useState("(Local)");
   const [aiRunHistory, setAIRunHistory] = useState<AIRunRecord[]>([]);
   const [expandedAIRunId, setExpandedAIRunId] = useState<string | null>(null);
   const [compareModeEnabled, setCompareModeEnabled] = useState(false);
@@ -445,6 +457,31 @@ export function ExportCenter() {
     setRequirementQAPreview(null);
   }, [productDeliveryContext, productDeliveryNotes, productDeliveryFileText]);
 
+  useEffect(() => {
+    const settings = readAIProviderSettings();
+    const selection = resolveAISkillModelSelection("ptr-to-brd");
+    const usesRealAI =
+      settings.allowCloudAI &&
+      selection.providerId !== "mock" &&
+      selection.providerMode !== "no-ai" &&
+      selection.providerMode !== "local-model";
+    const providerLabel =
+      selection.providerId === "openai"
+        ? "OpenAI"
+        : selection.providerId === "claude"
+          ? "Claude"
+          : selection.providerId === "product-ai"
+            ? "Product AI"
+            : "Local";
+
+    setProductDeliveryAIIndicator(
+      usesRealAI
+        ? `Sử dụng ${providerLabel} ${selection.model}`
+        : "Phân tích cục bộ"
+    );
+    setProductDeliveryActionSuffix(usesRealAI ? "(AI)" : "(Local)");
+  }, []);
+
   const readiness = useMemo(
     () => ({
       d01Bpmn: d01Status,
@@ -459,6 +496,98 @@ export function ExportCenter() {
     }),
     [artifacts, d01Status, d02Status, exportPackageStatus]
   );
+
+  function getProductDeliveryActionStatus(
+    isRunning: boolean,
+    hasPreview: boolean,
+    hasError = false
+  ): ProductDeliveryActionStatus {
+    if (isRunning) {
+      return "running";
+    }
+
+    if (hasError && !hasPreview) {
+      return "error";
+    }
+
+    return hasPreview ? "generated" : "idle";
+  }
+
+  function renderProductDeliveryStatusBadge(
+    status: ProductDeliveryActionStatus
+  ) {
+    if (status === "running") {
+      return (
+        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+          Đang tạo
+        </span>
+      );
+    }
+
+    if (status === "error") {
+      return (
+        <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">
+          ❌ Lỗi
+        </span>
+      );
+    }
+
+    if (status === "generated") {
+      return (
+        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+          ✅ Đã tạo
+        </span>
+      );
+    }
+
+    return (
+      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600">
+        Chưa tạo
+      </span>
+    );
+  }
+
+  function renderProductDeliveryRow({
+    title,
+    actions,
+    status,
+    summary,
+    downloadAction,
+    downloadDisabled = false
+  }: {
+    title: string;
+    actions: ReactNode;
+    status: ProductDeliveryActionStatus;
+    summary?: string;
+    downloadAction?: ReactNode;
+    downloadDisabled?: boolean;
+  }) {
+    return (
+      <div className="grid gap-3 rounded border border-slate-200 bg-white p-3 lg:grid-cols-[9rem_minmax(0,1fr)_auto_auto] lg:items-center">
+        <div className="text-sm font-semibold text-slate-950">{title}</div>
+        <div className="flex flex-wrap gap-2">{actions}</div>
+        <div className="flex flex-wrap items-center gap-2">
+          {renderProductDeliveryStatusBadge(status)}
+          {summary ? (
+            <span className="text-xs font-medium text-slate-500">
+              {summary}
+            </span>
+          ) : null}
+        </div>
+        {downloadAction ? (
+          <div className="flex justify-start lg:justify-end">
+            <span
+              className={
+                downloadDisabled ? "pointer-events-none opacity-50" : undefined
+              }
+            >
+              {downloadAction}
+            </span>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   function logRouteAIRun({
     skillId,
@@ -2505,14 +2634,25 @@ export function ExportCenter() {
                 Apply: No auto-apply or auto-export
               </span>
             </div>
-            <details className="mt-4 rounded border border-indigo-200 bg-white/80">
-              <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-indigo-950">
-                Product Delivery generation inputs and controls
-                <span className="ml-2 text-xs font-normal text-indigo-700">
-                  Optional context, notes, provider compare, and draft generation
+            <p className="mt-3 text-xs font-medium text-slate-500">
+              {productDeliveryAIIndicator}
+            </p>
+            <div className="mt-4 rounded border border-indigo-200 bg-white/80">
+              <button
+                aria-expanded={productDeliveryInputsOpen}
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-semibold text-indigo-950"
+                onClick={() =>
+                  setProductDeliveryInputsOpen((isOpen) => !isOpen)
+                }
+                type="button"
+              >
+                <span>Thông tin bổ sung (tuỳ chọn)</span>
+                <span className="text-xs text-indigo-700">
+                  {productDeliveryInputsOpen ? "Thu gọn" : "Mở rộng"}
                 </span>
-              </summary>
-              <div className="border-t border-indigo-100 p-3">
+              </button>
+              {productDeliveryInputsOpen ? (
+                <div className="border-t border-indigo-100 p-3">
                 <div className="grid gap-3 md:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">
@@ -2548,142 +2688,282 @@ export function ExportCenter() {
                 />
               </label>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingBRD}
-                onClick={() => void generateBRDPreview("ptr-to-brd")}
-                type="button"
-              >
-                {isGeneratingBRD ? "Generating BRD..." : "Generate BRD from PTR"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingBRD}
-                onClick={() => void generateBRDPreview("notes-to-brd")}
-                type="button"
-              >
-                Generate BRD from Notes
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!brdPreview}
-                onClick={downloadBRDJson}
-                type="button"
-              >
-                Download BRD JSON
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingSRS}
-                onClick={() => void generateSRSPreview("brd-to-srs")}
-                type="button"
-              >
-                {isGeneratingSRS ? "Generating SRS..." : "Generate SRS from BRD/PTR"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingSRS}
-                onClick={() => void generateSRSPreview("notes-to-srs")}
-                type="button"
-              >
-                Generate SRS from Notes
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!srsPreview}
-                onClick={downloadSRSJson}
-                type="button"
-              >
-                Download SRS JSON
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingUserStories}
-                onClick={() => void generateUserStoryPreview("srs-to-user-stories")}
-                type="button"
-              >
-                {isGeneratingUserStories ? "Generating Stories..." : "Generate Stories from SRS"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingUserStories}
-                onClick={() => void generateUserStoryPreview("brd-to-user-stories")}
-                type="button"
-              >
-                Generate Stories from BRD
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!userStoryPreview}
-                onClick={downloadUserStoriesJson}
-                type="button"
-              >
-                Download Stories JSON
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingAcceptanceCriteria}
-                onClick={() => void generateAcceptanceCriteriaPreview()}
-                type="button"
-              >
-                {isGeneratingAcceptanceCriteria ? "Generating AC..." : "Generate Acceptance Criteria"}
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!acceptanceCriteriaPreview}
-                onClick={downloadAcceptanceCriteriaJson}
-                type="button"
-              >
-                Download AC JSON
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingProductScopeReview}
-                onClick={() => void generateProductScopeReviewPreview("product-scope-review")}
-                type="button"
-              >
-                {isGeneratingProductScopeReview ? "Reviewing Scope..." : "Review Product Scope"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingProductScopeReview}
-                onClick={() => void generateProductScopeReviewPreview("mvp-slicing")}
-                type="button"
-              >
-                Generate MVP Slicing
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!productScopeReviewPreview}
-                onClick={downloadProductScopeReviewJson}
-                type="button"
-              >
-                Download Scope JSON
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                disabled={isGeneratingRequirementQA}
-                onClick={() => void generateRequirementQAPreview()}
-                type="button"
-              >
-                {isGeneratingRequirementQA ? "Running Requirement QA..." : "Run Requirement QA"}
-              </button>
-              <button
-                className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={previewProductDeliveryDraft}
-                type="button"
-              >
-                Generate Product Delivery Draft
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={!productDeliveryDraft}
-                onClick={downloadProductDeliveryMarkdown}
-                type="button"
-              >
-                Download Product Delivery Markdown
-              </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-4 space-y-2">
+              {renderProductDeliveryRow({
+                title: "BRD",
+                status: getProductDeliveryActionStatus(
+                  isGeneratingBRD,
+                  Boolean(brdPreview),
+                  aiRetryAction === "brd-ptr" || aiRetryAction === "brd-notes"
+                ),
+                summary: brdPreview
+                  ? `${brdPreview.brd.businessRequirements.length} business requirements generated`
+                  : undefined,
+                actions: (
+                  <>
+                    <button
+                      className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      disabled={isGeneratingBRD}
+                      onClick={() => void generateBRDPreview("ptr-to-brd")}
+                      type="button"
+                    >
+                      {isGeneratingBRD
+                        ? "Generating BRD..."
+                        : `Generate BRD from PTR ${productDeliveryActionSuffix}`}
+                    </button>
+                    <button
+                      className="rounded border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      disabled={isGeneratingBRD}
+                      onClick={() => void generateBRDPreview("notes-to-brd")}
+                      type="button"
+                    >
+                      Generate BRD from Notes {productDeliveryActionSuffix}
+                    </button>
+                  </>
+                ),
+                downloadAction: (
+                  <button
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={!brdPreview}
+                    onClick={downloadBRDJson}
+                    type="button"
+                  >
+                    JSON ▼
+                  </button>
+                )
+              })}
+              {renderProductDeliveryRow({
+                title: "SRS",
+                status: getProductDeliveryActionStatus(
+                  isGeneratingSRS,
+                  Boolean(srsPreview),
+                  aiRetryAction === "srs-brd" || aiRetryAction === "srs-notes"
+                ),
+                summary: srsPreview
+                  ? `${
+                      srsPreview.srs.functionalRequirements.length +
+                      srsPreview.srs.nonFunctionalRequirements.length
+                    } requirements generated`
+                  : undefined,
+                actions: (
+                  <>
+                    <button
+                      className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      disabled={isGeneratingSRS}
+                      onClick={() => void generateSRSPreview("brd-to-srs")}
+                      type="button"
+                    >
+                      {isGeneratingSRS
+                        ? "Generating SRS..."
+                        : `Generate SRS from BRD/PTR ${productDeliveryActionSuffix}`}
+                    </button>
+                    <button
+                      className="rounded border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      disabled={isGeneratingSRS}
+                      onClick={() => void generateSRSPreview("notes-to-srs")}
+                      type="button"
+                    >
+                      Generate SRS from Notes {productDeliveryActionSuffix}
+                    </button>
+                  </>
+                ),
+                downloadAction: (
+                  <button
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={!srsPreview}
+                    onClick={downloadSRSJson}
+                    type="button"
+                  >
+                    JSON ▼
+                  </button>
+                )
+              })}
+              {renderProductDeliveryRow({
+                title: "User Stories",
+                status: getProductDeliveryActionStatus(
+                  isGeneratingUserStories,
+                  Boolean(userStoryPreview),
+                  aiRetryAction === "stories-srs" ||
+                    aiRetryAction === "stories-brd"
+                ),
+                summary: userStoryPreview
+                  ? `${userStoryPreview.userStorySet.stories.length} user stories generated`
+                  : undefined,
+                actions: (
+                  <>
+                    <button
+                      className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      disabled={isGeneratingUserStories}
+                      onClick={() =>
+                        void generateUserStoryPreview("srs-to-user-stories")
+                      }
+                      type="button"
+                    >
+                      {isGeneratingUserStories
+                        ? "Generating Stories..."
+                        : `Generate Stories from SRS ${productDeliveryActionSuffix}`}
+                    </button>
+                    <button
+                      className="rounded border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      disabled={isGeneratingUserStories}
+                      onClick={() =>
+                        void generateUserStoryPreview("brd-to-user-stories")
+                      }
+                      type="button"
+                    >
+                      Generate Stories from BRD {productDeliveryActionSuffix}
+                    </button>
+                  </>
+                ),
+                downloadAction: (
+                  <button
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={!userStoryPreview}
+                    onClick={downloadUserStoriesJson}
+                    type="button"
+                  >
+                    JSON ▼
+                  </button>
+                )
+              })}
+              {renderProductDeliveryRow({
+                title: "AC",
+                status: getProductDeliveryActionStatus(
+                  isGeneratingAcceptanceCriteria,
+                  Boolean(acceptanceCriteriaPreview),
+                  aiRetryAction === "acceptance-criteria"
+                ),
+                summary: acceptanceCriteriaPreview
+                  ? `${acceptanceCriteriaPreview.acceptanceCriteria.criteria.length} acceptance criteria generated`
+                  : undefined,
+                actions: (
+                  <button
+                    className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    disabled={isGeneratingAcceptanceCriteria}
+                    onClick={() => void generateAcceptanceCriteriaPreview()}
+                    type="button"
+                  >
+                    {isGeneratingAcceptanceCriteria
+                      ? "Generating AC..."
+                      : `Generate Acceptance Criteria ${productDeliveryActionSuffix}`}
+                  </button>
+                ),
+                downloadAction: (
+                  <button
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={!acceptanceCriteriaPreview}
+                    onClick={downloadAcceptanceCriteriaJson}
+                    type="button"
+                  >
+                    JSON ▼
+                  </button>
+                )
+              })}
+              {renderProductDeliveryRow({
+                title: "Scope",
+                status: getProductDeliveryActionStatus(
+                  isGeneratingProductScopeReview,
+                  Boolean(productScopeReviewPreview),
+                  aiRetryAction === "scope-review" ||
+                    aiRetryAction === "mvp-slicing"
+                ),
+                summary: productScopeReviewPreview
+                  ? `${productScopeReviewPreview.scopeReview.inScope.length} in scope / ${productScopeReviewPreview.scopeReview.outOfScope.length} out of scope`
+                  : undefined,
+                actions: (
+                  <>
+                    <button
+                      className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      disabled={isGeneratingProductScopeReview}
+                      onClick={() =>
+                        void generateProductScopeReviewPreview(
+                          "product-scope-review"
+                        )
+                      }
+                      type="button"
+                    >
+                      {isGeneratingProductScopeReview
+                        ? "Reviewing Scope..."
+                        : `Review Product Scope ${productDeliveryActionSuffix}`}
+                    </button>
+                    <button
+                      className="rounded border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                      disabled={isGeneratingProductScopeReview}
+                      onClick={() =>
+                        void generateProductScopeReviewPreview("mvp-slicing")
+                      }
+                      type="button"
+                    >
+                      Generate MVP Slicing {productDeliveryActionSuffix}
+                    </button>
+                  </>
+                ),
+                downloadAction: (
+                  <button
+                    className="rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    disabled={!productScopeReviewPreview}
+                    onClick={downloadProductScopeReviewJson}
+                    type="button"
+                  >
+                    JSON ▼
+                  </button>
+                )
+              })}
+              {renderProductDeliveryRow({
+                title: "QA",
+                status: getProductDeliveryActionStatus(
+                  isGeneratingRequirementQA,
+                  Boolean(requirementQAPreview),
+                  aiRetryAction === "requirement-qa"
+                ),
+                summary: requirementQAPreview
+                  ? `${requirementQAPreview.requirementQA.findings.length} findings / ${requirementQAPreview.requirementQA.recommendations.length} recommendations`
+                  : undefined,
+                actions: (
+                  <button
+                    className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    disabled={isGeneratingRequirementQA}
+                    onClick={() => void generateRequirementQAPreview()}
+                    type="button"
+                  >
+                    {isGeneratingRequirementQA
+                      ? "Running Requirement QA..."
+                      : `Run Requirement QA ${productDeliveryActionSuffix}`}
+                  </button>
+                )
+              })}
+              {renderProductDeliveryRow({
+                title: "Package",
+                status: getProductDeliveryActionStatus(
+                  false,
+                  Boolean(productDeliveryDraft)
+                ),
+                summary: productDeliveryDraft
+                  ? `${productDeliveryDraft.draft.userStorySet.stories.length} stories packaged`
+                  : undefined,
+                actions: (
+                  <>
+                    <button
+                      className="rounded bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                      onClick={previewProductDeliveryDraft}
+                      type="button"
+                    >
+                      Generate Product Delivery Draft
+                    </button>
+                    <button
+                      className="rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      disabled={!productDeliveryDraft}
+                      onClick={downloadProductDeliveryMarkdown}
+                      type="button"
+                    >
+                      Markdown ▼
+                    </button>
+                  </>
+                )
+              })}
             </div>
             <div className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -2845,8 +3125,6 @@ export function ExportCenter() {
                 ))}
               </div>
             ) : null}
-                </div>
-            </details>
           </div>
 
           <div className="rounded border border-slate-200 bg-slate-50 p-3">

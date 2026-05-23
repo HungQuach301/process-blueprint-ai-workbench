@@ -27,6 +27,7 @@ export function AppShell() {
     (section) =>
       section.id === "d01-bpmn-preview" ||
       section.id === "d02-service-blueprint-preview" ||
+      section.id === "product-delivery-workspace" ||
       section.id === "export-center"
   ).length;
   const headerText = {

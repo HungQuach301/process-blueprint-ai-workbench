@@ -24,9 +24,13 @@ Complete Module 2 + Module 3 with full real AI support.
 - Merged the two Input Brief generation buttons into one primary bottom CTA: `Tạo bảng quy trình` / `Generate Process Register`; it uses real AI when enabled and falls back to the existing local deterministic Draft PTR generation when real AI is disabled.
 - Simplified Process Task Register AI actions into one primary `Kiểm tra & Đề xuất` / `AI QA & Suggest` button plus a smaller `...` menu for advanced AI actions; the primary action now runs on selected rows or the whole PTR when nothing is selected.
 - Updated QA Panel so the top toolbar always shows `Kiểm tra & Đề xuất` / `Run QA & Suggestions`, plus prominent `Apply All Safe` and `Apply Selected (X)` actions while preserving preview/confirmation apply behavior and existing filters/provider compare controls.
+- Refined QA Panel AI/local status display with a small model/source indicator under `Kiểm tra & Đề xuất`, clearer `Run Rule Check` wording for deterministic findings, source badges for Findings and Recommendations, and a non-blocking friendly message when AI suggestions cannot be generated.
 - Moved Chat/Notes from the Manual Input area into its own Input Brief tab beside Manual Input, Import File, and Voice Input; the main `Tạo bảng quy trình` / `Generate Process Register` button now routes to manual brief, file intake, or chat notes based on the active tab.
+- Refined Input Brief file/chat/status UX: the long provider/data-processing sentence is now a compact AI chip with details on the Generate button tooltip, Import File refresh wording is friendlier, file MIME types render as human-readable labels, and the Chat/Notes textarea is explicitly sized for notes entry.
 - Simplified Template Hub cards so the default list shows only template name, BPMN/Service Blueprint badge, domain/process/scope summary, and Preview/Use actions; full version/status/fields/tags/rules remain available in Preview.
+- Reduced Template Hub prominence in the sidebar by grouping navigation into Process Modeling, Outputs, and Settings; Template Hub now sits with AI Connection Center under Settings, while Product Delivery appears under Outputs.
 - Updated AI Connection Center Advanced Settings to select concrete models per provider and per core skill, saving non-secret model preferences to localStorage and passing the resolved model to `/api/ai/run-skill` across route-backed AI calls including Input Brief, Process QA, PTR AI Assistant, Template Review, Artifact Review, and Product Delivery generation.
+- Cleaned up AI Connection Center so unconfigured cloud provider cards are hidden, Local analysis always remains visible, the four-column status summary is replaced by one readiness badge, Advanced Settings no longer shows technical diagnostics or feature-flag dumps, and per-skill provider/model overrides now cover Registry V2 real-ai-ready provider-backed skills.
 - Moved Input Brief Save/Reset/Generate actions out of the top header into a sticky bottom action bar, keeping Save/Reset on the left and the primary Generate action on the right without changing button behavior.
 - Preserved AI route behavior, schema validation, normalizer logic, provider behavior, prompt packs, recommendation preview/apply behavior, dependencies, and existing audit metadata.
 - Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
@@ -570,6 +574,8 @@ Complete Module 2 + Module 3 with full real AI support.
 - Product AI, OpenAI, Claude, and Mock share the same normalized response shape.
 - Product AI and Claude are now implemented as server-side adapters, but still require real environment configuration and provider contract testing before production use.
 - Product Delivery BRD, SRS, story, criteria, scope/MVP, and AI Coding Pack flows are now route-backed real-ai-ready, preview/export only.
+- Product Delivery Workspace UI is now organized by artifact row (BRD, SRS, Stories, AC, Scope, QA, Package) with small download actions, AI/local indicators, collapsed optional inputs, and generated-count summaries.
+- Process Task Register AI Assistant now hides raw schema/validation dumps behind console technical logs, shows a retryable friendly failure message, and displays the active AI/local mode under the main AI QA & Suggest button.
 - MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
 - The active planning branch is now `feature/m2-m3-full-ai`.
 - The release target is now `v0.8.0-mvp1-ai`.

@@ -164,7 +164,7 @@ const inputBriefUiText = {
     fileIntakeHelper: "File được xử lý local để tạo draft PTR preview trước khi Apply.",
     clearFiles: "Xóa file",
     selectLocalFiles: "Chọn file local",
-    reselectAfterRefresh: "Vui lòng chọn lại file sau khi refresh trình duyệt để thực hiện trích xuất.",
+    reselectAfterRefresh: "File đã được xử lý. Chọn lại file nếu cần cập nhật.",
     fileName: "Tên file",
     type: "Loại",
     size: "Dung lượng",
@@ -209,7 +209,7 @@ const inputBriefUiText = {
     nextStep: "Next step",
     clearFiles: "Clear files",
     selectLocalFiles: "Select local files",
-    reselectAfterRefresh: "Please select the file again after browser refresh to run extraction.",
+    reselectAfterRefresh: "File processed. Select again to re-extract.",
     fileName: "File name",
     type: "Type",
     size: "Size",
@@ -590,6 +590,38 @@ function formatLastModified(lastModified: number) {
   return new Date(lastModified).toLocaleString();
 }
 
+function getFileExtension(fileName: string) {
+  const extensionMatch = fileName.match(/\.([a-z0-9]+)$/i);
+
+  return extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : "";
+}
+
+function formatFriendlyFileType(file: Pick<IntakeFileMetadata, "fileName" | "fileType">) {
+  const fileType = file.fileType.toLowerCase();
+  const extension = getFileExtension(file.fileName);
+  const fileTypeLabels: Record<string, string> = {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+      "Excel (.xlsx)",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      "Word (.docx)",
+    "application/pdf": "PDF",
+    "text/csv": "CSV"
+  };
+
+  return fileTypeLabels[fileType] ?? (extension ? extension.toUpperCase() : file.fileType || "-");
+}
+
+function formatProviderLabel(provider: string) {
+  const providerLabels: Record<string, string> = {
+    openai: "OpenAI",
+    claude: "Claude",
+    "product-ai": "Product AI",
+    mock: "Local analysis"
+  };
+
+  return providerLabels[provider] ?? provider;
+}
+
 function splitBriefLines(value: string) {
   return value
     .split(/\r?\n/)
@@ -682,10 +714,13 @@ export function AIInputBriefPanel() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
   const [aiProvider, setAiProvider] = useState("mock");
+  const [aiModel, setAiModel] = useState("");
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
   const [draftRetryAction, setDraftRetryAction] =
     useState<DraftRetryAction | null>(null);
+  const labels = previewLabels[locale];
+  const uiText = inputBriefUiText[locale];
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -762,16 +797,19 @@ export function AIInputBriefPanel() {
         const data = (await response.json()) as {
           realAIEnabled?: boolean;
           provider?: string;
+          model?: string;
         };
 
         if (active) {
           setRealAIEnabled(data.realAIEnabled === true);
           setAiProvider(data.provider ?? "mock");
+          setAiModel(data.model ?? "");
         }
       } catch {
         if (active) {
           setRealAIEnabled(false);
           setAiProvider("mock");
+          setAiModel("");
         }
       } finally {
         if (active) {
@@ -826,6 +864,21 @@ export function AIInputBriefPanel() {
     ],
     [brief, locale]
   );
+  const aiProviderLabel = formatProviderLabel(aiProvider);
+  const aiModeLabel = aiModeLoaded
+    ? realAIEnabled
+      ? `AI: ${aiProviderLabel}`
+      : "AI: Local analysis"
+    : uiText.checkingAIMode;
+  const generateTooltip = aiModeLoaded
+    ? realAIEnabled
+      ? locale === "vi"
+        ? `Sử dụng ${aiProviderLabel}${aiModel ? ` ${aiModel}` : ""}`
+        : `Using ${aiProviderLabel}${aiModel ? ` ${aiModel}` : ""}`
+      : locale === "vi"
+        ? "Sử dụng Local analysis"
+        : "Using Local analysis"
+    : uiText.checkingAIMode;
   const completedRequiredFieldCount = requiredBriefFieldStatus.filter(
     (field) => field.complete
   ).length;
@@ -1948,9 +2001,6 @@ export function AIInputBriefPanel() {
     () => (draftMeta ? createSourceCoverageAdvisory(draftMeta) : null),
     [draftMeta]
   );
-  const labels = previewLabels[locale];
-  const uiText = inputBriefUiText[locale];
-
   function renderBriefField(field: BriefField) {
     const { options, otherText, selectedOptions } = getFieldSelection(field);
     const isOtherSelected = selectedOptions.includes(OTHER_OPTION_LABEL);
@@ -2094,6 +2144,7 @@ export function AIInputBriefPanel() {
             className="mt-3 min-h-64 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
             onChange={(event) => setChatNotes(event.target.value)}
             placeholder={uiText.chatNotesPlaceholder}
+            rows={8}
             value={chatNotes}
           />
         </div>
@@ -2182,7 +2233,9 @@ export function AIInputBriefPanel() {
                     <td className="max-w-72 truncate px-3 py-2 font-medium text-slate-900">
                       {file.fileName}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{file.fileType}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                      {formatFriendlyFileType(file)}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2 text-slate-600">
                       {formatFileSize(file.fileSize)}
                     </td>
@@ -2443,6 +2496,7 @@ export function AIInputBriefPanel() {
             className="btn btn-ai px-5 py-3 text-base shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
             disabled={isGeneratingWithAI}
             onClick={generateProcessRegister}
+            title={generateTooltip}
             type="button"
           >
             {isGeneratingWithAI ? uiText.generating : uiText.generateProcessRegister}
@@ -2455,12 +2509,11 @@ export function AIInputBriefPanel() {
           {filledFieldCount}/5{" "}
           {t("inputBrief.sectionsFilled", locale)}
         </span>
-        <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
-          {aiModeLoaded
-            ? realAIEnabled
-              ? `${uiText.realAIMode}: ${aiProvider}. ${uiText.cloudWarning}`
-              : uiText.mockMode
-            : uiText.checkingAIMode}
+        <span
+          className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-500"
+          title={generateTooltip}
+        >
+          {aiModeLabel}
         </span>
         {message ? (
           <span className="flex flex-wrap items-center gap-2">

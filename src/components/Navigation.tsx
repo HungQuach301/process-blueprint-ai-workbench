@@ -21,32 +21,41 @@ const navKeyBySectionId: Partial<Record<NavigationSection["id"], TranslationKey>
   "export-center": "nav.exportCenter"
 };
 
+const fallbackLabelBySectionId: Record<string, Record<Locale, string>> = {
+  "product-delivery-workspace": {
+    vi: "Product Delivery",
+    en: "Product Delivery"
+  }
+};
+
 const helperByLocale: Record<Locale, string> = {
   vi: "Khu vực làm việc",
   en: "Navigation sections"
 };
 
-const groupLabels: Record<Locale, Record<"setup" | "modeling" | "outputs", string>> = {
+const groupLabels: Record<Locale, Record<"modeling" | "outputs" | "settings", string>> = {
   vi: {
-    setup: "Thiết lập",
-    modeling: "Mô hình quy trình",
-    outputs: "Đầu ra"
+    modeling: "Quy trình",
+    outputs: "Outputs",
+    settings: "Cấu hình"
   },
   en: {
-    setup: "Setup",
     modeling: "Process modeling",
-    outputs: "Outputs"
+    outputs: "Outputs",
+    settings: "Settings"
   }
 };
 
 const groupBySectionId: Record<string, keyof typeof groupLabels.en> = {
-  "ai-settings": "setup",
   "input-brief": "modeling",
-  "template-library": "modeling",
   "process-task-register": "modeling",
+  "qa-panel": "modeling",
   "d01-bpmn-preview": "outputs",
   "d02-service-blueprint-preview": "outputs",
-  "export-center": "outputs"
+  "product-delivery-workspace": "outputs",
+  "export-center": "outputs",
+  "ai-settings": "settings",
+  "template-library": "settings"
 };
 
 export function Navigation({ locale, sections }: NavigationProps) {
@@ -95,7 +104,7 @@ export function Navigation({ locale, sections }: NavigationProps) {
       </div>
 
       <nav aria-label="Workbench sections">
-        {(["setup", "modeling", "outputs"] as const).map((group) => {
+        {(["modeling", "outputs", "settings"] as const).map((group) => {
           const groupSections = groupedSections[group] ?? [];
 
           if (groupSections.length === 0) {
@@ -104,13 +113,14 @@ export function Navigation({ locale, sections }: NavigationProps) {
 
           return (
             <div className="mb-5 last:mb-0" key={group}>
-              <p className="mb-2 px-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wide text-slate-500">
                 {groupLabels[locale][group]}
               </p>
               <ol className="space-y-1">
                 {groupSections.map((section) => {
                   const navKey = navKeyBySectionId[section.id];
                   const isActive = activeSectionId === section.id;
+                  const fallbackLabel = fallbackLabelBySectionId[section.id]?.[locale];
 
                   return (
                     <li key={section.id}>
@@ -123,7 +133,7 @@ export function Navigation({ locale, sections }: NavigationProps) {
                         href={`#${section.id}`}
                         onClick={() => setActiveSectionId(section.id)}
                       >
-                        {navKey ? t(navKey, locale) : section.label}
+                        {fallbackLabel ?? (navKey ? t(navKey, locale) : section.label)}
                       </a>
                     </li>
                   );

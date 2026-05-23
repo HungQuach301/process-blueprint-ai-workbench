@@ -473,11 +473,16 @@ function TemplateSummary({ draft }: { draft: TemplateDraft }) {
 }
 
 function getTemplateOutputBadgeLabel(outputType: string) {
-  if (outputType === "bpmn") {
+  const normalizedOutputType = outputType.toLowerCase();
+
+  if (normalizedOutputType === "bpmn") {
     return "BPMN";
   }
 
-  if (outputType === "serviceBlueprint") {
+  if (
+    normalizedOutputType === "serviceblueprint" ||
+    normalizedOutputType === "service blueprint"
+  ) {
     return "Service Blueprint";
   }
 
@@ -485,11 +490,16 @@ function getTemplateOutputBadgeLabel(outputType: string) {
 }
 
 function getTemplateOutputBadgeClass(outputType: string) {
-  if (outputType === "bpmn") {
+  const normalizedOutputType = outputType.toLowerCase();
+
+  if (normalizedOutputType === "bpmn") {
     return "border-blue-200 bg-blue-50 text-blue-800";
   }
 
-  if (outputType === "serviceBlueprint") {
+  if (
+    normalizedOutputType === "serviceblueprint" ||
+    normalizedOutputType === "service blueprint"
+  ) {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
   }
 

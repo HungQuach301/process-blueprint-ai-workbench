@@ -19,7 +19,7 @@ export const defaultAIProviderSettings: AIProviderSettings = {
   defaultModelCapability: "basic",
   allowCloudAI: false,
   requireApprovalForAIOutput: true,
-  defaultModelName: "local-mock",
+  defaultModelName: "local-rules",
   modelName: "",
   organizationId: "",
   tenantId: ""
@@ -27,29 +27,78 @@ export const defaultAIProviderSettings: AIProviderSettings = {
 
 export type ServerAIProviderId = "product-ai" | "openai" | "claude" | "mock";
 
+export const PROVIDER_MODELS: Record<
+  string,
+  Array<{ id: string; label: string; default?: boolean }>
+> = {
+  "product-ai": [
+    { id: "product-ai-default", label: "Product AI default", default: true }
+  ],
+  openai: [
+    { id: "gpt-4.1-mini", label: "GPT-4.1 Mini (nhanh, re)", default: true },
+    { id: "gpt-4.1", label: "GPT-4.1 (can bang)" },
+    { id: "gpt-4o", label: "GPT-4o (manh)" },
+    { id: "o4-mini", label: "o4-mini (reasoning)" }
+  ],
+  claude: [
+    {
+      id: "claude-sonnet-4-20250514",
+      label: "Claude Sonnet 4 (can bang)",
+      default: true
+    },
+    { id: "claude-opus-4-20250514", label: "Claude Opus 4 (manh nhat)" }
+  ],
+  gemini: [
+    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash (nhanh)", default: true },
+    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro (manh)" }
+  ],
+  local: [{ id: "local-rules", label: "Local Rules Engine", default: true }]
+};
+
+function getProviderModelKey(providerMode: ModelProvider) {
+  if (providerMode === "product-ai") {
+    return "product-ai";
+  }
+
+  if (providerMode === "openai-byok" || providerMode === "azure-openai") {
+    return "openai";
+  }
+
+  if (providerMode === "claude-byok") {
+    return "claude";
+  }
+
+  return "local";
+}
+
 export const aiModelOptionsByProvider: Record<
   ModelProvider,
   Array<{ value: string; label: string }>
 > = {
-  "product-ai": [{ value: "product-ai-default", label: "product-ai-default" }],
-  "openai-byok": [
-    { value: "gpt-4.1-mini", label: "gpt-4.1-mini" },
-    { value: "gpt-4.1", label: "gpt-4.1" },
-    { value: "gpt-4o", label: "gpt-4o" },
-    { value: "gpt-5.5", label: "gpt-5.5" }
-  ],
-  "claude-byok": [
-    { value: "claude-sonnet-4", label: "claude-sonnet-4" },
-    { value: "claude-opus-4", label: "claude-opus-4" }
-  ],
-  "azure-openai": [
-    { value: "gpt-4.1-mini", label: "gpt-4.1-mini" },
-    { value: "gpt-4.1", label: "gpt-4.1" },
-    { value: "gpt-4o", label: "gpt-4o" },
-    { value: "gpt-5.5", label: "gpt-5.5" }
-  ],
-  "local-model": [{ value: "local-mock", label: "local-mock" }],
-  "no-ai": [{ value: "local-mock", label: "local-mock" }]
+  "product-ai": PROVIDER_MODELS["product-ai"].map((model) => ({
+    value: model.id,
+    label: model.label
+  })),
+  "openai-byok": PROVIDER_MODELS.openai.map((model) => ({
+    value: model.id,
+    label: model.label
+  })),
+  "claude-byok": PROVIDER_MODELS.claude.map((model) => ({
+    value: model.id,
+    label: model.label
+  })),
+  "azure-openai": PROVIDER_MODELS.openai.map((model) => ({
+    value: model.id,
+    label: model.label
+  })),
+  "local-model": PROVIDER_MODELS.local.map((model) => ({
+    value: model.id,
+    label: model.label
+  })),
+  "no-ai": PROVIDER_MODELS.local.map((model) => ({
+    value: model.id,
+    label: model.label
+  }))
 };
 
 const modelProviders: ModelProvider[] = [
@@ -160,7 +209,14 @@ export function readAIProviderSettings(): AIProviderSettings {
 }
 
 export function getDefaultModelForProvider(providerMode: ModelProvider) {
-  return aiModelOptionsByProvider[providerMode][0]?.value ?? "local-mock";
+  const providerModelKey = getProviderModelKey(providerMode);
+  const modelOptions = PROVIDER_MODELS[providerModelKey] ?? PROVIDER_MODELS.local;
+
+  return (
+    modelOptions.find((model) => model.default)?.id ??
+    modelOptions[0]?.id ??
+    "local-rules"
+  );
 }
 
 export function getModelOptionsForProvider(providerMode: ModelProvider) {

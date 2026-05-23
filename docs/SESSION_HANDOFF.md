@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added schema/eval smoke tests for `process-improvement-recommendation` and `artifact-review`.
+- Created `evals/process-improvement-recommendation/dataset.json` and `run-eval.ts` with 3 cases covering missing ownership, missing input/output, and complex task split recommendations.
+- Created `evals/artifact-review/dataset.json` and `run-eval.ts` with 3 review-only artifact cases covering BPMN, Service Blueprint, and QA issue context.
+- Added npm scripts `test:eval:process-improvement` and `test:eval:artifact-review`; both default to `EVAL_PROVIDER_ID=mock` unless overridden.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran existing `npm run test:eval`; it executed the input-brief eval runner but failed because `http://localhost:3000/api/ai/run-skill` was not running in this shell.
 - Added OpenAI json_schema structured output support for `artifact-review`.
 - Created `src/lib/ai/output-schemas/artifact-review-output-schema.ts` with strict top-level `{ recommendations, templateRecommendations, artifactWarnings, assumptions, openQuestions }` output and `additionalProperties: false`.
 - Kept artifact review changes routed through PTR recommendations, template recommendations, or artifact warnings; the schema does not allow regenerated BPMN/draw.io XML or direct XML patch fields.

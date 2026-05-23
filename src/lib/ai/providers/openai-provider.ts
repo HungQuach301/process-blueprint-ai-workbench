@@ -6,7 +6,6 @@ import {
   type AIProviderAdapter,
   type AIProviderResponse
 } from "@/lib/ai/providers/provider-types";
-import { DRAFT_PTR_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/draft-ptr-output-schema";
 import { findProviderModel } from "@/lib/ai/provider-model-catalog";
 import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
 
@@ -14,9 +13,6 @@ type OpenAIProviderOptions = {
   apiKey: string;
   model: string;
 };
-
-const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
-const DRAFT_PTR_SCHEMA_NAME = "draft_process_task_register";
 
 function modelLikelySupportsReasoningEffort(model: string) {
   const modelMetadata = findProviderModel("openai-byok", model);
@@ -50,18 +46,19 @@ export function createOpenAIProvider(
 
       const requestId = request.requestId ?? createRequestId("openai");
       const startedAt = Date.now();
-      const useStructuredOutput =
-        request.skillId === INPUT_BRIEF_TO_PTR_SKILL_ID &&
-        request.supportsStructuredOutput === true;
+      const structuredOutputSchema =
+        request.supportsStructuredOutput === true
+          ? request.structuredOutputSchema
+          : undefined;
       const runtimeWarnings: string[] = [];
       const runtimeOptions = request.runtimeOptions ?? {};
       const text: Record<string, unknown> = {};
 
-      if (useStructuredOutput) {
+      if (structuredOutputSchema) {
         text.format = {
           type: "json_schema",
-          name: DRAFT_PTR_SCHEMA_NAME,
-          schema: DRAFT_PTR_OUTPUT_SCHEMA,
+          name: structuredOutputSchema.name,
+          schema: structuredOutputSchema.schema,
           strict: true
         };
       }
@@ -133,14 +130,14 @@ export function createOpenAIProvider(
         );
       }
 
-      if (useStructuredOutput) {
+      if (structuredOutputSchema) {
         console.log(
           JSON.stringify({
             event: "structured_output_mode",
             skillId: request.skillId,
             provider: "openai",
             mode: "json_schema",
-            schemaName: DRAFT_PTR_SCHEMA_NAME
+            schemaName: structuredOutputSchema.name
           })
         );
       }

@@ -16,6 +16,11 @@ export type AIProviderRuntimeOptions = {
   temperature?: number;
 };
 
+export type AIProviderStructuredOutputSchema = {
+  name: string;
+  schema: unknown;
+};
+
 export type AIModelRequest = {
   skillId: string;
   payload: unknown;
@@ -23,6 +28,7 @@ export type AIModelRequest = {
   messages?: AIModelMessage[];
   requestId?: string;
   supportsStructuredOutput?: boolean;
+  structuredOutputSchema?: AIProviderStructuredOutputSchema;
   runtimeOptions?: AIProviderRuntimeOptions;
 };
 

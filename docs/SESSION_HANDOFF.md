@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added `docs/STRUCTURED_OUTPUT_SCHEMA_AUDIT.md` as the Bài 3 Structured Output & Schema Engineering audit for `process-improvement-recommendation` and `artifact-review`.
+- Audited the existing `input-brief-to-ptr` json_schema pattern, current route structured-output gate, `QARecommendation` operation risks, `TemplateRecommendation` validation risks, shared schema fragments, artifact-review split direction, and exact next implementation plan.
+- Kept this schema audit slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
 - Added `docs/AI_ORCHESTRATOR_LESSON_02_HANDOFF.md` to summarize Bài 2 AI Skill Design, including lessons learned, product findings, skill design decisions, eval implications, Bài 3 entry criteria, and exact next implementation tasks.
 - Marked the Bài 2 documentation set as complete: contract matrix, design review, redesign plan, and lesson handoff now exist for the next AI Orchestrator implementation slice.
 - Kept this handoff slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
@@ -621,6 +624,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - `docs/AI_SKILL_DESIGN_REVIEW.md` is now the focused reviewer baseline for the next three AI skill decisions: input brief semantic quality, process recommendation schema, and artifact review split.
 - `docs/AI_SKILL_REDESIGN_PLAN.md` is now the implementation plan for the two failing skills and should be followed before changing route, prompt packs, or output schemas.
 - `docs/AI_ORCHESTRATOR_LESSON_02_HANDOFF.md` is now the lesson-level handoff for Bài 2 and the entry checklist for Bài 3.
+- `docs/STRUCTURED_OUTPUT_SCHEMA_AUDIT.md` is now the Bài 3 schema audit baseline for implementing `QA_RECOMMENDATION_OUTPUT_SCHEMA` and `ARTIFACT_REVIEW_OUTPUT_SCHEMA`.
 
 ## Current blockers
 
@@ -639,7 +643,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Next recommended task
 
-Start Bài 3 from `docs/AI_ORCHESTRATOR_LESSON_02_HANDOFF.md` and `docs/AI_SKILL_REDESIGN_PLAN.md`: add `QA_RECOMMENDATION_OUTPUT_SCHEMA`, wire OpenAI json_schema for `process-improvement-recommendation`, add evals, then add/narrow `ARTIFACT_REVIEW_OUTPUT_SCHEMA` and artifact review evals.
+Start Bài 3 implementation from `docs/STRUCTURED_OUTPUT_SCHEMA_AUDIT.md` and `docs/AI_SKILL_REDESIGN_PLAN.md`: add `QA_RECOMMENDATION_OUTPUT_SCHEMA`, add `ARTIFACT_REVIEW_OUTPUT_SCHEMA`, wire OpenAI json_schema selection through a route schema resolver, then add evals and provider-backed smoke tests.
 
 ## Exact prompt for next ChatGPT session
 

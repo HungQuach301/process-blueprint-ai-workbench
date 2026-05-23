@@ -62,6 +62,7 @@ import {
   type AIProviderStructuredOutputSchema
 } from "@/lib/ai/providers/provider-types";
 import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
+import { ARTIFACT_REVIEW_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/artifact-review-output-schema";
 import { DRAFT_PTR_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/draft-ptr-output-schema";
 import { QA_RECOMMENDATION_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/qa-recommendation-output-schema";
 import {
@@ -476,6 +477,13 @@ function getStructuredOutputSchemaForSkill(
     };
   }
 
+  if (routeSkillId === ARTIFACT_REVIEW_SKILL_ID) {
+    return {
+      name: "artifact_review_response",
+      schema: ARTIFACT_REVIEW_OUTPUT_SCHEMA
+    };
+  }
+
   return undefined;
 }
 
@@ -496,6 +504,22 @@ function createOutputNormalizationMeta(
     changedPaths: normalization.changedPaths,
     warnings: normalization.warnings.map(summarizeNormalizerIssue),
     errors: normalization.errors.map(summarizeNormalizerIssue)
+  };
+}
+
+function adaptArtifactReviewOutputForValidation(
+  routeSkillId: string,
+  value: unknown
+) {
+  if (routeSkillId !== ARTIFACT_REVIEW_SKILL_ID || !isObject(value)) {
+    return value;
+  }
+
+  return {
+    ...value,
+    warnings: Array.isArray(value.artifactWarnings)
+      ? value.artifactWarnings
+      : value.warnings
   };
 }
 
@@ -3531,9 +3555,13 @@ export async function POST(request: Request) {
       routeSkillId,
       inputValidation.value
     );
-    logAINormalizerInput(parseResult.parsedResult);
+    const providerOutputForValidation = adaptArtifactReviewOutputForValidation(
+      routeSkillId,
+      parseResult.parsedResult
+    );
+    logAINormalizerInput(providerOutputForValidation);
     const outputNormalization = normalizeProviderOutput(
-      parseResult.parsedResult,
+      providerOutputForValidation,
       {
         skillId: routeSkillId,
         outputSchemaId: skill.outputSchema.id,

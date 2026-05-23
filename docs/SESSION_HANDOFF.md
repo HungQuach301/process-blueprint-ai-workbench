@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added OpenAI json_schema structured output support for `artifact-review`.
+- Created `src/lib/ai/output-schemas/artifact-review-output-schema.ts` with strict top-level `{ recommendations, templateRecommendations, artifactWarnings, assumptions, openQuestions }` output and `additionalProperties: false`.
+- Kept artifact review changes routed through PTR recommendations, template recommendations, or artifact warnings; the schema does not allow regenerated BPMN/draw.io XML or direct XML patch fields.
+- Wired `/api/ai/run-skill` so OpenAI-backed `artifact-review` uses `artifact_review_response` json_schema, while mock/local fallback and D01/D02 generators remain unchanged.
+- Added a small route compatibility adapter that maps provider `artifactWarnings` to the existing validator-facing `warnings` field without changing validator or normalizer modules.
+- Tightened `process-modeling-artifact-review-v1` prompt instructions to return schema-aligned JSON only, avoid XML patches, and require human confirmation for recommendations.
 - Added OpenAI json_schema structured output support for `process-improvement-recommendation`.
 - Created `src/lib/ai/output-schemas/qa-recommendation-output-schema.ts` with strict `{ recommendations: [...] }` output, required QA recommendation fields, supported recommendation types, and validator-supported operation kinds.
 - Updated `/api/ai/run-skill` to select structured output schemas per OpenAI-backed skill, preserving the existing `input-brief-to-ptr` schema path and adding `qa_recommendation_response` for process improvement recommendations.

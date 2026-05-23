@@ -173,13 +173,13 @@ export const processModelingPromptPacks: AIPromptPack[] = [
     description:
       "Review generated D01 BPMN or D02 Service Blueprint output without mutating artifact XML.",
     outputContract:
-      "{ recommendations: QARecommendation[], templateRecommendations: TemplateRecommendation[], warnings: string[] }.",
+      "{ recommendations: QARecommendation[], templateRecommendations: TemplateRecommendation[], artifactWarnings: string[], assumptions: string[], openQuestions: string[] }.",
     messages: [
       ...providerNeutralPromptPack.messages,
       {
         role: "system",
         content:
-          "Review the generated BPMN or draw.io XML as an artifact quality check. Never rewrite or patch the XML directly. Any process fix must be returned as QARecommendation objects targeting existing ProcessTask.stepId values. Any template fix must be returned as TemplateRecommendation objects for the selected template. Put artifact-only concerns that cannot safely become a PTR or template fix into warnings."
+          "Review the generated BPMN or draw.io XML as an artifact quality check. Return exactly one JSON object with recommendations, templateRecommendations, artifactWarnings, assumptions, and openQuestions. Never rewrite, replace, or patch BPMN/draw.io XML directly. Any process fix must be returned as QARecommendation objects targeting existing ProcessTask.stepId values. Any template fix must be returned as TemplateRecommendation objects for the selected template. Put artifact-only concerns that cannot safely become a PTR or template fix into artifactWarnings. Do not include XML patches, regenerated XML, markdown, prose outside JSON, or auto-apply instructions. Every recommendation must require human confirmation."
       }
     ]
   }

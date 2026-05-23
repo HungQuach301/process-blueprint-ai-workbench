@@ -47,3 +47,6 @@ Thumbs.db
 
 # Generated eval run outputs
 evals/**/results-*.json
+
+# Generated eval run outputs
+evals/**/results-*.json

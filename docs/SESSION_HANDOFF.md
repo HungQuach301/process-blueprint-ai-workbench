@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added `docs/AI_SKILL_CONTRACT_MATRIX.md` as the Bài 2 contract baseline for all skills in `src/lib/ai/skill-registry-v2.ts`.
+- Documented AI skill design principles, the full skill contract matrix, deep dives for `input-brief-to-ptr`, `process-improvement-recommendation`, and `artifact-review`, plus Bài 2 decisions and Bài 3 backlog.
+- Kept this slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
 - Improved Process Task Register readability by tightening Simple Mode to checkbox, row number, stepId, taskName, phase, actor, system, next step, review status, and actions.
 - Made `taskName` wider and sticky only in Simple Mode so business task wording remains visible during horizontal scroll without changing `ProcessTask` schema.
 - Added an Artifact Readiness Bar in Process Task Register for PTR saved/unsaved, QA findings count, D01 status/gate, D02 status/gate, and Export ZIP ready/not ready.
@@ -604,9 +607,12 @@ Complete Module 2 + Module 3 with full real AI support.
 - Mock/local fallback remains required.
 - No API keys should be exposed in browser code.
 - AI output must not be auto-applied.
+- `docs/AI_SKILL_CONTRACT_MATRIX.md` is now the working baseline for Bài 2 AI skill contract design and should be consulted before implementing new json_schema contracts or eval datasets.
 
 ## Current blockers
 
+- `process-improvement-recommendation` still needs a strict `QARecommendationResponse` json_schema to address `schema_validation_failed`.
+- `artifact-review` still needs a narrower contract; recommended direction is to split it into BPMN artifact review and Service Blueprint artifact review.
 - Artifact review recommendations are validated and returned by the route, but the D01/D02 UI currently shows counts/warnings only; full handoff into QA Panel and Template Hub still needs a scoped follow-up.
 - Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
 - Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
@@ -620,7 +626,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Next recommended task
 
-Verify Module 3 Product Delivery flows with Mock/Product AI/OpenAI/Claude provider modes, then add Jira-ready export and requirement quality check.
+Implement the next AI skill contract slice from `docs/AI_SKILL_CONTRACT_MATRIX.md`: start with `process-improvement-recommendation` json_schema, then split or narrow `artifact-review` before expanding eval datasets.
 
 ## Exact prompt for next ChatGPT session
 

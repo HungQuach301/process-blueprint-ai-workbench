@@ -9,6 +9,7 @@ import { ExportCenter } from "@/components/export-center/ExportCenter";
 import { AIInputBriefPanel } from "@/components/input-brief/AIInputBriefPanel";
 import { ProcessTaskRegister } from "@/components/task-register/ProcessTaskRegister";
 import { TemplateLibraryEditor } from "@/components/template-library/TemplateLibraryEditor";
+import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
   getLocale,
   setLocale,
@@ -16,13 +17,90 @@ import {
   type Locale
 } from "@/lib/i18n";
 import { navigationSections } from "@/lib/sample-data/navigation-sections";
+import {
+  bankingStarterTemplateProfiles,
+  sampleBpmnTemplateProfile,
+  sampleServiceBlueprintTemplateProfile
+} from "@/lib/sample-data/sme-online-loan";
 
 const releaseNavigationSections = navigationSections.filter(
   (section) => section.id !== "workspace" && section.id !== "qa-panel"
 );
+const TEMPLATES_STORAGE_KEY =
+  "process-blueprint-ai-workbench:template-profiles";
+const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
+const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
+const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+
+type SelectedTemplateSummary = {
+  d01: TemplateProfile;
+  d02: TemplateProfile;
+};
+
+function getDefaultTemplates() {
+  return [
+    sampleBpmnTemplateProfile,
+    sampleServiceBlueprintTemplateProfile,
+    ...bankingStarterTemplateProfiles
+  ];
+}
+
+function readTemplateProfiles() {
+  if (typeof window === "undefined") {
+    return getDefaultTemplates();
+  }
+
+  const savedTemplates = window.localStorage.getItem(TEMPLATES_STORAGE_KEY);
+
+  if (!savedTemplates) {
+    return getDefaultTemplates();
+  }
+
+  try {
+    const parsedTemplates = JSON.parse(savedTemplates);
+
+    if (Array.isArray(parsedTemplates)) {
+      return parsedTemplates as TemplateProfile[];
+    }
+  } catch {
+    return getDefaultTemplates();
+  }
+
+  return getDefaultTemplates();
+}
+
+function readSelectedTemplateSummary(): SelectedTemplateSummary {
+  const templates = readTemplateProfiles();
+  const selectedD01Id =
+    typeof window === "undefined"
+      ? sampleBpmnTemplateProfile.id
+      : window.localStorage.getItem(D01_STORAGE_KEY) ??
+        sampleBpmnTemplateProfile.id;
+  const selectedD02Id =
+    typeof window === "undefined"
+      ? sampleServiceBlueprintTemplateProfile.id
+      : window.localStorage.getItem(D02_STORAGE_KEY) ??
+        sampleServiceBlueprintTemplateProfile.id;
+
+  return {
+    d01:
+      templates.find((template) => template.id === selectedD01Id) ??
+      sampleBpmnTemplateProfile,
+    d02:
+      templates.find((template) => template.id === selectedD02Id) ??
+      sampleServiceBlueprintTemplateProfile
+  };
+}
 
 export function AppShell() {
   const [locale, setActiveLocale] = useState<Locale>("vi");
+  const [isTemplateHubOpen, setIsTemplateHubOpen] = useState(false);
+  const [isTemplatePreviewOpen, setIsTemplatePreviewOpen] = useState(false);
+  const [selectedTemplates, setSelectedTemplates] =
+    useState<SelectedTemplateSummary>(() => ({
+      d01: sampleBpmnTemplateProfile,
+      d02: sampleServiceBlueprintTemplateProfile
+    }));
   const artifactCount = releaseNavigationSections.filter(
     (section) =>
       section.id === "d01-bpmn-preview" ||
@@ -141,14 +219,105 @@ export function AppShell() {
           : "Export PTR, QA report, BPMN, Service Blueprint, and ZIP after review."
     }
   ];
+  const templateSummaryText = {
+    title:
+      locale === "vi"
+        ? "Template đang dùng cho output"
+        : "Selected output templates",
+    description:
+      locale === "vi"
+        ? "Template Hub được giữ trong Settings. Workflow chính chỉ hiển thị template D01/D02 đang được chọn để giảm nhiễu khi tạo quy trình."
+        : "Template Hub lives in Settings. The main workflow only shows the selected D01/D02 templates to keep process work focused.",
+    d01Label: "D01 BPMN",
+    d02Label: "D02 Service Blueprint",
+    changeTemplate:
+      locale === "vi" ? "Đổi template" : "Change template",
+    previewTemplate:
+      locale === "vi" ? "Xem template" : "Preview template",
+    manageTemplates:
+      locale === "vi" ? "Quản lý templates" : "Manage templates",
+    hideManager:
+      locale === "vi" ? "Ẩn Template Hub" : "Hide Template Hub",
+    status:
+      locale === "vi"
+        ? "Không auto-apply recommendation từ Template QA."
+        : "Template QA recommendations are not auto-applied.",
+    outputType: locale === "vi" ? "Output" : "Output",
+    domain: locale === "vi" ? "Domain" : "Domain",
+    processType: locale === "vi" ? "Process" : "Process"
+  };
 
   useEffect(() => {
     setActiveLocale(getLocale());
+    setSelectedTemplates(readSelectedTemplateSummary());
+  }, []);
+
+  useEffect(() => {
+    function refreshSelectedTemplates() {
+      setSelectedTemplates(readSelectedTemplateSummary());
+    }
+
+    function handleHashChange() {
+      if (window.location.hash === "#template-library") {
+        setIsTemplateHubOpen(true);
+        refreshSelectedTemplates();
+      }
+    }
+
+    window.addEventListener("storage", refreshSelectedTemplates);
+    window.addEventListener(ARTIFACT_STATUS_EVENT, refreshSelectedTemplates);
+    window.addEventListener("hashchange", handleHashChange);
+    handleHashChange();
+
+    return () => {
+      window.removeEventListener("storage", refreshSelectedTemplates);
+      window.removeEventListener(ARTIFACT_STATUS_EVENT, refreshSelectedTemplates);
+      window.removeEventListener("hashchange", handleHashChange);
+    };
   }, []);
 
   function switchLocale(nextLocale: Locale) {
     setLocale(nextLocale);
     setActiveLocale(nextLocale);
+  }
+
+  function openTemplateHub() {
+    setIsTemplateHubOpen(true);
+    setSelectedTemplates(readSelectedTemplateSummary());
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("template-library")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.history.replaceState(null, "", "#template-library");
+    });
+  }
+
+  function renderTemplateMetadata(template: TemplateProfile) {
+    return (
+      <div className="rounded border border-slate-200 bg-white p-3">
+        <p className="text-sm font-semibold text-slate-950">{template.name}</p>
+        <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+          <span>
+            <span className="font-semibold text-slate-700">
+              {templateSummaryText.outputType}:
+            </span>{" "}
+            {template.outputType}
+          </span>
+          <span>
+            <span className="font-semibold text-slate-700">
+              {templateSummaryText.domain}:
+            </span>{" "}
+            {template.businessDomain}
+          </span>
+          <span>
+            <span className="font-semibold text-slate-700">
+              {templateSummaryText.processType}:
+            </span>{" "}
+            {template.processType}
+          </span>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -280,8 +449,111 @@ export function AppShell() {
               <AIInputBriefPanel />
             </div>
 
+            <section className="surface-card overflow-hidden">
+              <div className="border-b border-slate-200 bg-white p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Settings summary
+                    </p>
+                    <h2 className="mt-2 text-lg font-semibold text-slate-950">
+                      {templateSummaryText.title}
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                      {templateSummaryText.description}
+                    </p>
+                  </div>
+                  <span className="status-badge status-badge-warning">
+                    {templateSummaryText.status}
+                  </span>
+                </div>
+              </div>
+              <div className="grid gap-3 bg-slate-50/80 p-4 lg:grid-cols-2">
+                <div className="soft-panel p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {templateSummaryText.d01Label}
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">
+                    {selectedTemplates.d01.name}
+                  </p>
+                </div>
+                <div className="soft-panel p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {templateSummaryText.d02Label}
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">
+                    {selectedTemplates.d02.name}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 bg-white p-4">
+                <button
+                  className="btn btn-secondary"
+                  onClick={openTemplateHub}
+                  type="button"
+                >
+                  {templateSummaryText.changeTemplate}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() =>
+                    setIsTemplatePreviewOpen((isOpen) => !isOpen)
+                  }
+                  type="button"
+                >
+                  {templateSummaryText.previewTemplate}
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={openTemplateHub}
+                  type="button"
+                >
+                  {templateSummaryText.manageTemplates}
+                </button>
+              </div>
+              {isTemplatePreviewOpen ? (
+                <div className="grid gap-3 border-t border-slate-200 bg-slate-50 p-4 lg:grid-cols-2">
+                  {renderTemplateMetadata(selectedTemplates.d01)}
+                  {renderTemplateMetadata(selectedTemplates.d02)}
+                </div>
+              ) : null}
+            </section>
+
             <div className="min-w-0 max-w-full" id="template-library">
-              <TemplateLibraryEditor />
+              <section>
+                <div className="surface-card flex flex-col gap-3 p-5 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Settings
+                    </p>
+                    <h2 className="mt-2 text-lg font-semibold text-slate-950">
+                      Template Hub
+                    </h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                      {locale === "vi"
+                        ? "Quản lý template D01/D02 tại đây khi cần. Section này được thu gọn khỏi workflow mặc định."
+                        : "Manage D01/D02 templates here when needed. This section stays collapsed outside the default workflow."}
+                    </p>
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setIsTemplateHubOpen((isOpen) => !isOpen);
+                      setSelectedTemplates(readSelectedTemplateSummary());
+                    }}
+                    type="button"
+                  >
+                    {isTemplateHubOpen
+                      ? templateSummaryText.hideManager
+                      : templateSummaryText.manageTemplates}
+                  </button>
+                </div>
+                {isTemplateHubOpen ? (
+                  <div className="mt-3">
+                    <TemplateLibraryEditor />
+                  </div>
+                ) : null}
+              </section>
             </div>
 
             <div className="min-w-0 max-w-full" id="process-task-register">

@@ -44,3 +44,6 @@ Thumbs.db
 
 # Codex transient current task
 .codex/CURRENT_TASK.md
+
+# Generated eval run outputs
+evals/**/results-*.json

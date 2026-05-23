@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-22
+2026-05-23
 
 ## Current branch
 
@@ -18,6 +18,12 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added non-secret runtime option flow from AI Connection Center/per-skill settings into `/api/ai/run-skill` through `createAISkillRequestBody`.
+- Extended the server AI provider request type with defensive runtime option normalization, warning on unknown/unsupported values without failing missing or invalid options.
+- Mapped OpenAI runtime options to Responses API request parameters, including `reasoning.effort` for reasoning-capable models while preserving the existing `input-brief-to-ptr` JSON schema structured output path.
+- Mapped Claude runtime options to message request params, including thinking type/budget handling with model-specific safeguards for `claude-opus-4-7` and `claude-sonnet-4-6`.
+- Forwarded runtime options to Product AI endpoint while leaving mock/local fallback behavior deterministic.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 - Replaced raw AI schema validation error display in main UI surfaces with the user-friendly message `Kết quả AI chưa đạt yêu cầu chất lượng. Vui lòng thử lại.` while keeping technical validation details in console/audit paths.
 - Applied the friendly validation error handling across AI Input Brief, Process Task Register AI Assistant, QA Panel, Template Hub, D01 BPMN Output, D02 Service Blueprint Output, and Export Center.
 - Added a minimal Retry action for Process Task Register AI Assistant failures to match existing AI retry behavior in other modules.

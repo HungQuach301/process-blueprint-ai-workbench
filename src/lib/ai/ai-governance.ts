@@ -12,6 +12,7 @@ import {
   getDefaultCatalogModelId,
   getProviderModelCatalog
 } from "@/lib/ai/provider-model-catalog";
+import type { AIProviderRuntimeOptions } from "@/lib/ai/providers/provider-types";
 
 export const AI_PROVIDER_SETTINGS_STORAGE_KEY =
   "process-blueprint-ai-workbench:ai-provider-settings";
@@ -349,6 +350,78 @@ export function resolveAISkillModelSelection(
   };
 }
 
+function mapRuntimeModeToTextVerbosity(
+  mode: AIRuntimeOptions["mode"]
+): AIProviderRuntimeOptions["textVerbosity"] {
+  if (mode === "fast") {
+    return "low";
+  }
+
+  if (mode === "reasoning" || mode === "long-context") {
+    return "high";
+  }
+
+  if (mode) {
+    return "medium";
+  }
+
+  return undefined;
+}
+
+function mapThinkingTypeToClaudeThinkingType(
+  thinkingType: AIRuntimeOptions["thinkingType"]
+): AIProviderRuntimeOptions["claudeThinkingType"] {
+  if (thinkingType === "none") {
+    return "disabled";
+  }
+
+  if (thinkingType === "auto") {
+    return "adaptive";
+  }
+
+  if (thinkingType === "budgeted" || thinkingType === "extended") {
+    return "enabled";
+  }
+
+  return undefined;
+}
+
+function mapRuntimeOptionsForRequest(
+  runtimeOptions: AIRuntimeOptions | undefined,
+  providerId: ServerAIProviderId
+): AIProviderRuntimeOptions | undefined {
+  if (!runtimeOptions) {
+    return undefined;
+  }
+
+  const reasoningEffort = runtimeOptions.reasoningEffort;
+  const mappedRuntimeOptions: AIProviderRuntimeOptions = {};
+
+  if (providerId === "openai" && reasoningEffort) {
+    mappedRuntimeOptions.reasoningEffort = reasoningEffort;
+    mappedRuntimeOptions.textVerbosity = mapRuntimeModeToTextVerbosity(
+      runtimeOptions.mode
+    );
+  }
+
+  if (providerId === "claude") {
+    mappedRuntimeOptions.claudeThinkingType =
+      mapThinkingTypeToClaudeThinkingType(runtimeOptions.thinkingType);
+    mappedRuntimeOptions.claudeThinkingEffort =
+      reasoningEffort && reasoningEffort !== "none" ? reasoningEffort : undefined;
+    mappedRuntimeOptions.claudeThinkingDisplay =
+      runtimeOptions.thinkingType && runtimeOptions.thinkingType !== "none"
+        ? "summarized"
+        : undefined;
+  }
+
+  return Object.values(mappedRuntimeOptions).some(
+    (value) => value !== undefined
+  )
+    ? mappedRuntimeOptions
+    : undefined;
+}
+
 export function createAISkillRequestBody({
   skillId,
   payload,
@@ -364,7 +437,11 @@ export function createAISkillRequestBody({
     skillId,
     payload,
     providerId: providerId ?? selection.providerId,
-    model: selection.model
+    model: selection.model,
+    runtimeOptions: mapRuntimeOptionsForRequest(
+      selection.runtimeOptions,
+      providerId ?? selection.providerId
+    )
   };
 }
 

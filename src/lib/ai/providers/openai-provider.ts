@@ -7,6 +7,7 @@ import {
   type AIProviderResponse
 } from "@/lib/ai/providers/provider-types";
 import { DRAFT_PTR_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/draft-ptr-output-schema";
+import { findProviderModel } from "@/lib/ai/provider-model-catalog";
 import { adaptProviderResponse } from "@/lib/ai/providers/response-adapter";
 
 type OpenAIProviderOptions = {
@@ -16,6 +17,20 @@ type OpenAIProviderOptions = {
 
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
 const DRAFT_PTR_SCHEMA_NAME = "draft_process_task_register";
+
+function modelLikelySupportsReasoningEffort(model: string) {
+  const modelMetadata = findProviderModel("openai-byok", model);
+
+  if (modelMetadata) {
+    return modelMetadata.supportsReasoningEffort;
+  }
+
+  return model.startsWith("gpt-5") || model.startsWith("o");
+}
+
+function modelLikelySupportsTextVerbosity(model: string) {
+  return modelLikelySupportsReasoningEffort(model);
+}
 
 export function createOpenAIProvider(
   options: OpenAIProviderOptions
@@ -38,22 +53,85 @@ export function createOpenAIProvider(
       const useStructuredOutput =
         request.skillId === INPUT_BRIEF_TO_PTR_SKILL_ID &&
         request.supportsStructuredOutput === true;
-      const requestBody = {
+      const runtimeWarnings: string[] = [];
+      const runtimeOptions = request.runtimeOptions ?? {};
+      const text: Record<string, unknown> = {};
+
+      if (useStructuredOutput) {
+        text.format = {
+          type: "json_schema",
+          name: DRAFT_PTR_SCHEMA_NAME,
+          schema: DRAFT_PTR_OUTPUT_SCHEMA,
+          strict: true
+        };
+      }
+
+      if (
+        runtimeOptions.textVerbosity &&
+        modelLikelySupportsTextVerbosity(model)
+      ) {
+        text.verbosity = runtimeOptions.textVerbosity;
+      } else if (runtimeOptions.textVerbosity) {
+        runtimeWarnings.push(
+          `Ignored textVerbosity because model ${model} is not configured for Responses text verbosity.`
+        );
+      }
+
+      const requestBody: Record<string, unknown> = {
         model,
-        input: buildDefaultMessages(request),
-        ...(useStructuredOutput
-          ? {
-              text: {
-                format: {
-                  type: "json_schema",
-                  name: DRAFT_PTR_SCHEMA_NAME,
-                  schema: DRAFT_PTR_OUTPUT_SCHEMA,
-                  strict: true
-                }
-              }
-            }
-          : {})
+        input: buildDefaultMessages(request)
       };
+
+      if (Object.keys(text).length > 0) {
+        requestBody.text = text;
+      }
+
+      if (
+        runtimeOptions.reasoningEffort &&
+        runtimeOptions.reasoningEffort !== "none"
+      ) {
+        if (modelLikelySupportsReasoningEffort(model)) {
+          requestBody.reasoning = {
+            effort: runtimeOptions.reasoningEffort
+          };
+        } else {
+          runtimeWarnings.push(
+            `Ignored reasoningEffort because model ${model} is not configured as reasoning-capable.`
+          );
+        }
+      }
+
+      if (runtimeOptions.maxOutputTokens) {
+        requestBody.max_output_tokens = runtimeOptions.maxOutputTokens;
+      }
+
+      if (runtimeOptions.temperature !== undefined) {
+        requestBody.temperature = runtimeOptions.temperature;
+      }
+
+      if (runtimeOptions.claudeThinkingType) {
+        runtimeWarnings.push(
+          "Ignored claudeThinkingType because the selected provider is OpenAI."
+        );
+      }
+
+      if (runtimeOptions.claudeThinkingEffort) {
+        runtimeWarnings.push(
+          "Ignored claudeThinkingEffort because the selected provider is OpenAI."
+        );
+      }
+
+      if (runtimeOptions.claudeThinkingBudgetTokens) {
+        runtimeWarnings.push(
+          "Ignored claudeThinkingBudgetTokens because the selected provider is OpenAI."
+        );
+      }
+
+      if (runtimeOptions.claudeThinkingDisplay) {
+        runtimeWarnings.push(
+          "Ignored claudeThinkingDisplay because the selected provider is OpenAI."
+        );
+      }
 
       if (useStructuredOutput) {
         console.log(
@@ -97,7 +175,10 @@ export function createOpenAIProvider(
           totalTokens: adapted.totalTokens
         },
         latencyMs: Date.now() - startedAt,
-        warnings: rawText ? [] : ["OpenAI response did not include output_text."],
+        warnings: [
+          ...runtimeWarnings,
+          ...(rawText ? [] : ["OpenAI response did not include output_text."])
+        ],
         externalApiCalled: true
       };
     }

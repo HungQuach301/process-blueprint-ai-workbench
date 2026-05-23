@@ -53,6 +53,7 @@ import {
 } from "@/lib/ai/providers/provider-factory";
 import {
   extractJsonText,
+  normalizeProviderRuntimeOptions,
   parseJsonIfPossible,
   type AIModelMessage,
   type AIModelRequest,
@@ -94,6 +95,7 @@ type RunSkillRequestBody = {
   payload?: unknown;
   providerId?: unknown;
   model?: unknown;
+  runtimeOptions?: unknown;
 };
 
 type DataUsageMode =
@@ -3251,6 +3253,9 @@ export async function POST(request: Request) {
     typeof body.model === "string" && body.model.trim().length > 0
       ? body.model.trim()
       : getConfiguredAIModel(selectedProvider);
+  const runtimeOptionsValidation = normalizeProviderRuntimeOptions(
+    body.runtimeOptions
+  );
   const realAIEnabled = isRealAIEnabledForSkill(routeSkillId);
   const dataUsageMode = getServerDataUsageMode(realAIEnabled, selectedProvider);
   const routeSpecificValidationError = createRouteSpecificInputValidationError(
@@ -3391,6 +3396,7 @@ export async function POST(request: Request) {
       skillId: routeSkillId,
       payload: inputValidation.value,
       model: selectedModel,
+      runtimeOptions: runtimeOptionsValidation.runtimeOptions,
       supportsStructuredOutput:
         routeSkillId === INPUT_BRIEF_TO_PTR_SKILL_ID &&
         getSupportsStructuredOutput(routeSkillId),
@@ -3418,7 +3424,11 @@ export async function POST(request: Request) {
         inputTokens: adapted.inputTokens,
         outputTokens: adapted.outputTokens,
         totalTokens: adapted.totalTokens
-      }
+      },
+      warnings: [
+        ...runtimeOptionsValidation.warnings,
+        ...result.warnings
+      ]
     };
     logAISkillCall({
       skillId: routeSkillId,

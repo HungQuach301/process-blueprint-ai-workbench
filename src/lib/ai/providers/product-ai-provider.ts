@@ -76,7 +76,8 @@ export function createProductAIProvider(
           skillId: request.skillId,
           model,
           messages: buildDefaultMessages(request),
-          payload: request.payload
+          payload: request.payload,
+          runtimeOptions: request.runtimeOptions
         })
       });
 

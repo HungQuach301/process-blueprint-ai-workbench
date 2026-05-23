@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added `docs/AI_SKILL_REDESIGN_PLAN.md` as the implementation plan for the two failing skills: `process-improvement-recommendation` and `artifact-review`.
+- Planned the next implementation slice around two proposed schema files: `src/lib/ai/output-schemas/qa-recommendation-output-schema.ts` and `src/lib/ai/output-schemas/artifact-review-output-schema.ts`, with OpenAI json_schema route selection, prompt pack updates, eval datasets, smoke tests, and rollback guidance.
+- Kept this planning slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
 - Added `docs/AI_SKILL_DESIGN_REVIEW.md` as a reviewer-level design critique for `input-brief-to-ptr`, `process-improvement-recommendation`, and `artifact-review`.
 - Captured the core AI Orchestrator recommendation: keep `input-brief-to-ptr`, add strict json_schema next for `process-improvement-recommendation`, and split `artifact-review` into BPMN and Service Blueprint review contracts before serious provider-backed use.
 - Documented production readiness versus lab-grade gaps: schema pass is not enough for process quality, process recommendations need strict `QARecommendation[]` contracts, and artifact review needs minimal context plus token/latency control.
@@ -613,6 +616,7 @@ Complete Module 2 + Module 3 with full real AI support.
 - AI output must not be auto-applied.
 - `docs/AI_SKILL_CONTRACT_MATRIX.md` is now the working baseline for Bài 2 AI skill contract design and should be consulted before implementing new json_schema contracts or eval datasets.
 - `docs/AI_SKILL_DESIGN_REVIEW.md` is now the focused reviewer baseline for the next three AI skill decisions: input brief semantic quality, process recommendation schema, and artifact review split.
+- `docs/AI_SKILL_REDESIGN_PLAN.md` is now the implementation plan for the two failing skills and should be followed before changing route, prompt packs, or output schemas.
 
 ## Current blockers
 
@@ -631,7 +635,7 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## Next recommended task
 
-Implement the next AI skill contract slice from `docs/AI_SKILL_CONTRACT_MATRIX.md` and `docs/AI_SKILL_DESIGN_REVIEW.md`: start with `process-improvement-recommendation` json_schema and evals, then split or narrow `artifact-review` before expanding artifact review eval datasets.
+Implement the next AI skill contract slice from `docs/AI_SKILL_REDESIGN_PLAN.md`: add `QA_RECOMMENDATION_OUTPUT_SCHEMA`, wire OpenAI json_schema for `process-improvement-recommendation`, add evals, then add/narrow `ARTIFACT_REVIEW_OUTPUT_SCHEMA` and artifact review evals.
 
 ## Exact prompt for next ChatGPT session
 

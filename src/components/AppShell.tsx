@@ -24,13 +24,17 @@ import {
 } from "@/lib/sample-data/sme-online-loan";
 
 const releaseNavigationSections = navigationSections.filter(
-  (section) => section.id !== "workspace" && section.id !== "qa-panel"
+  (section) =>
+    section.id !== "workspace" &&
+    section.id !== "qa-panel" &&
+    section.id !== "template-library"
 );
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const TEMPLATE_MANAGER_EVENT = "process-blueprint-open-template-manager";
 
 type SelectedTemplateSummary = {
   d01: TemplateProfile;
@@ -236,8 +240,8 @@ export function AppShell() {
       locale === "vi" ? "Xem template" : "Preview template",
     manageTemplates:
       locale === "vi" ? "Quản lý templates" : "Manage templates",
-    hideManager:
-      locale === "vi" ? "Ẩn Template Hub" : "Hide Template Hub",
+    closeManager:
+      locale === "vi" ? "Đóng" : "Close",
     status:
       locale === "vi"
         ? "Không auto-apply recommendation từ Template QA."
@@ -264,15 +268,22 @@ export function AppShell() {
       }
     }
 
+    function handleOpenTemplateManager() {
+      setIsTemplateHubOpen(true);
+      refreshSelectedTemplates();
+    }
+
     window.addEventListener("storage", refreshSelectedTemplates);
     window.addEventListener(ARTIFACT_STATUS_EVENT, refreshSelectedTemplates);
     window.addEventListener("hashchange", handleHashChange);
+    window.addEventListener(TEMPLATE_MANAGER_EVENT, handleOpenTemplateManager);
     handleHashChange();
 
     return () => {
       window.removeEventListener("storage", refreshSelectedTemplates);
       window.removeEventListener(ARTIFACT_STATUS_EVENT, refreshSelectedTemplates);
       window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener(TEMPLATE_MANAGER_EVENT, handleOpenTemplateManager);
     };
   }, []);
 
@@ -284,12 +295,6 @@ export function AppShell() {
   function openTemplateHub() {
     setIsTemplateHubOpen(true);
     setSelectedTemplates(readSelectedTemplateSummary());
-    window.requestAnimationFrame(() => {
-      document
-        .getElementById("template-library")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      window.history.replaceState(null, "", "#template-library");
-    });
   }
 
   function renderTemplateMetadata(template: TemplateProfile) {
@@ -519,6 +524,7 @@ export function AppShell() {
               ) : null}
             </section>
 
+            {false ? (
             <div className="min-w-0 max-w-full" id="template-library">
               <section>
                 <div className="surface-card flex flex-col gap-3 p-5 lg:flex-row lg:items-start lg:justify-between">
@@ -544,7 +550,7 @@ export function AppShell() {
                     type="button"
                   >
                     {isTemplateHubOpen
-                      ? templateSummaryText.hideManager
+                      ? templateSummaryText.closeManager
                       : templateSummaryText.manageTemplates}
                   </button>
                 </div>
@@ -555,6 +561,7 @@ export function AppShell() {
                 ) : null}
               </section>
             </div>
+            ) : null}
 
             <div className="min-w-0 max-w-full" id="process-task-register">
               <ProcessTaskRegister />
@@ -597,6 +604,44 @@ export function AppShell() {
           </footer>
         </section>
       </div>
+      {isTemplateHubOpen ? (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex justify-end bg-slate-950/40 p-3 backdrop-blur-sm"
+          role="dialog"
+        >
+          <div className="flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Settings
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-slate-950">
+                  Template Hub
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  {locale === "vi"
+                    ? "Quản lý template D01/D02 tại đây khi cần. Template recommendation vẫn chỉ là đề xuất, không auto-apply."
+                    : "Manage D01/D02 templates here when needed. Template recommendations remain suggestions and are not auto-applied."}
+                </p>
+              </div>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setIsTemplateHubOpen(false);
+                  setSelectedTemplates(readSelectedTemplateSummary());
+                }}
+                type="button"
+              >
+                {templateSummaryText.closeManager}
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-4">
+              <TemplateLibraryEditor />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

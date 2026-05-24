@@ -36,6 +36,7 @@ const D02_GENERATED_XML_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
+const TEMPLATE_MANAGER_EVENT = "process-blueprint-open-template-manager";
 
 function readProcessTasks() {
   const savedTasks = window.localStorage.getItem(TASKS_STORAGE_KEY);
@@ -215,6 +216,10 @@ export function D02ServiceBlueprintOutput() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [realAIEnabled, setRealAIEnabled] = useState(false);
   const [canRetryAIReview, setCanRetryAIReview] = useState(false);
+
+  function openTemplateManager() {
+    window.dispatchEvent(new Event(TEMPLATE_MANAGER_EVENT));
+  }
 
   function refreshStatus() {
     setStatus(readArtifactStatus());
@@ -468,6 +473,13 @@ export function D02ServiceBlueprintOutput() {
             >
               {isReviewing ? "Reviewing..." : "Review Service Blueprint with AI"}
             </button>
+            <button
+              className="btn btn-secondary"
+              onClick={openTemplateManager}
+              type="button"
+            >
+              Manage templates
+            </button>
         </>
       }
       bodyClassName="p-4"
@@ -577,6 +589,13 @@ export function D02ServiceBlueprintOutput() {
               <p className="mt-1 text-xs text-slate-500">
                 Gate: {postGateVerdict?.status.toUpperCase() ?? "Not generated"}
               </p>
+              <button
+                className="mt-2 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={openTemplateManager}
+                type="button"
+              >
+                Manage templates
+              </button>
             </div>
           </div>
         </div>

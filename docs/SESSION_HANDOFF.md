@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Hid Template Hub from the default main workflow and sidebar navigation.
+- Moved full `TemplateLibraryEditor` access behind an explicit Template Hub modal opened from the main selected-template summary, D01 BPMN output, or D02 Service Blueprint output.
+- Preserved selected D01/D02 template summaries in the main flow and output screens while keeping Template QA recommendations as non-auto-applied suggestions.
+- Kept `TemplateProfile` schema and D01/D02 generators unchanged.
+- Confirmed `npx.cmd tsc --noEmit` passes for the Template Hub visibility update.
 - Added Draft PTR journey/profile detection when applying AI Input Brief drafts into Process Task Register.
 - Created `detectProcessRegisterProfile` to infer Lending, Account Opening, Payment, Servicing, or Generic profiles from draft metadata, source summary, process info, and draft rows.
 - Wired Apply Draft PTR to persist `selectedProcessRegisterProfile` without changing draft row apply behavior; Replace/Append remains user-controlled and draft rows are preserved.

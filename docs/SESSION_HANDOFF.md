@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-24
+2026-05-24 (Provider Routing Audit)
 
 ## Current branch
 
@@ -17,6 +17,21 @@ Complete Module 2 + Module 3 with full real AI support.
 `v0.8.0-mvp1-ai`
 
 ## What was done in the last session
+
+- Created `docs/PROVIDER_ROUTING_AUDIT.md` as the Bài 4 entry audit for Provider Routing & Cost Optimization.
+- Audited current provider routing maturity (Level 1: single env provider, no skill-aware routing, no cost calculation).
+- Documented all 4 provider modes: mock/local, product-ai, openai, claude; noted azure/local as catalog-only placeholders.
+- Mapped all 30+ skills in Registry V2 with allowed providers, structured output status, fallback behavior, token/cost risk, and routing maturity rating.
+- Identified `artifact-review` as the highest-cost skill (full XML in payload, no context trimming) and `requirement-quality-check` as second-highest.
+- Documented that `estimatedCostUsd` is hardcoded `null` in the route — no cost calculation exists.
+- Documented that per-skill UI provider/model overrides are NOT enforced server-side.
+- Documented current fallback behavior: no tiered chain, error on provider failure, no automatic retry.
+- Documented what is missing for Bài 4: token baseline, per-model cost catalog, fallback chain, context optimization, server-side per-skill routing.
+- Defined 8-item Bài 4 Implementation Backlog: routing policy doc, cost catalog, fallback chain, context optimization, eval comparison, per-skill server routing.
+- Kept this session documentation-only; no app code, provider adapter, route, schemas, evals, or package.json were changed.
+- Confirmed `npx.cmd tsc --noEmit` passes (docs-only change, no TypeScript impact).
+
+
 
 - Created `docs/UX_QA_HISTORY_DELIVERY_HARDENING_HANDOFF.md` to summarize the UX/QA/History/Delivery hardening sprint.
 - Captured completed work: QA warnings with recommendations, Apply All After Review, PTR journey/profile detection, Template Hub hidden from the main screen, enriched AI Run History, and redesigned Product Delivery cards.

@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Upgraded AI Run History metadata and UI without storing full prompts, full payloads, or full outputs.
+- Extended local AI audit records to support runtime options summary, safe context summary, input/output/total tokens, latency, estimated cost placeholder, validation status, gate status, output normalization summary, request id, and external API flag.
+- Added safe route-level context summaries for provider-backed AI calls: payload kind, process task count, selected template id/name, artifact type, prompt pack id, schema id, and payload size only.
+- Updated Export Center AI Run History table with Input / Output / Total token columns, Cost, full Model, Gate status, and expanded Details for runtime/context/warnings/validation/normalization summaries.
+- Confirmed `npx.cmd tsc --noEmit` passes for the AI Run History upgrade.
 - Hid Template Hub from the default main workflow and sidebar navigation.
 - Moved full `TemplateLibraryEditor` access behind an explicit Template Hub modal opened from the main selected-template summary, D01 BPMN output, or D02 Service Blueprint output.
 - Preserved selected D01/D02 template summaries in the main flow and output screens while keeping Template QA recommendations as non-auto-applied suggestions.

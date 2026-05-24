@@ -339,6 +339,67 @@ function getOutputSchemaLabel(skill: AISkillDefinitionV2) {
   return `${skill.outputSchema.id}: ${skill.outputSchema.description}`;
 }
 
+function safeString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function safeArrayCount(value: unknown) {
+  return Array.isArray(value) ? value.length : undefined;
+}
+
+function createContextSummary({
+  routeSkillId,
+  skill,
+  payload,
+  structuredOutputSchemaName
+}: {
+  routeSkillId: string;
+  skill: AISkillDefinitionV2;
+  payload: unknown;
+  structuredOutputSchemaName?: string;
+}) {
+  const payloadRecord = isObject(payload) ? payload : undefined;
+  const selectedTemplate = isObject(payloadRecord?.selectedTemplate)
+    ? payloadRecord.selectedTemplate
+    : undefined;
+  const processTasks = Array.isArray(payloadRecord?.processTasks)
+    ? payloadRecord.processTasks
+    : Array.isArray(payloadRecord?.tasks)
+      ? payloadRecord.tasks
+      : undefined;
+  const payloadText = JSON.stringify(payload ?? {});
+
+  return {
+    payloadKind: Array.isArray(payload) ? "array" : typeof payload,
+    processTaskCount: processTasks?.length,
+    templateId: safeString(selectedTemplate?.id),
+    templateName: safeString(selectedTemplate?.name),
+    artifactType: safeString(payloadRecord?.artifactType),
+    promptPackId: skill.promptPackId,
+    schemaId: structuredOutputSchemaName ?? skill.outputSchema.id,
+    inputSchemaId: skill.inputSchema.id,
+    outputSchemaId: skill.outputSchema.id,
+    payloadSize: payloadText.length,
+    skillId: routeSkillId
+  };
+}
+
+function createRuntimeOptionsSummary(runtimeOptions: AIModelRequest["runtimeOptions"]) {
+  if (!runtimeOptions || Object.keys(runtimeOptions).length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(
+    Object.entries(runtimeOptions).filter(([, value]) => value !== undefined)
+  );
+}
+
+function createGateStatus(value: unknown) {
+  return isObject(value) && typeof value.status === "string"
+    ? value.status
+    : undefined;
+}
+
 function createProviderMessages({
   skill,
   routeSkillId,
@@ -438,6 +499,10 @@ function createProviderMeta(
     model: result.model,
     requestId: result.requestId,
     tokenUsage: result.tokenUsage,
+    inputTokens: result.tokenUsage?.inputTokens,
+    outputTokens: result.tokenUsage?.outputTokens,
+    totalTokens: result.tokenUsage?.totalTokens,
+    estimatedCostUsd: null,
     latencyMs: result.latencyMs,
     warnings: result.warnings,
     ...additionalMeta
@@ -3312,6 +3377,13 @@ export async function POST(request: Request) {
   const runtimeOptionsValidation = normalizeProviderRuntimeOptions(
     body.runtimeOptions
   );
+  const structuredOutputSchema = getStructuredOutputSchemaForSkill(
+    routeSkillId,
+    selectedProvider
+  );
+  const runtimeOptionsSummary = createRuntimeOptionsSummary(
+    runtimeOptionsValidation.runtimeOptions
+  );
   const realAIEnabled = isRealAIEnabledForSkill(routeSkillId);
   const dataUsageMode = getServerDataUsageMode(realAIEnabled, selectedProvider);
   const routeSpecificValidationError = createRouteSpecificInputValidationError(
@@ -3330,6 +3402,16 @@ export async function POST(request: Request) {
   }
 
   const inputValidation = validateAISkillInput(registrySkillId, body.payload);
+  const contextSummary = createContextSummary({
+    routeSkillId,
+    skill,
+    payload: inputValidation.ok ? inputValidation.value : body.payload,
+    structuredOutputSchemaName: structuredOutputSchema?.name
+  });
+  const safeRunMeta = {
+    runtimeOptionsSummary,
+    contextSummary
+  };
 
   if (!inputValidation.ok) {
     return NextResponse.json(
@@ -3448,10 +3530,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const structuredOutputSchema = getStructuredOutputSchemaForSkill(
-      routeSkillId,
-      selectedProvider
-    );
     const aiRequest: AIModelRequest = {
       skillId: routeSkillId,
       payload: inputValidation.value,
@@ -3542,6 +3620,7 @@ export async function POST(request: Request) {
             registrySkillId,
             promptPackId: skill.promptPackId,
             dataUsageMode,
+            ...safeRunMeta,
             outputRepairAttempted: parseResult.repairAttempted,
             validationPassed: false,
             audit
@@ -3607,8 +3686,10 @@ export async function POST(request: Request) {
             registrySkillId,
             promptPackId: skill.promptPackId,
             dataUsageMode,
+            ...safeRunMeta,
             outputRepairAttempted: parseResult.repairAttempted,
             outputNormalization: outputNormalizationMeta,
+            outputNormalizationSummary: outputNormalizationMeta,
             validationPassed: false,
             audit
           })
@@ -3657,8 +3738,10 @@ export async function POST(request: Request) {
             registrySkillId,
             promptPackId: skill.promptPackId,
             dataUsageMode,
+            ...safeRunMeta,
             outputRepairAttempted: parseResult.repairAttempted,
             outputNormalization: outputNormalizationMeta,
+            outputNormalizationSummary: outputNormalizationMeta,
             validationPassed: false,
             audit
           })
@@ -4012,10 +4095,14 @@ export async function POST(request: Request) {
         inputSchema: skill.inputSchema.id,
         outputSchema: skill.outputSchema.id,
         dataUsageMode,
+        ...safeRunMeta,
         requiresApproval: skill.requiresApproval,
         outputRepairAttempted: parseResult.repairAttempted,
         outputNormalization: outputNormalizationMeta,
+        outputNormalizationSummary: outputNormalizationMeta,
         validationPassed: true,
+        validationStatus: "valid",
+        gateStatus: createGateStatus(additionalMeta.qualityGate),
         audit,
         ...additionalMeta
       })
@@ -4046,7 +4133,9 @@ export async function POST(request: Request) {
           registrySkillId,
           providerId: selectedProvider,
           dataUsageMode,
+          ...safeRunMeta,
           validationPassed: false,
+          validationStatus: "invalid",
           externalApiCalled: true,
           audit
         }

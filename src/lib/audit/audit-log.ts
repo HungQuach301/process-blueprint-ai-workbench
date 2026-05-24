@@ -39,16 +39,21 @@ export type AIRunRecord = {
   skillId: string;
   provider: string;
   model: string;
+  runtimeOptionsSummary?: Record<string, unknown>;
   status: "success" | "failure";
   timestamp: string;
   latencyMs?: number;
+  estimatedCostUsd?: number | null;
   validationPassed?: boolean;
   validationStatus: "valid" | "invalid" | "skipped" | "not applicable";
+  gateStatus?: string;
   tokenUsage?: {
     inputTokens?: number;
     outputTokens?: number;
     totalTokens?: number;
   };
+  contextSummary?: Record<string, unknown>;
+  outputNormalizationSummary?: Record<string, unknown>;
   externalApiCalled: boolean;
   warnings: string[];
   requestId?: string;
@@ -143,20 +148,50 @@ function metadataStringArray(
   return [];
 }
 
+function metadataRecord(
+  metadata: Record<string, unknown> | undefined,
+  keys: string[]
+) {
+  for (const key of keys) {
+    const value = metadata?.[key];
+
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+  }
+
+  return undefined;
+}
+
 function metadataTokenUsage(metadata: Record<string, unknown> | undefined) {
   const tokenUsage = metadata?.tokenUsage;
+  const directInputTokens = metadataNumber(metadata, ["inputTokens"]);
+  const directOutputTokens = metadataNumber(metadata, ["outputTokens"]);
+  const directTotalTokens = metadataNumber(metadata, ["totalTokens"]);
 
   if (typeof tokenUsage !== "object" || tokenUsage === null) {
+    if (
+      directInputTokens !== undefined ||
+      directOutputTokens !== undefined ||
+      directTotalTokens !== undefined
+    ) {
+      return {
+        inputTokens: directInputTokens,
+        outputTokens: directOutputTokens,
+        totalTokens: directTotalTokens
+      };
+    }
+
     return undefined;
   }
 
   const usage = tokenUsage as Record<string, unknown>;
   const inputTokens =
-    typeof usage.inputTokens === "number" ? usage.inputTokens : undefined;
+    typeof usage.inputTokens === "number" ? usage.inputTokens : directInputTokens;
   const outputTokens =
-    typeof usage.outputTokens === "number" ? usage.outputTokens : undefined;
+    typeof usage.outputTokens === "number" ? usage.outputTokens : directOutputTokens;
   const totalTokens =
-    typeof usage.totalTokens === "number" ? usage.totalTokens : undefined;
+    typeof usage.totalTokens === "number" ? usage.totalTokens : directTotalTokens;
 
   if (
     inputTokens === undefined &&
@@ -171,6 +206,25 @@ function metadataTokenUsage(metadata: Record<string, unknown> | undefined) {
     outputTokens,
     totalTokens
   };
+}
+
+function metadataCost(metadata: Record<string, unknown> | undefined) {
+  const value = metadata?.estimatedCostUsd;
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function metadataGateStatus(metadata: Record<string, unknown> | undefined) {
+  const gateStatus = metadataString(metadata, ["gateStatus"]);
+
+  if (gateStatus) {
+    return gateStatus;
+  }
+
+  const qualityGate = metadataRecord(metadata, ["qualityGate"]);
+  const status = qualityGate?.status;
+
+  return typeof status === "string" ? status : undefined;
 }
 
 function normalizeValidationStatus(
@@ -278,12 +332,23 @@ export function loadAIRunHistory(): AIRunRecord[] {
         skillId: metadataString(entry.metadata, ["skillId"], "unknown-skill"),
         provider: effectiveProvider,
         model: metadataString(entry.metadata, ["model"], ""),
+        runtimeOptionsSummary: metadataRecord(entry.metadata, [
+          "runtimeOptionsSummary",
+          "runtimeOptions"
+        ]),
         status: entry.status,
         timestamp: entry.timestamp,
         latencyMs: metadataNumber(entry.metadata, ["latencyMs"]),
+        estimatedCostUsd: metadataCost(entry.metadata),
         validationPassed: metadataBoolean(entry.metadata, ["validationPassed"]),
         validationStatus: normalizeValidationStatus(entry.metadata, entry.status),
+        gateStatus: metadataGateStatus(entry.metadata),
         tokenUsage: metadataTokenUsage(entry.metadata),
+        contextSummary: metadataRecord(entry.metadata, ["contextSummary"]),
+        outputNormalizationSummary: metadataRecord(entry.metadata, [
+          "outputNormalizationSummary",
+          "outputNormalization"
+        ]),
         externalApiCalled,
         warnings: metadataStringArray(entry.metadata, ["warnings", "warning"]),
         requestId: metadataString(entry.metadata, ["requestId"]),

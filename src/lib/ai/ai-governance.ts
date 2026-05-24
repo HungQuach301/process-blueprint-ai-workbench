@@ -474,6 +474,12 @@ export function logAICallAudit({
   latencyMs,
   validationPassed,
   tokenUsage,
+  estimatedCostUsd,
+  runtimeOptionsSummary,
+  contextSummary,
+  validationStatus,
+  gateStatus,
+  outputNormalizationSummary,
   warnings,
   errorType,
   validationErrors,
@@ -495,11 +501,17 @@ export function logAICallAudit({
     outputTokens?: number;
     totalTokens?: number;
   };
+  estimatedCostUsd?: number | null;
+  runtimeOptionsSummary?: Record<string, unknown>;
+  contextSummary?: Record<string, unknown>;
+  validationStatus?: "valid" | "invalid" | "skipped" | "not applicable";
+  gateStatus?: string;
+  outputNormalizationSummary?: Record<string, unknown>;
   warnings?: string[];
   errorType?: string;
   validationErrors?: string[];
   suggestedNextAction?: string;
-  extraMetadata?: Record<string, string | number | boolean | null | undefined>;
+  extraMetadata?: Record<string, unknown>;
 }) {
   const settings = readAIProviderSettings();
   const aiMode = realAIEnabled ? "Real AI" : "Mock AI";
@@ -525,19 +537,28 @@ export function logAICallAudit({
       latencyMs,
       validationPassed,
       tokenUsage,
+      inputTokens: tokenUsage?.inputTokens,
+      outputTokens: tokenUsage?.outputTokens,
+      totalTokens: tokenUsage?.totalTokens,
+      estimatedCostUsd,
+      runtimeOptionsSummary,
+      contextSummary,
+      gateStatus,
+      outputNormalizationSummary,
       warnings,
       externalApiCalled: externalApiCalled === true,
       errorType,
       safeErrorMessage: errorMessage,
       validationErrors,
       validationStatus:
-        validationPassed === true
+        validationStatus ??
+        (validationPassed === true
           ? "valid"
           : validationPassed === false
             ? "invalid"
             : success
               ? "not applicable"
-              : "skipped",
+              : "skipped"),
       suggestedNextAction,
       errorMessage,
       ...extraMetadata

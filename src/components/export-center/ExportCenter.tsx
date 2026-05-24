@@ -172,6 +172,17 @@ type AIRunRouteMeta = {
     outputTokens?: number;
     totalTokens?: number;
   };
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  estimatedCostUsd?: number | null;
+  runtimeOptionsSummary?: Record<string, unknown>;
+  contextSummary?: Record<string, unknown>;
+  validationStatus?: "valid" | "invalid" | "skipped" | "not applicable";
+  gateStatus?: string;
+  qualityGate?: Record<string, unknown>;
+  outputNormalizationSummary?: Record<string, unknown>;
+  outputNormalization?: Record<string, unknown>;
   externalApiCalled?: boolean;
   warnings?: string[];
   errorCode?: string;
@@ -254,6 +265,29 @@ function mapCodingPackPreviewToRouteFiles(files: AICodingPackFiles) {
 
 function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function formatOptionalNumber(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toLocaleString()
+    : "-";
+}
+
+function formatCost(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `$${value.toFixed(4)}`
+    : "-";
+}
+
+function formatSafeRecord(value: Record<string, unknown> | undefined) {
+  if (!value) {
+    return "Not recorded";
+  }
+
+  return Object.entries(value)
+    .filter(([, entryValue]) => entryValue !== undefined && entryValue !== "")
+    .map(([key, entryValue]) => `${key}: ${String(entryValue)}`)
+    .join("; ") || "Not recorded";
 }
 
 function readJsonArray<T>(key: string, fallback: T[]) {
@@ -613,7 +647,17 @@ export function ExportCenter() {
       requestId: meta?.requestId,
       latencyMs: meta?.latencyMs,
       validationPassed: meta?.validationPassed ?? success,
-      tokenUsage: meta?.tokenUsage,
+      tokenUsage: meta?.tokenUsage ?? {
+        inputTokens: meta?.inputTokens,
+        outputTokens: meta?.outputTokens,
+        totalTokens: meta?.totalTokens
+      },
+      estimatedCostUsd: meta?.estimatedCostUsd,
+      runtimeOptionsSummary: meta?.runtimeOptionsSummary,
+      contextSummary: meta?.contextSummary,
+      validationStatus: meta?.validationStatus,
+      gateStatus: meta?.gateStatus,
+      outputNormalizationSummary: meta?.outputNormalizationSummary,
       warnings: meta?.warnings,
       errorType: meta?.errorCode ?? meta?.audit?.errorCode,
       validationErrors,
@@ -621,7 +665,16 @@ export function ExportCenter() {
         ? "Review the preview before applying or exporting."
         : validationErrors?.length
           ? "Review validation issues, adjust the source context, then rerun the skill."
-          : "Check provider status or rerun with local analysis fallback."
+          : "Check provider status or rerun with local analysis fallback.",
+      extraMetadata: {
+        contextSummary: meta?.contextSummary,
+        runtimeOptionsSummary: meta?.runtimeOptionsSummary,
+        outputNormalizationSummary: meta?.outputNormalizationSummary,
+        outputNormalization: meta?.outputNormalization,
+        gateStatus: meta?.gateStatus,
+        qualityGate: meta?.qualityGate,
+        estimatedCostUsd: meta?.estimatedCostUsd
+      }
     });
     refreshAIRunHistory();
   }
@@ -2473,7 +2526,7 @@ export function ExportCenter() {
 
         {aiRunHistory.length ? (
           <div className="mt-4 overflow-x-auto rounded border border-slate-200">
-            <table className="min-w-[72rem] text-left text-sm">
+            <table className="min-w-[92rem] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-3 py-2 font-semibold">Skill</th>
@@ -2481,9 +2534,13 @@ export function ExportCenter() {
                   <th className="px-3 py-2 font-semibold">Model</th>
                   <th className="px-3 py-2 font-semibold">Status</th>
                   <th className="px-3 py-2 font-semibold">Validation</th>
+                  <th className="px-3 py-2 font-semibold">Gate</th>
                   <th className="px-3 py-2 font-semibold">Latency</th>
                   <th className="px-3 py-2 font-semibold">External</th>
-                  <th className="px-3 py-2 font-semibold">Tokens</th>
+                  <th className="px-3 py-2 font-semibold">Input</th>
+                  <th className="px-3 py-2 font-semibold">Output</th>
+                  <th className="px-3 py-2 font-semibold">Total</th>
+                  <th className="px-3 py-2 font-semibold">Cost</th>
                   <th className="px-3 py-2 font-semibold">Timestamp</th>
                   <th className="px-3 py-2 font-semibold">Details</th>
                 </tr>
@@ -2491,10 +2548,7 @@ export function ExportCenter() {
               <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
                 {aiRunHistory.slice(0, 8).map((run) => {
                   const isExpanded = expandedAIRunId === run.id;
-                  const canExpand =
-                    run.status === "failure" ||
-                    run.validationStatus === "invalid" ||
-                    run.warnings.length > 0;
+                  const canExpand = true;
 
                   return (
                     <Fragment key={run.id}>
@@ -2516,6 +2570,7 @@ export function ExportCenter() {
                           </span>
                         </td>
                         <td className="px-3 py-2">{run.validationStatus}</td>
+                        <td className="px-3 py-2">{run.gateStatus ?? "-"}</td>
                         <td className="px-3 py-2">
                           {run.latencyMs === undefined
                             ? "-"
@@ -2525,7 +2580,16 @@ export function ExportCenter() {
                           {run.externalApiCalled ? "yes" : "no"}
                         </td>
                         <td className="px-3 py-2">
-                          {run.tokenUsage?.totalTokens ?? "-"}
+                          {formatOptionalNumber(run.tokenUsage?.inputTokens)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {formatOptionalNumber(run.tokenUsage?.outputTokens)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {formatOptionalNumber(run.tokenUsage?.totalTokens)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {formatCost(run.estimatedCostUsd)}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-500">
                           {new Date(run.timestamp).toLocaleString()}
@@ -2548,8 +2612,16 @@ export function ExportCenter() {
                       </tr>
                       {isExpanded ? (
                         <tr key={`${run.id}-details`}>
-                          <td className="bg-slate-50 px-3 py-3" colSpan={10}>
+                          <td className="bg-slate-50 px-3 py-3" colSpan={14}>
                             <div className="grid gap-3 text-xs text-slate-700 md:grid-cols-2">
+                              <p>
+                                <span className="font-semibold">Runtime:</span>{" "}
+                                {formatSafeRecord(run.runtimeOptionsSummary)}
+                              </p>
+                              <p>
+                                <span className="font-semibold">Cost:</span>{" "}
+                                {formatCost(run.estimatedCostUsd)}
+                              </p>
                               <p>
                                 <span className="font-semibold">Error type:</span>{" "}
                                 {run.errorType || "not applicable"}
@@ -2557,6 +2629,18 @@ export function ExportCenter() {
                               <p>
                                 <span className="font-semibold">Request id:</span>{" "}
                                 {run.requestId || "not available"}
+                              </p>
+                              <p className="md:col-span-2">
+                                <span className="font-semibold">
+                                  Context summary:
+                                </span>{" "}
+                                {formatSafeRecord(run.contextSummary)}
+                              </p>
+                              <p className="md:col-span-2">
+                                <span className="font-semibold">
+                                  Output normalization:
+                                </span>{" "}
+                                {formatSafeRecord(run.outputNormalizationSummary)}
                               </p>
                               <p className="md:col-span-2">
                                 <span className="font-semibold">

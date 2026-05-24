@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Added Draft PTR journey/profile detection when applying AI Input Brief drafts into Process Task Register.
+- Created `detectProcessRegisterProfile` to infer Lending, Account Opening, Payment, Servicing, or Generic profiles from draft metadata, source summary, process info, and draft rows.
+- Wired Apply Draft PTR to persist `selectedProcessRegisterProfile` without changing draft row apply behavior; Replace/Append remains user-controlled and draft rows are preserved.
+- Added a Process Task Register badge showing the detected profile, confidence, and reason; Lending and Account Opening detections also align the sample selector to the closest existing sample without replacing applied rows.
+- Confirmed `npx.cmd tsc --noEmit` passes for the profile detection update.
 - Upgraded Rule QA recommendation coverage so every QA finding/warning now receives at least one actionable recommendation.
 - Added deterministic recommendations for missing task names, missing input/output, missing data object/source, missing customer interaction type, end-event final state, and Service Blueprint readiness findings.
 - Added a safe `MarkReviewStatus` fallback recommendation for issue codes where no deterministic field-level fix is available, preserving preview/approval before apply.

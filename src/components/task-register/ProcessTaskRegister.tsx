@@ -22,6 +22,13 @@ import {
   createAISkillRequestBody,
   resolveAISkillModelSelection
 } from "@/lib/ai/ai-governance";
+import {
+  GENERIC_PROCESS_REGISTER_PROFILE,
+  PROCESS_REGISTER_PROFILE_EVENT,
+  SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY,
+  type DetectedProcessRegisterProfile,
+  type RelatedSampleProcessId
+} from "@/lib/ai-intake";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import {
   type QaIssue,
@@ -112,6 +119,8 @@ const ptrText = {
     exportReady: "Ready",
     exportNotReady: "Not ready",
     gateLabel: "Gate",
+    detectedProfile: "Profile phát hiện",
+    profileConfidence: "Độ tin cậy",
     selectRows: "Chọn dòng",
     selectedRows: "dòng đã chọn",
     oneRow: "Một dòng = một task/gateway/event/data interaction.",
@@ -167,6 +176,8 @@ const ptrText = {
     exportReady: "Ready",
     exportNotReady: "Not ready",
     gateLabel: "Gate",
+    detectedProfile: "Detected profile",
+    profileConfidence: "Confidence",
     selectRows: "Select rows",
     selectedRows: "selected rows",
     oneRow: "One row = one task, gateway, event, or data interaction.",
@@ -190,7 +201,7 @@ type SelectOption = {
   helpText?: string;
 };
 
-type SampleProcessId = "sme-online-loan" | "corporate-account-opening";
+type SampleProcessId = RelatedSampleProcessId;
 
 type PtrAIAssistantActionId =
   | "normalize-selected-rows"
@@ -549,6 +560,63 @@ function cloneSampleTasks(sampleId?: string | null) {
   return getSampleProcess(sampleId).tasks.map((task) => ({ ...task }));
 }
 
+function parseProcessRegisterProfile(
+  value: string | null
+): DetectedProcessRegisterProfile {
+  if (!value) {
+    return GENERIC_PROCESS_REGISTER_PROFILE;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<DetectedProcessRegisterProfile>;
+
+    if (typeof parsed.id === "string" && typeof parsed.label === "string") {
+      return {
+        ...GENERIC_PROCESS_REGISTER_PROFILE,
+        ...parsed,
+        confidence: parsed.confidence ?? "low",
+        description: parsed.description ?? GENERIC_PROCESS_REGISTER_PROFILE.description,
+        reason: parsed.reason ?? GENERIC_PROCESS_REGISTER_PROFILE.reason
+      };
+    }
+  } catch {
+    return GENERIC_PROCESS_REGISTER_PROFILE;
+  }
+
+  return GENERIC_PROCESS_REGISTER_PROFILE;
+}
+
+function getProfileForSampleProcess(
+  sampleId: SampleProcessId
+): DetectedProcessRegisterProfile {
+  if (sampleId === "sme-online-loan") {
+    return {
+      id: "sme-loan-lending",
+      label: "SME Loan / Lending profile",
+      description: "Lending, credit, loan origination, collateral, and approval journeys.",
+      confidence: "high",
+      reason: "Selected SME Online Loan sample.",
+      relatedSampleProcessId: "sme-online-loan"
+    };
+  }
+
+  return {
+    id: "account-opening",
+    label: "Account Opening profile",
+    description: "Account opening, customer onboarding, KYC, and corporate profile setup.",
+    confidence: "high",
+    reason: "Selected Corporate Account Opening sample.",
+    relatedSampleProcessId: "corporate-account-opening"
+  };
+}
+
+function persistProcessRegisterProfile(profile: DetectedProcessRegisterProfile) {
+  window.localStorage.setItem(
+    SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY,
+    JSON.stringify(profile)
+  );
+}
+
 function createEmptyTask(index: number): ProcessTask {
   const stepNumber = String(index + 1).padStart(3, "0");
 
@@ -808,6 +876,8 @@ export function ProcessTaskRegister() {
   const [tasks, setTasks] = useState<ProcessTask[]>(() => cloneSampleTasks());
   const [selectedSampleProcessId, setSelectedSampleProcessId] =
     useState<SampleProcessId>("sme-online-loan");
+  const [selectedProcessRegisterProfile, setSelectedProcessRegisterProfile] =
+    useState<DetectedProcessRegisterProfile>(GENERIC_PROCESS_REGISTER_PROFILE);
   const [saveMessage, setSaveMessage] = useState("");
   const [highlightedStepId, setHighlightedStepId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ProcessTaskImportPreview | null>(null);
@@ -842,6 +912,16 @@ export function ProcessTaskRegister() {
     setActiveLocale(getLocale());
 
     function loadSavedTasks() {
+      const savedSampleProcess = getSampleProcess(
+        window.localStorage.getItem(SAMPLE_PROCESS_STORAGE_KEY)
+      );
+      setSelectedSampleProcessId(savedSampleProcess.id);
+      setSelectedProcessRegisterProfile(
+        parseProcessRegisterProfile(
+          window.localStorage.getItem(SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY)
+        )
+      );
+
       const savedTasks = window.localStorage.getItem(STORAGE_KEY);
 
       if (!savedTasks) {
@@ -877,9 +957,11 @@ export function ProcessTaskRegister() {
     }
 
     window.addEventListener(PROCESS_TASKS_EVENT, loadSavedTasks);
+    window.addEventListener(PROCESS_REGISTER_PROFILE_EVENT, loadSavedTasks);
 
     return () => {
       window.removeEventListener(PROCESS_TASKS_EVENT, loadSavedTasks);
+      window.removeEventListener(PROCESS_REGISTER_PROFILE_EVENT, loadSavedTasks);
       if (saveStateTimeoutRef.current) {
         window.clearTimeout(saveStateTimeoutRef.current);
       }
@@ -1354,6 +1436,8 @@ export function ProcessTaskRegister() {
     lastSavedTasksRef.current = sampleTasks.map((task) => ({ ...task }));
     window.localStorage.removeItem(STORAGE_KEY);
     window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, selectedSampleProcessId);
+    setSelectedProcessRegisterProfile(getProfileForSampleProcess(selectedSampleProcessId));
+    persistProcessRegisterProfile(getProfileForSampleProcess(selectedSampleProcessId));
     markGeneratedArtifactsStale();
     markSaved();
     setSaveMessage(`Đã reset về dữ liệu mẫu ${activeSampleProcess.label}.`);
@@ -1382,6 +1466,8 @@ export function ProcessTaskRegister() {
     const sampleTasks = cloneSampleTasks(nextSampleProcess.id);
 
     setSelectedSampleProcessId(nextSampleProcess.id);
+    setSelectedProcessRegisterProfile(getProfileForSampleProcess(nextSampleProcess.id));
+    persistProcessRegisterProfile(getProfileForSampleProcess(nextSampleProcess.id));
     setTasks(persistTasks(sampleTasks));
     lastSavedTasksRef.current = sampleTasks.map((task) => ({ ...task }));
     window.localStorage.setItem(SAMPLE_PROCESS_STORAGE_KEY, nextSampleProcess.id);
@@ -1829,6 +1915,20 @@ export function ProcessTaskRegister() {
               >
                 {text.autoSuggest}
               </button>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded border border-sky-100 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+              <span className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                {text.detectedProfile}
+              </span>
+              <span className="rounded-full border border-sky-200 bg-white px-2 py-1 font-semibold">
+                {selectedProcessRegisterProfile.label}
+              </span>
+              <span className="text-sky-800">
+                {text.profileConfidence}: {selectedProcessRegisterProfile.confidence}
+              </span>
+              <span className="text-sky-700">
+                {selectedProcessRegisterProfile.reason}
+              </span>
             </div>
             <div className="mt-4 rounded-md border border-blue-100 bg-blue-50/70 p-3">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

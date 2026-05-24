@@ -12,11 +12,14 @@ import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
   createIntakeFileMetadata,
+  detectProcessRegisterProfile,
   extractDraftTasksFromExcel,
   extractTextFromDocx,
   extractTextFromPdf,
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
+  PROCESS_REGISTER_PROFILE_EVENT,
+  SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY,
   validateDraftProcessTaskRegister,
   type DocxExtractionResult,
   type DraftPTRGenerationResult,
@@ -44,6 +47,8 @@ const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
 const FILE_METADATA_STORAGE_KEY =
   "process-blueprint-ai-workbench:input-brief-file-metadata";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
+const SAMPLE_PROCESS_STORAGE_KEY =
+  "process-blueprint-ai-workbench:selected-sample-process";
 const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
 const D01_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d01-bpmn-status";
@@ -1953,8 +1958,25 @@ export function AIInputBriefPanel() {
       mode === "append"
         ? [...currentTasks, ...avoidStepIdConflicts(currentTasks, draftTasks)]
         : draftTasks;
+    const detectedProfile = detectProcessRegisterProfile({
+      draftMetadata: draftMeta,
+      sourceSummary: draftMeta?.sourceSummary,
+      processInfo: brief.processInfo,
+      draftProcessTasks: draftTasks
+    });
 
     window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(nextTasks));
+    window.localStorage.setItem(
+      SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY,
+      JSON.stringify(detectedProfile)
+    );
+    if (detectedProfile.relatedSampleProcessId) {
+      window.localStorage.setItem(
+        SAMPLE_PROCESS_STORAGE_KEY,
+        detectedProfile.relatedSampleProcessId
+      );
+    }
+    window.dispatchEvent(new Event(PROCESS_REGISTER_PROFILE_EVENT));
     window.dispatchEvent(new Event(PROCESS_TASKS_EVENT));
     markGeneratedArtifactsStale();
     saveAuditLogEntry({
@@ -1963,11 +1985,15 @@ export function AIInputBriefPanel() {
       summary: `Applied draft Process Task Register from AI Input Brief workflow with ${mode} mode.`,
       metadata: {
         mode,
+        detectedProfileId: detectedProfile.id,
+        detectedProfileLabel: detectedProfile.label,
         draftRowCount: draftTasks.length,
         finalRowCount: nextTasks.length
       }
     });
-    setMessage("Đã apply draft PTR vào Process Task Register. QA sẽ chạy lại theo dữ liệu mới.");
+    setMessage(
+      `Đã apply draft PTR vào Process Task Register. Profile phát hiện: ${detectedProfile.label}. QA sẽ chạy lại theo dữ liệu mới.`
+    );
   }
 
   function cancelDraft() {

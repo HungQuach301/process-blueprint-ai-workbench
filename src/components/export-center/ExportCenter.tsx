@@ -596,30 +596,74 @@ export function ExportCenter() {
     downloadAction?: ReactNode;
     downloadDisabled?: boolean;
   }) {
+    const descriptions: Record<string, string> = {
+      BRD: "Business requirements draft from PTR, notes, or uploaded context.",
+      SRS: "Software requirements draft derived from BRD/PTR or notes.",
+      "User Stories": "Epics and user stories traced back to requirements and process steps.",
+      AC: "Acceptance criteria generated from reviewed user stories.",
+      Scope: "Product scope review, out-of-scope items, risks, and MVP slicing.",
+      QA: "Requirement quality findings and trace coverage checks.",
+      Package: "Combined product delivery draft and markdown handoff package."
+    };
+    const sourceContext: Record<string, string> = {
+      BRD: "Source: PTR or Notes",
+      SRS: "Source: BRD/PTR or Notes",
+      "User Stories": "Source: SRS or BRD",
+      AC: "Source: User Stories",
+      Scope: "Source: BRD / SRS / Stories / Context",
+      QA: "Source: Product Delivery previews",
+      Package: "Source: Current previews"
+    };
+    const actionItems = Array.isArray(actions) ? actions : [actions];
+
     return (
-      <div className="grid gap-3 rounded border border-slate-200 bg-white p-3 lg:grid-cols-[9rem_minmax(0,1fr)_auto_auto] lg:items-center">
-        <div className="text-sm font-semibold text-slate-950">{title}</div>
-        <div className="flex flex-wrap gap-2">{actions}</div>
-        <div className="flex flex-wrap items-center gap-2">
-          {renderProductDeliveryStatusBadge(status)}
+      <article className="flex min-w-0 flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h4 className="text-base font-semibold text-slate-950">{title}</h4>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {descriptions[title] ?? "Generate and review this delivery artifact before export."}
+            </p>
+          </div>
+          <div className="shrink-0">{renderProductDeliveryStatusBadge(status)}</div>
+        </div>
+
+        <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Source context
+          </p>
+          <p className="mt-1 text-sm font-medium text-slate-700">
+            {sourceContext[title] ?? "Source: Current workspace"}
+          </p>
           {summary ? (
-            <span className="text-xs font-medium text-slate-500">
-              {summary}
-            </span>
+            <p className="mt-1 text-xs font-medium text-slate-500">{summary}</p>
           ) : null}
         </div>
-        {downloadAction ? (
-          <div className="flex justify-start lg:justify-end">
-            <span
-              className={
-                downloadDisabled ? "pointer-events-none opacity-50" : undefined
-              }
-            >
-              {downloadAction}
-            </span>
+
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
+            {actionItems.map((action, index) => (
+              <span
+                className="[&>button]:whitespace-nowrap [&>button]:text-left"
+                key={index}
+              >
+                {action}
+              </span>
+            ))}
           </div>
-        ) : null}
-      </div>
+          {downloadAction ? (
+            <div className="ml-auto shrink-0">
+              <span
+                className={
+                  downloadDisabled ? "pointer-events-none opacity-50" : undefined
+                }
+              >
+                {downloadAction}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </article>
     );
   }
 
@@ -2775,7 +2819,7 @@ export function ExportCenter() {
                 </div>
               ) : null}
             </div>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 grid gap-4 xl:grid-cols-2">
               {renderProductDeliveryRow({
                 title: "BRD",
                 status: getProductDeliveryActionStatus(

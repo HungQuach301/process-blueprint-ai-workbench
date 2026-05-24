@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Redesigned Product Delivery Workspace artifact controls from compressed rows into responsive horizontal cards.
+- Each BRD, SRS, User Stories, Acceptance Criteria, Scope, QA, and Package card now shows title, short description, status badge, source context, summary, actions, and download control without squeezing buttons into a vertical stack.
+- Preserved optional context collapse, preview-before-export, no auto-export, no auto-apply, Product Delivery generator behavior, and AI route behavior.
+- Confirmed `npx.cmd tsc --noEmit` passes for the Product Delivery Workspace card layout update.
 - Upgraded AI Run History metadata and UI without storing full prompts, full payloads, or full outputs.
 - Extended local AI audit records to support runtime options summary, safe context summary, input/output/total tokens, latency, estimated cost placeholder, validation status, gate status, output normalization summary, request id, and external API flag.
 - Added safe route-level context summaries for provider-backed AI calls: payload kind, process task count, selected template id/name, artifact type, prompt pack id, schema id, and payload size only.

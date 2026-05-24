@@ -18,6 +18,9 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Created `docs/UX_QA_HISTORY_DELIVERY_HARDENING_HANDOFF.md` to summarize the UX/QA/History/Delivery hardening sprint.
+- Captured completed work: QA warnings with recommendations, Apply All After Review, PTR journey/profile detection, Template Hub hidden from the main screen, enriched AI Run History, and redesigned Product Delivery cards.
+- Documented commands run, manual test status, remaining risks, and the next lesson: Bai 4 Provider Routing & Cost Optimization.
 - Redesigned Product Delivery Workspace artifact controls from compressed rows into responsive horizontal cards.
 - Each BRD, SRS, User Stories, Acceptance Criteria, Scope, QA, and Package card now shows title, short description, status badge, source context, summary, actions, and download control without squeezing buttons into a vertical stack.
 - Preserved optional context collapse, preview-before-export, no auto-export, no auto-apply, Product Delivery generator behavior, and AI route behavior.

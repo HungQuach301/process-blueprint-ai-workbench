@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-23
+2026-05-24
 
 ## Current branch
 
@@ -18,6 +18,11 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Upgraded Rule QA recommendation coverage so every QA finding/warning now receives at least one actionable recommendation.
+- Added deterministic recommendations for missing task names, missing input/output, missing data object/source, missing customer interaction type, end-event final state, and Service Blueprint readiness findings.
+- Added a safe `MarkReviewStatus` fallback recommendation for issue codes where no deterministic field-level fix is available, preserving preview/approval before apply.
+- Confirmed the existing QA Panel summary-first flow already supports total findings, total recommendations, safe recommendations, medium/high risk, selected count, `Apply All Safe`, `Preview All Recommendations`, and `Apply All After Review` with confirmation.
+- Confirmed `npx.cmd tsc --noEmit` passes for this QA recommendation coverage update.
 - Created `docs/AI_ORCHESTRATOR_LESSON_03_HANDOFF.md` to summarize Bai 3 - Structured Output & Schema Engineering.
 - Summarized structured output schema coverage for `input-brief-to-ptr`, `process-improvement-recommendation`, and `artifact-review`.
 - Documented the skill-aware structured output architecture, eval scripts/datasets, validation status, governance confirmations, remaining risks, and Bai 4 entry criteria.

@@ -18,6 +18,10 @@ Complete Module 2 + Module 3 with full real AI support.
 
 ## What was done in the last session
 
+- Created `docs/AI_ORCHESTRATOR_LESSON_03_HANDOFF.md` to summarize Bai 3 - Structured Output & Schema Engineering.
+- Summarized structured output schema coverage for `input-brief-to-ptr`, `process-improvement-recommendation`, and `artifact-review`.
+- Documented the skill-aware structured output architecture, eval scripts/datasets, validation status, governance confirmations, remaining risks, and Bai 4 entry criteria.
+- Marked Bai 4 - Provider Routing & Cost Optimization as the next recommended AI Orchestrator focus.
 - Added schema/eval smoke tests for `process-improvement-recommendation` and `artifact-review`.
 - Created `evals/process-improvement-recommendation/dataset.json` and `run-eval.ts` with 3 cases covering missing ownership, missing input/output, and complex task split recommendations.
 - Created `evals/artifact-review/dataset.json` and `run-eval.ts` with 3 review-only artifact cases covering BPMN, Service Blueprint, and QA issue context.

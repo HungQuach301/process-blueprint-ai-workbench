@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-24 (Provider Routing Audit)
+2026-05-27 (Validation vs Evaluation Guide)
 
 ## Current branch
 
@@ -17,6 +17,16 @@ Complete Module 2 + Module 3 with full real AI support.
 `v0.8.0-mvp1-ai`
 
 ## What was done in the last session
+
+- Created `docs/VALIDATION_VS_EVALUATION_GUIDE.md` as the AI Orchestrator mentor guide for separating validation from evaluation.
+- Documented that validation checks product contract safety, quality gates check preview/apply readiness, and evaluation measures skill usefulness across cases.
+- Added concrete examples for `input-brief-to-ptr` and `process-improvement-recommendation`.
+- Explained why schema-valid Draft PTR output can still fail semantic quality, especially when missing `allStepsHaveActor`, `hasGateway`, `confidenceLow`, or `gatewayCount`.
+- Recommended criteria-based eval as the next product baseline before LLM-as-judge.
+- Defined eval interpretation for pass, partial, and fail.
+- Captured Bai 5 next steps around criteria-based eval and semantic quality hardening.
+- Kept this session documentation-only; no app code, schema, eval runner, dataset, package, or dependency files were changed.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 
 - Created `docs/PROVIDER_ROUTING_AUDIT.md` as the Bài 4 entry audit for Provider Routing & Cost Optimization.
 - Audited current provider routing maturity (Level 1: single env provider, no skill-aware routing, no cost calculation).

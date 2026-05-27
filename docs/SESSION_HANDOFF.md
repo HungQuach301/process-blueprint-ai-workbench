@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-27 (Validation vs Evaluation Guide)
+2026-05-27 (Eval Dataset Design)
 
 ## Current branch
 
@@ -17,6 +17,16 @@ Complete Module 2 + Module 3 with full real AI support.
 `v0.8.0-mvp1-ai`
 
 ## What was done in the last session
+
+- Created `docs/EVAL_DATASET_DESIGN.md` as the dataset design baseline for `input-brief-to-ptr` and `process-improvement-recommendation`.
+- Documented eval dataset principles focused on criteria-based, business-relevant, non-brittle measurement.
+- Mapped target coverage for `input-brief-to-ptr`, including simple/full/minimal/complex processes, gateway required/not required, multi-system, missing actor, Vietnamese/English, lending, onboarding, payment, and servicing cases.
+- Mapped target coverage for `process-improvement-recommendation`, including missing actor/system/input-output, ambiguous wording, split task, missing gateway branch, customer interaction type, high-risk graph changes, safe field updates, and conflicts.
+- Defined criteria groups for schema, semantic quality, process integrity, and risk/safety.
+- Recommended target dataset sizes: 20 `input-brief-to-ptr` cases and at least 10 `process-improvement-recommendation` cases.
+- Clarified out-of-scope areas for this dataset step: full RAG faithfulness, full visual BPMN correctness, and enterprise policy compliance.
+- Kept this session documentation-only; no app code, eval code, dataset JSON, schema, model type, package, or dependency files were changed.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 
 - Created `docs/VALIDATION_VS_EVALUATION_GUIDE.md` as the AI Orchestrator mentor guide for separating validation from evaluation.
 - Documented that validation checks product contract safety, quality gates check preview/apply readiness, and evaluation measures skill usefulness across cases.

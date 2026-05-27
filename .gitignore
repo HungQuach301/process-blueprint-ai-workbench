@@ -50,3 +50,6 @@ evals/**/results-*.json
 
 # Generated eval run outputs
 evals/**/results-*.json
+
+# Local Claude/Codex workspace state
+.claude/

@@ -2,7 +2,7 @@
 
 ## Last updated
 
-2026-05-27 (Eval Dataset Design)
+2026-05-29 (QA Batch Internal Reference Guard)
 
 ## Current branch
 
@@ -17,6 +17,35 @@ Complete Module 2 + Module 3 with full real AI support.
 `v0.8.0-mvp1-ai`
 
 ## What was done in the last session
+
+- Added Excel import next-step reference normalization for clear ordinal/prefix mismatches such as `XLSX-014` -> `img-014` when the target step exists uniquely.
+- Added Excel import warnings for normalized and unresolved `defaultNextStep`, `yesNextStep`, and `noNextStep` references without changing `ProcessTask` schema or `sourceRef`.
+- Hardened QA recommendation batch preview so created/new task internal references are checked before apply, including `defaultNextStep`, `yesNextStep`, and `noNextStep` on inserted tasks, split tasks, gateway tasks, and gateway branch tasks.
+- Batch preview now skips recommendations whose new task references point to `TBD`, empty strings, missing stepIds, or stepIds created only by skipped recommendations.
+- Batch apply continues to apply valid recommendations and reports applied/skipped counts; all-invalid batches show `No applicable recommendations to apply.`
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Hardened QA recommendation batch preview/apply so recommendations with invalid operation references are skipped before apply.
+- Treated empty, `TBD`, missing, and whitespace-padded step references as invalid for `UpdateTaskField`, `UpdateConnection`, actor/system/interaction/review operations, task insertion/split/gateway/lane operations, and gateway branch targets.
+- Kept `Apply All After Review` independent from selected checkboxes while applying only the valid recommendations that remain after preview skips.
+- Added clearer UI messaging for all-invalid batches: `No applicable recommendations to apply.`
+- Preserved QARecommendation schema, AI route, D01/D02 generators, ProcessTask schema, and no-auto-apply behavior.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Fixed QA Panel `Apply All After Review` so it previews and applies all current reviewable recommendations instead of depending on selected checkbox state.
+- Kept `Apply Selected` scoped to selected recommendations and `Apply All Safe` scoped to safe recommendations.
+- Expanded batch preview/apply handling so conflict or invalid missing-step recommendations are skipped individually instead of failing the whole batch.
+- Updated the batch modal summary to show total recommendations, safe recommendations, medium/high risk, graph-changing count, affected stepIds, warnings, and conflicts/invalid skips.
+- Added a post-confirm batch summary showing applied and skipped counts.
+- Preserved findings as read-only, no auto-apply behavior, AI route, D01/D02 generators, and ProcessTask schema.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Made Excel File Intake namespace-safe for workbook XML generated with prefixed tags such as `x:sheet`, `rel:Relationship`, `x:row`, `x:c`, `x:v`, `x:si`, and `x:t`.
+- Added local-name based XML element lookup in `src/lib/ai-intake/excel-extractor.ts` without adding dependencies.
+- Preserved existing canonical column mapping, ProcessTask schema, D01/D02 generators, and AI route behavior.
+- Preserved preferred sheet selection for `Process Task Register` with fallback to the first readable sheet.
+- Improved the empty workbook error to `Workbook does not contain readable worksheets.`
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
 
 - Created `docs/EVAL_DATASET_DESIGN.md` as the dataset design baseline for `input-brief-to-ptr` and `process-improvement-recommendation`.
 - Documented eval dataset principles focused on criteria-based, business-relevant, non-brittle measurement.

@@ -1722,6 +1722,16 @@ export function ProcessTaskRegister() {
   function applyRecommendations(recommendations: QARecommendation[]) {
     const preview = previewRecommendationBatch(tasks, recommendations);
 
+    if (preview.applicableCount === 0) {
+      const firstConflict = preview.conflicts[0]?.message;
+      setSaveMessage(
+        firstConflict
+          ? `No applicable recommendations to apply. ${firstConflict}`
+          : "No applicable recommendations to apply."
+      );
+      return;
+    }
+
     try {
       const nextTasks = applyRecommendationBatch(tasks, recommendations);
 
@@ -1739,7 +1749,7 @@ export function ProcessTaskRegister() {
         }
       });
       setSaveMessage(
-        `Đã apply ${preview.applicableCount} recommendation(s), skip ${preview.skippedCount} conflict(s), và đánh dấu D01/D02 stale.`
+        `Applied ${preview.applicableCount} recommendation(s). Skipped ${preview.skippedCount} invalid/conflict recommendation(s). D01/D02 marked stale.`
       );
     } catch (error) {
       setSaveMessage(formatRecommendationApplyError(error));

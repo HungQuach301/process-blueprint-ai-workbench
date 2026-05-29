@@ -485,6 +485,7 @@ export function QAPanel({
   const [isBatchConfirmationChecked, setIsBatchConfirmationChecked] =
     useState(false);
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState<Set<string>>(() => new Set());
+  const [batchApplySummary, setBatchApplySummary] = useState("");
   const [areFindingsExpanded, setAreFindingsExpanded] = useState(false);
   const [showOnlySafe, setShowOnlySafe] = useState(false);
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
@@ -722,6 +723,19 @@ export function QAPanel({
         })
         .filter((group) => group.recommendations.length > 0)
     : [];
+  const pendingBatchSafeCount =
+    pendingBatchRecommendations?.filter((recommendation) =>
+      canSelectAsSafeRecommendation(recommendation, includeMediumConfidence)
+    ).length ?? 0;
+  const pendingBatchMediumHighRiskCount =
+    pendingBatchRecommendations?.filter(
+      (recommendation) =>
+        recommendation.riskLevel === "medium" ||
+        recommendation.riskLevel === "high"
+    ).length ?? 0;
+  const pendingBatchGraphChangingCount =
+    pendingBatchRecommendations?.filter(isAdvancedStructureRecommendation)
+      .length ?? 0;
 
   function toggleRecommendation(id: string) {
     setSelectedRecommendationIds((currentIds) => {
@@ -767,6 +781,7 @@ export function QAPanel({
     setPendingBatchMode(mode);
     setIsBatchConfirmationChecked(false);
     setPendingBatchRecommendations(recommendations);
+    setBatchApplySummary("");
   }
 
   function applySelectedRecommendations() {
@@ -1326,6 +1341,9 @@ export function QAPanel({
       }
     ]);
     onApplyRecommendations(pendingBatchRecommendations);
+    setBatchApplySummary(
+      `Applied ${pendingBatchPreview.applicableCount} recommendation(s); skipped ${pendingBatchPreview.skippedCount} conflict/invalid recommendation(s).`
+    );
     setPendingBatchRecommendations(null);
     setIsBatchConfirmationChecked(false);
     clearSelection();
@@ -1409,6 +1427,11 @@ export function QAPanel({
                 {text.graphChangingRecommendations}: {graphChangingRecommendationCount}
               </p>
               <p className="mt-1 text-xs text-slate-500">{qaModeIndicator}</p>
+              {batchApplySummary ? (
+                <p className="mt-2 rounded border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-900">
+                  {batchApplySummary}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex max-w-full flex-wrap items-center gap-2">
@@ -2013,9 +2036,12 @@ export function QAPanel({
                   : "Apply selected recommendations"}
             </h3>
             <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-              <p>Recommendations: {pendingBatchPreview.selectedCount}</p>
+              <p>Total recommendations: {pendingBatchPreview.selectedCount}</p>
+              <p>Safe recommendations: {pendingBatchSafeCount}</p>
+              <p>Medium/high risk: {pendingBatchMediumHighRiskCount}</p>
+              <p>Graph-changing: {pendingBatchGraphChangingCount}</p>
               <p>Will apply: {pendingBatchPreview.applicableCount}</p>
-              <p>Skipped due to conflicts: {pendingBatchPreview.skippedCount}</p>
+              <p>Skipped conflicts/invalid: {pendingBatchPreview.skippedCount}</p>
               <p>Affected tasks: {pendingBatchPreview.affectedTaskCount}</p>
               <p>Field changes: {pendingBatchPreview.fieldChangeCount}</p>
               <p>New tasks: {pendingBatchPreview.newTaskCount}</p>
@@ -2092,7 +2118,18 @@ export function QAPanel({
                   ))}
                 </ul>
                 <p className="mt-2 text-sm text-red-700">
-                  Conflicting recommendations will be skipped.
+                  Conflicting or invalid recommendations will be skipped.
+                </p>
+              </div>
+            ) : null}
+
+            {pendingBatchPreview.applicableCount === 0 ? (
+              <div className="mt-4 rounded border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-semibold text-red-800">
+                  No applicable recommendations to apply.
+                </p>
+                <p className="mt-1 text-sm text-red-700">
+                  All recommendations in this batch are invalid, conflicting, or reference stepIds that are not in the current Process Task Register.
                 </p>
               </div>
             ) : null}

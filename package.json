@@ -8,7 +8,9 @@
     "start": "next start",
     "test:eval": "npx tsx evals/input-brief-to-ptr/run-eval.ts",
     "test:eval:process-improvement": "npx tsx evals/process-improvement-recommendation/run-eval.ts",
-    "test:eval:artifact-review": "npx tsx evals/artifact-review/run-eval.ts"
+    "test:eval:artifact-review": "npx tsx evals/artifact-review/run-eval.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "next lint"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

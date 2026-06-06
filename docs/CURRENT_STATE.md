@@ -2,31 +2,26 @@
 
 ## 1. Stable Baseline
 
-Current baseline/tag:
+Current tag:
 
-- `v0.6.0-ai-template-review`
+- `v0.8.0-pre-review`
 
 Current branch for the next phase:
 
-- `feature/real-ai-integration`
+- `feature/m2-m3-full-ai` (release target: `v0.8.0-mvp1-ai`)
 
 ## 2. Completed Modules
 
-The following modules are completed in the current baseline:
-
-- Process Task Register
-- D01 BPMN
-- D02 Service Blueprint
-- QA Engine
-- Recommendation Engine
-- Feedback logging
-- Template classification
-- Template Recommendation Engine
-- Simplified AI Input Brief
-- Real AI Input Brief path
-- Real AI QA path
-- AI Template Review path
-- Local Audit Log
+- Process Task Register (single source of truth)
+- D01 BPMN, D02 Service Blueprint generators
+- Rule-based QA + Recommendation Engine + Template Recommendation Engine
+- AI Skill layer v2 (skill-registry-v2, skill-schemas, prompt-packs)
+- Real AI provider layer: OpenAI + Claude + product-ai + mock via provider-factory
+- Structured Output via provider json_schema (output-schemas)
+- Eval harness (evals/): input-brief-to-ptr, process-improvement-recommendation, artifact-review
+- Token + latency + estimatedCostUsd tracking in audit log
+- JSON self-repair on malformed provider output
+- Local Audit Log + feedback logging
 
 ## 3. Product State
 
@@ -125,13 +120,11 @@ Default behavior should remain mock/local unless the relevant flag is enabled an
 
 ## 7. Next Priority
 
-Next implementation priorities:
-
-- AI Governance baseline
-- Model Provider settings
-- File Extraction: Excel, DOCX, PDF
-- File extraction to Draft PTR workflow
-- Lightweight Skill Pipeline
+- Bài 4: Provider Routing & Cost — advisor strategy (OpenAI executor + Claude advisor), skill x provider matrix, per-skill cost ceiling
+- Semantic self-correct loop (beyond JSON repair) + scoring (Bài 6 / Outcomes)
+- Expand eval coverage to more skills + semantic criteria (Bài 5)
+- PII masking before any cloud call + hard enforcement of data usage mode (Bài 12)
+- Module 3 Product Delivery real-AI skills (BRD/SRS/user stories/Jira)
 
 ## 8. Files And Folders Codex Must Read First
 

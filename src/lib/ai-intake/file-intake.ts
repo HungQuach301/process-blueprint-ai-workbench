@@ -24,7 +24,7 @@ function getFileExtension(fileName: string) {
 export function isSupportedIntakeFile(file: Pick<File, "name" | "type">) {
   const extension = getFileExtension(file.name);
 
-  return supportedExtensions.includes(extension) || file.type.startsWith("image/");
+  return supportedExtensions.includes(extension);
 }
 
 export function createIntakeFileMetadata(file: File): IntakeFileMetadata {

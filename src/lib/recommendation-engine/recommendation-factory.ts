@@ -319,6 +319,152 @@ function createMissingActorRecommendations(input: RuleRecommendationInput): QARe
   return [];
 }
 
+function createMarkReviewRecommendation(
+  input: RuleRecommendationInput,
+  options?: {
+    idSuffix?: string;
+    title?: string;
+    description?: string;
+    rationale?: string;
+    confidence?: "low" | "medium" | "high";
+    impact?: "low" | "medium" | "high";
+    riskLevel?: RecommendationRiskLevel;
+    warnings?: string[];
+  }
+): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-${options?.idSuffix ?? "mark-review"}`,
+      issueId,
+      issueCode,
+      recommendationType: "MarkReviewStatus",
+      title: options?.title ?? "Mark row as Need Review",
+      description:
+        options?.description ??
+        "This QA finding needs human confirmation before the row is used for generation.",
+      rationale:
+        options?.rationale ??
+        "Marking the row as needsReview keeps the finding actionable without changing process structure.",
+      confidence: options?.confidence ?? "high",
+      impact: options?.impact ?? "medium",
+      riskLevel: options?.riskLevel ?? "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: reviewStatus = needsReview`,
+      patch: { reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      warnings: options?.warnings,
+      requiresConfirmation: true,
+      complianceTags: ["human-review"]
+    })
+  ];
+}
+
+function createMissingTaskNameRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const taskName = "TBD task name - needs business review";
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-set-placeholder-task-name`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: "Add placeholder task name",
+      description: "Set a clear placeholder taskName and mark the row for business review.",
+      rationale: "A row without taskName cannot be reviewed, traced, or generated reliably.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: taskName = ${taskName}, reviewStatus = needsReview`,
+      patch: { taskName, reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "UpdateTaskField",
+          stepId: task.stepId,
+          field: "taskName",
+          value: taskName
+        },
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      warnings: ["Replace the placeholder with the real business activity before approval."],
+      requiresConfirmation: true,
+      complianceTags: ["human-review", "traceability"]
+    })
+  ];
+}
+
+function createMissingInputOutputRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const patch: QARecommendationPatch = { reviewStatus: "needsReview" };
+  const operations: NonNullable<QARecommendation["operations"]> = [];
+  const previewParts: string[] = [];
+
+  if (!task.input?.trim()) {
+    const inputPlaceholder = "TBD input - needs review";
+    patch.input = inputPlaceholder;
+    previewParts.push(`input = ${inputPlaceholder}`);
+    operations.push({
+      kind: "UpdateTaskField",
+      stepId: task.stepId,
+      field: "input",
+      value: inputPlaceholder
+    });
+  }
+
+  if (!task.output?.trim()) {
+    const outputPlaceholder = "TBD output - needs review";
+    patch.output = outputPlaceholder;
+    previewParts.push(`output = ${outputPlaceholder}`);
+    operations.push({
+      kind: "UpdateTaskField",
+      stepId: task.stepId,
+      field: "output",
+      value: outputPlaceholder
+    });
+  }
+
+  operations.push({
+    kind: "MarkReviewStatus",
+    stepId: task.stepId,
+    reviewStatus: "needsReview"
+  });
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-fill-input-output-placeholders`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: "Add input/output placeholders for review",
+      description: "Fill missing input/output fields with placeholders and mark the row for review.",
+      rationale: "PTR rows need explicit input and output to preserve traceability into BPMN, D02, and exports.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: ${previewParts.join(", ")}, reviewStatus = needsReview`,
+      patch,
+      operations,
+      warnings: ["Replace placeholders with confirmed business data before approval."],
+      requiresConfirmation: true,
+      complianceTags: ["human-review", "traceability"]
+    })
+  ];
+}
+
 function createMissingSystemRecommendations(input: RuleRecommendationInput): QARecommendation[] {
   const { issueId, issueCode, task } = input;
   const system = inferSystemFromTaskName(task);
@@ -476,10 +622,6 @@ function createInteractionTypeRecommendations(input: RuleRecommendationInput): Q
   const { issueId, issueCode, task } = input;
   const interactionType = inferCustomerInteractionType(task);
 
-  if (interactionType === "None") {
-    return [];
-  }
-
   return [
     createRuleRecommendation({
       id: `${issueId}-set-interaction-type`,
@@ -504,6 +646,102 @@ function createInteractionTypeRecommendations(input: RuleRecommendationInput): Q
       ],
       requiresConfirmation: true,
       complianceTags: ["service-blueprint"]
+    })
+  ];
+}
+
+function createDataObjectRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const dataObject = "TBD data object - needs review";
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-set-data-object-placeholder`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: "Add data object placeholder",
+      description: "Set a placeholder dataObject and mark the row for review.",
+      rationale: "Store actions need a named data object to keep data lineage traceable.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: dataObject = ${dataObject}, reviewStatus = needsReview`,
+      patch: { dataObject, reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "UpdateTaskField",
+          stepId: task.stepId,
+          field: "dataObject",
+          value: dataObject
+        },
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      warnings: ["Replace the placeholder with the actual document/data object before approval."],
+      requiresConfirmation: true,
+      complianceTags: ["data-lineage", "human-review"]
+    })
+  ];
+}
+
+function createPullInputSourceRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const inputPlaceholder = "TBD source/input - needs review";
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-set-pull-input-placeholder`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: "Add source/input placeholder",
+      description: "Set a placeholder input/sourceRef and mark the row for review.",
+      rationale: "Pull actions need a clear source to remain auditable and traceable.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: input/sourceRef = ${inputPlaceholder}, reviewStatus = needsReview`,
+      patch: {
+        input: task.input?.trim() ? task.input : inputPlaceholder,
+        sourceRef: task.sourceRef?.trim() ? task.sourceRef : inputPlaceholder,
+        reviewStatus: "needsReview"
+      },
+      operations: [
+        ...(!task.input?.trim()
+          ? [
+              {
+                kind: "UpdateTaskField" as const,
+                stepId: task.stepId,
+                field: "input" as const,
+                value: inputPlaceholder
+              }
+            ]
+          : []),
+        ...(!task.sourceRef?.trim()
+          ? [
+              {
+                kind: "UpdateTaskField" as const,
+                stepId: task.stepId,
+                field: "sourceRef" as const,
+                value: inputPlaceholder
+              }
+            ]
+          : []),
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      warnings: ["Confirm the actual upstream source before approval."],
+      requiresConfirmation: true,
+      complianceTags: ["data-lineage", "human-review"]
     })
   ];
 }
@@ -611,12 +849,12 @@ function createGatewayBranchRecommendations(input: RuleRecommendationInput): QAR
       complianceTags: ["human-review", "process-integrity"]
     }),
     createRuleRecommendation({
-      id: `${issueId}-add-gateway-branch-placeholder`,
+      id: `${issueId}-add-gateway-branch-tbd`,
       issueId,
       issueCode,
       recommendationType: "AddGatewayBranch",
-      title: "Thêm placeholder cho nhánh thiếu",
-      description: "Tạo gợi ý bổ sung yesNextStep/noNextStep placeholder để người dùng điền sau.",
+      title: "Thêm giá trị TBD cho nhánh thiếu",
+      description: "Tạo gợi ý bổ sung yesNextStep/noNextStep dạng TBD để người dùng điền sau.",
       rationale: "Gateway cần đủ nhánh để luồng có thể generate ổn định.",
       confidence: "low",
       impact: "medium",
@@ -627,7 +865,7 @@ function createGatewayBranchRecommendations(input: RuleRecommendationInput): QAR
         yesNextStep: task.yesNextStep || "TBD_YES",
         noNextStep: task.noNextStep || "TBD_NO"
       },
-      warnings: ["Placeholder chưa phải stepId hợp lệ, cần tạo hoặc chọn step thật."],
+      warnings: ["Giá trị TBD chưa phải stepId hợp lệ, cần tạo hoặc chọn step thật."],
       requiresConfirmation: true,
       complianceTags: ["human-review", "process-integrity"]
     })
@@ -665,12 +903,12 @@ function createGatewayBranchOperationRecommendations(input: RuleRecommendationIn
       complianceTags: ["human-review", "process-integrity"]
     }),
     createRuleRecommendation({
-      id: `${issueId}-add-gateway-branch-placeholder`,
+      id: `${issueId}-add-gateway-branch-tbd`,
       issueId,
       issueCode,
       recommendationType: "AddGatewayBranch",
-      title: "Add placeholder gateway branches",
-      description: "Add placeholder yesNextStep/noNextStep values for user review.",
+      title: "Add temporary gateway branches",
+      description: "Add TBD yesNextStep/noNextStep values for user review.",
       rationale: "A gateway needs explicit branches before generation.",
       confidence: "low",
       impact: "medium",
@@ -701,7 +939,7 @@ function createGatewayBranchOperationRecommendations(input: RuleRecommendationIn
           reviewStatus: "needsReview"
         }
       ],
-      warnings: ["Placeholder stepIds are not valid yet; create or select real target steps before final export."],
+      warnings: ["TBD stepIds are not valid yet; create or select real target steps before final export."],
       requiresConfirmation: true,
       complianceTags: ["human-review", "process-integrity"]
     })
@@ -847,12 +1085,12 @@ function createGatewayConditionRecommendations(input: RuleRecommendationInput): 
 
   return [
     createRuleRecommendation({
-      id: `${issueId}-set-placeholder-condition`,
+      id: `${issueId}-set-tbd-condition`,
       issueId,
       issueCode,
       recommendationType: "UpdateField",
-      title: "Add placeholder gateway condition",
-      description: "Add a placeholder condition question and mark the gateway for review.",
+      title: "Add TBD gateway condition",
+      description: "Add a TBD condition question and mark the gateway for review.",
       rationale: "Exclusive gateways need a clear decision question before generation.",
       confidence: "medium",
       impact: "medium",
@@ -873,7 +1111,7 @@ function createGatewayConditionRecommendations(input: RuleRecommendationInput): 
           reviewStatus: "needsReview"
         }
       ],
-      warnings: ["Placeholder condition must be reviewed by business before final export."],
+      warnings: ["TBD condition must be reviewed by business before final export."],
       requiresConfirmation: true,
       complianceTags: ["process-integrity", "human-review"]
     })
@@ -940,6 +1178,108 @@ function createMissingCustomerNotificationRecommendations(input: RuleRecommendat
   ];
 }
 
+function createEndEventClearStateRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const output = "Process ended - final state needs review";
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-set-end-state-placeholder`,
+      issueId,
+      issueCode,
+      recommendationType: "UpdateField",
+      title: "Add end-event final state placeholder",
+      description: "Set a reviewable final-state output for the end event.",
+      rationale: "An end event should make the process outcome clear for downstream artifacts.",
+      confidence: "high",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: output = ${output}, reviewStatus = needsReview`,
+      patch: { output, reviewStatus: "needsReview" },
+      operations: [
+        {
+          kind: "UpdateTaskField",
+          stepId: task.stepId,
+          field: "output",
+          value: output
+        },
+        {
+          kind: "MarkReviewStatus",
+          stepId: task.stepId,
+          reviewStatus: "needsReview"
+        }
+      ],
+      warnings: ["Confirm the final process state before approval."],
+      requiresConfirmation: true,
+      complianceTags: ["process-integrity", "human-review"]
+    })
+  ];
+}
+
+function createServiceBlueprintReadinessRecommendations(input: RuleRecommendationInput): QARecommendation[] {
+  const { issueId, issueCode, task } = input;
+  const interactionType = task.customerInteractionType ?? inferCustomerInteractionType(task);
+  const patch: QARecommendationPatch = {
+    customerInteractionType: interactionType,
+    reviewStatus: "needsReview"
+  };
+  const operations: NonNullable<QARecommendation["operations"]> = [
+    {
+      kind: "SetInteractionType",
+      stepId: task.stepId,
+      customerInteractionType: interactionType
+    },
+    {
+      kind: "MarkReviewStatus",
+      stepId: task.stepId,
+      reviewStatus: "needsReview"
+    }
+  ];
+
+  if (!task.actorLane?.trim() && task.actor?.trim()) {
+    patch.actorLane = task.actor;
+    operations.push({
+      kind: "UpdateTaskField",
+      stepId: task.stepId,
+      field: "actorLane",
+      value: task.actor
+    });
+  }
+
+  if (!task.systemLane?.trim() && task.system?.trim()) {
+    patch.systemLane = task.system;
+    operations.push({
+      kind: "UpdateTaskField",
+      stepId: task.stepId,
+      field: "systemLane",
+      value: task.system
+    });
+  }
+
+  return [
+    createRuleRecommendation({
+      id: `${issueId}-prepare-service-blueprint-card`,
+      issueId,
+      issueCode,
+      recommendationType: "SetInteractionType",
+      title: "Prepare row for Service Blueprint card",
+      description: "Fill deterministic blueprint placement fields and mark the row for review.",
+      rationale: "D02 needs interaction type and lane hints to place task cards clearly.",
+      confidence: "medium",
+      impact: "medium",
+      riskLevel: "low",
+      targetStepIds: [task.stepId],
+      previewText: `${task.stepId}: customerInteractionType = ${interactionType}, reviewStatus = needsReview`,
+      patch,
+      operations,
+      warnings: ["Review the service blueprint row/lane placement before approval."],
+      requiresConfirmation: true,
+      complianceTags: ["service-blueprint", "human-review"]
+    })
+  ];
+}
+
 export function createRuleRecommendationsForIssue(input: RuleRecommendationInput): QARecommendation[] {
   const context: RecommendationContext = {
     processTasks: input.processTasks,
@@ -949,32 +1289,75 @@ export function createRuleRecommendationsForIssue(input: RuleRecommendationInput
   };
   void context;
 
+  let recommendations: QARecommendation[];
+
   switch (input.issueCode) {
     case "MISSING_ACTOR":
-      return createMissingActorRecommendations(input);
+      recommendations = createMissingActorRecommendations(input);
+      break;
     case "MISSING_SYSTEM_FOR_SERVICE_TASK":
-      return createMissingSystemRecommendations(input);
+      recommendations = createMissingSystemRecommendations(input);
+      break;
+    case "MISSING_TASK_NAME":
+      recommendations = createMissingTaskNameRecommendations(input);
+      break;
+    case "MISSING_INPUT_OUTPUT":
+      recommendations = createMissingInputOutputRecommendations(input);
+      break;
     case "USER_TASK_MISSING_ACTOR_LANE":
-      return createActorLaneRecommendations(input);
+      recommendations = createActorLaneRecommendations(input);
+      break;
     case "SERVICE_TASK_MISSING_SYSTEM_LANE":
-      return createSystemLaneRecommendations(input);
+      recommendations = createSystemLaneRecommendations(input);
+      break;
     case "DISCONNECTED_TASK":
-      return createDisconnectedTaskRecommendations(input);
+      recommendations = createDisconnectedTaskRecommendations(input);
+      break;
     case "INVALID_NEXT_STEP":
-      return createInvalidNextStepRecommendations(input);
+      recommendations = createInvalidNextStepRecommendations(input);
+      break;
     case "GATEWAY_MISSING_CONDITION":
-      return createGatewayConditionRecommendations(input);
+      recommendations = createGatewayConditionRecommendations(input);
+      break;
     case "ROWTYPE_BPMNTYPE_MISMATCH":
-      return createRowTypeBpmnTypeRecommendations(input);
+      recommendations = createRowTypeBpmnTypeRecommendations(input);
+      break;
     case "MULTI_ACTION_TASK":
-      return createSplitTaskRecommendations(input);
+      recommendations = createSplitTaskRecommendations(input);
+      break;
     case "MISSING_CUSTOMER_INTERACTION_TYPE":
-      return createInteractionTypeRecommendations(input);
+      recommendations = createInteractionTypeRecommendations(input);
+      break;
     case "GATEWAY_MISSING_YES_NO":
-      return createGatewayBranchOperationRecommendations(input);
+      recommendations = createGatewayBranchOperationRecommendations(input);
+      break;
+    case "STORE_WITHOUT_DATA_OBJECT":
+      recommendations = createDataObjectRecommendations(input);
+      break;
+    case "PULL_WITHOUT_INPUT_SOURCE":
+      recommendations = createPullInputSourceRecommendations(input);
+      break;
+    case "END_EVENT_MISSING_CLEAR_STATE":
+      recommendations = createEndEventClearStateRecommendations(input);
+      break;
+    case "SERVICE_BLUEPRINT_CARD_READINESS":
+      recommendations = createServiceBlueprintReadinessRecommendations(input);
+      break;
     case "MISSING_CUSTOMER_NOTIFICATION_AFTER_REJECT_OR_PAUSE":
-      return createMissingCustomerNotificationRecommendations(input);
+      recommendations = createMissingCustomerNotificationRecommendations(input);
+      break;
     default:
-      return [];
+      recommendations = [];
   }
+
+  return recommendations.length > 0
+    ? recommendations
+    : createMarkReviewRecommendation(input, {
+        title: "Mark finding for review",
+        description: "No deterministic field-level fix is available, so this finding is routed to review.",
+        rationale: "Every QA finding needs at least one actionable recommendation while preserving human approval.",
+        confidence: "high",
+        impact: "medium",
+        riskLevel: "low"
+      });
 }

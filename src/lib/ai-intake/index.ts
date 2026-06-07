@@ -23,6 +23,20 @@ export {
 } from "@/lib/ai-intake/draft-ptr-generator";
 
 export type {
+  DetectedProcessRegisterProfile,
+  DetectProcessRegisterProfileInput,
+  ProcessRegisterProfileId,
+  RelatedSampleProcessId
+} from "@/lib/ai-intake/detect-process-register-profile";
+
+export {
+  detectProcessRegisterProfile,
+  GENERIC_PROCESS_REGISTER_PROFILE,
+  PROCESS_REGISTER_PROFILE_EVENT,
+  SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY
+} from "@/lib/ai-intake/detect-process-register-profile";
+
+export type {
   DraftProcessTaskRegister,
   SchemaValidationResult
 } from "@/lib/ai-intake/draft-ptr-schema";

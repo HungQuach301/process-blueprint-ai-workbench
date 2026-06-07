@@ -17,6 +17,7 @@ export type DraftPTRGenerationResult = {
   draftProcessTasks: ProcessTask[];
   assumptions: string[];
   openQuestions: string[];
+  qualityIssues: string[];
   qualityGateWarnings?: string[];
   sourceSummary: string;
   confidence: DraftPTRConfidence;
@@ -82,6 +83,53 @@ function splitLines(value: string) {
     .split(/\r?\n|,|;/)
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function splitStartEnd(value: string) {
+  const lines = splitLines(value);
+  const singleLine = lines[0] ?? "";
+  const fromToMatch =
+    singleLine.match(/từ lúc\s+(.+?)\s+đến khi\s+(.+)/i) ??
+    singleLine.match(/tu luc\s+(.+?)\s+den khi\s+(.+)/i);
+  const englishFromToMatch = singleLine.match(/from\s+(.+?)\s+to\s+(.+)/i);
+
+  if (fromToMatch) {
+    return {
+      startEvent: fromToMatch[1].trim(),
+      endEvent: fromToMatch[2].trim()
+    };
+  }
+
+  if (englishFromToMatch) {
+    return {
+      startEvent: englishFromToMatch[1].trim(),
+      endEvent: englishFromToMatch[2].trim()
+    };
+  }
+
+  return {
+    startEvent: lines[0] ?? "Request received",
+    endEvent: lines[lines.length - 1] ?? lines[0] ?? "Process completed"
+  };
+}
+
+function looksLikeSystem(value: string) {
+  return /\b(crm|core|banking|los|bpm|workflow|ecm|dms|s3|notification|website|mobile|app|portal|email|sms|call|branch|cic|blacklist|ekyc|tax|registry|payment|provider|system)\b/i.test(
+    value
+  );
+}
+
+function splitSystemsAndDocuments(value: string) {
+  const entries = splitLines(value);
+
+  return {
+    systems: entries.filter(looksLikeSystem),
+    documents: entries.filter((entry) => !looksLikeSystem(entry))
+  };
 }
 
 function formatStepId(index: number) {
@@ -181,7 +229,7 @@ function buildSourceSummary(brief: StructuredProcessBrief) {
 
 function buildAssumptions(brief: StructuredProcessBrief) {
   const assumptions: string[] = [
-    "Draft is generated locally from the 7-field structured brief.",
+    "Draft is generated locally from the structured Input Brief.",
     "All rows are marked Need Review before user apply."
   ];
 
@@ -189,7 +237,12 @@ function buildAssumptions(brief: StructuredProcessBrief) {
     assumptions.push("Primary actor is assumed to be Business User.");
   }
 
-  if (!brief.relatedSystems || brief.relatedSystems.length === 0) {
+  if (
+    !brief.customerSystems?.length &&
+    !brief.internalSystems?.length &&
+    !brief.thirdPartySystems?.length &&
+    (!brief.relatedSystems || brief.relatedSystems.length === 0)
+  ) {
     assumptions.push("No related system was provided, so system work is kept minimal.");
   }
 
@@ -215,7 +268,12 @@ function buildOpenQuestions(brief: StructuredProcessBrief) {
     openQuestions.push("Which roles or departments participate in this process?");
   }
 
-  if (!brief.relatedSystems || brief.relatedSystems.length === 0) {
+  if (
+    !brief.customerSystems?.length &&
+    !brief.internalSystems?.length &&
+    !brief.thirdPartySystems?.length &&
+    (!brief.relatedSystems || brief.relatedSystems.length === 0)
+  ) {
     openQuestions.push("Which systems or applications support the process?");
   }
 
@@ -225,7 +283,7 @@ function buildOpenQuestions(brief: StructuredProcessBrief) {
 
   return openQuestions.length > 0
     ? openQuestions
-    : ["No major open questions detected from the current 7-field brief."];
+    : ["No major open questions detected from the current structured brief."];
 }
 
 function inferConfidence(brief: StructuredProcessBrief): DraftPTRConfidence {
@@ -236,6 +294,9 @@ function inferConfidence(brief: StructuredProcessBrief): DraftPTRConfidence {
     clean(brief.startEnd.startEvent),
     clean(brief.startEnd.endEvent),
     brief.actors.length > 0 ? "actors" : "",
+    brief.customerSystems && brief.customerSystems.length > 0 ? "customer systems" : "",
+    brief.internalSystems && brief.internalSystems.length > 0 ? "internal systems" : "",
+    brief.thirdPartySystems && brief.thirdPartySystems.length > 0 ? "third-party systems" : "",
     brief.relatedSystems && brief.relatedSystems.length > 0 ? "systems" : "",
     brief.dataDocuments && brief.dataDocuments.length > 0 ? "data" : ""
   ].filter(Boolean).length;
@@ -254,34 +315,74 @@ function inferConfidence(brief: StructuredProcessBrief): DraftPTRConfidence {
 export function parseStructuredProcessBriefFromForm(input: {
   processInfo: string;
   businessObjective: string;
-  scope: string;
-  startEnd: string;
+  scope?: string;
+  startEnd?: string;
+  scopeBoundary?: string;
   actors: string;
-  relatedSystems: string;
+  relatedSystems?: string;
+  systemsAndDocuments?: string;
+  customerSystems?: string;
+  customerFacingSystems?: string;
+  internalSystems?: string;
+  thirdPartySystems?: string;
   dataDocuments: string;
   inputLanguage?: IntakeLanguage;
   outputLanguage?: IntakeOutputLanguage;
 }): StructuredProcessBrief {
   const actorNames = splitLines(input.actors);
-  const systemNames = splitLines(input.relatedSystems);
-  const dataNames = splitLines(input.dataDocuments);
-  const startEndLines = splitLines(input.startEnd);
+  const combinedLegacy = splitSystemsAndDocuments(input.systemsAndDocuments ?? "");
+  const customerSystemNames = unique([
+    ...splitLines(input.customerSystems ?? ""),
+    ...splitLines(input.customerFacingSystems ?? "")
+  ]);
+  const internalSystemNames = unique(splitLines(input.internalSystems ?? ""));
+  const thirdPartySystemNames = unique(splitLines(input.thirdPartySystems ?? ""));
+  const relatedSystemNames = unique([
+    ...splitLines(input.relatedSystems ?? ""),
+    ...combinedLegacy.systems
+  ]);
+  const systemNames = unique([
+    ...customerSystemNames,
+    ...internalSystemNames,
+    ...thirdPartySystemNames,
+    ...relatedSystemNames
+  ]);
+  const dataNames = unique([
+    ...splitLines(input.dataDocuments),
+    ...combinedLegacy.documents
+  ]);
+  const scope = clean(input.scope) || clean(input.scopeBoundary);
+  const startEnd = splitStartEnd(clean(input.startEnd) || clean(input.scopeBoundary));
 
   return {
     processInfo: {
       processName: firstSentence(input.processInfo, "Draft process")
     },
     businessObjective: input.businessObjective,
-    scope: input.scope,
+    scopeBoundary: input.scopeBoundary,
+    scope,
     startEnd: {
-      startEvent: startEndLines[0] ?? "Request received",
-      endEvent: startEndLines[startEndLines.length - 1] ?? "Process completed"
+      startEvent: startEnd.startEvent,
+      endEvent: startEnd.endEvent
     },
     actors: actorNames.map((name) => ({
       name,
       type: /customer|khach hang|client/i.test(name) ? "customer" : "internal"
     })),
+    customerSystems: customerSystemNames.map((name) => ({
+      name,
+      category: "customer"
+    })),
+    internalSystems: internalSystemNames.map((name) => ({
+      name,
+      category: "internal"
+    })),
+    thirdPartySystems: thirdPartySystemNames.map((name) => ({
+      name,
+      category: "thirdParty"
+    })),
     relatedSystems: systemNames.map((name) => ({ name })),
+    systemsAndDocuments: input.systemsAndDocuments,
     dataDocuments: dataNames.map((name) => ({ name, type: "document" })),
     inputLanguage: input.inputLanguage,
     outputLanguage: input.outputLanguage
@@ -302,12 +403,22 @@ export function generateDraftProcessTaskRegister(
   const primaryActor = actors[0];
   const primaryActorName = getActorName(primaryActor, "Business User");
   const secondaryActor = actors[1];
-  const primarySystem = clean(brief.relatedSystems?.[0]?.name) || "";
+  const customerSystems = brief.customerSystems ?? [];
+  const internalSystems =
+    brief.internalSystems && brief.internalSystems.length > 0
+      ? brief.internalSystems
+      : brief.relatedSystems ?? [];
+  const thirdPartySystems = brief.thirdPartySystems ?? [];
+  const primaryCustomerSystem = clean(customerSystems[0]?.name);
+  const primaryInternalSystem = clean(internalSystems[0]?.name);
+  const primaryThirdPartySystem = clean(thirdPartySystems[0]?.name);
+  const primarySystem =
+    primaryInternalSystem || primaryCustomerSystem || primaryThirdPartySystem || "";
   const primaryData = clean(brief.dataDocuments?.[0]?.name) || "";
   const defaultSystem = primarySystem || "Manual / TBD";
   const defaultData = primaryData || "Input brief";
   const defaultChannel = inferChannel(
-    `${brief.processInfo.processName} ${brief.scope} ${brief.startEnd.startEvent}`,
+    `${primaryCustomerSystem} ${brief.processInfo.processName} ${brief.scope} ${brief.startEnd.startEvent}`,
     "Other"
   );
   const taskInputs: DraftTaskInput[] = [];
@@ -323,8 +434,8 @@ export function generateDraftProcessTaskRegister(
     channel: defaultChannel,
     actor: primaryActorName,
     actorLane: primaryActorName,
-    system: defaultSystem,
-    systemLane: defaultSystem,
+    system: primaryCustomerSystem || defaultSystem,
+    systemLane: primaryCustomerSystem || defaultSystem,
     dataObject: defaultData,
     dataAction: "receive",
     taskName: startEvent,
@@ -353,8 +464,8 @@ export function generateDraftProcessTaskRegister(
     channel: defaultChannel,
     actor: primaryActorName,
     actorLane: primaryActorName,
-    system: defaultSystem,
-    systemLane: defaultSystem,
+    system: primaryCustomerSystem || defaultSystem,
+    systemLane: primaryCustomerSystem || defaultSystem,
     dataObject: defaultData,
     dataAction: primaryData ? "create" : "none",
     taskName: `${labels.capturePrefix} ${processName} ${labels.captureSuffix}`.trim(),
@@ -405,7 +516,7 @@ export function generateDraftProcessTaskRegister(
     });
   }
 
-  if (primarySystem) {
+  if (primaryInternalSystem) {
     taskInputs.push({
       stepId: "",
       rowType: "task",
@@ -417,11 +528,11 @@ export function generateDraftProcessTaskRegister(
       channel: "Internal System",
       actor: "System",
       actorLane: "System",
-      system: primarySystem,
-      systemLane: primarySystem,
+      system: primaryInternalSystem,
+      systemLane: primaryInternalSystem,
       dataObject: defaultData,
       dataAction: "validate",
-      taskName: `${labels.validatePrefix} ${primarySystem}`,
+      taskName: `${labels.validatePrefix} ${primaryInternalSystem}`,
       input: secondaryActor ? labels.reviewResult : labels.informationCaptured,
       output: labels.systemValidationResult,
       defaultNextStep: null,
@@ -432,6 +543,40 @@ export function generateDraftProcessTaskRegister(
       exceptionHandling: "Route to manual review",
       sla: "To be confirmed",
       riskControl: "System validation control",
+      sourceRef: "AI Input Brief local mock",
+      comment: "Generated locally; no external API call."
+    });
+  }
+
+  if (primaryThirdPartySystem) {
+    taskInputs.push({
+      stepId: "",
+      rowType: "task",
+      bpmnType: "serviceTask",
+      taskNature: "integration",
+      phase: "External Check",
+      group: processName,
+      customerInteractionType: "Support Process",
+      channel: "Other",
+      actor: "System",
+      actorLane: "System",
+      system: primaryThirdPartySystem,
+      systemLane: primaryThirdPartySystem,
+      dataObject: defaultData,
+      dataAction: "send",
+      taskName: `Exchange information with ${primaryThirdPartySystem}`,
+      input: primaryInternalSystem
+        ? labels.systemValidationResult
+        : labels.informationCaptured,
+      output: `${primaryThirdPartySystem} response received`,
+      defaultNextStep: null,
+      conditionQuestion: "",
+      yesNextStep: null,
+      noNextStep: null,
+      exception: "Third-party provider is unavailable or rejects the request",
+      exceptionHandling: "Retry, fallback, or route to manual review",
+      sla: "To be confirmed",
+      riskControl: "Third-party request/response audit trail",
       sourceRef: "AI Input Brief local mock",
       comment: "Generated locally; no external API call."
     });
@@ -454,7 +599,11 @@ export function generateDraftProcessTaskRegister(
       dataObject: primaryData,
       dataAction: "store",
       taskName: `${labels.recordPrefix} ${primaryData}`,
-      input: primarySystem ? labels.systemValidationResult : labels.informationCaptured,
+      input: primaryThirdPartySystem
+        ? `${primaryThirdPartySystem} response received`
+        : primaryInternalSystem
+          ? labels.systemValidationResult
+          : labels.informationCaptured,
       output: `${primaryData} recorded`,
       defaultNextStep: null,
       conditionQuestion: "",
@@ -481,8 +630,8 @@ export function generateDraftProcessTaskRegister(
       channel: "Email",
       actor: "System",
       actorLane: "System",
-      system: primarySystem || "Notification Service",
-      systemLane: primarySystem || "Notification Service",
+      system: primaryInternalSystem || primaryCustomerSystem || "Notification Service",
+      systemLane: primaryInternalSystem || primaryCustomerSystem || "Notification Service",
       dataObject: primaryData || "Notification message",
       dataAction: "send",
       taskName: labels.notifyOutcome,
@@ -546,6 +695,7 @@ export function generateDraftProcessTaskRegister(
     draftProcessTasks,
     assumptions: buildAssumptions(brief),
     openQuestions: buildOpenQuestions(brief),
+    qualityIssues: [],
     sourceSummary: buildSourceSummary(brief),
     confidence: inferConfidence(brief),
     inputLanguage,

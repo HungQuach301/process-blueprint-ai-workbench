@@ -5,13 +5,20 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:eval": "npx tsx evals/input-brief-to-ptr/run-eval.ts",
+    "test:eval:process-improvement": "npx tsx evals/process-improvement-recommendation/run-eval.ts",
+    "test:eval:artifact-review": "npx tsx evals/artifact-review/run-eval.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo TODO: configure ESLint 9 flat config"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "bpmn-js": "^18.16.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "next": "latest",
+    "openai": "^6.37.0",
     "react": "latest",
     "react-dom": "latest"
   },
@@ -24,6 +31,7 @@
     "eslint-config-next": "latest",
     "postcss": "latest",
     "tailwindcss": "latest",
+    "tsx": "^4.22.3",
     "typescript": "latest"
   }
 }

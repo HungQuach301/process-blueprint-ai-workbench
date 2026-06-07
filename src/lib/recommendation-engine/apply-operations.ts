@@ -12,6 +12,11 @@ const connectionFields: QAConnectionField[] = [
   "yesNextStep",
   "noNextStep"
 ];
+const nextStepFields = [
+  "defaultNextStep",
+  "yesNextStep",
+  "noNextStep"
+] satisfies Array<keyof Pick<ProcessTask, "defaultNextStep" | "yesNextStep" | "noNextStep">>;
 
 const safeOperationKinds = new Set<QARecommendationOperation["kind"]>([
   "UpdateTaskField",
@@ -41,6 +46,41 @@ function stringifyValue(value: unknown) {
   }
 
   return String(value);
+}
+
+type RequiredStepReference = {
+  label: string;
+  stepId: string | undefined;
+};
+
+function isPlaceholderStepId(stepId: string) {
+  return stepId.trim().toLowerCase() === "tbd";
+}
+
+function describeInvalidStepReference(
+  reference: RequiredStepReference,
+  existingStepIds: Set<string>
+) {
+  const rawStepId = reference.stepId ?? "";
+  const stepId = rawStepId.trim();
+
+  if (!stepId) {
+    return `${reference.label} is empty.`;
+  }
+
+  if (isPlaceholderStepId(stepId)) {
+    return `${reference.label} is TBD.`;
+  }
+
+  if (!existingStepIds.has(stepId)) {
+    return `${reference.label} "${stepId}" does not exist in the current Process Task Register.`;
+  }
+
+  if (rawStepId !== stepId) {
+    return `${reference.label} "${rawStepId}" contains leading or trailing spaces.`;
+  }
+
+  return null;
 }
 
 export function normalizeRecommendationOperations(
@@ -301,6 +341,21 @@ function assertOperationTargetsExist(
 ) {
   const stepIds = new Set(tasks.map((task) => task.stepId));
   const messages: string[] = [];
+
+  operations.forEach((operation) => {
+    collectRequiredExistingStepReferences(operation).forEach((reference) => {
+      const invalidReason = describeInvalidStepReference(reference, stepIds);
+
+      if (invalidReason) {
+        messages.push(`Cannot apply recommendation because ${invalidReason}`);
+      }
+    });
+  });
+
+  if (messages.length > 0) {
+    throw new RecommendationApplyValidationError(messages);
+  }
+
   const requireStepId = (stepId: string | undefined, label: string) => {
     if (stepId && !stepIds.has(stepId)) {
       messages.push(
@@ -483,6 +538,114 @@ function collectAffectedStepIds(operation: QARecommendationOperation) {
   }
 }
 
+function collectCreatedTasks(operation: QARecommendationOperation) {
+  switch (operation.kind) {
+    case "CreateTaskAfter":
+    case "CreateTaskBefore":
+    case "InsertTaskBetween":
+      return [{ label: `${operation.kind}.task`, task: operation.task }];
+    case "SplitTask":
+      return operation.newTasks.map((task, index) => ({
+        label: `SplitTask.newTasks[${index}]`,
+        task
+      }));
+    case "CreateGateway":
+      return [{ label: "CreateGateway.gatewayTask", task: operation.gatewayTask }];
+    case "AddGatewayBranch":
+      return operation.newTask
+        ? [{ label: "AddGatewayBranch.newTask", task: operation.newTask }]
+        : [];
+    default:
+      return [];
+  }
+}
+
+function collectCreatedTaskNextStepReferences(
+  operation: QARecommendationOperation
+): RequiredStepReference[] {
+  return collectCreatedTasks(operation).flatMap(({ label, task }) =>
+    nextStepFields.flatMap((field) => {
+      const stepId = task[field];
+
+      if (stepId === null || stepId === undefined) {
+        return [];
+      }
+
+      return [{ label: `${label}.${field}`, stepId }];
+    })
+  );
+}
+
+function collectRequiredExistingStepReferences(
+  operation: QARecommendationOperation
+): RequiredStepReference[] {
+  switch (operation.kind) {
+    case "UpdateTaskField":
+      return [{ label: "UpdateTaskField.stepId", stepId: operation.stepId }];
+    case "UpdateConnection":
+      return [{ label: "UpdateConnection.stepId", stepId: operation.stepId }];
+    case "AssignActor":
+      return [{ label: "AssignActor.stepId", stepId: operation.stepId }];
+    case "AssignSystem":
+      return [{ label: "AssignSystem.stepId", stepId: operation.stepId }];
+    case "SetInteractionType":
+      return [{ label: "SetInteractionType.stepId", stepId: operation.stepId }];
+    case "MarkReviewStatus":
+      return [{ label: "MarkReviewStatus.stepId", stepId: operation.stepId }];
+    case "CreateTaskAfter":
+      return [{ label: "CreateTaskAfter.anchorStepId", stepId: operation.anchorStepId }];
+    case "CreateTaskBefore":
+      return [{ label: "CreateTaskBefore.anchorStepId", stepId: operation.anchorStepId }];
+    case "InsertTaskBetween":
+      return [
+        { label: "InsertTaskBetween.sourceStepId", stepId: operation.sourceStepId },
+        { label: "InsertTaskBetween.targetStepId", stepId: operation.targetStepId }
+      ];
+    case "SplitTask":
+      return [{ label: "SplitTask.targetStepId", stepId: operation.targetStepId }];
+    case "CreateGateway": {
+      const references: RequiredStepReference[] = [];
+
+      if (operation.afterStepId !== undefined) {
+        references.push({
+          label: "CreateGateway.afterStepId",
+          stepId: operation.afterStepId
+        });
+      }
+
+      if (operation.beforeStepId !== undefined) {
+        references.push({
+          label: "CreateGateway.beforeStepId",
+          stepId: operation.beforeStepId
+        });
+      }
+
+      return references;
+    }
+    case "AddGatewayBranch": {
+      const references: RequiredStepReference[] = [
+        { label: "AddGatewayBranch.gatewayStepId", stepId: operation.gatewayStepId }
+      ];
+
+      if (operation.targetStepId !== undefined) {
+        references.push({
+          label: "AddGatewayBranch.targetStepId",
+          stepId: operation.targetStepId
+        });
+      }
+
+      return references;
+    }
+    case "CreateLane":
+      return (operation.targetStepIds ?? []).map((stepId, index) => ({
+        label: `CreateLane.targetStepIds[${index}]`,
+        stepId
+      }));
+    default:
+      return [];
+  }
+}
+
 function collectConnectionChangeCount(operation: QARecommendationOperation) {
   switch (operation.kind) {
     case "UpdateConnection":
@@ -566,6 +729,13 @@ export function previewRecommendationBatch(
   let newTaskCount = 0;
   let connectionChangeCount = 0;
   let fieldChangeCount = 0;
+  const skipRecommendation = (index: number, message: string) => {
+    skippedRecommendationIndexes.add(index);
+    conflicts.push({
+      message,
+      recommendationIndexes: [index]
+    });
+  };
 
   recommendations.forEach((recommendation, index) => {
     recommendation.warnings?.forEach((warning) => warnings.push(warning));
@@ -575,15 +745,22 @@ export function previewRecommendationBatch(
       connectionChangeCount += collectConnectionChangeCount(operation);
       fieldChangeCount += collectFieldChangeCount(operation);
 
+      collectRequiredExistingStepReferences(operation).forEach((reference) => {
+        const invalidReason = describeInvalidStepReference(reference, existingStepIds);
+
+        if (invalidReason) {
+          skipRecommendation(
+            index,
+            `Recommendation "${recommendation.title}" skipped: ${invalidReason}`
+          );
+        }
+      });
+
       collectCreatedStepIds(operation).forEach((stepId) => {
         newTaskCount += 1;
 
         if (existingStepIds.has(stepId)) {
-          skippedRecommendationIndexes.add(index);
-          conflicts.push({
-            message: `Recommendation creates existing stepId ${stepId}.`,
-            recommendationIndexes: [index]
-          });
+          skipRecommendation(index, `Recommendation creates existing stepId ${stepId}.`);
           return;
         }
 
@@ -591,11 +768,11 @@ export function previewRecommendationBatch(
 
         if (ownerIndex !== undefined && ownerIndex !== index) {
           skippedRecommendationIndexes.add(ownerIndex);
-          skippedRecommendationIndexes.add(index);
           conflicts.push({
             message: `Two recommendations create the same stepId ${stepId}.`,
             recommendationIndexes: [ownerIndex, index]
           });
+          skippedRecommendationIndexes.add(index);
           return;
         }
 
@@ -612,11 +789,11 @@ export function previewRecommendationBatch(
 
       if (owner && owner.value !== conflictTarget.value) {
         skippedRecommendationIndexes.add(owner.index);
-        skippedRecommendationIndexes.add(index);
         conflicts.push({
           message: `Conflicting updates for ${conflictTarget.key}.`,
           recommendationIndexes: [owner.index, index]
         });
+        skippedRecommendationIndexes.add(index);
         return;
       }
 
@@ -626,6 +803,41 @@ export function previewRecommendationBatch(
       });
     });
   });
+
+  let invalidInternalReferenceFound = true;
+
+  while (invalidInternalReferenceFound) {
+    invalidInternalReferenceFound = false;
+    const availableStepIds = new Set(existingStepIds);
+
+    createdStepOwners.forEach((ownerIndex, stepId) => {
+      if (!skippedRecommendationIndexes.has(ownerIndex)) {
+        availableStepIds.add(stepId);
+      }
+    });
+
+    recommendations.forEach((recommendation, index) => {
+      if (skippedRecommendationIndexes.has(index)) {
+        return;
+      }
+
+      normalizeRecommendationOperations(recommendation).forEach((operation) => {
+        collectCreatedTaskNextStepReferences(operation).forEach((reference) => {
+          const invalidReason = describeInvalidStepReference(reference, availableStepIds);
+
+          if (!invalidReason || skippedRecommendationIndexes.has(index)) {
+            return;
+          }
+
+          skipRecommendation(
+            index,
+            `Recommendation "${recommendation.title}" skipped: ${invalidReason}`
+          );
+          invalidInternalReferenceFound = true;
+        });
+      });
+    });
+  }
 
   return {
     selectedCount: recommendations.length,
@@ -651,6 +863,13 @@ export function applyRecommendationBatch(
   const appliedOperations = recommendations.flatMap((recommendation, index) =>
     skippedIndexes.has(index) ? [] : normalizeRecommendationOperations(recommendation)
   );
+
+  if (appliedOperations.length === 0) {
+    throw new RecommendationApplyValidationError([
+      "No applicable recommendations to apply."
+    ]);
+  }
+
   assertOperationTargetsExist(tasks, appliedOperations);
 
   const nextTasks = recommendations.reduce(

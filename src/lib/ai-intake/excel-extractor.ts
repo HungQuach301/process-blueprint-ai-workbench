@@ -168,6 +168,10 @@ function normalizeCompact(value: string) {
   return normalizeHeader(value).replace(/\s+/g, "");
 }
 
+function extractStepOrdinal(stepId: string) {
+  return stepId.trim().match(/(\d+)$/)?.[1] ?? null;
+}
+
 function textValue(value: CellValue | undefined) {
   return value === null || value === undefined ? "" : String(value).trim();
 }
@@ -176,8 +180,26 @@ function parseXml(xml: string) {
   return new DOMParser().parseFromString(xml, "application/xml");
 }
 
+function getElementsByLocalName(
+  root: Document | Element,
+  localName: string
+) {
+  return Array.from(root.getElementsByTagName("*")).filter(
+    (element) => element.localName === localName
+  );
+}
+
 function getAttribute(node: Element, name: string) {
   return node.getAttribute(name) ?? "";
+}
+
+function getAttributeByLocalName(node: Element, localName: string) {
+  const normalizedLocalName = localName.toLowerCase();
+  const attribute = Array.from(node.attributes).find(
+    (item) => item.localName.toLowerCase() === normalizedLocalName
+  );
+
+  return attribute?.value ?? "";
 }
 
 function resolveWorkbookPath(target: string) {
@@ -203,19 +225,24 @@ async function readXmlFile(zip: JSZip, path: string) {
 function readWorkbookSheets(workbookXml: string): WorkbookSheet[] {
   const document = parseXml(workbookXml);
 
-  return Array.from(document.getElementsByTagName("sheet")).map((sheet) => ({
+  return getElementsByLocalName(document, "sheet").map((sheet) => ({
     name: getAttribute(sheet, "name"),
-    relationshipId: getAttribute(sheet, "r:id")
+    relationshipId:
+      getAttribute(sheet, "r:id") || getAttributeByLocalName(sheet, "id")
   }));
 }
 
 function readSheetRelationships(relationshipsXml: string): SheetRelationship[] {
   const document = parseXml(relationshipsXml);
 
-  return Array.from(document.getElementsByTagName("Relationship")).map(
+  return getElementsByLocalName(document, "Relationship").map(
     (relationship) => ({
-      id: getAttribute(relationship, "Id"),
-      target: getAttribute(relationship, "Target")
+      id:
+        getAttribute(relationship, "Id") ||
+        getAttributeByLocalName(relationship, "Id"),
+      target:
+        getAttribute(relationship, "Target") ||
+        getAttributeByLocalName(relationship, "Target")
     })
   );
 }
@@ -227,8 +254,8 @@ function readSharedStrings(sharedStringsXml: string | null) {
 
   const document = parseXml(sharedStringsXml);
 
-  return Array.from(document.getElementsByTagName("si")).map((item) =>
-    Array.from(item.getElementsByTagName("t"))
+  return getElementsByLocalName(document, "si").map((item) =>
+    getElementsByLocalName(item, "t")
       .map((textNode) => textNode.textContent ?? "")
       .join("")
   );
@@ -236,10 +263,10 @@ function readSharedStrings(sharedStringsXml: string | null) {
 
 function readCellValue(cell: Element, sharedStrings: string[]): CellValue {
   const cellType = getAttribute(cell, "t");
-  const valueNode = cell.getElementsByTagName("v")[0];
+  const valueNode = getElementsByLocalName(cell, "v")[0];
 
   if (cellType === "inlineStr") {
-    return Array.from(cell.getElementsByTagName("t"))
+    return getElementsByLocalName(cell, "t")
       .map((textNode) => textNode.textContent ?? "")
       .join("");
   }
@@ -269,10 +296,10 @@ function readCellValue(cell: Element, sharedStrings: string[]): CellValue {
 function readSheetRows(sheetXml: string, sharedStrings: string[]): SheetRow[] {
   const document = parseXml(sheetXml);
 
-  return Array.from(document.getElementsByTagName("row")).map((row) => {
+  return getElementsByLocalName(document, "row").map((row) => {
     const cells: SheetRow = [];
 
-    Array.from(row.getElementsByTagName("c")).forEach((cell) => {
+    getElementsByLocalName(row, "c").forEach((cell) => {
       const cellRef = getAttribute(cell, "r");
       cells[columnIndexFromCellRef(cellRef)] = readCellValue(cell, sharedStrings);
     });
@@ -510,6 +537,59 @@ function buildWarnings(
   return warnings;
 }
 
+function normalizeDraftTaskReferences(draftTasks: ProcessTask[]) {
+  const warnings: string[] = [];
+  const stepIds = new Set(draftTasks.map((task) => task.stepId));
+  const stepIdsByOrdinal = new Map<string, string[]>();
+  const nextStepFields = [
+    "defaultNextStep",
+    "yesNextStep",
+    "noNextStep"
+  ] satisfies Array<keyof Pick<ProcessTask, "defaultNextStep" | "yesNextStep" | "noNextStep">>;
+
+  draftTasks.forEach((task) => {
+    const ordinal = extractStepOrdinal(task.stepId);
+
+    if (!ordinal) {
+      return;
+    }
+
+    stepIdsByOrdinal.set(ordinal, [
+      ...(stepIdsByOrdinal.get(ordinal) ?? []),
+      task.stepId
+    ]);
+  });
+
+  const normalizedTasks = draftTasks.map((task) => {
+    const nextTask = { ...task };
+
+    nextStepFields.forEach((field) => {
+      const reference = nextTask[field];
+
+      if (!reference || stepIds.has(reference)) {
+        return;
+      }
+
+      const ordinal = extractStepOrdinal(reference);
+      const candidates = ordinal
+        ? (stepIdsByOrdinal.get(ordinal) ?? []).filter((stepId) => stepId !== reference)
+        : [];
+
+      if (candidates.length === 1) {
+        nextTask[field] = candidates[0];
+        warnings.push(`Normalized next-step reference ${reference} -> ${candidates[0]}.`);
+        return;
+      }
+
+      warnings.push(`Unresolved next-step reference ${reference}.`);
+    });
+
+    return nextTask;
+  });
+
+  return { draftTasks: normalizedTasks, warnings };
+}
+
 export async function extractDraftTasksFromExcel(
   file: File
 ): Promise<ExcelExtractionPreview> {
@@ -530,7 +610,7 @@ export async function extractDraftTasksFromExcel(
     sheets.find((sheet) => sheet.name === preferredSheetName) ?? sheets[0];
 
   if (!selectedSheet) {
-    throw new Error("Workbook does not contain any sheets.");
+    throw new Error("Workbook does not contain readable worksheets.");
   }
 
   const relationship = relationships.find(
@@ -560,14 +640,18 @@ export async function extractDraftTasksFromExcel(
       createDraftTaskFromRow(row, headers, mappedFields, index)
     )
     .filter((task): task is ProcessTask => Boolean(task));
+  const normalizedDraftTaskReferences = normalizeDraftTaskReferences(draftTasks);
 
   return {
     detectedSheet: selectedSheet.name,
     detectedColumns: headers.filter(Boolean),
     mappedFields,
     unmappedColumns: unmappedColumns.filter(Boolean),
-    draftTasks,
-    warnings: buildWarnings(mappedFields, draftTasks),
+    draftTasks: normalizedDraftTaskReferences.draftTasks,
+    warnings: [
+      ...buildWarnings(mappedFields, normalizedDraftTaskReferences.draftTasks),
+      ...normalizedDraftTaskReferences.warnings
+    ],
     sheetNames: sheets.map((sheet) => sheet.name)
   };
 }

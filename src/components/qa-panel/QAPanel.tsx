@@ -1,11 +1,14 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   confirmRealAICallIfNeeded,
-  logAICallAudit
+  createAISkillRequestBody,
+  logAICallAudit,
+  resolveAISkillModelSelection
 } from "@/lib/ai/ai-governance";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
 import {
@@ -16,8 +19,14 @@ import {
   getRecommendationChangePreview
 } from "@/lib/qa/apply-recommendation";
 import {
+  mergeFindingSets,
+  type QAFinding,
+  type QAFindingSet,
+  type QAFindingSeverity
+} from "@/lib/qa/qa-finding";
+import { qaIssuesToFindingSet } from "@/lib/qa/rule-qa-to-findings";
+import {
   isGraphChangingRecommendation,
-  isSafeRecommendation,
   normalizeRecommendationOperations,
   previewRecommendationBatch
 } from "@/lib/recommendation-engine/apply-operations";
@@ -33,12 +42,224 @@ import type {
   QaIssue,
   QaSeverity
 } from "@/lib/qa/task-register-rules";
+import { getLocale, type Locale } from "@/lib/i18n";
 
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
+const AI_PROCESS_QA_FINDING_SKILL_ID = "ai-process-qa-finding";
+const LOCALE_EVENT = "process-blueprint-locale-change";
+
+type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
+type BatchPreviewMode = "selected" | "safe" | "all-preview" | "all-after-review";
+type RecommendationRiskGroupKey = "low" | "medium" | "high" | "graph-changing";
+
+type AIQACompareResult = {
+  id: string;
+  providerId: CompareProviderId;
+  model: string;
+  confidence: string;
+  warnings: string[];
+  summary: string;
+  validationStatus: string;
+  recommendations: QARecommendation[];
+  error?: string;
+};
+
+const compareProviders: Array<{ id: CompareProviderId; label: string }> = [
+  { id: "product-ai", label: "Product AI" },
+  { id: "openai", label: "OpenAI" },
+  { id: "claude", label: "Claude" },
+  { id: "mock", label: "Local analysis" }
+];
+
+type QAAIRetryAction = "qa" | "findings" | "compare";
+
+function formatProviderLabel(providerId: string) {
+  const providerLabels: Record<string, string> = {
+    openai: "OpenAI",
+    claude: "Claude",
+    "product-ai": "Product AI",
+    mock: "Local"
+  };
+
+  return providerLabels[providerId] ?? providerId;
+}
+
+function getFriendlyAIQAErrorMessage(error?: string, validationErrors?: string[]) {
+  if (validationErrors?.length) {
+    return getAIValidationUserMessage(validationErrors);
+  }
+
+  const normalizedError = (error ?? "").toLowerCase();
+
+  if (normalizedError.includes("timeout") || normalizedError.includes("timed out")) {
+    return "AI QA timed out. Nothing was applied; you can retry with the current PTR.";
+  }
+
+  if (
+    normalizedError.includes("network") ||
+    normalizedError.includes("fetch") ||
+    normalizedError.includes("failed")
+  ) {
+    return "AI QA could not reach the service. Nothing was applied; check the connection or retry.";
+  }
+
+  return "AI QA could not complete. Nothing was applied; you can retry with the current PTR.";
+}
+
+const qaPanelText = {
+  vi: {
+    title: "Bang kiem tra QA",
+    description: "QA chay lai tu dong khi du lieu trong bang thay doi. Chon issue de nhay toi dong lien quan neu con ton tai.",
+    downloadReport: "Tai bao cao QA",
+    recommendationToolbar: "Thanh de xuat",
+    findings: "Phát hiện",
+    findingsHelper: "Mục phát hiện là thông tin review chỉ đọc. Khu vực này không có nút áp dụng.",
+    findingsReadOnlyBadge: "Chỉ đọc",
+    runAiFindings: "Chạy AI phát hiện",
+    runMockFindings: "Chạy kiểm tra Rule",
+    runningAiFindings: "Đang chạy AI phát hiện...",
+    noFindings: "Chưa có mục phát hiện nào.",
+    noFindingsAndRecommendations: "Chưa có mục phát hiện hoặc đề xuất nào.",
+    source: "Nguồn",
+    aiSource: "AI",
+    ruleSource: "Rule",
+    gateSource: "Gate",
+    systemSource: "System",
+    info: "Thông tin",
+    recommendationsSection: "Đề xuất",
+    recommendationsHelper: "Đề xuất có thể xem trước và chỉ áp dụng sau khi người dùng xác nhận.",
+    recommendationsEmpty: "Chưa có đề xuất có thể áp dụng. Findings vẫn có thể dùng để review thủ công.",
+    hiddenByFilters: "Một số đề xuất đang bị ẩn bởi bộ lọc an toàn hoặc thay đổi cấu trúc nâng cao.",
+    recommendations: "de xuat",
+    selected: "đã chọn",
+    safeHelper: "An toan = do tin cay cao, rui ro thap va chi doi truong don gian. De xuat doi graph khong duoc chon mac dinh.",
+    selectSafe: "Chon de xuat an toan",
+    applySelected: "Ap dung muc da chon",
+    previewAllRecommendations: "Xem trước tất cả đề xuất",
+    applyAllAfterReview: "Áp dụng tất cả sau khi review",
+    more: "Thêm",
+    clearSelection: "Xóa lựa chọn",
+    applyAllSafe: "Ap dung tat ca an toan",
+    safeRecommendations: "Đề xuất an toàn",
+    mediumRiskRecommendations: "Rủi ro trung bình",
+    highRiskRecommendations: "Rủi ro cao",
+    mediumHighRiskRecommendations: "Rủi ro trung bình/cao",
+    graphChangingRecommendations: "Thay đổi cấu trúc",
+    previewOnly: "Chỉ xem trước",
+    explicitApplyConfirmation: "Tôi hiểu thao tác này có thể thay đổi cấu trúc quy trình hoặc các trường quan trọng.",
+    snapshotTodo: "TODO: QAPanel chưa có helper snapshot riêng được expose; Process Task Register vẫn giữ cơ chế Unsaved/Restore saved hiện tại.",
+    showAllFindings: "Hiện tất cả phát hiện",
+    collapseFindings: "Thu gọn phát hiện",
+    showingTopFindings: "Đang hiển thị các phát hiện ưu tiên cao trước.",
+    exportFeedback: "Xuat feedback JSON",
+    clearLocalFeedback: "Xóa feedback local",
+    running: "Đang chạy AI QA...",
+    runQaSuggestions: "Kiểm tra & Đề xuất",
+    runReal: "Chay AI QA",
+    runMock: "Chạy kiểm tra Rule",
+    localIndicator: "Phân tích cục bộ (Local)",
+    aiSuggestionUnavailable: "Đề xuất AI chưa tạo được. Bạn vẫn có thể dùng kiểm tra Rule.",
+    showOnlySafe: "Chi hien de xuat an toan",
+    includeMedium: "Bao gom muc trung binh",
+    includeGraph: "Hiển thị thay đổi cấu trúc nâng cao",
+    providerCompare: "So sanh provider",
+    totalIssues: "Tong so issue",
+    noRecommendations: "Chua co de xuat tu dong.",
+    hiddenAdvanced: "Thay đổi cấu trúc nâng cao đang được ẩn.",
+    automaticRecommendations: "Gợi ý tự động",
+    suggestedFix: "Cách sửa",
+    noIssuesInGroup: "Không có issue trong nhóm này.",
+    critical: "Nghiêm trọng",
+    warnings: "Cảnh báo",
+    suggestions: "Gợi ý",
+    advancedStructureChanges: "Thay đổi cấu trúc nâng cao",
+    confidence: "Độ tin cậy",
+    impact: "Tác động",
+    risk: "Rủi ro",
+    affectedSteps: "Bước bị ảnh hưởng",
+    changeSummary: "Tóm tắt thay đổi",
+    previewChange: "Xem trước thay đổi",
+    none: "Không có"
+  },
+  en: {
+    title: "QA Panel",
+    description: "QA reruns automatically when table data changes. Click an issue to jump to the related row when it still exists.",
+    downloadReport: "Download QA Report",
+    recommendationToolbar: "Recommendation toolbar",
+    findings: "Findings",
+    findingsHelper: "Findings are read-only review items. This section has no apply buttons.",
+    findingsReadOnlyBadge: "Read-only",
+    runAiFindings: "Run AI findings",
+    runMockFindings: "Run Rule Check",
+    runningAiFindings: "Running AI findings...",
+    noFindings: "No findings yet.",
+    noFindingsAndRecommendations: "No findings or recommendations yet.",
+    source: "Source",
+    aiSource: "AI",
+    ruleSource: "Rule",
+    gateSource: "Gate",
+    systemSource: "System",
+    info: "Info",
+    recommendationsSection: "Recommendations",
+    recommendationsHelper: "Recommendations can be previewed and applied only after user confirmation.",
+    recommendationsEmpty: "No actionable recommendations yet. Findings can still be used for manual review.",
+    hiddenByFilters: "Some recommendations are hidden by safe filters or advanced structure settings.",
+    recommendations: "recommendations",
+    selected: "selected",
+    safeHelper: "Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.",
+    selectSafe: "Select safe",
+    applySelected: "Apply Selected",
+    previewAllRecommendations: "Preview All Recommendations",
+    applyAllAfterReview: "Apply All After Review",
+    more: "More",
+    clearSelection: "Clear selection",
+    applyAllSafe: "Apply All Safe",
+    safeRecommendations: "Safe recommendations",
+    mediumRiskRecommendations: "Medium risk",
+    highRiskRecommendations: "High risk",
+    mediumHighRiskRecommendations: "Medium/high risk",
+    graphChangingRecommendations: "Graph-changing",
+    previewOnly: "Preview only",
+    explicitApplyConfirmation: "I understand this may change process structure or critical fields.",
+    snapshotTodo: "TODO: QAPanel does not have a dedicated snapshot helper exposed; Process Task Register keeps the existing Unsaved/Restore saved flow.",
+    showAllFindings: "Show all findings",
+    collapseFindings: "Collapse findings",
+    showingTopFindings: "Showing top priority findings first.",
+    exportFeedback: "Export feedback JSON",
+    clearLocalFeedback: "Clear local feedback",
+    running: "Running AI QA...",
+    runQaSuggestions: "Run QA & Suggestions",
+    runReal: "Run AI QA",
+    runMock: "Run Rule Check",
+    localIndicator: "Local analysis",
+    aiSuggestionUnavailable: "AI suggestions could not be generated. You can still use Rule Check.",
+    showOnlySafe: "Show only safe recommendations",
+    includeMedium: "Include medium confidence/impact",
+    includeGraph: "Show advanced structure changes",
+    providerCompare: "Provider Compare",
+    totalIssues: "Total issues",
+    noRecommendations: "No automatic recommendations yet.",
+    hiddenAdvanced: "Advanced structure changes are hidden.",
+    automaticRecommendations: "Automatic recommendations",
+    suggestedFix: "Suggested fix",
+    noIssuesInGroup: "No issues in this group.",
+    critical: "Critical",
+    warnings: "Warnings",
+    suggestions: "Suggestions",
+    advancedStructureChanges: "Advanced structure changes",
+    confidence: "Confidence",
+    impact: "Impact",
+    risk: "Risk",
+    affectedSteps: "Affected steps",
+    changeSummary: "Change summary",
+    previewChange: "Preview change",
+    none: "None"
+  }
+} satisfies Record<Locale, Record<string, string>>;
 
 type QAPanelProps = {
   issues: QaIssue[];
@@ -47,12 +268,6 @@ type QAPanelProps = {
   onDownloadReport: () => void;
   onApplyRecommendation: (recommendation: QARecommendation) => void;
   onApplyRecommendations: (recommendations: QARecommendation[]) => void;
-};
-
-const severityLabels: Record<QaSeverity, string> = {
-  error: "Lỗi",
-  warning: "Cảnh báo",
-  suggestion: "Gợi ý"
 };
 
 const severityStyles: Record<QaSeverity, string> = {
@@ -73,7 +288,16 @@ const recommendationCardStyles: Record<QaSeverity, string> = {
   suggestion: "border-sky-200 bg-white"
 };
 
-const severityOrder: QaSeverity[] = ["error", "warning", "suggestion"];
+const findingSeverityStyles: Record<QAFindingSeverity, string> = {
+  critical: "border-red-200 bg-red-50 text-red-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-800",
+  suggestion: "border-sky-200 bg-sky-50 text-sky-800",
+  info: "border-slate-200 bg-slate-50 text-slate-700"
+};
+
+const advancedGroupStyles = "border-violet-200 bg-violet-50 text-violet-800";
+const advancedRecommendationBoxStyle = "border-violet-200 bg-violet-50";
+const advancedRecommendationCardStyle = "border-violet-200 bg-white";
 
 function createTimestamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -118,6 +342,62 @@ function getAffectedStepIds(recommendation: QARecommendation) {
   });
 
   return Array.from(stepIds).filter(Boolean).sort();
+}
+
+function isAdvancedStructureRecommendation(recommendation: QARecommendation) {
+  return isGraphChangingRecommendation(recommendation);
+}
+
+function canSelectAsSafeRecommendation(
+  recommendation: QARecommendation,
+  includeMediumImpact: boolean
+) {
+  if (isAdvancedStructureRecommendation(recommendation)) {
+    return false;
+  }
+
+  if (recommendation.riskLevel !== "low") {
+    return false;
+  }
+
+  if (recommendation.impact === "high") {
+    return false;
+  }
+
+  if (recommendation.impact === "medium" && !includeMediumImpact) {
+    return false;
+  }
+
+  if (recommendation.confidence === "high") {
+    return true;
+  }
+
+  return includeMediumImpact && recommendation.confidence === "medium";
+}
+
+function getRecommendationRiskGroup(
+  recommendation: QARecommendation
+): RecommendationRiskGroupKey {
+  if (isAdvancedStructureRecommendation(recommendation)) {
+    return "graph-changing";
+  }
+
+  if (recommendation.riskLevel === "high") {
+    return "high";
+  }
+
+  if (recommendation.riskLevel === "medium") {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function getFindingId(finding: QAFinding, index: number) {
+  return (
+    finding.id ??
+    `${finding.issueCode}:${finding.affectedArtifact}:${finding.affectedStepIds.join(",")}:${index}`
+  );
 }
 
 function createRecommendationFeedback(
@@ -181,23 +461,62 @@ export function QAPanel({
   onApplyRecommendation,
   onApplyRecommendations
 }: QAPanelProps) {
+  const [locale, setActiveLocale] = useState<Locale>("vi");
   const [aiQaIssues, setAiQaIssues] = useState<QaIssue[]>([]);
+  const [aiFindingSet, setAiFindingSet] = useState<QAFindingSet | null>(null);
   const [aiQaMessage, setAiQaMessage] = useState("");
   const [realAIQAEnabled, setRealAIQAEnabled] = useState(false);
+  const [qaAiSelection, setQaAiSelection] = useState<{
+    providerId: string;
+    model: string;
+  } | null>(null);
   const [isRunningAIQA, setIsRunningAIQA] = useState(false);
+  const [isRunningAIFindings, setIsRunningAIFindings] = useState(false);
+  const [aiRetryAction, setAiRetryAction] = useState<QAAIRetryAction | null>(
+    null
+  );
   const [pendingRecommendation, setPendingRecommendation] = useState<{
     issue: QaIssue;
     recommendation: QARecommendation;
   } | null>(null);
   const [pendingBatchRecommendations, setPendingBatchRecommendations] = useState<QARecommendation[] | null>(null);
+  const [pendingBatchMode, setPendingBatchMode] =
+    useState<BatchPreviewMode>("selected");
+  const [isBatchConfirmationChecked, setIsBatchConfirmationChecked] =
+    useState(false);
   const [selectedRecommendationIds, setSelectedRecommendationIds] = useState<Set<string>>(() => new Set());
+  const [batchApplySummary, setBatchApplySummary] = useState("");
+  const [areFindingsExpanded, setAreFindingsExpanded] = useState(false);
   const [showOnlySafe, setShowOnlySafe] = useState(false);
   const [includeMediumConfidence, setIncludeMediumConfidence] = useState(false);
-  const [includeGraphChanging, setIncludeGraphChanging] = useState(true);
+  const [includeGraphChanging, setIncludeGraphChanging] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [compareModeEnabled, setCompareModeEnabled] = useState(false);
+  const [compareProviderIds, setCompareProviderIds] = useState<CompareProviderId[]>([]);
+  const [compareResults, setCompareResults] = useState<AIQACompareResult[]>([]);
+  const [isRunningCompare, setIsRunningCompare] = useState(false);
   useEffect(() => {
+    setActiveLocale(getLocale());
     setAiQaIssues([]);
+    setAiFindingSet(null);
     setAiQaMessage("");
   }, [processTasks]);
+
+  useEffect(() => {
+    function handleLocaleChange(event: Event) {
+      const localeDetail = (event as CustomEvent<{ locale?: Locale }>).detail;
+
+      if (localeDetail?.locale) {
+        setActiveLocale(localeDetail.locale);
+      }
+    }
+
+    window.addEventListener(LOCALE_EVENT, handleLocaleChange);
+
+    return () => {
+      window.removeEventListener(LOCALE_EVENT, handleLocaleChange);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -212,11 +531,19 @@ export function QAPanel({
         };
 
         if (active) {
-          setRealAIQAEnabled(data.realAIQAEnabled === true);
+          const isRealAIQAEnabled = data.realAIQAEnabled === true;
+          const selection = resolveAISkillModelSelection(AI_PROCESS_QA_SKILL_ID);
+
+          setRealAIQAEnabled(isRealAIQAEnabled);
+          setQaAiSelection({
+            providerId: selection.providerId,
+            model: selection.model
+          });
         }
       } catch {
         if (active) {
           setRealAIQAEnabled(false);
+          setQaAiSelection(null);
         }
       }
     }
@@ -232,6 +559,15 @@ export function QAPanel({
     () => [...aiQaIssues, ...issues],
     [aiQaIssues, issues]
   );
+  const ruleFindingSet = useMemo(() => qaIssuesToFindingSet(issues), [issues]);
+  const findingSet = useMemo(
+    () =>
+      aiFindingSet
+        ? mergeFindingSets(ruleFindingSet, aiFindingSet)
+        : ruleFindingSet,
+    [aiFindingSet, ruleFindingSet]
+  );
+  const findings = findingSet.findings;
 
   const recommendationEntries = useMemo(
     () =>
@@ -248,19 +584,17 @@ export function QAPanel({
     const ids = new Set<string>();
 
     recommendationEntries.forEach((entry) => {
-      const isSafe = isSafeRecommendation(entry.recommendation);
-      const isMediumLowRisk =
-        includeMediumConfidence &&
-        entry.recommendation.confidence === "medium" &&
-        entry.recommendation.riskLevel === "low" &&
-        !isGraphChangingRecommendation(entry.recommendation);
-      const isGraphChanging = isGraphChangingRecommendation(entry.recommendation);
+      const isSafe = canSelectAsSafeRecommendation(
+        entry.recommendation,
+        includeMediumConfidence
+      );
+      const isGraphChanging = isAdvancedStructureRecommendation(entry.recommendation);
 
       if (!includeGraphChanging && isGraphChanging) {
         return;
       }
 
-      if (showOnlySafe && !isSafe && !isMediumLowRisk) {
+      if (showOnlySafe && !isSafe) {
         return;
       }
 
@@ -270,23 +604,138 @@ export function QAPanel({
     return ids;
   }, [includeGraphChanging, includeMediumConfidence, recommendationEntries, showOnlySafe]);
   const selectedRecommendations = recommendationEntries
-    .filter((entry) => selectedRecommendationIds.has(entry.id))
+    .filter(
+      (entry) =>
+        selectedRecommendationIds.has(entry.id) && visibleRecommendationIds.has(entry.id)
+    )
+    .map((entry) => entry.recommendation);
+  const visibleRecommendations = recommendationEntries
+    .filter((entry) => visibleRecommendationIds.has(entry.id))
     .map((entry) => entry.recommendation);
   const safeRecommendationEntries = recommendationEntries.filter((entry) =>
-    isSafeRecommendation(entry.recommendation)
+    canSelectAsSafeRecommendation(entry.recommendation, includeMediumConfidence)
   );
   const safeRecommendations = safeRecommendationEntries.map((entry) => entry.recommendation);
+  const mediumHighRiskRecommendationCount = recommendationEntries.filter(
+    (entry) =>
+      entry.recommendation.riskLevel === "medium" ||
+      entry.recommendation.riskLevel === "high"
+  ).length;
+  const graphChangingRecommendationCount = recommendationEntries.filter((entry) =>
+    isAdvancedStructureRecommendation(entry.recommendation)
+  ).length;
+  const existingRuleRecommendations = useMemo(
+    () => issues.flatMap((issue) => issue.recommendations ?? []),
+    [issues]
+  );
   const hasRecommendations = recommendationEntries.length > 0;
-  const groupedIssues = severityOrder.map((severity) => ({
-    severity,
-    issues: displayIssues.filter((issue) => issue.severity === severity)
-  }));
+  const visibleRecommendationCount = visibleRecommendationIds.size;
+  const hiddenRecommendationCount =
+    recommendationEntries.length - visibleRecommendationCount;
+  const hasVisibleRecommendations = visibleRecommendationCount > 0;
+  const text = qaPanelText[locale];
+  const qaModeIndicator =
+    realAIQAEnabled && qaAiSelection
+      ? locale === "vi"
+        ? `Sử dụng ${formatProviderLabel(qaAiSelection.providerId)} ${qaAiSelection.model}`
+        : `Using ${formatProviderLabel(qaAiSelection.providerId)} ${qaAiSelection.model}`
+      : text.localIndicator;
+  const findingSourceBadge =
+    aiFindingSet && aiFindingSet.findings.length > 0
+      ? `${findings.length} ${text.findings.toLowerCase()} (${text.ruleSource} + ${text.aiSource})`
+      : `${findings.length} ${text.findings.toLowerCase()} (${text.ruleSource})`;
+  const recommendationSourceLabel =
+    aiQaIssues.length > 0 && realAIQAEnabled ? text.aiSource : "Local";
+  const recommendationSourceBadge = `${visibleRecommendationCount} ${text.recommendations} (${recommendationSourceLabel})`;
+  const localizedSeverityLabels: Record<QaSeverity, string> = {
+    error: text.critical,
+    warning: text.warnings,
+    suggestion: text.suggestions
+  };
+  const localizedFindingSeverityLabels: Record<QAFindingSeverity, string> = {
+    critical: text.critical,
+    warning: text.warnings,
+    suggestion: text.suggestions,
+    info: text.info
+  };
+  const findingSourceLabels = {
+    ai: text.aiSource,
+    rule: text.ruleSource,
+    gate: text.gateSource,
+    system: text.systemSource
+  };
+  const riskGroupLabels: Record<RecommendationRiskGroupKey, string> = {
+    low: text.safeRecommendations,
+    medium: text.mediumRiskRecommendations,
+    high: text.highRiskRecommendations,
+    "graph-changing": text.graphChangingRecommendations
+  };
+  const visibleFindings =
+    areFindingsExpanded || findings.length <= 5 ? findings : findings.slice(0, 5);
+  const visibleRecommendationRiskGroups = ([
+    "low",
+    "medium",
+    "high",
+    "graph-changing"
+  ] as RecommendationRiskGroupKey[])
+    .map((riskGroup) => ({
+      key: riskGroup,
+      label: riskGroupLabels[riskGroup],
+      entries: recommendationEntries.filter(
+        (entry) =>
+          visibleRecommendationIds.has(entry.id) &&
+          getRecommendationRiskGroup(entry.recommendation) === riskGroup
+      )
+    }))
+    .filter((group) => group.entries.length > 0);
   const pendingChanges = pendingRecommendation
     ? getRecommendationChangePreview(processTasks, pendingRecommendation.recommendation)
     : [];
   const pendingBatchPreview = pendingBatchRecommendations
     ? previewRecommendationBatch(processTasks, pendingBatchRecommendations)
     : null;
+  const pendingBatchRiskGroups = pendingBatchRecommendations
+    ? ([
+        "low",
+        "medium",
+        "high",
+        "graph-changing"
+      ] as RecommendationRiskGroupKey[])
+        .map((riskGroup) => {
+          const recommendations = pendingBatchRecommendations.filter(
+            (recommendation) =>
+              getRecommendationRiskGroup(recommendation) === riskGroup
+          );
+          const affectedStepIds = Array.from(
+            new Set(recommendations.flatMap(getAffectedStepIds))
+          ).sort();
+          const warnings = recommendations.flatMap(
+            (recommendation) => recommendation.warnings ?? []
+          );
+
+          return {
+            riskGroup,
+            label: riskGroupLabels[riskGroup],
+            recommendations,
+            affectedStepIds,
+            warnings
+          };
+        })
+        .filter((group) => group.recommendations.length > 0)
+    : [];
+  const pendingBatchSafeCount =
+    pendingBatchRecommendations?.filter((recommendation) =>
+      canSelectAsSafeRecommendation(recommendation, includeMediumConfidence)
+    ).length ?? 0;
+  const pendingBatchMediumHighRiskCount =
+    pendingBatchRecommendations?.filter(
+      (recommendation) =>
+        recommendation.riskLevel === "medium" ||
+        recommendation.riskLevel === "high"
+    ).length ?? 0;
+  const pendingBatchGraphChangingCount =
+    pendingBatchRecommendations?.filter(isAdvancedStructureRecommendation)
+      .length ?? 0;
 
   function toggleRecommendation(id: string) {
     setSelectedRecommendationIds((currentIds) => {
@@ -306,7 +755,9 @@ export function QAPanel({
     setSelectedRecommendationIds(
       new Set(
         recommendationEntries
-          .filter((entry) => isSafeRecommendation(entry.recommendation))
+          .filter((entry) =>
+            canSelectAsSafeRecommendation(entry.recommendation, includeMediumConfidence)
+          )
           .map((entry) => entry.id)
       )
     );
@@ -316,12 +767,29 @@ export function QAPanel({
     setSelectedRecommendationIds(new Set());
   }
 
+  function openBatchPreview(
+    recommendations: QARecommendation[],
+    mode: BatchPreviewMode
+  ) {
+    if (recommendations.length === 0) {
+      return;
+    }
+
+    // TODO: If Process Task Register exposes a dedicated in-session snapshot
+    // helper, call it here before batch apply. Current PTR already keeps
+    // unsaved/restore-saved governance outside QAPanel.
+    setPendingBatchMode(mode);
+    setIsBatchConfirmationChecked(false);
+    setPendingBatchRecommendations(recommendations);
+    setBatchApplySummary("");
+  }
+
   function applySelectedRecommendations() {
     if (selectedRecommendations.length === 0) {
       return;
     }
 
-    setPendingBatchRecommendations(selectedRecommendations);
+    openBatchPreview(selectedRecommendations, "selected");
   }
 
   function applyAllSafeRecommendations() {
@@ -329,7 +797,19 @@ export function QAPanel({
       return;
     }
 
-    setPendingBatchRecommendations(safeRecommendations);
+    openBatchPreview(safeRecommendations, "safe");
+  }
+
+  function previewAllRecommendations() {
+    openBatchPreview(visibleRecommendations, "all-preview");
+  }
+
+  function applyAllAfterReview() {
+    openBatchPreview(
+      recommendationEntries.map((entry) => entry.recommendation),
+      "all-after-review"
+    );
+    setIsMoreMenuOpen(false);
   }
 
   function downloadFeedbackJson() {
@@ -349,6 +829,307 @@ export function QAPanel({
     clearRecommendationFeedback();
   }
 
+  function toggleCompareProvider(providerId: CompareProviderId) {
+    setCompareProviderIds((currentIds) =>
+      currentIds.includes(providerId)
+        ? currentIds.filter((id) => id !== providerId)
+        : [...currentIds, providerId]
+    );
+  }
+
+  function summarizeQARecommendations(recommendations: QARecommendation[]) {
+    const highConfidenceCount = recommendations.filter(
+      (recommendation) => recommendation.confidence === "high"
+    ).length;
+    const highRiskCount = recommendations.filter(
+      (recommendation) => recommendation.riskLevel === "high"
+    ).length;
+
+    return `${recommendations.length} recommendation(s), ${highConfidenceCount} high confidence, ${highRiskCount} high risk.`;
+  }
+
+  async function runAiQaCompare() {
+    if (!compareModeEnabled) {
+      return;
+    }
+
+    if (compareProviderIds.length === 0) {
+      setAiQaMessage("Choose at least one provider before running Provider Compare.");
+      return;
+    }
+
+    const usesCloudProvider = compareProviderIds.some((providerId) => providerId !== "mock");
+
+    if (compareProviderIds.length > 1 && usesCloudProvider) {
+      const confirmed = window.confirm(
+        "Provider Compare will call multiple selected providers and may increase cost. Continue?"
+      );
+
+      if (!confirmed) {
+        setAiQaMessage("Provider Compare cancelled. No recommendation was applied.");
+        return;
+      }
+    }
+
+    if (!confirmRealAICallIfNeeded(realAIQAEnabled && usesCloudProvider)) {
+      setAiQaMessage("Provider Compare cancelled by cloud AI consent check.");
+      return;
+    }
+
+    setIsRunningCompare(true);
+    setAiRetryAction("compare");
+    setCompareResults([]);
+    setAiQaMessage("Running Provider Compare for AI QA...");
+
+    const nextResults: AIQACompareResult[] = [];
+
+    for (const providerId of compareProviderIds) {
+      try {
+        const routeResponse = await fetch("/api/ai/run-skill", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(
+            createAISkillRequestBody({
+              skillId: AI_PROCESS_QA_SKILL_ID,
+              providerId,
+              payload: {
+              processTasks,
+              qaIssues: issues,
+              existingRecommendations: existingRuleRecommendations,
+              templateProfiles: readSelectedTemplateProfiles()
+            }
+            })
+          )
+        });
+        const data = (await routeResponse.json()) as {
+          ok?: boolean;
+          mode?: "mock" | "provider-backed";
+          provider?: string;
+          model?: string;
+          result?: {
+            recommendations?: QARecommendation[];
+          };
+          error?: string;
+          validationErrors?: string[];
+          meta?: {
+            providerId?: string;
+            model?: string;
+            warnings?: string[];
+            validationPassed?: boolean;
+            externalApiCalled?: boolean;
+          };
+        };
+        const recommendations = (data.result?.recommendations ?? []).map(
+          (recommendation) => ({
+            ...recommendation,
+            source:
+              recommendation.source === "hybrid"
+                ? ("hybrid" as const)
+                : ("ai" as const),
+            requiresConfirmation: true
+          })
+        );
+        const errorMessage = [
+          data.error,
+          ...(data.validationErrors ?? [])
+        ]
+          .filter(Boolean)
+          .join(" ");
+        const friendlyErrorMessage = getFriendlyAIQAErrorMessage(
+          data.error,
+          data.validationErrors
+        );
+
+        nextResults.push({
+          id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
+          providerId,
+          model: data.meta?.model ?? data.model ?? "",
+          confidence:
+            recommendations.find((recommendation) => recommendation.confidence === "high")
+              ? "high"
+              : recommendations[0]?.confidence ?? "unknown",
+          warnings: data.meta?.warnings ?? [],
+          summary: routeResponse.ok && data.ok
+            ? summarizeQARecommendations(recommendations)
+            : friendlyErrorMessage,
+          validationStatus:
+            data.meta?.validationPassed === false || !routeResponse.ok || !data.ok
+              ? "failed"
+              : "passed",
+          recommendations: routeResponse.ok && data.ok ? recommendations : [],
+          error: routeResponse.ok && data.ok ? undefined : friendlyErrorMessage
+        });
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          success: routeResponse.ok && data.ok === true,
+          errorMessage: routeResponse.ok && data.ok ? undefined : errorMessage,
+          realAIEnabled: data.mode === "provider-backed",
+          externalApiCalled: data.meta?.externalApiCalled === true,
+          provider: data.meta?.providerId ?? data.provider ?? providerId,
+          model: data.meta?.model,
+          warnings: data.meta?.warnings,
+          validationPassed: data.meta?.validationPassed,
+          extraMetadata: {
+            compareMode: true,
+            recommendationCount: recommendations.length
+          }
+        });
+      } catch (error) {
+        const auditErrorMessage =
+          error instanceof Error ? error.message : "Provider compare request failed.";
+        const errorMessage = getFriendlyAIQAErrorMessage(auditErrorMessage);
+
+        nextResults.push({
+          id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
+          providerId,
+          model: "",
+          confidence: "unknown",
+          warnings: [],
+          summary: errorMessage,
+          validationStatus: "failed",
+          recommendations: [],
+          error: errorMessage
+        });
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_SKILL_ID,
+          success: false,
+          errorMessage: auditErrorMessage,
+          realAIEnabled: realAIQAEnabled && providerId !== "mock",
+          externalApiCalled: false,
+          provider: providerId,
+          extraMetadata: {
+            compareMode: true
+          }
+        });
+      }
+    }
+
+    setCompareResults(nextResults);
+    setAiRetryAction(nextResults.some((result) => result.validationStatus === "failed") ? "compare" : null);
+    setAiQaMessage("Provider Compare finished. Choose one provider output to preview further.");
+    setIsRunningCompare(false);
+  }
+
+  function useCompareResult(result: AIQACompareResult) {
+    setAiQaIssues(
+      result.recommendations.length > 0
+        ? [
+            {
+              id: `ai-process-qa-compare-${Date.now()}`,
+              issueCode: "SERVICE_BLUEPRINT_CARD_READINESS",
+              stepId:
+                result.recommendations[0].targetStepIds[0] ??
+                processTasks[0]?.stepId ??
+                "AI",
+              taskName: `${result.providerId} AI QA recommendation`,
+              severity: "suggestion",
+              message:
+                "Provider Compare output selected for the existing Recommendation Engine workflow.",
+              suggestedFix:
+                "Review the selected provider recommendation, preview the operation, then apply only after confirmation.",
+              recommendations: result.recommendations
+            }
+          ]
+        : []
+    );
+    clearSelection();
+    setAiQaMessage(`Selected ${result.providerId} output for AI QA preview.`);
+  }
+
+  async function runAiFindings() {
+    if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
+      setAiQaMessage("AI findings run cancelled. No finding was added.");
+      return;
+    }
+
+    setIsRunningAIFindings(true);
+    setAiRetryAction("findings");
+    setAiQaMessage(
+      realAIQAEnabled
+        ? "Running real AI findings through the server route..."
+        : "Running mock AI findings. Real AI QA is disabled."
+    );
+
+    try {
+      const routeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+            payload: {
+            processTasks,
+            qaIssues: issues,
+            templateProfiles: readSelectedTemplateProfiles()
+          }
+          })
+        )
+      });
+      const data = (await routeResponse.json()) as {
+        ok?: boolean;
+        mode?: "mock" | "provider-backed";
+        result?: QAFindingSet;
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+          realAIQAEnabled?: boolean;
+        };
+      };
+
+      if (!routeResponse.ok || !data.ok || !data.result) {
+        const errorMessage = [
+          data.error || "AI findings failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+        const friendlyMessage = text.aiSuggestionUnavailable;
+
+        logAICallAudit({
+          skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+          success: false,
+          errorMessage,
+          realAIEnabled: realAIQAEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
+        });
+        setAiFindingSet(null);
+        setAiQaMessage(friendlyMessage);
+        return;
+      }
+
+      setAiFindingSet(data.result);
+      setAiRetryAction(null);
+      setAiQaMessage(
+        `${data.mode === "provider-backed" ? "Real AI" : "Local analysis"} findings returned ${data.result.findings.length} finding(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
+      );
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+        success: true,
+        realAIEnabled: data.mode === "provider-backed",
+        externalApiCalled: data.meta?.externalApiCalled === true,
+        extraMetadata: {
+          findingCount: data.result.findings.length,
+          ruleIssueCount: issues.length
+        }
+      });
+    } catch {
+      logAICallAudit({
+        skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+        success: false,
+        errorMessage: "AI findings request failed.",
+        realAIEnabled: realAIQAEnabled,
+        externalApiCalled: false
+      });
+      setAiFindingSet(null);
+      setAiQaMessage(text.aiSuggestionUnavailable);
+    } finally {
+      setIsRunningAIFindings(false);
+    }
+  }
+
   async function runAiQa() {
     if (!confirmRealAICallIfNeeded(realAIQAEnabled)) {
       setAiQaMessage("Da huy goi Real AI QA. Khong co recommendation nao duoc tao.");
@@ -356,6 +1137,7 @@ export function QAPanel({
     }
 
     setIsRunningAIQA(true);
+    setAiRetryAction("qa");
     setAiQaMessage(
       realAIQAEnabled
         ? "Running real AI QA through the server route..."
@@ -368,14 +1150,17 @@ export function QAPanel({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: AI_PROCESS_QA_SKILL_ID,
-          payload: {
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: AI_PROCESS_QA_SKILL_ID,
+            payload: {
             processTasks,
             qaIssues: issues,
+            existingRecommendations: existingRuleRecommendations,
             templateProfiles: readSelectedTemplateProfiles()
           }
-        })
+          })
+        )
       });
       const data = (await routeResponse.json()) as {
         ok?: boolean;
@@ -396,6 +1181,7 @@ export function QAPanel({
           data.error || "AI QA failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = text.aiSuggestionUnavailable;
 
         logAICallAudit({
           skillId: AI_PROCESS_QA_SKILL_ID,
@@ -405,14 +1191,14 @@ export function QAPanel({
           externalApiCalled: data.meta?.externalApiCalled ?? realAIQAEnabled
         });
         setAiQaIssues([]);
-        setAiQaMessage(errorMessage);
+        setAiQaMessage(friendlyMessage);
         return;
       }
 
       const recommendations = (data.result?.recommendations ?? []).map(
         (recommendation) => ({
           ...recommendation,
-          source: "ai" as const,
+          source: recommendation.source === "hybrid" ? ("hybrid" as const) : ("ai" as const),
           requiresConfirmation: true
         })
       );
@@ -430,7 +1216,7 @@ export function QAPanel({
                 taskName:
                   data.mode === "provider-backed"
                     ? "AI QA recommendation"
-                    : "Mock AI QA recommendation",
+                    : "Local analysis QA recommendation",
                 severity: "suggestion",
                 message:
                   "AI QA returned recommendation(s) using the existing Recommendation Engine schema.",
@@ -443,16 +1229,19 @@ export function QAPanel({
       );
       setAiQaMessage(
         recommendations.length > 0
-          ? `${data.mode === "provider-backed" ? "Real" : "Mock"} AI QA returned ${recommendations.length} recommendation(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
+          ? `${data.mode === "provider-backed" ? "Real AI" : "Local analysis"} QA returned ${recommendations.length} recommendation(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
           : "AI QA did not return recommendations for the current PTR."
       );
+      setAiRetryAction(null);
       logAICallAudit({
         skillId: AI_PROCESS_QA_SKILL_ID,
         success: true,
         realAIEnabled: data.mode === "provider-backed",
         externalApiCalled: data.meta?.externalApiCalled === true,
         extraMetadata: {
-          recommendationCount: recommendations.length
+          recommendationCount: recommendations.length,
+          ruleIssueCount: issues.length,
+          existingRecommendationCount: existingRuleRecommendations.length
         }
       });
     } catch {
@@ -464,7 +1253,7 @@ export function QAPanel({
         externalApiCalled: false
       });
       setAiQaIssues([]);
-      setAiQaMessage("AI QA request failed. No recommendation was applied.");
+      setAiQaMessage(text.aiSuggestionUnavailable);
     } finally {
       setIsRunningAIQA(false);
     }
@@ -503,6 +1292,12 @@ export function QAPanel({
       }
     ]);
     setPendingBatchRecommendations(null);
+    setIsBatchConfirmationChecked(false);
+  }
+
+  function closeBatchPreview() {
+    setPendingBatchRecommendations(null);
+    setIsBatchConfirmationChecked(false);
   }
 
   function confirmSingleRecommendation() {
@@ -546,8 +1341,41 @@ export function QAPanel({
       }
     ]);
     onApplyRecommendations(pendingBatchRecommendations);
+    setBatchApplySummary(
+      `Applied ${pendingBatchPreview.applicableCount} recommendation(s); skipped ${pendingBatchPreview.skippedCount} conflict/invalid recommendation(s).`
+    );
     setPendingBatchRecommendations(null);
+    setIsBatchConfirmationChecked(false);
     clearSelection();
+  }
+
+  function retryAIQAAction() {
+    if (aiRetryAction === "qa") {
+      void runAiQa();
+      return;
+    }
+
+    if (aiRetryAction === "findings") {
+      void runAiFindings();
+      return;
+    }
+
+    if (aiRetryAction === "compare") {
+      void runAiQaCompare();
+    }
+  }
+
+  function runQaAndSuggestions() {
+    if (realAIQAEnabled) {
+      void runAiQa();
+      return;
+    }
+
+    setAiQaIssues([]);
+    setAiRetryAction(null);
+    setAiQaMessage(
+      `${text.runQaSuggestions}: ${issues.length} rule QA issue(s), ${existingRuleRecommendations.length} local recommendation(s).`
+    );
   }
 
   return (
@@ -555,105 +1383,197 @@ export function QAPanel({
     <SessionFrame
       actions={
         <div className="flex flex-wrap gap-2">
-        <button
-          className="w-fit rounded border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 hover:bg-sky-100"
-          disabled={isRunningAIQA}
-          onClick={runAiQa}
-          type="button"
-        >
-          {isRunningAIQA
-            ? "Running AI QA..."
-            : realAIQAEnabled
-              ? "Run real AI QA"
-              : "Run mock AI QA"}
-        </button>
-        <button
-          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={downloadFeedbackJson}
-          type="button"
-        >
-          Export Recommendation Feedback JSON
-        </button>
-        <button
-          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={clearLocalFeedback}
-          type="button"
-        >
-          Clear Local Feedback
-        </button>
-        <button
-          className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-          onClick={onDownloadReport}
-          type="button"
-        >
-          Download QA Report
-        </button>
+          <button
+            className="w-fit rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={onDownloadReport}
+            type="button"
+          >
+            {text.downloadReport}
+          </button>
         </div>
       }
       bodyClassName="p-4"
-      description="QA chạy lại tự động khi dữ liệu trong bảng thay đổi. Click vào issue để nhảy tới dòng liên quan nếu còn tồn tại."
-      title="Kiểm tra chất lượng Process Task Register"
+      description={text.description}
+      title={text.title}
     >
-      {hasRecommendations ? (
-        <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
-          <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+      <div className="mb-4 max-w-full rounded border border-emerald-200 bg-emerald-50 p-4">
+          <div className="grid gap-3 md:grid-cols-5">
+            {[
+              { label: text.findings, value: findings.length },
+              { label: text.recommendationsSection, value: recommendationEntries.length },
+              { label: text.safeRecommendations, value: safeRecommendations.length },
+              { label: text.mediumHighRiskRecommendations, value: mediumHighRiskRecommendationCount },
+              { label: text.selected, value: selectedRecommendations.length }
+            ].map((item) => (
+              <div className="rounded border border-emerald-200 bg-white px-3 py-2" key={item.label}>
+                <p className="text-xs font-semibold uppercase text-emerald-700">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-2xl font-semibold text-slate-950">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-semibold uppercase text-emerald-800">
-                Batch recommendations
-              </p>
-              <p className="mt-1 text-sm text-emerald-900">
-                {recommendationEntries.length} recommendations | {safeRecommendations.length} safe |{" "}
-                {selectedRecommendations.length} selected
+                {text.recommendationToolbar}
               </p>
               <p className="mt-1 text-xs text-emerald-800">
-                Safe = high confidence, low risk, and simple field changes only. Graph-changing recommendations are not selected by default.
+                {text.safeHelper}
               </p>
+              <p className="mt-1 text-xs text-emerald-800">
+                {text.graphChangingRecommendations}: {graphChangingRecommendationCount}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">{qaModeIndicator}</p>
+              {batchApplySummary ? (
+                <p className="mt-2 rounded border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-900">
+                  {batchApplySummary}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex max-w-full flex-wrap items-center gap-2">
               <button
-                className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={safeRecommendations.length === 0}
-                onClick={selectSafeRecommendations}
+                className="rounded border border-sky-300 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isRunningAIQA}
+                onClick={runQaAndSuggestions}
                 type="button"
               >
-                Select safe recommendations
+                {isRunningAIQA ? text.running : text.runQaSuggestions}
               </button>
               <button
-                className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={selectedRecommendations.length === 0}
-                onClick={clearSelection}
-                type="button"
-              >
-                Clear selection
-              </button>
-              <button
-                className="rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                disabled={selectedRecommendations.length === 0}
-                onClick={applySelectedRecommendations}
-                type="button"
-              >
-                Apply selected ({selectedRecommendations.length})
-              </button>
-              <button
-                className="rounded bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                className="btn btn-success px-4 py-3 text-sm"
                 disabled={safeRecommendations.length === 0}
                 onClick={applyAllSafeRecommendations}
                 type="button"
               >
-                Apply all safe recommendations
+                {text.applyAllSafe}
               </button>
+              <button
+                className="rounded border border-emerald-400 bg-white px-4 py-3 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={visibleRecommendations.length === 0}
+                onClick={previewAllRecommendations}
+                type="button"
+              >
+                {text.previewAllRecommendations}
+              </button>
+              <div className="relative">
+                <button
+                  className="rounded border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                  onClick={() => setIsMoreMenuOpen((isOpen) => !isOpen)}
+                  type="button"
+                >
+                  {text.more}
+                </button>
+                {isMoreMenuOpen ? (
+                  <div className="absolute right-0 z-20 mt-2 w-72 rounded border border-slate-200 bg-white p-1 text-sm shadow-lg">
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={recommendationEntries.length === 0}
+                      onClick={applyAllAfterReview}
+                      type="button"
+                    >
+                      {text.applyAllAfterReview}
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={selectedRecommendations.length === 0}
+                      onClick={() => {
+                        applySelectedRecommendations();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.applySelected} ({selectedRecommendations.length})
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={safeRecommendations.length === 0}
+                      onClick={() => {
+                        selectSafeRecommendations();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.selectSafe}
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={selectedRecommendations.length === 0}
+                      onClick={() => {
+                        clearSelection();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.clearSelection}
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        downloadFeedbackJson();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.exportFeedback}
+                    </button>
+                    <button
+                      className="block w-full rounded px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        clearLocalFeedback();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      {text.clearLocalFeedback}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-4 text-xs text-emerald-900">
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-emerald-900">
+            <label className="flex items-center gap-2">
+              <input
+                checked={compareModeEnabled}
+                onChange={(event) => setCompareModeEnabled(event.target.checked)}
+                type="checkbox"
+              />
+              {text.providerCompare}
+            </label>
+            {compareModeEnabled ? (
+              <>
+                {compareProviders.map((provider) => (
+                  <label className="flex items-center gap-1" key={provider.id}>
+                    <input
+                      checked={compareProviderIds.includes(provider.id)}
+                      onChange={() => toggleCompareProvider(provider.id)}
+                      type="checkbox"
+                    />
+                    {provider.label}
+                  </label>
+                ))}
+                <button
+                  className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isRunningCompare}
+                  onClick={() => void runAiQaCompare()}
+                  type="button"
+                >
+                  {isRunningCompare ? "Comparing..." : "Compare providers"}
+                </button>
+              </>
+            ) : null}
             <label className="flex items-center gap-2">
               <input
                 checked={showOnlySafe}
                 onChange={(event) => setShowOnlySafe(event.target.checked)}
                 type="checkbox"
               />
-              Show only safe recommendations
+              {text.showOnlySafe}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -661,7 +1581,7 @@ export function QAPanel({
                 onChange={(event) => setIncludeMediumConfidence(event.target.checked)}
                 type="checkbox"
               />
-              Include medium confidence
+              {text.includeMedium}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -669,42 +1589,229 @@ export function QAPanel({
                 onChange={(event) => setIncludeGraphChanging(event.target.checked)}
                 type="checkbox"
               />
-              Include graph-changing recommendations
+              {text.includeGraph}
             </label>
           </div>
+        </div>
+
+      {compareResults.length > 0 ? (
+        <div className="mb-4 grid gap-3 lg:grid-cols-2">
+          {compareResults.map((result) => (
+            <div
+              className="rounded border border-slate-200 bg-white p-3"
+              key={result.id}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {result.providerId}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Model: {result.model || "n/a"}
+                  </p>
+                </div>
+                <span
+                  className={`rounded px-2 py-1 text-xs font-semibold ${
+                    result.validationStatus === "passed"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-rose-50 text-rose-700"
+                  }`}
+                >
+                  {result.validationStatus}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-slate-700">{result.summary}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Confidence: {result.confidence} | Warnings:{" "}
+                {result.warnings.length}
+              </p>
+              {result.error ? (
+                <p className="mt-2 text-xs text-rose-700">{result.error}</p>
+              ) : null}
+              <button
+                className="btn btn-ai mt-3 text-xs"
+                disabled={result.recommendations.length === 0}
+                onClick={() => useCompareResult(result)}
+                type="button"
+              >
+                Use this output
+              </button>
+            </div>
+          ))}
         </div>
       ) : null}
 
       {aiQaMessage ? (
-        <p className="mb-4 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-          {aiQaMessage}
-        </p>
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+          <span>
+            {isRunningAIQA || isRunningAIFindings || isRunningCompare
+              ? aiQaMessage
+              : aiQaMessage}
+          </span>
+          {aiRetryAction &&
+          !isRunningAIQA &&
+          !isRunningAIFindings &&
+          !isRunningCompare ? (
+            <button
+              className="rounded border border-sky-300 bg-white px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+              onClick={retryAIQAAction}
+              type="button"
+            >
+              Retry
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
-      <p className="mb-4 text-sm font-semibold text-slate-950">
-        Tổng số issue: {displayIssues.length}
-      </p>
+      <section className="mb-5 rounded border border-sky-200 bg-sky-50/40">
+        <div className="flex flex-col gap-3 border-b border-sky-200 bg-sky-50 px-4 py-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-950">
+                {text.findings} ({findings.length})
+              </h3>
+              <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+                {findingSourceBadge}
+              </span>
+              <span className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-semibold text-sky-800">
+                {text.findingsReadOnlyBadge}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-slate-600">{text.findingsHelper}</p>
+            {findings.length > 5 ? (
+              <p className="mt-1 text-xs text-slate-500">
+                {text.showingTopFindings}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {findings.length > 5 ? (
+              <button
+                className="rounded border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => setAreFindingsExpanded((isExpanded) => !isExpanded)}
+                type="button"
+              >
+                {areFindingsExpanded ? text.collapseFindings : text.showAllFindings}
+              </button>
+            ) : null}
+            <button
+              className="rounded border border-sky-300 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-800 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isRunningAIFindings}
+              onClick={() => void runAiFindings()}
+              type="button"
+            >
+              {isRunningAIFindings
+                ? text.runningAiFindings
+                : realAIQAEnabled
+                  ? text.runAiFindings
+                  : text.runMockFindings}
+            </button>
+          </div>
+        </div>
 
-      <div className="grid min-w-0 gap-4">
-        {groupedIssues.map((group) => (
-          <section className="min-w-0 rounded border border-slate-200" key={group.severity}>
+        {findings.length > 0 ? (
+          <div className="divide-y divide-slate-200">
+            {visibleFindings.map((finding, index) => {
+              const firstStepId = finding.affectedStepIds[0];
+
+              return (
+                <div className="border-l-4 border-sky-200 bg-white/80 px-4 py-3" key={getFindingId(finding, index)}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {firstStepId ? (
+                      <button
+                        className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                        onClick={() => onIssueClick(firstStepId)}
+                        type="button"
+                      >
+                        {finding.affectedStepIds.join(", ")}
+                      </button>
+                    ) : (
+                      <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                        {text.none}
+                      </span>
+                    )}
+                    <span
+                      className={`rounded border px-2 py-1 text-xs font-semibold ${findingSeverityStyles[finding.severity]}`}
+                    >
+                      {localizedFindingSeverityLabels[finding.severity]}
+                    </span>
+                    <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+                      {text.source}:{" "}
+                      {finding.source ? findingSourceLabels[finding.source] : text.none}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm font-semibold text-slate-950">
+                    {finding.title}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {finding.description}
+                  </p>
+                  {finding.evidence?.length ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {finding.evidence.join(" | ")}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="px-4 py-3 text-sm text-slate-500">{text.noFindings}</p>
+        )}
+      </section>
+
+      <section className="mb-4 rounded border border-emerald-200 bg-emerald-50/40 px-4 py-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-950">
+              {text.recommendationsSection} ({visibleRecommendationCount})
+            </h3>
+            <span className="mt-2 inline-flex rounded border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+              {recommendationSourceBadge}
+            </span>
+            <p className="mt-1 text-xs text-slate-600">
+              {text.recommendationsHelper}
+            </p>
+          </div>
+          <p className="text-xs text-slate-500">
+            {text.totalIssues}: {displayIssues.length}
+          </p>
+        </div>
+        {hiddenRecommendationCount > 0 ? (
+          <p className="mt-2 text-xs text-emerald-800">
+            {text.hiddenByFilters} ({hiddenRecommendationCount})
+          </p>
+        ) : null}
+      </section>
+
+      <div className="grid w-full max-w-full min-w-0 gap-4 overflow-x-auto">
+        {hasVisibleRecommendations ? (
+          visibleRecommendationRiskGroups.map((group) => (
+          <section className="min-w-0 rounded border border-slate-200" key={group.key}>
             <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3">
               <h3 className="text-sm font-semibold text-slate-950">
-                {severityLabels[group.severity]}
+                {group.label}
               </h3>
               <span
-                className={`rounded border px-2 py-1 text-xs font-semibold ${severityStyles[group.severity]}`}
+                className={`rounded border px-2 py-1 text-xs font-semibold ${
+                  group.key === "graph-changing"
+                    ? advancedGroupStyles
+                    : group.key === "high"
+                      ? severityStyles.error
+                      : group.key === "medium"
+                        ? severityStyles.warning
+                        : severityStyles.suggestion
+                }`}
               >
-                {group.issues.length}
+                {group.entries.length}
               </span>
             </div>
 
-            {group.issues.length > 0 ? (
-              <div className="divide-y divide-slate-200">
-                {group.issues.map((issue) => (
+            <div className="divide-y divide-slate-200">
+              {group.entries.map(({ issue, recommendation, id }) => (
                   <div
                     className="block w-full max-w-full px-4 py-3 text-left hover:bg-slate-50"
-                    key={issue.id}
+                    key={id}
                   >
                     <button
                       className="block w-full text-left"
@@ -718,7 +1825,7 @@ export function QAPanel({
                         <span
                           className={`rounded border px-2 py-1 text-xs font-semibold ${severityStyles[issue.severity]}`}
                         >
-                          {severityLabels[issue.severity]}
+                          {localizedSeverityLabels[issue.severity]}
                         </span>
                       </div>
                       <p className="mt-2 text-sm font-semibold text-slate-950">
@@ -726,36 +1833,34 @@ export function QAPanel({
                       </p>
                       <p className="mt-1 text-sm text-slate-700">{issue.message}</p>
                       <p className="mt-1 text-sm text-slate-500">
-                        Cách sửa: {issue.suggestedFix}
+                        {text.suggestedFix}: {issue.suggestedFix}
                       </p>
                     </button>
                     <div
-                      className={`mt-3 rounded border p-3 ${recommendationBoxStyles[issue.severity]}`}
+                      className={`mt-3 rounded border p-3 ${
+                        group.key === "graph-changing"
+                          ? advancedRecommendationBoxStyle
+                          : recommendationBoxStyles[issue.severity]
+                      }`}
                     >
                       <p className="text-xs font-semibold uppercase text-slate-600">
-                        Gợi ý tự động
+                        {text.automaticRecommendations}
                       </p>
-                      {issue.recommendations?.length ? (
-                        <div className="mt-2 space-y-3">
-                          {issue.recommendations.map((recommendation, index) => (
-                            (() => {
-                              const recommendationId = `${issue.id}:${recommendation.id ?? recommendation.type ?? "recommendation"}:${index}`;
-
-                              if (!visibleRecommendationIds.has(recommendationId)) {
-                                return null;
-                              }
-
-                              return (
+                      <div className="mt-2 space-y-3">
                             <div
-                              className={`rounded border p-3 ${recommendationCardStyles[issue.severity]}`}
-                              key={recommendationId}
+                              className={`rounded border p-3 ${
+                                group.key === "graph-changing"
+                                  ? advancedRecommendationCardStyle
+                                  : recommendationCardStyles[issue.severity]
+                              }`}
+                              key={id}
                             >
                               <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                                 <label className="flex gap-2">
                                   <input
-                                    checked={selectedRecommendationIds.has(recommendationId)}
+                                    checked={selectedRecommendationIds.has(id)}
                                     className="mt-1"
-                                    onChange={() => toggleRecommendation(recommendationId)}
+                                    onChange={() => toggleRecommendation(id)}
                                     type="checkbox"
                                   />
                                   <span>
@@ -766,13 +1871,19 @@ export function QAPanel({
                                     {recommendation.description}
                                   </p>
                                   <p className="mt-1 text-xs text-slate-500">
-                                    Confidence: {recommendation.confidence} | Impact:{" "}
-                                    {recommendation.impact} | Risk: {recommendation.riskLevel ?? "medium"}
+                                    {text.confidence}: {recommendation.confidence} | {text.impact}:{" "}
+                                    {recommendation.impact} | {text.risk}: {recommendation.riskLevel ?? "medium"}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {text.affectedSteps}:{" "}
+                                    {getAffectedStepIds(recommendation).length
+                                      ? getAffectedStepIds(recommendation).join(", ")
+                                      : text.none}
                                   </p>
                                   </span>
                                 </label>
                                 <button
-                                  className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                                  className="btn btn-ai w-fit text-xs"
                                   onClick={() =>
                                     setPendingRecommendation({
                                       issue,
@@ -781,35 +1892,27 @@ export function QAPanel({
                                   }
                                   type="button"
                                 >
-                                  Apply
+                                  {text.previewChange}
                                 </button>
                               </div>
                               {recommendation.previewText ? (
                                 <p className="mt-1 whitespace-pre-line text-xs text-slate-500">
-                                  Preview: {recommendation.previewText}
+                                  {text.changeSummary}: {recommendation.previewText}
                                 </p>
                               ) : null}
                             </div>
-                              );
-                            })()
-                          ))}
                         </div>
-                      ) : (
-                        <p className="mt-2 text-sm text-slate-600">
-                          Chưa có gợi ý tự động.
-                        </p>
-                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="px-4 py-3 text-sm text-slate-500">
-                Không có issue trong nhóm này.
-              </p>
-            )}
+              ))}
+            </div>
           </section>
-        ))}
+            ))
+        ) : (
+          <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            {hasRecommendations ? text.hiddenByFilters : text.recommendationsEmpty}
+          </p>
+        )}
       </div>
     </SessionFrame>
 
@@ -906,7 +2009,7 @@ export function QAPanel({
                 Cancel
               </button>
               <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+                className="btn btn-success"
                 onClick={confirmSingleRecommendation}
                 type="button"
               >
@@ -921,15 +2024,24 @@ export function QAPanel({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded border border-slate-200 bg-white p-5 shadow-xl">
             <p className="text-sm font-medium uppercase text-slate-500">
-              Confirm Batch Recommendations
+              {pendingBatchMode === "all-preview"
+                ? text.previewOnly
+                : "Confirm Batch Recommendations"}
             </p>
             <h3 className="mt-1 text-xl font-semibold text-slate-950">
-              Apply selected recommendations
+              {pendingBatchMode === "all-after-review"
+                ? text.applyAllAfterReview
+                : pendingBatchMode === "all-preview"
+                  ? text.previewAllRecommendations
+                  : "Apply selected recommendations"}
             </h3>
             <div className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-              <p>Recommendations: {pendingBatchPreview.selectedCount}</p>
+              <p>Total recommendations: {pendingBatchPreview.selectedCount}</p>
+              <p>Safe recommendations: {pendingBatchSafeCount}</p>
+              <p>Medium/high risk: {pendingBatchMediumHighRiskCount}</p>
+              <p>Graph-changing: {pendingBatchGraphChangingCount}</p>
               <p>Will apply: {pendingBatchPreview.applicableCount}</p>
-              <p>Skipped due to conflicts: {pendingBatchPreview.skippedCount}</p>
+              <p>Skipped conflicts/invalid: {pendingBatchPreview.skippedCount}</p>
               <p>Affected tasks: {pendingBatchPreview.affectedTaskCount}</p>
               <p>Field changes: {pendingBatchPreview.fieldChangeCount}</p>
               <p>New tasks: {pendingBatchPreview.newTaskCount}</p>
@@ -940,8 +2052,61 @@ export function QAPanel({
               <p className="mt-1 break-words text-sm text-slate-600">
                 {pendingBatchPreview.affectedStepIds.length
                   ? pendingBatchPreview.affectedStepIds.join(", ")
-                  : "None"}
+                : "None"}
               </p>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {pendingBatchRiskGroups.map((group) => (
+                <div
+                  className="rounded border border-slate-200 bg-white p-3"
+                  key={group.riskGroup}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {group.label}
+                    </p>
+                    <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700">
+                      {group.recommendations.length}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {text.affectedSteps}:{" "}
+                    {group.affectedStepIds.length
+                      ? group.affectedStepIds.join(", ")
+                      : text.none}
+                  </p>
+                  <div className="mt-2 space-y-2">
+                    {group.recommendations.map((recommendation, index) => (
+                      <div
+                        className="rounded border border-slate-100 bg-slate-50 p-2"
+                        key={`${getRecommendationId(recommendation)}-${index}`}
+                      >
+                        <p className="text-sm font-semibold text-slate-800">
+                          {recommendation.title}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          {recommendation.previewText || recommendation.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {group.warnings.length > 0 ? (
+                    <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-2">
+                      <p className="text-xs font-semibold text-amber-800">
+                        Warnings
+                      </p>
+                      <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-amber-700">
+                        {group.warnings.map((warning, index) => (
+                          <li key={`${group.riskGroup}-${warning}-${index}`}>
+                            {warning}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
             </div>
 
             {pendingBatchPreview.conflicts.length > 0 ? (
@@ -953,7 +2118,18 @@ export function QAPanel({
                   ))}
                 </ul>
                 <p className="mt-2 text-sm text-red-700">
-                  Conflicting recommendations will be skipped.
+                  Conflicting or invalid recommendations will be skipped.
+                </p>
+              </div>
+            ) : null}
+
+            {pendingBatchPreview.applicableCount === 0 ? (
+              <div className="mt-4 rounded border border-red-200 bg-red-50 p-3">
+                <p className="text-sm font-semibold text-red-800">
+                  No applicable recommendations to apply.
+                </p>
+                <p className="mt-1 text-sm text-red-700">
+                  All recommendations in this batch are invalid, conflicting, or reference stepIds that are not in the current Process Task Register.
                 </p>
               </div>
             ) : null}
@@ -969,22 +2145,49 @@ export function QAPanel({
               </div>
             ) : null}
 
+            {pendingBatchMode === "all-after-review" ? (
+              <div className="mt-4 rounded border border-amber-200 bg-amber-50 p-3">
+                <label className="flex gap-2 text-sm font-medium text-amber-900">
+                  <input
+                    checked={isBatchConfirmationChecked}
+                    className="mt-1"
+                    onChange={(event) =>
+                      setIsBatchConfirmationChecked(event.target.checked)
+                    }
+                    type="checkbox"
+                  />
+                  <span>{text.explicitApplyConfirmation}</span>
+                </label>
+                <p className="mt-2 text-xs text-amber-800">{text.snapshotTodo}</p>
+              </div>
+            ) : null}
+
             <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => rejectBatchRecommendations("user_cancelled")}
+                onClick={() =>
+                  pendingBatchMode === "all-preview"
+                    ? closeBatchPreview()
+                    : rejectBatchRecommendations("user_cancelled")
+                }
                 type="button"
               >
-                Cancel
+                {pendingBatchMode === "all-preview" ? "Close" : "Cancel"}
               </button>
-              <button
-                className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                disabled={pendingBatchPreview.applicableCount === 0}
-                onClick={confirmBatchRecommendations}
-                type="button"
-              >
-                Confirm Apply Batch
-              </button>
+              {pendingBatchMode === "all-preview" ? null : (
+                <button
+                  className="btn btn-success"
+                  disabled={
+                    pendingBatchPreview.applicableCount === 0 ||
+                    (pendingBatchMode === "all-after-review" &&
+                      !isBatchConfirmationChecked)
+                  }
+                  onClick={confirmBatchRecommendations}
+                  type="button"
+                >
+                  Confirm Apply Batch
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -47,5 +47,7 @@ export type AITemplateReviewRequest = {
 export type AITemplateReviewResponse = {
   recommendations: TemplateRecommendation[];
   qualityScore?: TemplateQualityScore;
+  warnings?: string[];
+  assumptions?: string[];
   meta: AIOrchestrationResponseMeta;
 };

@@ -4,17 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 import { SessionFrame } from "@/components/layout/SessionFrame";
 import {
   confirmRealAICallIfNeeded,
+  createAISkillRequestBody,
   logAICallAudit
 } from "@/lib/ai/ai-governance";
+import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import { saveAuditLogEntry } from "@/lib/audit/audit-log";
 import type { StructuredInputBrief } from "@/lib/ai/ai-input-brief-types";
 import {
   createIntakeFileMetadata,
+  detectProcessRegisterProfile,
   extractDraftTasksFromExcel,
   extractTextFromDocx,
   extractTextFromPdf,
   generateDraftProcessTaskRegister,
   parseStructuredProcessBriefFromForm,
+  PROCESS_REGISTER_PROFILE_EVENT,
+  SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY,
   validateDraftProcessTaskRegister,
   type DocxExtractionResult,
   type DraftPTRGenerationResult,
@@ -23,19 +28,27 @@ import {
   type PdfExtractionResult
 } from "@/lib/ai-intake";
 import type { StructuredProcessBrief } from "@/lib/ai-intake";
-import { getLocale, t, type Locale, type TranslationKey } from "@/lib/i18n";
+import { getLocale, t, type Locale } from "@/lib/i18n";
 import type { ProcessTask } from "@/lib/models/process-task";
 import {
+  createSourceCoverageAdvisory,
   formatQualityGateErrorsVi,
   formatQualityGateWarningsVi,
   runBriefQualityGate,
+  runDraftPtrGateV1,
   runDraftProcessTaskRegisterQualityGate
+} from "@/lib/quality-engine";
+import type {
+  GateVerdictStatus,
+  SourceCoverageAdvisoryStatus
 } from "@/lib/quality-engine";
 
 const BRIEF_STORAGE_KEY = "process-blueprint-ai-workbench:input-brief";
 const FILE_METADATA_STORAGE_KEY =
   "process-blueprint-ai-workbench:input-brief-file-metadata";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
+const SAMPLE_PROCESS_STORAGE_KEY =
+  "process-blueprint-ai-workbench:selected-sample-process";
 const PROCESS_TASKS_EVENT = "process-blueprint-process-tasks-change";
 const D01_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d01-bpmn-status";
@@ -44,6 +57,8 @@ const D02_GENERATED_STATUS_KEY =
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
+const FILE_TO_PTR_DRAFT_SKILL_ID = "file-to-ptr-draft";
+const CHAT_TO_PTR_DRAFT_SKILL_ID = "chat-to-ptr-draft";
 
 const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
   selected: "border-slate-200 bg-slate-50 text-slate-700",
@@ -53,6 +68,19 @@ const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
   failed: "border-red-200 bg-red-50 text-red-800"
 };
 
+const gateVerdictStyles: Record<GateVerdictStatus, string> = {
+  pass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  warning: "border-amber-200 bg-amber-50 text-amber-800",
+  fail: "border-red-200 bg-red-50 text-red-800",
+  "not-applicable": "border-slate-200 bg-slate-50 text-slate-700"
+};
+
+const sourceCoverageStyles: Record<SourceCoverageAdvisoryStatus, string> = {
+  good: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  review: "border-amber-200 bg-amber-50 text-amber-800",
+  missing: "border-slate-200 bg-slate-50 text-slate-700"
+};
+
 const previewLabels = {
   vi: {
     sourceSummary: "Tóm tắt nguồn",
@@ -60,18 +88,31 @@ const previewLabels = {
     assumptions: "Giả định",
     openQuestions: "Câu hỏi cần làm rõ",
     qualityGateWarnings: "Canh bao Quality Gate",
-    replaceCurrentPtr: "Replace current PTR",
-    appendToCurrentPtr: "Append to current PTR",
-    cancelDraft: "Cancel Draft",
-    stepId: "Step ID",
-    bpmnType: "BPMN Type",
+    qualityIssues: "Van de chat luong",
+    gateVerdict: "Draft PTR Gate",
+    gateBlockers: "Blockers",
+    gateWarnings: "Warnings",
+    gateAdvanced: "Advanced gate details",
+    gateScore: "Score",
+    gateNoIssues: "No blockers or warnings.",
+    sourceCoverage: "Source coverage",
+    sourceCoverageNonBlocking: "Advisory only - does not block Apply",
+    sourceCoverageMode: "Source mode",
+    sourceCoverageRows: "Rows with sourceRef",
+    sourceCoverageWarnings: "Coverage warnings",
+    sourceCoverageNoWarnings: "No source coverage warnings.",
+    replaceCurrentPtr: "Thay PTR hiện tại",
+    appendToCurrentPtr: "Thêm vào PTR hiện tại",
+    cancelDraft: "Hủy draft",
+    stepId: "Mã bước",
+    bpmnType: "Loại BPMN",
     actor: "Actor",
-    system: "System",
-    taskName: "Task Name",
+    system: "Hệ thống",
+    taskName: "Tên task",
     input: "Input",
     output: "Output",
-    defaultNextStep: "Default Next Step",
-    reviewStatus: "Review Status"
+    defaultNextStep: "Bước tiếp theo",
+    reviewStatus: "Trạng thái review"
   },
   en: {
     sourceSummary: "Source summary",
@@ -79,6 +120,19 @@ const previewLabels = {
     assumptions: "Assumptions",
     openQuestions: "Open questions",
     qualityGateWarnings: "Quality Gate warnings",
+    qualityIssues: "Quality issues",
+    gateVerdict: "Draft PTR Gate",
+    gateBlockers: "Blockers",
+    gateWarnings: "Warnings",
+    gateAdvanced: "Advanced gate details",
+    gateScore: "Score",
+    gateNoIssues: "No blockers or warnings.",
+    sourceCoverage: "Source coverage",
+    sourceCoverageNonBlocking: "Advisory only - does not block Apply",
+    sourceCoverageMode: "Source mode",
+    sourceCoverageRows: "Rows with sourceRef",
+    sourceCoverageWarnings: "Coverage warnings",
+    sourceCoverageNoWarnings: "No source coverage warnings.",
     replaceCurrentPtr: "Replace current PTR",
     appendToCurrentPtr: "Append to current PTR",
     cancelDraft: "Cancel Draft",
@@ -94,13 +148,111 @@ const previewLabels = {
   }
 } satisfies Record<Locale, Record<string, string>>;
 
+const inputBriefUiText = {
+  vi: {
+    chatNotes: "Chat / Notes",
+    chatNotesHelper: "Paste nội dung chat, ghi chú workshop hoặc meeting notes để tạo Draft PTR preview.",
+    chatNotesPlaceholder: "Ví dụ: Khách hàng gửi yêu cầu mở tài khoản. RM kiểm tra hồ sơ. Ops tạo CIF...",
+    generateFromChatNotes: "Tạo Draft PTR từ ghi chú",
+    generateProcessRegister: "Tạo bảng quy trình",
+    generateWithAI: "Tạo bằng AI",
+    generating: "Đang tạo...",
+    manualInput: "Nhập thủ công",
+    importFile: "Nhập file",
+    voiceInputComingSoon: "Nhập giọng nói - sắp có",
+    relatedSystems: "Hệ thống liên quan",
+    relatedSystemsHelper: "Kênh khách hàng, hệ thống nội bộ và bên thứ ba được nhập riêng.",
+    dataDocuments: "Dữ liệu và tài liệu",
+    dataDocumentsHelper: "Giữ dữ liệu, tài liệu, biểu mẫu và hồ sơ tách khỏi hệ thống.",
+    voiceComingSoon: "Tính năng nhập giọng nói sắp có. MVP1 chưa ghi âm, upload hoặc xử lý bên ngoài.",
+    fileIntake: "Nhập file",
+    fileIntakeHelper: "File được xử lý local để tạo draft PTR preview trước khi Apply.",
+    clearFiles: "Xóa file",
+    selectLocalFiles: "Chọn file local",
+    reselectAfterRefresh: "File đã được xử lý. Chọn lại file nếu cần cập nhật.",
+    fileName: "Tên file",
+    type: "Loại",
+    size: "Dung lượng",
+    lastModified: "Sửa lần cuối",
+    status: "Trạng thái",
+    action: "Thao tác",
+    extract: "Trích xuất",
+    generateDraftPtr: "Tạo Draft PTR",
+    unsupportedImage: "OCR/Image chưa hỗ trợ trong MVP1",
+    unsupportedFile: "Loại file chưa hỗ trợ",
+    remove: "Xóa",
+    unsupportedSummary: "Phát hiện file chưa hỗ trợ. MVP1 hỗ trợ .xlsx, .docx và .pdf. Voice/OCR/Image chưa được hỗ trợ.",
+    other: "Khác",
+    realAIMode: "Real AI qua provider",
+    mockMode: "Local/mock, không gọi provider bên ngoài",
+    checkingAIMode: "Đang kiểm tra chế độ AI...",
+    cloudWarning: "Dữ liệu có thể được xử lý trên cloud theo cấu hình server.",
+    aiCancelled: "Đã hủy gọi Real AI. Bản nháp chưa được tạo.",
+    realAIRunning: "Real AI: đang gọi provider qua route server-side...",
+    mockRunning: "Local/mock: đang tạo bản nháp, không gọi provider bên ngoài.",
+    mockDone: "Local/mock: đã tạo bản nháp PTR. Không gọi provider bên ngoài.",
+    draftBlocked: "Không thể tạo bản nháp PTR",
+    draftRows: "dòng"
+  },
+  en: {
+    generateProcessRegister: "Generate Process Register",
+    generateWithAI: "Generate with AI",
+    generating: "Generating...",
+    manualInput: "Manual Input",
+    importFile: "Import File",
+    voiceInputComingSoon: "Voice Input - Coming soon",
+    relatedSystems: "Related systems",
+    relatedSystemsHelper: "Customer-facing, internal, and third-party systems are captured separately.",
+    dataDocuments: "Data and documents",
+    dataDocumentsHelper: "Keep data, documents, forms, and records separate from systems.",
+    voiceComingSoon: "Voice Input is coming soon. No recording, upload, or external processing is implemented in this step.",
+    fileIntake: "File Intake",
+    fileIntakeHelper: "Files are processed locally for Draft PTR preview before Apply.",
+    supportedFormatsTitle: "Supported formats",
+    supportedFormats: "Text-based PDF, DOCX, and XLSX are supported for local Draft PTR generation.",
+    comingSoonFormats: "Image/OCR/Voice intake is coming soon.",
+    nextStep: "Next step",
+    clearFiles: "Clear files",
+    selectLocalFiles: "Select local files",
+    reselectAfterRefresh: "File processed. Select again to re-extract.",
+    fileName: "File name",
+    type: "Type",
+    size: "Size",
+    lastModified: "Last modified",
+    status: "Status",
+    action: "Action",
+    extract: "Extract",
+    generateDraftPtr: "Generate Draft PTR",
+    chatNotes: "Chat / notes",
+    chatNotesHelper: "Paste chat, workshop notes, or manual text to generate a Draft PTR preview.",
+    chatNotesPlaceholder: "Example: Customer submits account opening request. RM checks documents. Ops creates CIF...",
+    generateFromChatNotes: "Generate Draft PTR from notes",
+    unsupportedImage: "OCR/Image unsupported in MVP1",
+    unsupportedFile: "Unsupported file type",
+    remove: "Remove",
+    unsupportedSummary: "Unsupported file type detected. Supported formats are .xlsx, .docx, and .pdf. Voice/OCR/Image extraction is not supported yet.",
+    other: "Other",
+    realAIMode: "Real AI via provider",
+    mockMode: "Local/mock, no external provider call",
+    checkingAIMode: "Checking AI mode...",
+    cloudWarning: "Data may be processed in the cloud according to server configuration.",
+    aiCancelled: "Real AI call cancelled. No draft was created.",
+    realAIRunning: "Real AI: calling the provider through the server-side route...",
+    mockRunning: "Local/mock: generating a draft with no external provider call.",
+    mockDone: "Local/mock: generated Draft PTR. No external provider call.",
+    draftBlocked: "Cannot generate Draft PTR",
+    draftRows: "row(s)"
+  }
+} satisfies Record<Locale, Record<string, string>>;
+
 type InputBriefFormState = {
   processInfo: string;
   businessObjective: string;
-  scope: string;
-  startEnd: string;
+  scopeBoundary: string;
   actors: string;
-  relatedSystems: string;
+  customerFacingSystems: string;
+  internalSystems: string;
+  thirdPartySystems: string;
   dataDocuments: string;
   happyPath?: string;
   exceptions?: string;
@@ -113,25 +265,30 @@ type BriefField = {
     InputBriefFormState,
     | "processInfo"
     | "businessObjective"
-    | "scope"
-    | "startEnd"
+    | "scopeBoundary"
     | "actors"
-    | "relatedSystems"
+    | "customerFacingSystems"
+    | "internalSystems"
+    | "thirdPartySystems"
     | "dataDocuments"
   >;
-  labelKey: TranslationKey;
-  helperKey: TranslationKey;
-  placeholderKey: TranslationKey;
+  label: Record<Locale, string>;
+  helper: Record<Locale, string>;
+  placeholder: Record<Locale, string>;
+  suggestions: string[];
   rows: number;
 };
+
+type BriefMode = "manual" | "import-file" | "chat-notes" | "voice";
 
 const emptyBrief: InputBriefFormState = {
   processInfo: "",
   businessObjective: "",
-  scope: "",
-  startEnd: "",
+  scopeBoundary: "",
   actors: "",
-  relatedSystems: "",
+  customerFacingSystems: "",
+  internalSystems: "",
+  thirdPartySystems: "",
   dataDocuments: "",
   happyPath: "",
   exceptions: "",
@@ -142,54 +299,196 @@ const emptyBrief: InputBriefFormState = {
 const briefFields: BriefField[] = [
   {
     key: "processInfo",
-    labelKey: "inputBrief.processInfo",
-    helperKey: "inputBrief.processInfoHelper",
-    placeholderKey: "inputBrief.processInfoPlaceholder",
+    label: { vi: "Thông tin quy trình", en: "Process information" },
+    helper: {
+      vi: "Chọn hoặc nhập tên/mô tả ngắn về quy trình cần xây dựng.",
+      en: "Select or enter the process name or a short process description."
+    },
+    placeholder: {
+      vi: "Ví dụ: Mở tài khoản doanh nghiệp, phê duyệt khoản vay SME online...",
+      en: "Example: Corporate account opening, SME online loan approval..."
+    },
+    suggestions: [
+      "Mở tài khoản",
+      "Đăng ký vay",
+      "Bổ sung hồ sơ",
+      "Phê duyệt tín dụng",
+      "Giải ngân",
+      "KYC / onboarding",
+      "Dịch vụ sau bán",
+      "Khác"
+    ],
     rows: 3
   },
   {
     key: "businessObjective",
-    labelKey: "inputBrief.businessObjective",
-    helperKey: "inputBrief.businessObjectiveHelper",
-    placeholderKey: "inputBrief.businessObjectivePlaceholder",
+    label: { vi: "Mục tiêu nghiệp vụ", en: "Business objective" },
+    helper: {
+      vi: "Chọn hoặc nhập mục tiêu cần đạt được, kết quả kinh doanh hoặc trải nghiệm mong muốn.",
+      en: "Select or enter the desired business outcome, process goal, or experience."
+    },
+    placeholder: {
+      vi: "Ví dụ: giảm thời gian xử lý, tăng tỷ lệ hoàn tất hồ sơ, cải thiện trải nghiệm khách hàng...",
+      en: "Example: reduce handling time, increase completed applications, improve customer experience..."
+    },
+    suggestions: [
+      "Tự động hóa quy trình",
+      "Giảm TAT",
+      "Tăng trải nghiệm khách hàng",
+      "Giảm lỗi vận hành",
+      "Tăng kiểm soát rủi ro",
+      "Chuẩn hóa quy trình",
+      "Số hóa hồ sơ"
+    ],
     rows: 4
   },
   {
-    key: "scope",
-    labelKey: "inputBrief.scope",
-    helperKey: "inputBrief.scopeHelper",
-    placeholderKey: "inputBrief.scopePlaceholder",
-    rows: 4
-  },
-  {
-    key: "startEnd",
-    labelKey: "inputBrief.startEnd",
-    helperKey: "inputBrief.startEndHelper",
-    placeholderKey: "inputBrief.startEndPlaceholder",
+    key: "scopeBoundary",
+    label: { vi: "Phạm vi, bắt đầu và kết thúc", en: "Scope, start and end" },
+    helper: {
+      vi: "Chọn hoặc mô tả quy trình bắt đầu từ đâu, kết thúc khi nào, và phạm vi trong/ngoài.",
+      en: "Select or describe where the process starts, where it ends, and what is in or out of scope."
+    },
+    placeholder: {
+      vi: "Ví dụ: Từ lúc khách hàng bắt đầu yêu cầu đến khi nhận kết quả; không bao gồm hậu kiểm.",
+      en: "Example: From customer request initiation to final result; excludes post-review."
+    },
+    suggestions: [
+      "Từ lúc khách hàng bắt đầu yêu cầu đến khi nhận kết quả",
+      "Từ lúc RM tạo yêu cầu đến khi hoàn tất xử lý",
+      "Từ lúc hệ thống nhận hồ sơ đến khi phê duyệt/từ chối",
+      "End-to-end toàn bộ hành trình",
+      "Chỉ một sub-process"
+    ],
     rows: 4
   },
   {
     key: "actors",
-    labelKey: "inputBrief.actors",
-    helperKey: "inputBrief.actorsHelper",
-    placeholderKey: "inputBrief.actorsPlaceholder",
+    label: { vi: "Người tham gia", en: "Participants" },
+    helper: {
+      vi: "Chọn hoặc nhập các vai trò, phòng ban, hệ thống hoặc bên liên quan tham gia quy trình.",
+      en: "Select or enter roles, departments, systems, or stakeholders in the process."
+    },
+    placeholder: {
+      vi: "Ví dụ: Khách hàng, RM, DVKH, Ops Support, Credit Approver...",
+      en: "Example: Customer, RM, Customer Service, Ops Support, Credit Approver..."
+    },
+    suggestions: [
+      "Khách hàng",
+      "RM",
+      "DVKH",
+      "Ops Support",
+      "Credit Officer",
+      "Credit Approver",
+      "System",
+      "Third-party provider",
+      "Admin"
+    ],
     rows: 4
   },
   {
-    key: "relatedSystems",
-    labelKey: "inputBrief.relatedSystems",
-    helperKey: "inputBrief.relatedSystemsHelper",
-    placeholderKey: "inputBrief.relatedSystemsPlaceholder",
+    key: "customerFacingSystems",
+    label: {
+      vi: "Kênh/hệ thống khách hàng sử dụng",
+      en: "Customer-facing systems/channels"
+    },
+    helper: {
+      vi: "Các kênh hoặc hệ thống khách hàng nhìn thấy hoặc tương tác trực tiếp.",
+      en: "Channels or systems customers see or interact with directly."
+    },
+    placeholder: {
+      vi: "Ví dụ: Mobile App, Website, Efast / Portal, Email, SMS...",
+      en: "Example: Mobile App, Website, Efast / Portal, Email, SMS..."
+    },
+    suggestions: [
+      "Website",
+      "Mobile App",
+      "Internet Banking",
+      "Efast / Portal",
+      "Email",
+      "SMS",
+      "Call Center",
+      "Branch"
+    ],
+    rows: 3
+  },
+  {
+    key: "internalSystems",
+    label: { vi: "Hệ thống nội bộ", en: "Internal systems" },
+    helper: {
+      vi: "Các hệ thống nội bộ hỗ trợ xử lý, kiểm tra, lưu trữ hoặc workflow.",
+      en: "Internal systems used for processing, validation, storage, or workflow."
+    },
+    placeholder: {
+      vi: "Ví dụ: CRM, Core Banking, LOS, BPM/Workflow, ECM...",
+      en: "Example: CRM, Core Banking, LOS, BPM/Workflow, ECM..."
+    },
+    suggestions: [
+      "CRM",
+      "Core Banking",
+      "LOS",
+      "BPM/Workflow",
+      "ECM",
+      "DMS",
+      "S3 Bucket",
+      "Notification Service"
+    ],
+    rows: 3
+  },
+  {
+    key: "thirdPartySystems",
+    label: {
+      vi: "Hệ thống/nhà cung cấp bên thứ ba",
+      en: "Third-party systems/providers"
+    },
+    helper: {
+      vi: "Các bên ngoài tổ chức tham gia xác minh, dữ liệu, thanh toán hoặc tích hợp.",
+      en: "External providers used for verification, data, payment, or integrations."
+    },
+    placeholder: {
+      vi: "Ví dụ: CIC, eKYC provider, Tax authority, Business registry...",
+      en: "Example: CIC, eKYC provider, Tax authority, Business registry..."
+    },
+    suggestions: [
+      "CIC",
+      "Blacklist provider",
+      "eKYC provider",
+      "Tax authority",
+      "Business registry",
+      "Payment gateway"
+    ],
     rows: 3
   },
   {
     key: "dataDocuments",
-    labelKey: "inputBrief.dataDocuments",
-    helperKey: "inputBrief.dataDocumentsHelper",
-    placeholderKey: "inputBrief.dataDocumentsPlaceholder",
+    label: { vi: "Dữ liệu / hồ sơ / chứng từ", en: "Data / documents / records" },
+    helper: {
+      vi: "Các dữ liệu, hồ sơ, biểu mẫu, chứng từ hoặc kết quả xử lý dùng trong quy trình.",
+      en: "Data, documents, forms, records, or process outputs used in the process."
+    },
+    placeholder: {
+      vi: "Ví dụ: Hồ sơ khách hàng, CCCD/Hộ chiếu, báo cáo tài chính, kết quả CIC...",
+      en: "Example: customer file, ID/passport, financial statement, CIC result..."
+    },
+    suggestions: [
+      "Hồ sơ khách hàng",
+      "Giấy đăng ký kinh doanh",
+      "CCCD/Hộ chiếu",
+      "Báo cáo tài chính",
+      "Sao kê tài khoản",
+      "Hồ sơ vay",
+      "Kết quả CIC",
+      "Thông báo kết quả"
+    ],
     rows: 3
   }
 ];
+
+const primaryBriefFields = briefFields.slice(0, 4);
+const systemBriefFields = briefFields.slice(4, 7);
+const dataDocumentBriefFields = briefFields.slice(7);
+const OTHER_OPTION_LABEL = "Other";
+const otherOptionLabels = new Set(["Khác", "Other", "Khác / Other"]);
 
 function markGeneratedArtifactsStale() {
   window.localStorage.setItem(D01_GENERATED_STATUS_KEY, "stale");
@@ -252,6 +551,9 @@ function normalizeSavedBrief(value: unknown): InputBriefFormState {
   const savedBrief = value as Partial<
     InputBriefFormState &
       StructuredInputBrief & {
+        scope?: string;
+        startEnd?: string;
+        relatedSystems?: string;
         systems?: string;
         processName?: string;
         startEvent?: string;
@@ -261,13 +563,18 @@ function normalizeSavedBrief(value: unknown): InputBriefFormState {
   const startEnd =
     savedBrief.startEnd ??
     [savedBrief.startEvent, savedBrief.endEvent].filter(Boolean).join("\n");
+  const relatedSystems = savedBrief.relatedSystems ?? savedBrief.systems ?? "";
 
   return {
     ...emptyBrief,
     ...savedBrief,
     processInfo: savedBrief.processInfo ?? savedBrief.processName ?? "",
-    startEnd,
-    relatedSystems: savedBrief.relatedSystems ?? savedBrief.systems ?? "",
+    scopeBoundary:
+      savedBrief.scopeBoundary ??
+      [savedBrief.scope, startEnd].filter(Boolean).join("\n"),
+    customerFacingSystems: savedBrief.customerFacingSystems ?? "",
+    internalSystems: savedBrief.internalSystems ?? relatedSystems,
+    thirdPartySystems: savedBrief.thirdPartySystems ?? "",
     dataDocuments: savedBrief.dataDocuments ?? ""
   };
 }
@@ -288,8 +595,111 @@ function formatLastModified(lastModified: number) {
   return new Date(lastModified).toLocaleString();
 }
 
+function getFileExtension(fileName: string) {
+  const extensionMatch = fileName.match(/\.([a-z0-9]+)$/i);
+
+  return extensionMatch ? `.${extensionMatch[1].toLowerCase()}` : "";
+}
+
+function formatFriendlyFileType(file: Pick<IntakeFileMetadata, "fileName" | "fileType">) {
+  const fileType = file.fileType.toLowerCase();
+  const extension = getFileExtension(file.fileName);
+  const fileTypeLabels: Record<string, string> = {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+      "Excel (.xlsx)",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+      "Word (.docx)",
+    "application/pdf": "PDF",
+    "text/csv": "CSV"
+  };
+
+  return fileTypeLabels[fileType] ?? (extension ? extension.toUpperCase() : file.fileType || "-");
+}
+
+function formatProviderLabel(provider: string) {
+  const providerLabels: Record<string, string> = {
+    openai: "OpenAI",
+    claude: "Claude",
+    "product-ai": "Product AI",
+    mock: "Local analysis"
+  };
+
+  return providerLabels[provider] ?? provider;
+}
+
+function splitBriefLines(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function isImageIntakeFile(file: Pick<IntakeFileMetadata, "fileName" | "fileType">) {
+  const fileName = file.fileName.toLowerCase();
+  const fileType = file.fileType.toLowerCase();
+
+  return (
+    fileType.startsWith("image/") ||
+    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tiff"].some((extension) =>
+      fileName.endsWith(extension)
+    )
+  );
+}
+
+function getFileDraftActionLabel(file: IntakeFileMetadata, generateLabel: string) {
+  if (file.status === "unsupported") {
+    return isImageIntakeFile(file)
+      ? "Image/OCR intake is coming soon."
+      : "This file type is not supported yet.";
+  }
+
+  if (file.status === "pending-extraction") {
+    return "Processing locally...";
+  }
+
+  if (file.status === "extracted") {
+    return "Draft PTR preview is ready for review.";
+  }
+
+  if (file.status === "failed") {
+    return "Processing failed. Clear the file or choose another file.";
+  }
+
+  return `${generateLabel} to create a reviewable preview.`;
+}
+
+type DraftRetryAction =
+  | "input-brief"
+  | "chat-notes"
+  | "docx-extraction"
+  | "pdf-extraction";
+
+function getFriendlyAIDraftErrorMessage(error?: string, validationErrors?: string[]) {
+  if (validationErrors?.length) {
+    return getAIValidationUserMessage(validationErrors);
+  }
+
+  const normalizedError = (error ?? "").toLowerCase();
+
+  if (normalizedError.includes("timeout") || normalizedError.includes("timed out")) {
+    return "AI draft generation timed out. Nothing was applied; you can retry with the current input.";
+  }
+
+  if (
+    normalizedError.includes("network") ||
+    normalizedError.includes("fetch") ||
+    normalizedError.includes("failed")
+  ) {
+    return "AI draft generation could not reach the service. Nothing was applied; check the connection or retry.";
+  }
+
+  return "AI draft generation could not complete. Nothing was applied; you can retry with the current input.";
+}
+
 export function AIInputBriefPanel() {
   const [brief, setBrief] = useState<InputBriefFormState>(emptyBrief);
+  const [briefMode, setBriefMode] = useState<BriefMode>("manual");
+  const [chatNotes, setChatNotes] = useState("");
   const [intakeFiles, setIntakeFiles] = useState<IntakeFileMetadata[]>([]);
   const [selectedFileObjects, setSelectedFileObjects] = useState<File[]>([]);
   const [excelPreview, setExcelPreview] = useState<ExcelExtractionPreview | null>(
@@ -304,10 +714,18 @@ export function AIInputBriefPanel() {
   const [draftMeta, setDraftMeta] = useState<DraftPTRGenerationResult | null>(null);
   const [message, setMessage] = useState("");
   const [blockingErrors, setBlockingErrors] = useState<string[]>([]);
+  const [hasAttemptedDraftGeneration, setHasAttemptedDraftGeneration] =
+    useState(false);
   const [locale, setActiveLocale] = useState<Locale>("vi");
   const [realAIEnabled, setRealAIEnabled] = useState(false);
+  const [aiProvider, setAiProvider] = useState("mock");
+  const [aiModel, setAiModel] = useState("");
   const [aiModeLoaded, setAiModeLoaded] = useState(false);
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
+  const [draftRetryAction, setDraftRetryAction] =
+    useState<DraftRetryAction | null>(null);
+  const labels = previewLabels[locale];
+  const uiText = inputBriefUiText[locale];
 
   useEffect(() => {
     setActiveLocale(getLocale());
@@ -341,6 +759,10 @@ export function AIInputBriefPanel() {
   useEffect(() => {
     window.localStorage.setItem(BRIEF_STORAGE_KEY, JSON.stringify(brief));
   }, [brief]);
+
+  useEffect(() => {
+    clearDraftPreview();
+  }, [brief, chatNotes]);
 
   useEffect(() => {
     const savedFileMetadata = window.localStorage.getItem(
@@ -379,14 +801,20 @@ export function AIInputBriefPanel() {
         });
         const data = (await response.json()) as {
           realAIEnabled?: boolean;
+          provider?: string;
+          model?: string;
         };
 
         if (active) {
           setRealAIEnabled(data.realAIEnabled === true);
+          setAiProvider(data.provider ?? "mock");
+          setAiModel(data.model ?? "");
         }
       } catch {
         if (active) {
           setRealAIEnabled(false);
+          setAiProvider("mock");
+          setAiModel("");
         }
       } finally {
         if (active) {
@@ -403,16 +831,143 @@ export function AIInputBriefPanel() {
   }, []);
 
   const filledFieldCount = useMemo(
-    () => briefFields.filter((field) => brief[field.key].trim()).length,
+    () =>
+      [
+        brief.processInfo,
+        brief.businessObjective,
+        brief.scopeBoundary,
+        brief.actors,
+        [
+          brief.customerFacingSystems,
+          brief.internalSystems,
+          brief.thirdPartySystems,
+          brief.dataDocuments
+        ]
+          .filter((value) => value.trim())
+          .join("\n")
+      ].filter((value) => value.trim()).length,
     [brief]
   );
+  const requiredBriefFieldStatus = useMemo(
+    () => [
+      {
+        label: locale === "vi" ? "Thong tin quy trinh" : "Process information",
+        complete: brief.processInfo.trim().length > 0
+      },
+      {
+        label: locale === "vi" ? "Muc tieu nghiep vu" : "Business objective",
+        complete: brief.businessObjective.trim().length > 0
+      },
+      {
+        label: locale === "vi" ? "Pham vi / bat dau / ket thuc" : "Scope / start / end",
+        complete: brief.scopeBoundary.trim().length > 0
+      },
+      {
+        label: locale === "vi" ? "Nguoi tham gia" : "Participants",
+        complete: brief.actors.trim().length > 0
+      }
+    ],
+    [brief, locale]
+  );
+  const aiProviderLabel = formatProviderLabel(aiProvider);
+  const aiModeLabel = aiModeLoaded
+    ? realAIEnabled
+      ? `AI: ${aiProviderLabel}`
+      : "AI: Local analysis"
+    : uiText.checkingAIMode;
+  const generateTooltip = aiModeLoaded
+    ? realAIEnabled
+      ? locale === "vi"
+        ? `Sử dụng ${aiProviderLabel}${aiModel ? ` ${aiModel}` : ""}`
+        : `Using ${aiProviderLabel}${aiModel ? ` ${aiModel}` : ""}`
+      : locale === "vi"
+        ? "Sử dụng Local analysis"
+        : "Using Local analysis"
+    : uiText.checkingAIMode;
+  const completedRequiredFieldCount = requiredBriefFieldStatus.filter(
+    (field) => field.complete
+  ).length;
+  const missingRequiredFieldLabels = requiredBriefFieldStatus
+    .filter((field) => !field.complete)
+    .map((field) => field.label);
 
-  function updateBriefField(key: BriefField["key"], value: string) {
+  function getFieldOptions(field: BriefField) {
+    return [
+      ...field.suggestions.filter((suggestion) => !otherOptionLabels.has(suggestion)),
+      OTHER_OPTION_LABEL
+    ];
+  }
+
+  function getOptionDisplayLabel(option: string) {
+    return option === OTHER_OPTION_LABEL ? inputBriefUiText[locale].other : option;
+  }
+
+  function getFieldSelection(field: BriefField) {
+    const options = getFieldOptions(field);
+    const optionSet = new Set(options);
+    const currentValues = splitBriefLines(brief[field.key]);
+    const otherText = currentValues
+      .filter((entry) => !optionSet.has(entry) && !otherOptionLabels.has(entry))
+      .join("\n");
+    const selectedOptions = options.filter((option) => {
+      if (option === OTHER_OPTION_LABEL) {
+        return (
+          currentValues.some((entry) => otherOptionLabels.has(entry)) ||
+          otherText.trim().length > 0
+        );
+      }
+
+      return currentValues.includes(option);
+    });
+
+    return {
+      options,
+      otherText,
+      selectedOptions
+    };
+  }
+
+  function saveFieldSelection(
+    key: BriefField["key"],
+    selectedOptions: string[],
+    otherText: string
+  ) {
+    const nextValues = [
+      ...selectedOptions.filter((option) => option !== OTHER_OPTION_LABEL),
+      ...(selectedOptions.includes(OTHER_OPTION_LABEL) && !otherText.trim()
+        ? [OTHER_OPTION_LABEL]
+        : []),
+      ...splitBriefLines(otherText)
+    ];
+
     setBrief((currentBrief) => ({
       ...currentBrief,
-      [key]: value
+      [key]: nextValues.join("\n")
     }));
     setMessage("Brief đã được lưu local.");
+  }
+
+  function toggleSuggestion(field: BriefField, suggestion: string) {
+    const { otherText, selectedOptions } = getFieldSelection(field);
+    const isSelected = selectedOptions.includes(suggestion);
+    const nextSelectedOptions = isSelected
+      ? selectedOptions.filter((option) => option !== suggestion)
+      : [...selectedOptions, suggestion];
+
+    saveFieldSelection(
+      field.key,
+      nextSelectedOptions,
+      suggestion === OTHER_OPTION_LABEL && isSelected ? "" : otherText
+    );
+  }
+
+  function updateOtherText(field: BriefField, value: string) {
+    const { selectedOptions } = getFieldSelection(field);
+    const nextSelectedOptions = selectedOptions.includes(OTHER_OPTION_LABEL)
+      ? selectedOptions
+      : [...selectedOptions, OTHER_OPTION_LABEL];
+
+    saveFieldSelection(field.key, nextSelectedOptions, value);
   }
 
   function saveBrief() {
@@ -420,37 +975,77 @@ export function AIInputBriefPanel() {
     setMessage("Brief đã được lưu local.");
   }
 
+  function clearDraftPreview() {
+    setDraftTasks([]);
+    setDraftMeta(null);
+    setBlockingErrors([]);
+  }
+
+  function clearFileExtractionPreviews() {
+    setExcelPreview(null);
+    setDocxExtraction(null);
+    setPdfExtraction(null);
+  }
+
   function handleFileSelection(files: FileList | null) {
-    if (!files) {
+    if (!files || files.length === 0) {
+      clearSelectedFiles();
       return;
     }
 
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     const nextFiles = Array.from(files);
     const nextFileMetadata = nextFiles.map(createIntakeFileMetadata);
     const unsupportedCount = nextFileMetadata.filter(
       (file) => file.status === "unsupported"
     ).length;
+    const unsupportedImageCount = nextFileMetadata.filter(
+      (file) => file.status === "unsupported" && isImageIntakeFile(file)
+    ).length;
 
     setSelectedFileObjects(nextFiles);
     setIntakeFiles(nextFileMetadata);
-    setExcelPreview(null);
-    setDocxExtraction(null);
-    setPdfExtraction(null);
     setMessage(
-      unsupportedCount > 0
-        ? `${unsupportedCount} file khong duoc ho tro. Chi luu metadata, khong upload file.`
-        : `Da chon ${nextFileMetadata.length} file. Chi luu metadata, khong upload file.`
+      unsupportedImageCount > 0
+        ? `${unsupportedImageCount} image file không được hỗ trợ. OCR/Image extraction chưa có trong MVP1; không upload file.`
+        : unsupportedCount > 0
+        ? `${unsupportedCount} file không được hỗ trợ. Chỉ hỗ trợ .xlsx, .docx, .pdf. Không upload file.`
+        : `Đã chọn ${nextFileMetadata.length} file. File chỉ xử lý local trong browser, không upload.`
     );
   }
 
   function clearSelectedFiles() {
     setSelectedFileObjects([]);
     setIntakeFiles([]);
-    setExcelPreview(null);
-    setDocxExtraction(null);
-    setPdfExtraction(null);
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Da xoa file intake metadata local.");
+  }
+
+  function removeSelectedFile(fileToRemove: IntakeFileMetadata) {
+    setSelectedFileObjects((currentFiles) =>
+      currentFiles.filter(
+        (file) =>
+          !(
+            file.name === fileToRemove.fileName &&
+            file.lastModified === fileToRemove.lastModified
+          )
+      )
+    );
+    setIntakeFiles((currentFiles) =>
+      currentFiles.filter(
+        (file) =>
+          !(
+            file.fileName === fileToRemove.fileName &&
+            file.lastModified === fileToRemove.lastModified
+          )
+      )
+    );
+    clearFileExtractionPreviews();
+    clearDraftPreview();
+    setMessage("Đã remove file và clear preview/draft liên quan.");
   }
 
   function updateIntakeFileStatus(
@@ -469,6 +1064,8 @@ export function AIInputBriefPanel() {
 
   async function extractExcelFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     setMessage("Dang extract Excel local trong browser. Khong upload file.");
 
     try {
@@ -486,6 +1083,7 @@ export function AIInputBriefPanel() {
           preview.warnings.length > 0
             ? preview.warnings
             : ["Review extracted rows before applying to PTR."],
+        qualityIssues: preview.warnings,
         qualityGateWarnings: preview.warnings,
         sourceSummary: `Excel extraction from ${file.name}, sheet ${preview.detectedSheet}.`,
         confidence: preview.warnings.length > 0 ? "medium" : "high",
@@ -509,40 +1107,62 @@ export function AIInputBriefPanel() {
     }
   }
 
-  async function extractDocxFile(file: File) {
+  async function generateDraftPtrFromDocxFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
-    setMessage("Dang extract DOCX local trong browser. Khong upload file.");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
+    setMessage("Dang extract DOCX local va tao Draft PTR. Khong upload file.");
 
     try {
       const result = await extractTextFromDocx(file);
 
       setDocxExtraction(result);
-      setExcelPreview(null);
       updateIntakeFileStatus(file, "extracted");
-      setMessage(
-        `Da extract DOCX local: ${result.rawText.length} ky tu, ${result.detectedSteps.length} step goi y.`
-      );
+      await generateDraftPtrViaSkill({
+        skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+        payload: {
+          fileName: file.name,
+          fileType:
+            file.type ||
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          extractedText: result.rawText,
+          extractionWarnings: [
+            ...result.assumptions,
+            ...result.openQuestions
+          ],
+          detectedActors: result.detectedActors,
+          detectedSystems: result.detectedSystems,
+          detectedDataObjects: result.detectedDataObjects,
+          detectedSteps: result.detectedSteps,
+          inputLanguage: locale,
+          outputLanguage: locale
+        },
+        sourceLabel: `DOCX ${file.name}`
+      });
     } catch (error) {
       updateIntakeFileStatus(file, "failed");
       setDocxExtraction(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors([]);
       setMessage(
         error instanceof Error
-          ? `DOCX extraction failed: ${error.message}`
-          : "DOCX extraction failed."
+          ? `DOCX Draft PTR generation failed: ${error.message}`
+          : "DOCX Draft PTR generation failed."
       );
     }
   }
 
   async function extractPdfFile(file: File) {
     updateIntakeFileStatus(file, "pending-extraction");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
     setMessage("Dang extract PDF text local trong browser. Khong upload file.");
 
     try {
       const result = await extractTextFromPdf(file);
 
       setPdfExtraction(result);
-      setExcelPreview(null);
-      setDocxExtraction(null);
       updateIntakeFileStatus(file, "extracted");
       setMessage(`Da extract PDF local: ${result.rawText.length} ky tu.`);
     } catch (error) {
@@ -556,69 +1176,355 @@ export function AIInputBriefPanel() {
     }
   }
 
+  async function generateDraftPtrViaSkill({
+    skillId,
+    payload,
+    sourceLabel
+  }: {
+    skillId: string;
+    payload: unknown;
+    sourceLabel: string;
+  }) {
+    setHasAttemptedDraftGeneration(true);
+    const generationMode = realAIEnabled ? "real-ai" : "mock";
+
+    if (realAIEnabled && !confirmRealAICallIfNeeded(true)) {
+      setMessage(uiText.aiCancelled);
+      return null;
+    }
+
+    setIsGeneratingWithAI(true);
+    setMessage(realAIEnabled ? uiText.realAIRunning : uiText.mockRunning);
+    saveAuditLogEntry({
+      action: "generate_ai_draft",
+      status: "success",
+      summary: `Started ${generationMode} draft generation from ${sourceLabel}.`,
+      metadata: {
+        mode: generationMode,
+        skillId,
+        realAIEnabled
+      }
+    });
+
+    try {
+      const routeResponse = await fetch("/api/ai/run-skill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(createAISkillRequestBody({ skillId, payload }))
+      });
+      const data = (await routeResponse.json()) as {
+        ok?: boolean;
+        result?: unknown;
+        error?: string;
+        validationErrors?: string[];
+        meta?: {
+          externalApiCalled?: boolean;
+          validationPassed?: boolean;
+        };
+      };
+
+      if (!routeResponse.ok || !data.ok) {
+        const errorMessage = [
+          data.error || "AI draft generation failed.",
+          ...(data.validationErrors ?? [])
+        ].join(" ");
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          data.error,
+          data.validationErrors
+        );
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: generationMode,
+            skillId,
+            externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+            validationPassed: data.meta?.validationPassed ?? false
+          }
+        });
+        logAICallAudit({
+          skillId,
+          success: false,
+          errorMessage,
+          realAIEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors([friendlyMessage]);
+        setMessage(friendlyMessage);
+        return null;
+      }
+
+      const validation = validateDraftProcessTaskRegister(data.result);
+
+      if (!validation.ok) {
+        const errorMessage = `AI output rejected: ${validation.errors.join(" ")}`;
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          undefined,
+          validation.errors
+        );
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: errorMessage,
+          metadata: {
+            mode: generationMode,
+            skillId,
+            externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+            validationPassed: false
+          }
+        });
+        logAICallAudit({
+          skillId,
+          success: false,
+          errorMessage,
+          realAIEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors([friendlyMessage]);
+        setMessage(friendlyMessage);
+        return null;
+      }
+
+      const draftQualityGate = runDraftProcessTaskRegisterQualityGate(validation.value);
+
+      if (!draftQualityGate.canPreview) {
+        const errors = formatQualityGateErrorsVi(draftQualityGate);
+
+        saveAuditLogEntry({
+          action: "generate_ai_draft",
+          status: "failure",
+          summary: "Draft PTR khong dat Quality Gate.",
+          metadata: {
+            mode: generationMode,
+            skillId,
+            externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+            validationPassed: true
+          }
+        });
+        logAICallAudit({
+          skillId,
+          success: false,
+          errorMessage: "Draft PTR khong dat Quality Gate.",
+          realAIEnabled,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled
+        });
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors(errors);
+        setMessage("Draft PTR khong dat Quality Gate.");
+        return null;
+      }
+
+      const qualityGateWarnings = formatQualityGateWarningsVi(draftQualityGate);
+      const nextDraftMeta = {
+        ...validation.value,
+        qualityIssues: [
+          ...validation.value.qualityIssues,
+          ...qualityGateWarnings
+        ],
+        qualityGateWarnings: [
+          ...(validation.value.qualityGateWarnings ?? []),
+          ...qualityGateWarnings
+        ]
+      };
+
+      setBlockingErrors([]);
+      setDraftRetryAction(null);
+      setDraftTasks(nextDraftMeta.draftProcessTasks);
+      setDraftMeta(nextDraftMeta);
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "success",
+        summary: `Generated schema-valid draft PTR from ${sourceLabel}.`,
+        metadata: {
+          mode: generationMode,
+          skillId,
+          externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+          validationPassed: true,
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
+      logAICallAudit({
+        skillId,
+        success: true,
+        realAIEnabled,
+        externalApiCalled: data.meta?.externalApiCalled ?? realAIEnabled,
+        extraMetadata: {
+          draftRowCount: validation.value.draftProcessTasks.length
+        }
+      });
+      setMessage(
+        `${generationMode}: da tao draft PTR ${validation.value.draftProcessTasks.length} dong tu ${sourceLabel}. Hay review truoc khi Apply.`
+      );
+      return nextDraftMeta;
+    } catch {
+      logAICallAudit({
+        skillId,
+        success: false,
+        errorMessage: "AI draft generation request failed.",
+        realAIEnabled,
+        externalApiCalled: false
+      });
+      saveAuditLogEntry({
+        action: "generate_ai_draft",
+        status: "failure",
+        summary: "AI draft generation request failed.",
+        metadata: {
+          mode: generationMode,
+          skillId,
+          externalApiCalled: false,
+          validationPassed: false
+        }
+      });
+      setMessage(getFriendlyAIDraftErrorMessage("request failed"));
+      return null;
+    } finally {
+      setIsGeneratingWithAI(false);
+    }
+  }
+
+  async function generateDraftPtrFromPdfFile(file: File) {
+    updateIntakeFileStatus(file, "pending-extraction");
+    clearFileExtractionPreviews();
+    clearDraftPreview();
+    setMessage("Đang extract PDF local và tạo Draft PTR. Không upload file.");
+
+    try {
+      const result = await extractTextFromPdf(file);
+      setPdfExtraction(result);
+      updateIntakeFileStatus(file, "extracted");
+      await generateDraftPtrViaSkill({
+        skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+        payload: {
+          fileName: file.name,
+          fileType: file.type || "application/pdf",
+          extractedText: result.rawText,
+          extractionWarnings: result.warnings,
+          inputLanguage: locale,
+          outputLanguage: locale
+        },
+        sourceLabel: `PDF ${file.name}`
+      });
+      return;
+
+    } catch (error) {
+      updateIntakeFileStatus(file, "failed");
+      setPdfExtraction(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors([]);
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Không thể trích xuất PDF để tạo Draft PTR. OCR chưa được hỗ trợ trong MVP1."
+      );
+    }
+  }
+
   function generateDraftPtrFromDocxExtraction() {
     if (!docxExtraction) {
       setMessage("Chua co DOCX extraction de tao Draft PTR.");
       return;
     }
 
-    const structuredBrief = parseStructuredProcessBriefFromForm({
-      processInfo:
-        docxExtraction.detectedSteps[0] ||
-        docxExtraction.rawText.split(/\r?\n/).find(Boolean) ||
-        "DOCX extracted process",
-      businessObjective: docxExtraction.rawText.slice(0, 1200),
-      scope: docxExtraction.rawText.slice(0, 1200),
-      startEnd: [
-        docxExtraction.detectedSteps[0] || "Request received",
-        docxExtraction.detectedSteps[docxExtraction.detectedSteps.length - 1] ||
-          "Process completed"
-      ].join("\n"),
-      actors: docxExtraction.detectedActors.join("\n"),
-      relatedSystems: docxExtraction.detectedSystems.join("\n"),
-      dataDocuments: docxExtraction.detectedDataObjects.join("\n"),
-      inputLanguage: locale,
-      outputLanguage: locale
+    setDraftRetryAction("docx-extraction");
+    void generateDraftPtrViaSkill({
+      skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+      payload: {
+        fileName: "DOCX extraction",
+        fileType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        extractedText: docxExtraction.rawText,
+        extractionWarnings: [
+          ...docxExtraction.assumptions,
+          ...docxExtraction.openQuestions
+        ],
+        detectedActors: docxExtraction.detectedActors,
+        detectedSystems: docxExtraction.detectedSystems,
+        detectedDataObjects: docxExtraction.detectedDataObjects,
+        detectedSteps: docxExtraction.detectedSteps,
+        inputLanguage: locale,
+        outputLanguage: locale
+      },
+      sourceLabel: "DOCX extraction"
     });
-    const response = generateDraftProcessTaskRegister({
-      brief: structuredBrief,
-      currentLocale: locale
-    });
-    const draftQualityGate = runDraftProcessTaskRegisterQualityGate(response);
-    const nextResponse = {
-      ...response,
-      assumptions: [...response.assumptions, ...docxExtraction.assumptions],
-      openQuestions: docxExtraction.openQuestions,
-      qualityGateWarnings: formatQualityGateWarningsVi(draftQualityGate),
-      sourceSummary: "Draft generated locally from DOCX extracted text."
-    };
+    return;
 
-    if (!draftQualityGate.canPreview) {
-      const errors = formatQualityGateErrorsVi(draftQualityGate);
+  }
 
-      setDraftTasks([]);
-      setDraftMeta(null);
-      setBlockingErrors(errors);
-      setMessage("Draft PTR tu DOCX khong dat Quality Gate.");
+  function generateDraftPtrFromPdfExtraction() {
+    if (!pdfExtraction) {
+      setMessage("Chưa có PDF extraction để tạo Draft PTR.");
       return;
     }
 
-    setBlockingErrors([]);
-    setDraftTasks(nextResponse.draftProcessTasks);
-    setDraftMeta(nextResponse);
-    setMessage(
-      `Da tao draft PTR tu DOCX extraction: ${nextResponse.draftProcessTasks.length} dong. Hay review truoc khi Apply.`
-    );
+    const activePdfExtraction = pdfExtraction;
+
+    setDraftRetryAction("pdf-extraction");
+    void generateDraftPtrViaSkill({
+      skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+      payload: {
+        fileName: "PDF extraction",
+        fileType: "application/pdf",
+        extractedText: activePdfExtraction.rawText,
+        extractionWarnings: activePdfExtraction.warnings,
+        inputLanguage: locale,
+        outputLanguage: locale
+      },
+      sourceLabel: "PDF extraction"
+    });
+    return;
+
+  }
+
+  async function generateDraftPtrFromChatNotes() {
+    setHasAttemptedDraftGeneration(true);
+    setDraftRetryAction("chat-notes");
+    if (chatNotes.trim().length < 20) {
+      setDraftRetryAction(null);
+      setDraftTasks([]);
+      setDraftMeta(null);
+      setBlockingErrors(["Notes must contain enough text to generate a Draft PTR."]);
+      setMessage("Chat/notes text is too short to generate Draft PTR.");
+      return;
+    }
+
+    await generateDraftPtrViaSkill({
+      skillId: CHAT_TO_PTR_DRAFT_SKILL_ID,
+      payload: {
+        notes: chatNotes,
+        userContext: [
+          brief.processInfo,
+          brief.businessObjective,
+          brief.scopeBoundary
+        ]
+          .filter((value) => value.trim())
+          .join("\n"),
+        inputLanguage: locale,
+        outputLanguage: locale
+      },
+      sourceLabel: "chat/notes"
+    });
   }
 
   function generateDraftPtr() {
+    setHasAttemptedDraftGeneration(true);
     const structuredBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
-      scope: brief.scope,
-      startEnd: brief.startEnd,
+      scopeBoundary: brief.scopeBoundary,
       actors: brief.actors,
-      relatedSystems: brief.relatedSystems,
+      customerSystems: brief.customerFacingSystems,
+      internalSystems: brief.internalSystems,
+      thirdPartySystems: brief.thirdPartySystems,
       dataDocuments: brief.dataDocuments,
       inputLanguage: locale,
       outputLanguage: locale
@@ -667,14 +1573,79 @@ export function AIInputBriefPanel() {
     );
   }
 
+  function generateProcessRegister() {
+    if (briefMode === "chat-notes") {
+      void generateDraftPtrFromChatNotes();
+      return;
+    }
+
+    if (briefMode === "import-file") {
+      if (docxExtraction) {
+        generateDraftPtrFromDocxExtraction();
+        return;
+      }
+
+      if (pdfExtraction) {
+        generateDraftPtrFromPdfExtraction();
+        return;
+      }
+
+      const activeFile = selectedFileObjects.find((file) =>
+        [".xlsx", ".docx", ".pdf"].some((extension) =>
+          file.name.toLowerCase().endsWith(extension)
+        )
+      );
+
+      if (!activeFile) {
+        setHasAttemptedDraftGeneration(true);
+        setDraftTasks([]);
+        setDraftMeta(null);
+        setBlockingErrors([
+          locale === "vi"
+            ? "Vui lòng chọn file .xlsx, .docx hoặc .pdf trước khi tạo bảng quy trình."
+            : "Select an .xlsx, .docx, or .pdf file before generating the process register."
+        ]);
+        setMessage(
+          locale === "vi"
+            ? "Chưa có file phù hợp để tạo Draft PTR."
+            : "No supported file is available for Draft PTR generation."
+        );
+        return;
+      }
+
+      if (activeFile.name.toLowerCase().endsWith(".xlsx")) {
+        void extractExcelFile(activeFile);
+        return;
+      }
+
+      if (activeFile.name.toLowerCase().endsWith(".docx")) {
+        void generateDraftPtrFromDocxFile(activeFile);
+        return;
+      }
+
+      void generateDraftPtrFromPdfFile(activeFile);
+      return;
+    }
+
+    if (realAIEnabled) {
+      void generateDraftPtrWithAI();
+      return;
+    }
+
+    generateDraftPtr();
+  }
+
   async function generateDraftPtrWithAI() {
+    setHasAttemptedDraftGeneration(true);
+    setDraftRetryAction("input-brief");
     const structuredBrief: StructuredProcessBrief = parseStructuredProcessBriefFromForm({
       processInfo: brief.processInfo,
       businessObjective: brief.businessObjective,
-      scope: brief.scope,
-      startEnd: brief.startEnd,
+      scopeBoundary: brief.scopeBoundary,
       actors: brief.actors,
-      relatedSystems: brief.relatedSystems,
+      customerSystems: brief.customerFacingSystems,
+      internalSystems: brief.internalSystems,
+      thirdPartySystems: brief.thirdPartySystems,
       dataDocuments: brief.dataDocuments,
       inputLanguage: locale,
       outputLanguage: locale
@@ -685,6 +1656,7 @@ export function AIInputBriefPanel() {
     if (!briefQualityGate.canPreview) {
       const errors = formatQualityGateErrorsVi(briefQualityGate);
 
+      setDraftRetryAction(null);
       setDraftTasks([]);
       setDraftMeta(null);
       setBlockingErrors(errors);
@@ -693,7 +1665,7 @@ export function AIInputBriefPanel() {
     }
 
     if (!confirmRealAICallIfNeeded(realAIEnabled)) {
-      setMessage("Da huy goi Real AI. Draft chua duoc tao.");
+      setMessage(uiText.aiCancelled);
       return;
     }
 
@@ -734,6 +1706,7 @@ export function AIInputBriefPanel() {
       };
 
       setBlockingErrors([]);
+      setDraftRetryAction(null);
       setDraftTasks(nextResponse.draftProcessTasks);
       setDraftMeta(nextResponse);
       saveAuditLogEntry({
@@ -756,13 +1729,13 @@ export function AIInputBriefPanel() {
         }
       });
       setMessage(
-        `Mock mode: Ä‘Ã£ táº¡o draft PTR local ${response.draftProcessTasks.length} dÃ²ng. KhÃ´ng gá»i external API.`
+        `${uiText.mockDone} ${response.draftProcessTasks.length} ${uiText.draftRows}.`
       );
       return;
     }
 
     setIsGeneratingWithAI(true);
-    setMessage("Real AI mode: Ä‘ang gá»i server-side AI provider...");
+    setMessage(uiText.realAIRunning);
 
     try {
       const routeResponse = await fetch("/api/ai/run-skill", {
@@ -770,10 +1743,12 @@ export function AIInputBriefPanel() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
-          payload: structuredBrief
-        })
+        body: JSON.stringify(
+          createAISkillRequestBody({
+            skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+            payload: structuredBrief
+          })
+        )
       });
       const data = (await routeResponse.json()) as {
         ok?: boolean;
@@ -791,6 +1766,10 @@ export function AIInputBriefPanel() {
           data.error || "AI draft generation failed.",
           ...(data.validationErrors ?? [])
         ].join(" ");
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          data.error,
+          data.validationErrors
+        );
 
         saveAuditLogEntry({
           action: "generate_ai_draft",
@@ -811,8 +1790,8 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(data.validationErrors ?? [errorMessage]);
-        setMessage(errorMessage);
+        setBlockingErrors([friendlyMessage]);
+        setMessage(friendlyMessage);
         return;
       }
 
@@ -820,6 +1799,10 @@ export function AIInputBriefPanel() {
 
       if (!validation.ok) {
         const errorMessage = `AI output rejected: ${validation.errors.join(" ")}`;
+        const friendlyMessage = getFriendlyAIDraftErrorMessage(
+          undefined,
+          validation.errors
+        );
 
         saveAuditLogEntry({
           action: "generate_ai_draft",
@@ -840,8 +1823,8 @@ export function AIInputBriefPanel() {
         });
         setDraftTasks([]);
         setDraftMeta(null);
-        setBlockingErrors(validation.errors);
-        setMessage(errorMessage);
+        setBlockingErrors([friendlyMessage]);
+        setMessage(friendlyMessage);
         return;
       }
 
@@ -883,6 +1866,7 @@ export function AIInputBriefPanel() {
       };
 
       setBlockingErrors([]);
+      setDraftRetryAction(null);
       setDraftTasks(nextDraftMeta.draftProcessTasks);
       setDraftMeta(nextDraftMeta);
       saveAuditLogEntry({
@@ -906,7 +1890,7 @@ export function AIInputBriefPanel() {
         }
       });
       setMessage(
-        `Real AI mode: Ä‘Ã£ táº¡o draft PTR há»£p lá»‡ ${validation.value.draftProcessTasks.length} dÃ²ng. HÃ£y review trÆ°á»›c khi Apply.`
+        `Real AI mode: created a valid Draft PTR with ${validation.value.draftProcessTasks.length} row(s). Review before Apply.`
       );
     } catch {
       logAICallAudit({
@@ -926,9 +1910,30 @@ export function AIInputBriefPanel() {
           validationPassed: false
         }
       });
-      setMessage("AI draft generation request failed. Draft was not applied.");
+      setMessage(getFriendlyAIDraftErrorMessage("request failed"));
     } finally {
       setIsGeneratingWithAI(false);
+    }
+  }
+
+  function retryDraftGeneration() {
+    if (draftRetryAction === "chat-notes") {
+      void generateDraftPtrFromChatNotes();
+      return;
+    }
+
+    if (draftRetryAction === "docx-extraction") {
+      generateDraftPtrFromDocxExtraction();
+      return;
+    }
+
+    if (draftRetryAction === "pdf-extraction") {
+      generateDraftPtrFromPdfExtraction();
+      return;
+    }
+
+    if (draftRetryAction === "input-brief") {
+      void generateDraftPtrWithAI();
     }
   }
 
@@ -953,8 +1958,25 @@ export function AIInputBriefPanel() {
       mode === "append"
         ? [...currentTasks, ...avoidStepIdConflicts(currentTasks, draftTasks)]
         : draftTasks;
+    const detectedProfile = detectProcessRegisterProfile({
+      draftMetadata: draftMeta,
+      sourceSummary: draftMeta?.sourceSummary,
+      processInfo: brief.processInfo,
+      draftProcessTasks: draftTasks
+    });
 
     window.localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(nextTasks));
+    window.localStorage.setItem(
+      SELECTED_PROCESS_REGISTER_PROFILE_STORAGE_KEY,
+      JSON.stringify(detectedProfile)
+    );
+    if (detectedProfile.relatedSampleProcessId) {
+      window.localStorage.setItem(
+        SAMPLE_PROCESS_STORAGE_KEY,
+        detectedProfile.relatedSampleProcessId
+      );
+    }
+    window.dispatchEvent(new Event(PROCESS_REGISTER_PROFILE_EVENT));
     window.dispatchEvent(new Event(PROCESS_TASKS_EVENT));
     markGeneratedArtifactsStale();
     saveAuditLogEntry({
@@ -963,11 +1985,15 @@ export function AIInputBriefPanel() {
       summary: `Applied draft Process Task Register from AI Input Brief workflow with ${mode} mode.`,
       metadata: {
         mode,
+        detectedProfileId: detectedProfile.id,
+        detectedProfileLabel: detectedProfile.label,
         draftRowCount: draftTasks.length,
         finalRowCount: nextTasks.length
       }
     });
-    setMessage("Đã apply draft PTR vào Process Task Register. QA sẽ chạy lại theo dữ liệu mới.");
+    setMessage(
+      `Đã apply draft PTR vào Process Task Register. Profile phát hiện: ${detectedProfile.label}. QA sẽ chạy lại theo dữ liệu mới.`
+    );
   }
 
   function cancelDraft() {
@@ -987,84 +2013,184 @@ export function AIInputBriefPanel() {
     setDraftTasks([]);
     setDraftMeta(null);
     setBlockingErrors([]);
+    setHasAttemptedDraftGeneration(false);
     window.localStorage.removeItem(BRIEF_STORAGE_KEY);
     window.localStorage.removeItem(FILE_METADATA_STORAGE_KEY);
     setMessage("Đã reset brief local và draft preview.");
   }
 
-  const labels = previewLabels[locale];
+  const draftPtrGateVerdict = useMemo(
+    () => (draftMeta ? runDraftPtrGateV1(draftMeta) : null),
+    [draftMeta]
+  );
+  const sourceCoverageAdvisory = useMemo(
+    () => (draftMeta ? createSourceCoverageAdvisory(draftMeta) : null),
+    [draftMeta]
+  );
+  function renderBriefField(field: BriefField) {
+    const { options, otherText, selectedOptions } = getFieldSelection(field);
+    const isOtherSelected = selectedOptions.includes(OTHER_OPTION_LABEL);
+
+    return (
+      <section
+        className="grid w-full min-w-0 gap-4 rounded border border-slate-200 bg-white p-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]"
+        key={field.key}
+      >
+        <div className="min-w-0">
+          <span className="text-sm font-semibold text-slate-900">
+            {field.label[locale]}
+          </span>
+          <span className="mt-1 block text-sm leading-6 text-slate-600">
+            {field.helper[locale]}
+          </span>
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex max-w-full flex-wrap gap-2">
+            {options.map((suggestion) => {
+              const isSelected = selectedOptions.includes(suggestion);
+
+              return (
+                <button
+                  className={`max-w-full whitespace-normal rounded-full border px-3 py-1 text-left text-xs font-medium ${
+                    isSelected
+                      ? "border-blue-300 bg-blue-600 text-white shadow-sm"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-400"
+                  }`}
+                  key={suggestion}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    toggleSuggestion(field, suggestion);
+                  }}
+                  type="button"
+                >
+                  {getOptionDisplayLabel(suggestion)}
+                </button>
+              );
+            })}
+          </div>
+          {isOtherSelected ? (
+            <textarea
+              className="mt-3 min-h-24 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+              onChange={(event) => updateOtherText(field, event.target.value)}
+              placeholder={field.placeholder[locale]}
+              rows={field.rows}
+              value={otherText}
+            />
+          ) : null}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <SessionFrame
-      actions={
-        <>
-          <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={saveBrief}
-            type="button"
-          >
-            {t("inputBrief.saveBrief", locale)}
-          </button>
-          <button
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            onClick={resetBrief}
-            type="button"
-          >
-            {t("inputBrief.resetBrief", locale)}
-          </button>
-          <button
-            className="rounded bg-slate-950 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            onClick={generateDraftPtr}
-            type="button"
-          >
-            {t("inputBrief.generateDraftProcessTaskRegister", locale)}
-          </button>
-          <button
-            className="rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isGeneratingWithAI}
-            onClick={generateDraftPtrWithAI}
-            type="button"
-          >
-            {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
-          </button>
-        </>
-      }
       bodyClassName="p-4"
       description={t("inputBrief.description", locale)}
       title={t("inputBrief.title", locale)}
     >
-      <div className="grid gap-4 lg:grid-cols-2">
-        {briefFields.map((field) => (
-          <label
-            className="block rounded border border-slate-200 bg-white p-4"
-            key={field.key}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {[
+          { id: "manual" as const, label: uiText.manualInput, disabled: false },
+          { id: "import-file" as const, label: uiText.importFile, disabled: false },
+          { id: "chat-notes" as const, label: uiText.chatNotes, disabled: false },
+          { id: "voice" as const, label: uiText.voiceInputComingSoon, disabled: false }
+        ].map((mode) => (
+          <button
+            className={`rounded border px-3 py-2 text-sm font-semibold ${
+              briefMode === mode.id
+                ? "border-violet-300 bg-violet-600 text-white shadow-sm"
+                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+            } disabled:cursor-not-allowed disabled:opacity-50`}
+            disabled={mode.disabled}
+            key={mode.id}
+            onClick={() => setBriefMode(mode.id)}
+            type="button"
           >
-            <span className="text-sm font-semibold text-slate-900">
-              {t(field.labelKey, locale)}
-            </span>
-            <span className="mt-1 block text-sm leading-6 text-slate-600">
-              {t(field.helperKey, locale)}
-            </span>
-            <textarea
-              className="mt-3 min-h-24 w-full rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
-              onChange={(event) => updateBriefField(field.key, event.target.value)}
-              placeholder={t(field.placeholderKey, locale)}
-              rows={field.rows}
-              value={brief[field.key]}
-            />
-          </label>
+            {mode.label}
+          </button>
         ))}
       </div>
 
-      <div className="mt-4 rounded border border-slate-200 bg-white p-4">
+      {briefMode === "manual" ? (
+        <div className="grid w-full min-w-0 gap-4">
+          <div className="grid w-full min-w-0 gap-4">
+            {primaryBriefFields.map(renderBriefField)}
+          </div>
+          <div className="w-full min-w-0 rounded border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-slate-950">
+                {uiText.relatedSystems}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {uiText.relatedSystemsHelper}
+              </p>
+            </div>
+            <div className="grid w-full min-w-0 gap-4">
+              {systemBriefFields.map(renderBriefField)}
+            </div>
+          </div>
+          <div className="w-full min-w-0 rounded border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold text-slate-950">
+                {uiText.dataDocuments}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {uiText.dataDocumentsHelper}
+              </p>
+            </div>
+            <div className="grid w-full min-w-0 gap-4">
+              {dataDocumentBriefFields.map(renderBriefField)}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {briefMode === "chat-notes" ? (
+        <div className="rounded border border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-950">
+                {uiText.chatNotes}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                {uiText.chatNotesHelper}
+              </p>
+            </div>
+            <button
+              className="w-fit rounded border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isGeneratingWithAI || chatNotes.trim().length < 20}
+              onClick={() => void generateDraftPtrFromChatNotes()}
+              type="button"
+            >
+              {uiText.generateFromChatNotes}
+            </button>
+          </div>
+          <textarea
+            className="mt-3 min-h-64 w-full min-w-0 resize-y rounded border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-500"
+            onChange={(event) => setChatNotes(event.target.value)}
+            placeholder={uiText.chatNotesPlaceholder}
+            rows={8}
+            value={chatNotes}
+          />
+        </div>
+      ) : null}
+
+      {briefMode === "voice" ? (
+        <div className="rounded border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          {uiText.voiceComingSoon}
+        </div>
+      ) : null}
+
+      {briefMode === "import-file" ? (
+      <div className="rounded border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-950">
-              File Intake
+              {uiText.fileIntake}
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Current MVP keeps selected files local unless real AI/cloud mode is explicitly enabled.
-              File content is not parsed or uploaded in this phase.
+              {uiText.fileIntakeHelper}
             </p>
           </div>
           <button
@@ -1073,13 +2199,13 @@ export function AIInputBriefPanel() {
             onClick={clearSelectedFiles}
             type="button"
           >
-            Clear files
+            {uiText.clearFiles}
           </button>
         </div>
 
         <label className="mt-4 block">
           <span className="text-sm font-medium text-slate-700">
-            Select local files
+            {uiText.selectLocalFiles}
           </span>
           <input
             accept=".xlsx,.docx,.pdf,image/*"
@@ -1090,17 +2216,41 @@ export function AIInputBriefPanel() {
           />
         </label>
 
+        <div className="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <p className="font-semibold">
+            {"supportedFormatsTitle" in uiText
+              ? uiText.supportedFormatsTitle
+              : "Supported formats"}
+          </p>
+          <p className="mt-1">
+            {"supportedFormats" in uiText
+              ? uiText.supportedFormats
+              : "Text-based PDF, DOCX, and XLSX are supported for local Draft PTR generation."}
+          </p>
+          <p className="mt-1 text-slate-500">
+            {"comingSoonFormats" in uiText
+              ? uiText.comingSoonFormats
+              : "Image/OCR/Voice intake is coming soon."}
+          </p>
+        </div>
+
+        {intakeFiles.length > 0 && selectedFileObjects.length === 0 ? (
+          <p className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {uiText.reselectAfterRefresh}
+          </p>
+        ) : null}
+
         {intakeFiles.length > 0 ? (
           <div className="mt-4 overflow-x-auto rounded border border-slate-200">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-3 py-2">File name</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Size</th>
-                  <th className="px-3 py-2">Last modified</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Action</th>
+                  <th className="px-3 py-2">{uiText.fileName}</th>
+                  <th className="px-3 py-2">{uiText.type}</th>
+                  <th className="px-3 py-2">{uiText.size}</th>
+                  <th className="px-3 py-2">{uiText.lastModified}</th>
+                  <th className="px-3 py-2">{uiText.status}</th>
+                  <th className="px-3 py-2">{uiText.action}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -1109,7 +2259,9 @@ export function AIInputBriefPanel() {
                     <td className="max-w-72 truncate px-3 py-2 font-medium text-slate-900">
                       {file.fileName}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{file.fileType}</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                      {formatFriendlyFileType(file)}
+                    </td>
                     <td className="whitespace-nowrap px-3 py-2 text-slate-600">
                       {formatFileSize(file.fileSize)}
                     </td>
@@ -1122,6 +2274,10 @@ export function AIInputBriefPanel() {
                       >
                         {file.status}
                       </span>
+                      <p className="mt-1 max-w-72 whitespace-normal text-xs text-slate-500">
+                        {"nextStep" in uiText ? `${uiText.nextStep}: ` : "Next step: "}
+                        {getFileDraftActionLabel(file, uiText.generateDraftPtr)}
+                      </p>
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
                       {file.fileName.toLowerCase().endsWith(".xlsx") &&
@@ -1140,13 +2296,13 @@ export function AIInputBriefPanel() {
                               void extractExcelFile(selectedFile);
                             } else {
                               setMessage(
-                                "Please re-select the Excel file before extracting. Browser file objects are not persisted after refresh."
+                                uiText.reselectAfterRefresh
                               );
                             }
                           }}
                           type="button"
                         >
-                          Extract
+                          {uiText.generateDraftPtr}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".docx") &&
                         file.status !== "unsupported" ? (
@@ -1161,16 +2317,16 @@ export function AIInputBriefPanel() {
                             );
 
                             if (selectedFile) {
-                              void extractDocxFile(selectedFile);
+                              void generateDraftPtrFromDocxFile(selectedFile);
                             } else {
                               setMessage(
-                                "Please re-select the DOCX file before extracting. Browser file objects are not persisted after refresh."
+                                uiText.reselectAfterRefresh
                               );
                             }
                           }}
                           type="button"
                         >
-                          Extract
+                          {uiText.generateDraftPtr}
                         </button>
                       ) : file.fileName.toLowerCase().endsWith(".pdf") &&
                         file.status !== "unsupported" ? (
@@ -1185,18 +2341,31 @@ export function AIInputBriefPanel() {
                             );
 
                             if (selectedFile) {
-                              void extractPdfFile(selectedFile);
+                              void generateDraftPtrFromPdfFile(selectedFile);
                             } else {
                               setMessage(
-                                "Please re-select the PDF file before extracting. Browser file objects are not persisted after refresh."
+                                uiText.reselectAfterRefresh
                               );
                             }
                           }}
                           type="button"
                         >
-                          Extract
+                          {uiText.generateDraftPtr}
                         </button>
+                      ) : file.status === "unsupported" ? (
+                        <span className="text-xs font-semibold text-red-700">
+                          {isImageIntakeFile(file)
+                            ? uiText.unsupportedImage
+                            : uiText.unsupportedFile}
+                        </span>
                       ) : null}
+                      <button
+                        className="ml-2 rounded border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        onClick={() => removeSelectedFile(file)}
+                        type="button"
+                      >
+                        Clear file
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1207,46 +2376,14 @@ export function AIInputBriefPanel() {
 
         {excelPreview ? (
           <div className="mt-4 rounded border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-            <p className="font-semibold">Excel extraction preview</p>
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
-              <p>
-                Detected sheet:{" "}
-                <span className="font-semibold">{excelPreview.detectedSheet}</span>
-              </p>
-              <p>
-                Sheets:{" "}
-                <span className="font-semibold">
-                  {excelPreview.sheetNames.join(", ")}
-                </span>
-              </p>
-              <p>
-                Detected columns:{" "}
-                <span className="font-semibold">
-                  {excelPreview.detectedColumns.join(", ") || "None"}
-                </span>
-              </p>
-              <p>
-                Unmapped columns:{" "}
-                <span className="font-semibold">
-                  {excelPreview.unmappedColumns.join(", ") || "None"}
-                </span>
-              </p>
-            </div>
-            <div className="mt-3">
-              <p className="font-semibold">Mapped fields</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {Object.entries(excelPreview.mappedFields).map(
-                  ([fieldName, columnName]) => (
-                    <span
-                      className="rounded border border-sky-200 bg-white px-2 py-1 text-xs font-medium text-sky-900"
-                      key={fieldName}
-                    >
-                      {fieldName}: {columnName}
-                    </span>
-                  )
-                )}
-              </div>
-            </div>
+            <p className="font-semibold">Excel extraction summary</p>
+            <p className="mt-1">
+              Sheet {excelPreview.detectedSheet} produced{" "}
+              <span className="font-semibold">
+                {excelPreview.draftTasks.length}
+              </span>{" "}
+              draft PTR row(s). Draft Preview is shown below for review before Apply.
+            </p>
             {excelPreview.warnings.length > 0 ? (
               <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
                 <p className="font-semibold">Warnings</p>
@@ -1270,17 +2407,21 @@ export function AIInputBriefPanel() {
                 </p>
               </div>
               <button
-                className="w-fit rounded bg-slate-950 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800"
-                onClick={generateDraftPtrFromDocxExtraction}
+                className="btn btn-ai w-fit text-xs"
+                onClick={() => void generateDraftPtrFromDocxExtraction()}
                 type="button"
               >
-                Generate Draft PTR
+                {uiText.generateDraftPtr}
               </button>
             </div>
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="rounded border border-violet-200 bg-white p-3">
-                <p className="font-semibold">Structured extraction result</p>
+                <p className="font-semibold">Extraction summary</p>
+                <p className="mt-2">
+                  Extracted {docxExtraction.rawText.length} characters and{" "}
+                  {docxExtraction.detectedSteps.length} likely step(s).
+                </p>
                 <p className="mt-2">
                   Actors: {docxExtraction.detectedActors.join(", ") || "None"}
                 </p>
@@ -1319,22 +2460,28 @@ export function AIInputBriefPanel() {
                 </ul>
               </div>
             </div>
-
-            <div className="mt-3 rounded border border-violet-200 bg-white p-3">
-              <p className="font-semibold">Extracted raw text</p>
-              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-slate-700">
-                {docxExtraction.rawText}
-              </pre>
-            </div>
           </div>
         ) : null}
 
         {pdfExtraction ? (
           <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-            <p className="font-semibold">PDF text extraction preview</p>
-            <p className="mt-1 text-emerald-900">
-              Basic text-based local extraction only. OCR is not implemented in this phase.
-            </p>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="font-semibold">PDF extraction summary</p>
+                <p className="mt-1 text-emerald-900">
+                  {locale === "vi"
+                    ? `Đã trích xuất ${pdfExtraction.rawText.length} ký tự bằng local text parsing. OCR chưa được hỗ trợ trong phase này.`
+                    : `Extracted ${pdfExtraction.rawText.length} characters with local text parsing. OCR is not implemented in this phase.`}
+                </p>
+              </div>
+              <button
+                className="btn btn-success w-fit text-xs"
+                onClick={() => void generateDraftPtrFromPdfExtraction()}
+                type="button"
+              >
+                {uiText.generateDraftPtr}
+              </button>
+            </div>
             {pdfExtraction.warnings.length > 0 ? (
               <ul className="mt-2 list-disc space-y-1 pl-5 text-emerald-900">
                 {pdfExtraction.warnings.map((warning) => (
@@ -1342,37 +2489,111 @@ export function AIInputBriefPanel() {
                 ))}
               </ul>
             ) : null}
-            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded border border-emerald-200 bg-white p-3 text-xs leading-5 text-slate-700">
-              {pdfExtraction.rawText}
-            </pre>
           </div>
         ) : null}
 
         {intakeFiles.some((file) => file.status === "unsupported") ? (
           <p className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            Unsupported file type detected. Supported formats are .xlsx, .docx, .pdf, and image files.
+            {uiText.unsupportedSummary}
           </p>
         ) : null}
+      </div>
+      ) : null}
+
+      <div className="sticky bottom-0 z-20 -mx-4 mt-6 flex flex-col gap-3 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={saveBrief}
+            type="button"
+          >
+            {t("inputBrief.saveBrief", locale)}
+          </button>
+          <button
+            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            onClick={resetBrief}
+            type="button"
+          >
+            {t("inputBrief.resetBrief", locale)}
+          </button>
+        </div>
+        <div className="flex justify-end">
+          <button
+            className="btn btn-ai px-5 py-3 text-base shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isGeneratingWithAI}
+            onClick={generateProcessRegister}
+            title={generateTooltip}
+            type="button"
+          >
+            {isGeneratingWithAI ? uiText.generating : uiText.generateProcessRegister}
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
         <span>
-          {filledFieldCount}/{briefFields.length}{" "}
+          {filledFieldCount}/5{" "}
           {t("inputBrief.sectionsFilled", locale)}
         </span>
-        <span className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700">
-          {aiModeLoaded
-            ? realAIEnabled
-              ? "Real AI mode"
-              : "Mock mode"
-            : "Checking AI mode..."}
+        <span
+          className="rounded border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-500"
+          title={generateTooltip}
+        >
+          {aiModeLabel}
         </span>
-        {message ? <span>{message}</span> : null}
+        {message ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{isGeneratingWithAI ? uiText.generating : message}</span>
+            {draftRetryAction && !isGeneratingWithAI ? (
+              <button
+                className="rounded border border-sky-300 bg-white px-2 py-1 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                onClick={retryDraftGeneration}
+                type="button"
+              >
+                Retry
+              </button>
+            ) : null}
+          </span>
+        ) : null}
       </div>
 
-      {blockingErrors.length > 0 ? (
+      {!hasAttemptedDraftGeneration && draftTasks.length === 0 ? (
+        <div className="mt-4 rounded border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="font-semibold">
+                {locale === "vi"
+                  ? "Tien do chuan bi Input Brief"
+                  : "Input Brief preparation progress"}
+              </p>
+              <p className="mt-1 leading-6">
+                {locale === "vi"
+                  ? `${completedRequiredFieldCount}/${requiredBriefFieldStatus.length} muc bat buoc da co thong tin. Ban co the bo sung dan roi bam Generate khi san sang.`
+                  : `${completedRequiredFieldCount}/${requiredBriefFieldStatus.length} required items have content. Add what you know, then Generate when ready.`}
+              </p>
+            </div>
+            <span className="w-fit rounded border border-blue-200 bg-white px-2 py-1 text-xs font-semibold text-blue-800">
+              {locale === "vi" ? "Chua hien loi truoc khi Generate" : "No errors before Generate"}
+            </span>
+          </div>
+          {missingRequiredFieldLabels.length > 0 ? (
+            <p className="mt-2 text-blue-900">
+              {locale === "vi" ? "Nen bo sung: " : "Suggested next: "}
+              {missingRequiredFieldLabels.join(", ")}
+            </p>
+          ) : (
+            <p className="mt-2 text-blue-900">
+              {locale === "vi"
+                ? "Thong tin bat buoc da san sang. Bam Generate de tao Draft PTR preview."
+                : "Required information is ready. Generate a Draft PTR preview when you are ready."}
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {hasAttemptedDraftGeneration && blockingErrors.length > 0 ? (
         <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <p className="font-semibold">Khong the tao Draft PTR</p>
+          <p className="font-semibold">{uiText.draftBlocked}</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {blockingErrors.map((error) => (
               <li key={error}>{error}</li>
@@ -1391,6 +2612,15 @@ export function AIInputBriefPanel() {
               <p className="mt-1 text-sm text-slate-600">
                 {draftTasks.length} dòng draft. {t("inputBrief.reviewBeforeApply", locale)}
               </p>
+              {draftPtrGateVerdict ? (
+                <span
+                  className={`mt-2 inline-flex w-fit items-center rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+                    gateVerdictStyles[draftPtrGateVerdict.status]
+                  }`}
+                >
+                  {labels.gateVerdict}: {draftPtrGateVerdict.status}
+                </span>
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
               <button
@@ -1416,6 +2646,150 @@ export function AIInputBriefPanel() {
               </button>
             </div>
           </div>
+          {draftPtrGateVerdict ? (
+            <div className="border-b border-slate-200 bg-white px-4 py-4 text-sm">
+              {draftPtrGateVerdict.blockers.length > 0 ? (
+                <div className="rounded border border-red-200 bg-red-50 p-3">
+                  <p className="font-semibold text-red-900">{labels.gateBlockers}</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-red-800">
+                    {draftPtrGateVerdict.blockers.map((blocker) => (
+                      <li key={`${blocker.code}-${blocker.title}`}>
+                        <span className="font-medium">{blocker.title}</span>:{" "}
+                        {blocker.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {draftPtrGateVerdict.warnings.length > 0 ? (
+                <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3">
+                  <p className="font-semibold text-amber-900">{labels.gateWarnings}</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-amber-800">
+                    {draftPtrGateVerdict.warnings.slice(0, 5).map((warning) => (
+                      <li key={`${warning.code}-${warning.title}`}>
+                        <span className="font-medium">{warning.title}</span>:{" "}
+                        {warning.description}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {draftPtrGateVerdict.blockers.length === 0 &&
+              draftPtrGateVerdict.warnings.length === 0 ? (
+                <p className="rounded border border-emerald-200 bg-emerald-50 p-3 font-medium text-emerald-800">
+                  {labels.gateNoIssues}
+                </p>
+              ) : null}
+              <details className="mt-3 rounded border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer font-semibold text-slate-900">
+                  {labels.gateAdvanced}
+                </summary>
+                <div className="mt-3 space-y-3 text-slate-700">
+                  <p>
+                    {labels.gateScore}:{" "}
+                    <span className="font-semibold text-slate-950">
+                      {draftPtrGateVerdict.score?.score ?? "-"}
+                    </span>
+                  </p>
+                  {draftPtrGateVerdict.score ? (
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {draftPtrGateVerdict.score.dimensions.map((dimension) => (
+                        <div
+                          className="rounded border border-slate-200 bg-white p-3"
+                          key={dimension.id}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-semibold text-slate-900">{dimension.label}</p>
+                            <span
+                              className={`rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+                                gateVerdictStyles[dimension.status ?? "not-applicable"]
+                              }`}
+                            >
+                              {dimension.status ?? "not-applicable"}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-slate-600">
+                            {dimension.score ?? "-"}/{dimension.maxScore ?? "-"}
+                          </p>
+                          {dimension.notes && dimension.notes.length > 0 ? (
+                            <ul className="mt-1 list-disc space-y-1 pl-5 text-slate-600">
+                              {dimension.notes.map((note) => (
+                                <li key={note}>{note}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            </div>
+          ) : null}
+          {sourceCoverageAdvisory ? (
+            <div className="border-b border-slate-200 bg-white px-4 py-4 text-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-slate-900">
+                      {labels.sourceCoverage}
+                    </p>
+                    <span
+                      className={`rounded border px-2 py-1 text-xs font-semibold uppercase tracking-wide ${
+                        sourceCoverageStyles[sourceCoverageAdvisory.status]
+                      }`}
+                    >
+                      {sourceCoverageAdvisory.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-slate-600">
+                    {labels.sourceCoverageNonBlocking}
+                  </p>
+                </div>
+                <div className="grid gap-2 text-slate-700 md:grid-cols-3">
+                  <div className="rounded border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      {labels.sourceCoverageMode}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {sourceCoverageAdvisory.signals.sourceMode}
+                    </p>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      {labels.sourceCoverage}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {sourceCoverageAdvisory.signals.coveragePercent}%
+                    </p>
+                  </div>
+                  <div className="rounded border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      {labels.sourceCoverageRows}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-900">
+                      {sourceCoverageAdvisory.signals.rowsWithSourceRef}/
+                      {sourceCoverageAdvisory.signals.totalDraftRows}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              {sourceCoverageAdvisory.warnings.length > 0 ? (
+                <div className="mt-3 rounded border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                  <p className="font-semibold">{labels.sourceCoverageWarnings}</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-5">
+                    {sourceCoverageAdvisory.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="mt-3 rounded border border-emerald-200 bg-emerald-50 p-3 font-medium text-emerald-800">
+                  {labels.sourceCoverageNoWarnings}
+                </p>
+              )}
+            </div>
+          ) : null}
           {draftMeta ? (
             <div className="grid gap-4 border-b border-slate-200 bg-white px-4 py-4 text-sm md:grid-cols-2">
               <div>
@@ -1445,6 +2819,18 @@ export function AIInputBriefPanel() {
                     ))}
                   </ul>
                 </div>
+                {draftMeta.qualityIssues.length > 0 ? (
+                  <div className="rounded border border-amber-200 bg-amber-50 p-3">
+                    <p className="font-semibold text-amber-900">
+                      {labels.qualityIssues}
+                    </p>
+                    <ul className="mt-1 list-disc space-y-1 pl-5 text-amber-800">
+                      {draftMeta.qualityIssues.map((issue) => (
+                        <li key={issue}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 {draftMeta.qualityGateWarnings &&
                 draftMeta.qualityGateWarnings.length > 0 ? (
                   <div className="rounded border border-amber-200 bg-amber-50 p-3">

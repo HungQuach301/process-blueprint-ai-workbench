@@ -1,0 +1,270 @@
+[
+  {
+    "id": "eval-001",
+    "name": "Banking lending - day du",
+    "description": "Quy trinh cho vay SME voi actor, system, scope va du lieu kha day du.",
+    "input": {
+      "processInfo": {
+        "processName": "Quy trinh cho vay SME",
+        "processOwner": "Khoi Khach hang Doanh nghiep",
+        "businessDomain": "Banking lending",
+        "organizationName": "Ngan hang thuong mai"
+      },
+      "businessObjective": "Chuan hoa quy trinh tiep nhan, tham dinh, phe duyet va giai ngan khoan vay SME co kiem soat rui ro.",
+      "scope": "Tu luc khach hang SME nop nhu cau vay den khi khoan vay duoc phe duyet, tu choi hoac giai ngan.",
+      "scopeBoundary": "Bao gom tiep nhan ho so, KYC, tham dinh tin dung, phe duyet, hoan thien dieu kien va giai ngan. Khong bao gom thu hoi no sau giai ngan.",
+      "startEnd": {
+        "startEvent": "Khach hang SME gui nhu cau vay von",
+        "endEvent": "Khoan vay duoc giai ngan hoac ho so bi tu choi"
+      },
+      "actors": [
+        { "name": "Khach hang", "role": "Nguoi nop ho so vay", "type": "customer" },
+        { "name": "RM", "role": "Quan he khach hang", "type": "internal" },
+        { "name": "Credit Officer", "role": "Tham dinh tin dung", "type": "internal" },
+        { "name": "Ops Support", "role": "Ho tro van hanh va giai ngan", "type": "internal" }
+      ],
+      "relatedSystems": [
+        { "name": "Core Banking", "purpose": "Quan ly tai khoan va giai ngan", "category": "internal" },
+        { "name": "LOS", "purpose": "Quan ly ho so vay", "category": "internal" },
+        { "name": "CRM", "purpose": "Quan ly thong tin khach hang", "category": "internal" }
+      ],
+      "dataDocuments": [
+        { "name": "Ho so vay", "type": "document", "description": "Bo ho so phap ly va tai chinh cua SME" },
+        { "name": "Bao cao tham dinh", "type": "record", "description": "Ket qua danh gia tin dung" }
+      ],
+      "happyPath": [
+        "RM tiep nhan nhu cau va tao ho so tren LOS",
+        "Credit Officer tham dinh va de xuat han muc",
+        "Cap phe duyet chap thuan",
+        "Ops Support hoan thien dieu kien va giai ngan"
+      ],
+      "exceptionPaths": [
+        "Ho so thieu chung tu thi yeu cau bo sung",
+        "Khong dat dieu kien tin dung thi tu choi va thong bao khach hang"
+      ],
+      "riskControls": [
+        "Kiem tra KYC va CIC",
+        "Phe duyet theo han muc uy quyen"
+      ],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual",
+      "notes": "Can co gateway danh gia ho so day du va gateway phe duyet/tuyen tu choi."
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "minTasks": 8,
+      "maxTasks": 25,
+      "hasGateway": true,
+      "allStepsHaveActor": true
+    }
+  },
+  {
+    "id": "eval-002",
+    "name": "Account opening KYC - don gian",
+    "description": "Mo tai khoan thanh toan cho khach hang ca nhan voi KYC co ban.",
+    "input": {
+      "processInfo": {
+        "processName": "Mo tai khoan thanh toan ca nhan",
+        "processOwner": "Khoi Van hanh",
+        "businessDomain": "Banking account opening"
+      },
+      "businessObjective": "Mo tai khoan nhanh, dung quy dinh KYC va tao thong tin khach hang tren he thong.",
+      "scope": "Tu luc khach hang de nghi mo tai khoan den khi tai khoan duoc kich hoat hoac bi tu choi.",
+      "startEnd": {
+        "startEvent": "Khach hang yeu cau mo tai khoan",
+        "endEvent": "Tai khoan duoc kich hoat hoac yeu cau bi tu choi"
+      },
+      "actors": [
+        { "name": "Khach hang", "role": "Nguoi yeu cau mo tai khoan", "type": "customer" },
+        { "name": "RM", "role": "Tiep nhan va tu van", "type": "internal" },
+        { "name": "DVKH", "role": "Kiem tra va xu ly ho so", "type": "internal" }
+      ],
+      "relatedSystems": [
+        { "name": "CRM", "purpose": "Luu thong tin khach hang", "category": "internal" },
+        { "name": "Core Banking", "purpose": "Tao va kich hoat tai khoan", "category": "internal" }
+      ],
+      "dataDocuments": [
+        { "name": "CCCD/Passport", "type": "document", "description": "Giay to dinh danh" },
+        { "name": "Thong tin lien he", "type": "data", "description": "So dien thoai va dia chi" }
+      ],
+      "happyPath": [
+        "Tiep nhan yeu cau",
+        "Kiem tra KYC",
+        "Tao CIF neu chua co",
+        "Mo tai khoan tren Core Banking"
+      ],
+      "exceptionPaths": [
+        "KYC khong hop le thi tu choi mo tai khoan"
+      ],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual"
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "minTasks": 5,
+      "maxTasks": 15,
+      "hasGateway": true
+    }
+  },
+  {
+    "id": "eval-003",
+    "name": "Payment processing - nhieu he thong",
+    "description": "Xu ly thanh toan voi it actor nhung nhieu he thong tich hop.",
+    "input": {
+      "processInfo": {
+        "processName": "Xu ly thanh toan lien ngan hang",
+        "processOwner": "Khoi Thanh toan",
+        "businessDomain": "Payments"
+      },
+      "businessObjective": "Dam bao giao dich thanh toan duoc kiem tra, chuyen di, doi soat va cap nhat trang thai kip thoi.",
+      "scope": "Tu luc khach hang tao lenh thanh toan den khi giao dich thanh cong, that bai hoac can xu ly doi soat.",
+      "startEnd": {
+        "startEvent": "Khach hang tao lenh thanh toan",
+        "endEvent": "Lenh thanh toan co trang thai cuoi cung"
+      },
+      "actors": [
+        { "name": "Khach hang", "role": "Nguoi khoi tao giao dich", "type": "customer" },
+        { "name": "Payment Ops", "role": "Giam sat va xu ly ngoai le", "type": "internal" }
+      ],
+      "customerSystems": [
+        { "name": "Mobile Banking", "purpose": "Khach hang tao lenh", "category": "customer" }
+      ],
+      "internalSystems": [
+        { "name": "Core Banking", "purpose": "Kiem tra so du va ghi nhan but toan", "category": "internal" },
+        { "name": "Payment Hub", "purpose": "Dieu phoi giao dich thanh toan", "category": "internal" },
+        { "name": "Fraud Engine", "purpose": "Kiem tra rui ro gian lan", "category": "internal" }
+      ],
+      "thirdPartySystems": [
+        { "name": "NAPAS", "purpose": "Chuyen mach thanh toan", "category": "thirdParty" }
+      ],
+      "dataDocuments": [
+        { "name": "Lenh thanh toan", "type": "record", "description": "Thong tin nguoi nhan, so tien, ngan hang dich" }
+      ],
+      "happyPath": [
+        "Kiem tra so du",
+        "Kiem tra fraud",
+        "Gui lenh qua Payment Hub va NAPAS",
+        "Cap nhat trang thai ve Mobile Banking"
+      ],
+      "exceptionPaths": [
+        "Khong du so du",
+        "Bi nghi ngo gian lan",
+        "Timeout tu NAPAS can doi soat"
+      ],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual"
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "minTasks": 6,
+      "maxTasks": 20,
+      "hasServiceTask": true
+    }
+  },
+  {
+    "id": "eval-004",
+    "name": "Brief toi thieu - chi ten process",
+    "description": "Brief cuc ngan de danh gia kha nang tao draft voi gia dinh va confidence thap.",
+    "input": {
+      "processInfo": {
+        "processName": "Quy trinh xu ly yeu cau dich vu"
+      },
+      "businessObjective": "Tao ban nhap quy trinh so bo de nguoi dung bo sung thong tin.",
+      "scope": "Chua xac dinh ro, can AI dat cau hoi mo.",
+      "startEnd": {
+        "startEvent": "Phat sinh yeu cau dich vu",
+        "endEvent": "Yeu cau duoc dong"
+      },
+      "actors": [
+        { "name": "Nguoi dung", "role": "Nguoi gui yeu cau", "type": "customer" }
+      ],
+      "relatedSystems": [],
+      "dataDocuments": [],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual",
+      "notes": "Thong tin toi thieu, can tao draft ngan va neu ro gia dinh."
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "minTasks": 3,
+      "maxTasks": 10,
+      "confidenceLow": true
+    }
+  },
+  {
+    "id": "eval-005",
+    "name": "Brief phuc tap - nhieu exception",
+    "description": "Lending process co nhieu cap phe duyet, reject path va resubmission.",
+    "input": {
+      "processInfo": {
+        "processName": "Phe duyet khoan vay doanh nghiep co tai san bao dam",
+        "processOwner": "Khoi Tin dung",
+        "businessDomain": "Secured lending"
+      },
+      "businessObjective": "Kiem soat chat che quy trinh phe duyet khoan vay co tai san bao dam, dam bao traceability giua ho so, tham dinh, phe duyet va dieu kien giai ngan.",
+      "scope": "Tu luc RM tao ho so vay co tai san bao dam den khi ho so duoc phe duyet, tu choi, yeu cau bo sung hoac tai nop.",
+      "scopeBoundary": "Bao gom tham dinh tai chinh, tham dinh tai san bao dam, phan luong theo han muc, phe duyet nhieu cap, reject path va re-submission. Khong bao gom xu ly sau giai ngan.",
+      "startEnd": {
+        "startEvent": "RM tao ho so vay co tai san bao dam",
+        "endEvent": "Ho so co quyet dinh cuoi cung va trang thai duoc cap nhat"
+      },
+      "actors": [
+        { "name": "Khach hang", "role": "Cung cap ho so va tai san bao dam", "type": "customer" },
+        { "name": "RM", "role": "Tao va theo doi ho so", "type": "internal" },
+        { "name": "Credit Officer", "role": "Tham dinh tin dung", "type": "internal" },
+        { "name": "Collateral Valuation", "role": "Dinh gia tai san bao dam", "type": "internal" },
+        { "name": "Credit Committee", "role": "Phe duyet cap cao", "type": "internal" },
+        { "name": "Ops Support", "role": "Cap nhat dieu kien va ho tro giai ngan", "type": "internal" }
+      ],
+      "relatedSystems": [
+        { "name": "LOS", "purpose": "Quan ly workflow ho so", "category": "internal" },
+        { "name": "Collateral System", "purpose": "Quan ly tai san bao dam va dinh gia", "category": "internal" },
+        { "name": "Core Banking", "purpose": "Cap nhat dieu kien giai ngan", "category": "internal" },
+        { "name": "Document Store", "purpose": "Luu ho so va quyet dinh", "category": "internal" }
+      ],
+      "dataDocuments": [
+        { "name": "Ho so vay", "type": "document", "description": "De nghi vay va ho so phap ly" },
+        { "name": "Bao cao dinh gia TSBD", "type": "record", "description": "Ket qua dinh gia tai san bao dam" },
+        { "name": "Bien ban phe duyet", "type": "record", "description": "Quyet dinh cua cap phe duyet" }
+      ],
+      "happyPath": [
+        "RM tao ho so tren LOS",
+        "Credit Officer kiem tra tinh day du",
+        "Collateral Valuation dinh gia tai san bao dam",
+        "Credit Officer lap de xuat tin dung",
+        "Cap phe duyet phu hop ra quyet dinh",
+        "Ops Support cap nhat dieu kien"
+      ],
+      "exceptionPaths": [
+        "Ho so thieu chung tu thi tra ve RM yeu cau bo sung",
+        "Tai san bao dam khong dat dieu kien thi yeu cau tai san thay the hoac reject",
+        "Khoan vay vuot han muc thi chuyen Credit Committee",
+        "Cap phe duyet yeu cau dieu chinh han muc thi RM tai nop",
+        "Khach hang khong bo sung dung han thi dong ho so"
+      ],
+      "slaControls": [
+        "Tham dinh tin dung trong 3 ngay lam viec",
+        "Dinh gia tai san trong 5 ngay lam viec"
+      ],
+      "riskControls": [
+        "Kiem tra duplicate collateral",
+        "Kiem tra uy quyen phe duyet theo han muc",
+        "Luu vet moi lan tai nop ho so"
+      ],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual"
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "minTasks": 10,
+      "maxTasks": 30,
+      "hasGateway": true,
+      "gatewayCount": 2
+    }
+  }
+]

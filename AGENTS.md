@@ -164,3 +164,82 @@ For every implementation, run the relevant subset of this checklist:
   - Confirm statuses are Fresh/Stale/Not generated as expected
   - Download ZIP
   - Confirm ZIP contains all expected files
+## 12. Product Strategy Context
+
+This repository belongs to Process Blueprint AI Workbench.
+
+The product direction is:
+
+AI Process & Spec Workbench for business-to-software delivery.
+
+The product helps PO, BA, SA, Product Manager, Business Architect, and Solution Architect convert business intent, process notes, files, AI conversations, and requirements into controlled, traceable delivery artifacts.
+
+The product is not just a BPMN/BRD/SRS generator. The moat is:
+- Artifact Graph
+- Traceability Matrix
+- Quality Gates
+- Domain Packs
+- Human-in-the-loop approval
+- AI Coding Spec export
+- Local-first / BYOK / enterprise-ready governance
+
+## 13. Required context files
+
+Before implementation work, read:
+
+1. `AGENTS.md`
+2. `docs/CURRENT_STATE.md`
+3. `docs/PRODUCT_CONTEXT.md`
+4. `docs/PRODUCT_NORTH_STAR.md`
+5. `docs/SCOPE_AND_MODULES.md`
+6. `docs/ARCHITECTURE_PRINCIPLES.md`
+7. `docs/ROADMAP.md`
+8. `docs/NEXT_IMPLEMENTATION_PLAN.md`
+9. `docs/DECISION_LOG.md`
+10. `docs/SESSION_HANDOFF.md`
+
+For AI-related work, also read:
+
+- `docs/AI_ARCHITECTURE_DESIGN.md`
+- `docs/AI_INPUT_BRIEF_DESIGN.md`
+- `docs/AI_QA_ENGINE_DESIGN.md`
+- `docs/AI_RECOMMENDATION_ENGINE_DESIGN.md`
+- `docs/AI_TEMPLATE_REVIEW_DESIGN.md`
+- `docs/AI_SKILL_REGISTRY.md`
+
+## 14. Work session ritual
+
+At the start of each task:
+
+1. Run `git status --short`.
+2. Read the required context files.
+3. Summarize the current state in Vietnamese.
+4. Explain the implementation plan in Vietnamese.
+5. List expected files to modify.
+6. Make the smallest possible scoped change.
+7. Run relevant checks, especially `npx.cmd tsc --noEmit`.
+8. Update `docs/SESSION_HANDOFF.md` if the task changes project state.
+9. Update `docs/DECISION_LOG.md` if a product or architecture decision is made.
+
+## 15. Current architecture direction
+
+The product should evolve toward Artifact Graph-centric architecture.
+
+Process Task Register remains the canonical model for process artifacts, but not every future feature must start from Process Task Register.
+
+Future features such as BRD, SRS, User Stories, UI Spec, Solution Spec, Business Architecture, IT Architecture, and AI Coding Pack should be connected through Artifact and TraceLink models.
+
+## 16. Real AI rule
+
+Real AI can be used in MVP only through controlled server-side AI skill routes.
+
+Never expose API keys in browser code.
+
+AI output must go through:
+Draft / Recommendation / Review Finding
+→ Schema validation
+→ Quality gate
+→ Preview
+→ User approval
+→ Apply or export
+→ Audit

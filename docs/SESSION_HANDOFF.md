@@ -1,0 +1,772 @@
+# Session Handoff
+
+## Last updated
+
+2026-05-29 (QA Batch Internal Reference Guard)
+
+## Current branch
+
+`feature/quality-gate-overhaul`
+
+## Current product phase
+
+Complete Module 2 + Module 3 with full real AI support.
+
+## Release target
+
+`v0.8.0-mvp1-ai`
+
+## What was done in the last session
+
+- Added Excel import next-step reference normalization for clear ordinal/prefix mismatches such as `XLSX-014` -> `img-014` when the target step exists uniquely.
+- Added Excel import warnings for normalized and unresolved `defaultNextStep`, `yesNextStep`, and `noNextStep` references without changing `ProcessTask` schema or `sourceRef`.
+- Hardened QA recommendation batch preview so created/new task internal references are checked before apply, including `defaultNextStep`, `yesNextStep`, and `noNextStep` on inserted tasks, split tasks, gateway tasks, and gateway branch tasks.
+- Batch preview now skips recommendations whose new task references point to `TBD`, empty strings, missing stepIds, or stepIds created only by skipped recommendations.
+- Batch apply continues to apply valid recommendations and reports applied/skipped counts; all-invalid batches show `No applicable recommendations to apply.`
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Hardened QA recommendation batch preview/apply so recommendations with invalid operation references are skipped before apply.
+- Treated empty, `TBD`, missing, and whitespace-padded step references as invalid for `UpdateTaskField`, `UpdateConnection`, actor/system/interaction/review operations, task insertion/split/gateway/lane operations, and gateway branch targets.
+- Kept `Apply All After Review` independent from selected checkboxes while applying only the valid recommendations that remain after preview skips.
+- Added clearer UI messaging for all-invalid batches: `No applicable recommendations to apply.`
+- Preserved QARecommendation schema, AI route, D01/D02 generators, ProcessTask schema, and no-auto-apply behavior.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Fixed QA Panel `Apply All After Review` so it previews and applies all current reviewable recommendations instead of depending on selected checkbox state.
+- Kept `Apply Selected` scoped to selected recommendations and `Apply All Safe` scoped to safe recommendations.
+- Expanded batch preview/apply handling so conflict or invalid missing-step recommendations are skipped individually instead of failing the whole batch.
+- Updated the batch modal summary to show total recommendations, safe recommendations, medium/high risk, graph-changing count, affected stepIds, warnings, and conflicts/invalid skips.
+- Added a post-confirm batch summary showing applied and skipped counts.
+- Preserved findings as read-only, no auto-apply behavior, AI route, D01/D02 generators, and ProcessTask schema.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Made Excel File Intake namespace-safe for workbook XML generated with prefixed tags such as `x:sheet`, `rel:Relationship`, `x:row`, `x:c`, `x:v`, `x:si`, and `x:t`.
+- Added local-name based XML element lookup in `src/lib/ai-intake/excel-extractor.ts` without adding dependencies.
+- Preserved existing canonical column mapping, ProcessTask schema, D01/D02 generators, and AI route behavior.
+- Preserved preferred sheet selection for `Process Task Register` with fallback to the first readable sheet.
+- Improved the empty workbook error to `Workbook does not contain readable worksheets.`
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Created `docs/EVAL_DATASET_DESIGN.md` as the dataset design baseline for `input-brief-to-ptr` and `process-improvement-recommendation`.
+- Documented eval dataset principles focused on criteria-based, business-relevant, non-brittle measurement.
+- Mapped target coverage for `input-brief-to-ptr`, including simple/full/minimal/complex processes, gateway required/not required, multi-system, missing actor, Vietnamese/English, lending, onboarding, payment, and servicing cases.
+- Mapped target coverage for `process-improvement-recommendation`, including missing actor/system/input-output, ambiguous wording, split task, missing gateway branch, customer interaction type, high-risk graph changes, safe field updates, and conflicts.
+- Defined criteria groups for schema, semantic quality, process integrity, and risk/safety.
+- Recommended target dataset sizes: 20 `input-brief-to-ptr` cases and at least 10 `process-improvement-recommendation` cases.
+- Clarified out-of-scope areas for this dataset step: full RAG faithfulness, full visual BPMN correctness, and enterprise policy compliance.
+- Kept this session documentation-only; no app code, eval code, dataset JSON, schema, model type, package, or dependency files were changed.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Created `docs/VALIDATION_VS_EVALUATION_GUIDE.md` as the AI Orchestrator mentor guide for separating validation from evaluation.
+- Documented that validation checks product contract safety, quality gates check preview/apply readiness, and evaluation measures skill usefulness across cases.
+- Added concrete examples for `input-brief-to-ptr` and `process-improvement-recommendation`.
+- Explained why schema-valid Draft PTR output can still fail semantic quality, especially when missing `allStepsHaveActor`, `hasGateway`, `confidenceLow`, or `gatewayCount`.
+- Recommended criteria-based eval as the next product baseline before LLM-as-judge.
+- Defined eval interpretation for pass, partial, and fail.
+- Captured Bai 5 next steps around criteria-based eval and semantic quality hardening.
+- Kept this session documentation-only; no app code, schema, eval runner, dataset, package, or dependency files were changed.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Created `docs/PROVIDER_ROUTING_AUDIT.md` as the Bài 4 entry audit for Provider Routing & Cost Optimization.
+- Audited current provider routing maturity (Level 1: single env provider, no skill-aware routing, no cost calculation).
+- Documented all 4 provider modes: mock/local, product-ai, openai, claude; noted azure/local as catalog-only placeholders.
+- Mapped all 30+ skills in Registry V2 with allowed providers, structured output status, fallback behavior, token/cost risk, and routing maturity rating.
+- Identified `artifact-review` as the highest-cost skill (full XML in payload, no context trimming) and `requirement-quality-check` as second-highest.
+- Documented that `estimatedCostUsd` is hardcoded `null` in the route — no cost calculation exists.
+- Documented that per-skill UI provider/model overrides are NOT enforced server-side.
+- Documented current fallback behavior: no tiered chain, error on provider failure, no automatic retry.
+- Documented what is missing for Bài 4: token baseline, per-model cost catalog, fallback chain, context optimization, server-side per-skill routing.
+- Defined 8-item Bài 4 Implementation Backlog: routing policy doc, cost catalog, fallback chain, context optimization, eval comparison, per-skill server routing.
+- Kept this session documentation-only; no app code, provider adapter, route, schemas, evals, or package.json were changed.
+- Confirmed `npx.cmd tsc --noEmit` passes (docs-only change, no TypeScript impact).
+
+
+
+- Created `docs/UX_QA_HISTORY_DELIVERY_HARDENING_HANDOFF.md` to summarize the UX/QA/History/Delivery hardening sprint.
+- Captured completed work: QA warnings with recommendations, Apply All After Review, PTR journey/profile detection, Template Hub hidden from the main screen, enriched AI Run History, and redesigned Product Delivery cards.
+- Documented commands run, manual test status, remaining risks, and the next lesson: Bai 4 Provider Routing & Cost Optimization.
+- Redesigned Product Delivery Workspace artifact controls from compressed rows into responsive horizontal cards.
+- Each BRD, SRS, User Stories, Acceptance Criteria, Scope, QA, and Package card now shows title, short description, status badge, source context, summary, actions, and download control without squeezing buttons into a vertical stack.
+- Preserved optional context collapse, preview-before-export, no auto-export, no auto-apply, Product Delivery generator behavior, and AI route behavior.
+- Confirmed `npx.cmd tsc --noEmit` passes for the Product Delivery Workspace card layout update.
+- Upgraded AI Run History metadata and UI without storing full prompts, full payloads, or full outputs.
+- Extended local AI audit records to support runtime options summary, safe context summary, input/output/total tokens, latency, estimated cost placeholder, validation status, gate status, output normalization summary, request id, and external API flag.
+- Added safe route-level context summaries for provider-backed AI calls: payload kind, process task count, selected template id/name, artifact type, prompt pack id, schema id, and payload size only.
+- Updated Export Center AI Run History table with Input / Output / Total token columns, Cost, full Model, Gate status, and expanded Details for runtime/context/warnings/validation/normalization summaries.
+- Confirmed `npx.cmd tsc --noEmit` passes for the AI Run History upgrade.
+- Hid Template Hub from the default main workflow and sidebar navigation.
+- Moved full `TemplateLibraryEditor` access behind an explicit Template Hub modal opened from the main selected-template summary, D01 BPMN output, or D02 Service Blueprint output.
+- Preserved selected D01/D02 template summaries in the main flow and output screens while keeping Template QA recommendations as non-auto-applied suggestions.
+- Kept `TemplateProfile` schema and D01/D02 generators unchanged.
+- Confirmed `npx.cmd tsc --noEmit` passes for the Template Hub visibility update.
+- Added Draft PTR journey/profile detection when applying AI Input Brief drafts into Process Task Register.
+- Created `detectProcessRegisterProfile` to infer Lending, Account Opening, Payment, Servicing, or Generic profiles from draft metadata, source summary, process info, and draft rows.
+- Wired Apply Draft PTR to persist `selectedProcessRegisterProfile` without changing draft row apply behavior; Replace/Append remains user-controlled and draft rows are preserved.
+- Added a Process Task Register badge showing the detected profile, confidence, and reason; Lending and Account Opening detections also align the sample selector to the closest existing sample without replacing applied rows.
+- Confirmed `npx.cmd tsc --noEmit` passes for the profile detection update.
+- Upgraded Rule QA recommendation coverage so every QA finding/warning now receives at least one actionable recommendation.
+- Added deterministic recommendations for missing task names, missing input/output, missing data object/source, missing customer interaction type, end-event final state, and Service Blueprint readiness findings.
+- Added a safe `MarkReviewStatus` fallback recommendation for issue codes where no deterministic field-level fix is available, preserving preview/approval before apply.
+- Confirmed the existing QA Panel summary-first flow already supports total findings, total recommendations, safe recommendations, medium/high risk, selected count, `Apply All Safe`, `Preview All Recommendations`, and `Apply All After Review` with confirmation.
+- Confirmed `npx.cmd tsc --noEmit` passes for this QA recommendation coverage update.
+- Created `docs/AI_ORCHESTRATOR_LESSON_03_HANDOFF.md` to summarize Bai 3 - Structured Output & Schema Engineering.
+- Summarized structured output schema coverage for `input-brief-to-ptr`, `process-improvement-recommendation`, and `artifact-review`.
+- Documented the skill-aware structured output architecture, eval scripts/datasets, validation status, governance confirmations, remaining risks, and Bai 4 entry criteria.
+- Marked Bai 4 - Provider Routing & Cost Optimization as the next recommended AI Orchestrator focus.
+- Added schema/eval smoke tests for `process-improvement-recommendation` and `artifact-review`.
+- Created `evals/process-improvement-recommendation/dataset.json` and `run-eval.ts` with 3 cases covering missing ownership, missing input/output, and complex task split recommendations.
+- Created `evals/artifact-review/dataset.json` and `run-eval.ts` with 3 review-only artifact cases covering BPMN, Service Blueprint, and QA issue context.
+- Added npm scripts `test:eval:process-improvement` and `test:eval:artifact-review`; both default to `EVAL_PROVIDER_ID=mock` unless overridden.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran existing `npm run test:eval`; it executed the input-brief eval runner but failed because `http://localhost:3000/api/ai/run-skill` was not running in this shell.
+- Added OpenAI json_schema structured output support for `artifact-review`.
+- Created `src/lib/ai/output-schemas/artifact-review-output-schema.ts` with strict top-level `{ recommendations, templateRecommendations, artifactWarnings, assumptions, openQuestions }` output and `additionalProperties: false`.
+- Kept artifact review changes routed through PTR recommendations, template recommendations, or artifact warnings; the schema does not allow regenerated BPMN/draw.io XML or direct XML patch fields.
+- Wired `/api/ai/run-skill` so OpenAI-backed `artifact-review` uses `artifact_review_response` json_schema, while mock/local fallback and D01/D02 generators remain unchanged.
+- Added a small route compatibility adapter that maps provider `artifactWarnings` to the existing validator-facing `warnings` field without changing validator or normalizer modules.
+- Tightened `process-modeling-artifact-review-v1` prompt instructions to return schema-aligned JSON only, avoid XML patches, and require human confirmation for recommendations.
+- Added OpenAI json_schema structured output support for `process-improvement-recommendation`.
+- Created `src/lib/ai/output-schemas/qa-recommendation-output-schema.ts` with strict `{ recommendations: [...] }` output, required QA recommendation fields, supported recommendation types, and validator-supported operation kinds.
+- Updated `/api/ai/run-skill` to select structured output schemas per OpenAI-backed skill, preserving the existing `input-brief-to-ptr` schema path and adding `qa_recommendation_response` for process improvement recommendations.
+- Updated the OpenAI provider adapter to accept a route-supplied structured output schema instead of hardcoding only the Draft PTR schema.
+- Tightened the `process-modeling-qa-recommendation-v1` prompt pack so provider output uses the object contract, existing stepIds, supported operation kinds, human confirmation, and no auto-apply behavior.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+
+- Added `docs/STRUCTURED_OUTPUT_SCHEMA_AUDIT.md` as the Bài 3 Structured Output & Schema Engineering audit for `process-improvement-recommendation` and `artifact-review`.
+- Audited the existing `input-brief-to-ptr` json_schema pattern, current route structured-output gate, `QARecommendation` operation risks, `TemplateRecommendation` validation risks, shared schema fragments, artifact-review split direction, and exact next implementation plan.
+- Kept this schema audit slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
+- Added `docs/AI_ORCHESTRATOR_LESSON_02_HANDOFF.md` to summarize Bài 2 AI Skill Design, including lessons learned, product findings, skill design decisions, eval implications, Bài 3 entry criteria, and exact next implementation tasks.
+- Marked the Bài 2 documentation set as complete: contract matrix, design review, redesign plan, and lesson handoff now exist for the next AI Orchestrator implementation slice.
+- Kept this handoff slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
+- Added `docs/AI_SKILL_REDESIGN_PLAN.md` as the implementation plan for the two failing skills: `process-improvement-recommendation` and `artifact-review`.
+- Planned the next implementation slice around two proposed schema files: `src/lib/ai/output-schemas/qa-recommendation-output-schema.ts` and `src/lib/ai/output-schemas/artifact-review-output-schema.ts`, with OpenAI json_schema route selection, prompt pack updates, eval datasets, smoke tests, and rollback guidance.
+- Kept this planning slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
+- Added `docs/AI_SKILL_DESIGN_REVIEW.md` as a reviewer-level design critique for `input-brief-to-ptr`, `process-improvement-recommendation`, and `artifact-review`.
+- Captured the core AI Orchestrator recommendation: keep `input-brief-to-ptr`, add strict json_schema next for `process-improvement-recommendation`, and split `artifact-review` into BPMN and Service Blueprint review contracts before serious provider-backed use.
+- Documented production readiness versus lab-grade gaps: schema pass is not enough for process quality, process recommendations need strict `QARecommendation[]` contracts, and artifact review needs minimal context plus token/latency control.
+
+- Added `docs/AI_SKILL_CONTRACT_MATRIX.md` as the Bài 2 contract baseline for all skills in `src/lib/ai/skill-registry-v2.ts`.
+- Documented AI skill design principles, the full skill contract matrix, deep dives for `input-brief-to-ptr`, `process-improvement-recommendation`, and `artifact-review`, plus Bài 2 decisions and Bài 3 backlog.
+- Kept this slice documentation-only; no app code, AI route, provider adapter, output schema, prompt pack, D01/D02 generator, dependency, or runtime behavior was changed.
+- Improved Process Task Register readability by tightening Simple Mode to checkbox, row number, stepId, taskName, phase, actor, system, next step, review status, and actions.
+- Made `taskName` wider and sticky only in Simple Mode so business task wording remains visible during horizontal scroll without changing `ProcessTask` schema.
+- Added an Artifact Readiness Bar in Process Task Register for PTR saved/unsaved, QA findings count, D01 status/gate, D02 status/gate, and Export ZIP ready/not ready.
+- Added D01/D02 business summaries before previews: task count, actor count/list, system count/list, selected template, and gate status.
+- Preserved AI route, ProcessTask schema, D01/D02 generators, QA/recommendation logic, and export logic.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Redesigned QA Panel toward summary-first review: top counts now show findings, recommendations, safe recommendations, medium/high risk recommendations, and selected recommendations.
+- Updated QA Panel actions to emphasize `Apply All Safe`, `Preview All Recommendations`, and advanced `Apply All After Review` while preserving preview-before-apply and feedback logging.
+- Added batch preview grouping by recommendation risk (`low`, `medium`, `high`, `graph-changing`), affected stepIds, warnings, and an explicit confirmation checkbox for apply-all-after-review.
+- Kept findings read-only, sorted by existing priority order, and collapsed long finding lists by default with an expand/collapse control.
+- Preserved QARecommendation schema, AI route, recommendation engine apply helpers, D01/D02 generators, and no-auto-apply governance.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Added non-secret runtime option flow from AI Connection Center/per-skill settings into `/api/ai/run-skill` through `createAISkillRequestBody`.
+- Extended the server AI provider request type with defensive runtime option normalization, warning on unknown/unsupported values without failing missing or invalid options.
+- Mapped OpenAI runtime options to Responses API request parameters, including `reasoning.effort` for reasoning-capable models while preserving the existing `input-brief-to-ptr` JSON schema structured output path.
+- Mapped Claude runtime options to message request params, including thinking type/budget handling with model-specific safeguards for `claude-opus-4-7` and `claude-sonnet-4-6`.
+- Forwarded runtime options to Product AI endpoint while leaving mock/local fallback behavior deterministic.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Replaced raw AI schema validation error display in main UI surfaces with the user-friendly message `Kết quả AI chưa đạt yêu cầu chất lượng. Vui lòng thử lại.` while keeping technical validation details in console/audit paths.
+- Applied the friendly validation error handling across AI Input Brief, Process Task Register AI Assistant, QA Panel, Template Hub, D01 BPMN Output, D02 Service Blueprint Output, and Export Center.
+- Added a minimal Retry action for Process Task Register AI Assistant failures to match existing AI retry behavior in other modules.
+- Merged the two Input Brief generation buttons into one primary bottom CTA: `Tạo bảng quy trình` / `Generate Process Register`; it uses real AI when enabled and falls back to the existing local deterministic Draft PTR generation when real AI is disabled.
+- Simplified Process Task Register AI actions into one primary `Kiểm tra & Đề xuất` / `AI QA & Suggest` button plus a smaller `...` menu for advanced AI actions; the primary action now runs on selected rows or the whole PTR when nothing is selected.
+- Updated QA Panel so the top toolbar always shows `Kiểm tra & Đề xuất` / `Run QA & Suggestions`, plus prominent `Apply All Safe` and `Apply Selected (X)` actions while preserving preview/confirmation apply behavior and existing filters/provider compare controls.
+- Refined QA Panel AI/local status display with a small model/source indicator under `Kiểm tra & Đề xuất`, clearer `Run Rule Check` wording for deterministic findings, source badges for Findings and Recommendations, and a non-blocking friendly message when AI suggestions cannot be generated.
+- Moved Chat/Notes from the Manual Input area into its own Input Brief tab beside Manual Input, Import File, and Voice Input; the main `Tạo bảng quy trình` / `Generate Process Register` button now routes to manual brief, file intake, or chat notes based on the active tab.
+- Refined Input Brief file/chat/status UX: the long provider/data-processing sentence is now a compact AI chip with details on the Generate button tooltip, Import File refresh wording is friendlier, file MIME types render as human-readable labels, and the Chat/Notes textarea is explicitly sized for notes entry.
+- Simplified Template Hub cards so the default list shows only template name, BPMN/Service Blueprint badge, domain/process/scope summary, and Preview/Use actions; full version/status/fields/tags/rules remain available in Preview.
+- Reduced Template Hub prominence in the sidebar by grouping navigation into Process Modeling, Outputs, and Settings; Template Hub now sits with AI Connection Center under Settings, while Product Delivery appears under Outputs.
+- Updated AI Connection Center Advanced Settings to select concrete models per provider and per core skill, saving non-secret model preferences to localStorage and passing the resolved model to `/api/ai/run-skill` across route-backed AI calls including Input Brief, Process QA, PTR AI Assistant, Template Review, Artifact Review, and Product Delivery generation.
+- Cleaned up AI Connection Center so unconfigured cloud provider cards are hidden, Local analysis always remains visible, the four-column status summary is replaced by one readiness badge, Advanced Settings no longer shows technical diagnostics or feature-flag dumps, and per-skill provider/model overrides now cover Registry V2 real-ai-ready provider-backed skills.
+- Moved Input Brief Save/Reset/Generate actions out of the top header into a sticky bottom action bar, keeping Save/Reset on the left and the primary Generate action on the right without changing button behavior.
+- Preserved AI route behavior, schema validation, normalizer logic, provider behavior, prompt packs, recommendation preview/apply behavior, dependencies, and existing audit metadata.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Added server-side AI skill call usage/latency logging in `src/app/api/ai/run-skill/route.ts` immediately after the primary provider-backed response is received.
+- Logged provider id, model, token usage when available, route-measured latency, and a no-usage warning event when normalized token usage is missing.
+- Preserved AI route behavior, provider adapters, schema/quality validation, mock/local fallback, dependencies, response shape, and human-in-the-loop apply behavior.
+- Ran task `UX-012-user-facing-regression-check`.
+- Added `docs/USER_FACING_READINESS_CHECK.md` summarizing UX-000 through UX-011c readiness, full-flow source evidence, app availability, real OpenAI smoke-test result, mock/local fallback result, residual risks, and User Gate 1 recommendation.
+- Confirmed `http://localhost:3000` responded with HTTP 200 during the check.
+- Ran a non-sensitive `input-brief-to-ptr` OpenAI smoke test through `/api/ai/run-skill`; the external provider call was made, but invalid provider output was safely blocked with a 422 provider-output-normalization failure before schema display/apply.
+- Ran the same `input-brief-to-ptr` payload with `providerId=mock`; mock/local fallback passed with `externalApiCalled=false`, `validationPassed=true`, and 7 draft rows.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Kept this task documentation-only; no app code, AI behavior, schemas, D01/D02 generators, dependencies, storage keys, or recommendation apply behavior were changed.
+- Ran task `UX-011c-workspace-backup-restore`.
+- Added a visible Local workspace label in `src/components/AppShell.tsx` so users know data is browser-local.
+- Added local-only workspace backup/restore helpers in `src/lib/workspace/local-workspace-backup.ts` for known browser `localStorage` keys without adding server, database, schema, dependency, or key migrations.
+- Added Export Center actions to export a Workspace JSON backup and import it with confirmation before replacing local browser data.
+- Preserved Rule QA engine, QARecommendation schema/types, QA Panel UI behavior, recommendation preview/apply behavior, D01/D02 generator behavior, AI routes, dependencies, and storage key names.
+- Ran task `UX-011b-save-unsaved-changes-feedback`.
+- Updated `src/components/task-register/ProcessTaskRegister.tsx` with browser refresh warning for unsaved PTR edits, explicit Restore saved action for the last saved in-session PTR snapshot, and confirmation before reset/sample switch discards unsaved edits.
+- Updated `src/components/template-library/TemplateLibraryEditor.tsx` with Saved/Unsaved/Saving status feedback, browser refresh warning for unsaved template edits, and reset confirmation when template edits have not been saved.
+- Preserved existing localStorage keys and persistence behavior, artifact stale marking, Recommendation preview/apply safety, schemas, AI routes, generator behavior, and dependencies.
+- Ran task `UX-011a-ai-error-loading-retry-feedback`.
+- Added user-friendly AI loading/error/retry feedback in AI Input Brief, QA Panel, Template Hub, D01 BPMN Output, D02 Service Blueprint Output, and Export Center.
+- Converted raw route/provider/validation failures into concise UI messages while keeping audit logging and schema/quality-gate validation behavior intact.
+- Added retry affordances only where the current local payload can be safely rerun; AI outputs remain preview-only and no auto-apply behavior was introduced.
+- Preserved `/api/ai/run-skill`, Rule QA engine, QARecommendation schema/types, QA Panel apply/preview behavior, D01/D02 generator core, and dependencies.
+- Ran task `UX-007-blueprint-preview-scroll-affordance`.
+- Updated `src/components/preview/D02ServiceBlueprintPreview.tsx` with clearer horizontal scroll affordance, scroll left/right controls, edge fade hints, and visible template/status/gate context near the D02 preview.
+- Updated `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx` so the selected D02 template name, artifact status, and post-generation gate status are visible before the preview and passed into the preview header.
+- Preserved D02 draw.io generator core, post-generation gate behavior, download gating, raw XML advanced view, and AI artifact review preview-only behavior.
+- Ran task `UX-006-bpmn-preview-readability`.
+- Updated `src/components/preview/BpmnPreview.tsx` with larger preview sizing, zoom percentage, fit, zoom, and expand/collapse controls for easier D01 BPMN inspection during demos.
+- Updated `src/components/bpmn-output/D01BpmnOutput.tsx` so the selected D01 template name and post-generation gate status are visible near the visual BPMN preview while keeping raw XML collapsed in Advanced view.
+- Preserved D01 BPMN generator core, post-generation gate behavior, download gating, and AI artifact review preview-only behavior.
+- Ran task `UX-005-qa-panel-user-facing-cleanup`.
+- Updated `src/components/qa-panel/QAPanel.tsx` so QA Findings and Recommendations are visually separated: Findings are marked read-only, while Recommendations keep the preview and user-confirmed apply flow.
+- Consolidated recommendation empty/filter-hidden messaging to reduce repeated "no recommendation" noise while preserving safe selection, graph-change hiding, provider compare, feedback logging, and recommendation apply behavior.
+- Ran task `UX-003-input-brief-validation-behavior`.
+- Updated `src/components/input-brief/AIInputBriefPanel.tsx` so AI Input Brief shows progress/completion guidance before the first Draft PTR generation attempt and only shows blocking validation errors after a Generate attempt.
+- Resetting the brief clears the generation-attempt state while preserving existing draft generation, schema validation, quality gate, preview, Replace/Append Apply, stale marking, file/chat draft routes, AI route behavior, and dependencies.
+- Ran task `UX-002-dashboard-getting-started`.
+- Added a compact Getting Started section in `src/components/AppShell.tsx` with four first-time user steps: Input Brief, Draft PTR, Quality Check, and Export.
+- Wired the steps to existing in-page module anchors where available, including the embedded QA area inside Process Task Register, while preserving existing navigation behavior, AI behavior, generator/export logic, schemas, and dependencies.
+- Ran task `UX-004b-technical-term-tooltips`.
+- Added compact browser-native tooltip/help text in `src/components/task-register/ProcessTaskRegister.tsx` for technical Process Task Register terms, including `rowType`, `bpmnType`, Data interaction, User Task, Service Task, Send Task, and Exclusive Gateway.
+- Kept help text non-intrusive with short header/select titles and preserved canonical enum values, schema, D01/D02 generation behavior, AI auto-apply behavior, recommendation behavior, and dependencies.
+- Ran task `UX-004-ptr-simple-mode-business-columns`.
+- Refined Process Task Register Simple Mode in `src/components/task-register/ProcessTaskRegister.tsx` to focus on business-review columns: step id, task name, phase, actor, system, input, output, next step, risk/control, review status, and notes.
+- Moved technical fields such as row type, BPMN type, work type, data action/object, lane fields, and detailed gateway branch columns out of Simple Mode while keeping them available in Advanced Mode.
+- Kept `ProcessTask` schema, edit/add/duplicate/delete/save/refresh/reset/import/export behavior, AI Assistant selection behavior, recommendation apply behavior, and D01/D02 generation behavior unchanged.
+- Ran task `UX-001-ai-connection-user-friendly-status`.
+- Updated `src/components/ai-settings/AIProviderSettingsPanel.tsx` so the primary AI Connection Center status uses business-friendly labels for selected provider, connection status, current mode, and next step.
+- Moved server provider, effective provider, data mode, model, and feature flag diagnostics into Advanced settings while keeping Test Connection on the existing server-side route.
+- Strengthened the trust message that provider API keys stay server-side and are not stored or exposed in browser code.
+- Kept provider ids, env interpretation, feature flags, AI route behavior, AI auto-apply behavior, and dependencies unchanged.
+- Ran task `UX-010-mixed-language-and-mock-label-cleanup`.
+- Replaced primary user-facing Mock/Local-Mock wording in AI Connection Center, QA Panel, Template Hub, and Export Center with clearer `Local analysis` / local wording while preserving internal provider id `mock`.
+- Replaced user-facing `Missing env` with `Not configured` / `Chua cau hinh` and moved AI feature flag status out of the primary AI Connection Center panel into Advanced settings.
+- Cleaned obvious mojibake/encoding artifacts in the allowed main UI files, including AI Connection Center text, AI Input Brief status message, Template Hub warning label, and Export Center messages.
+- Kept AI route behavior, provider ids, env names, schemas, generator behavior, auto-apply behavior, and dependencies unchanged.
+- Ran task `UX-009-export-center-simplification`.
+- Simplified `src/components/export-center/ExportCenter.tsx` so primary Export Center actions now emphasize ZIP download and audit evidence, while package preparation is visually de-emphasized.
+- Collapsed Product Delivery optional context, notes, uploaded file text, provider compare, and generation controls behind a dedicated Product Delivery preparation details section.
+- Preserved artifact readiness/status cards, Product Delivery previews, download/export actions, ZIP behavior, AI route behavior, generator behavior, and no-auto-apply/no-auto-export guarantees.
+- Ran task `UX-008-product-delivery-module-separation`.
+- Added a dedicated Product Delivery Workspace section inside `src/components/export-center/ExportCenter.tsx` with a direct header link, distinct visual treatment, and explicit preview-before-export/no-auto-apply messaging.
+- Kept Product Delivery generation, preview, download/export behavior, AI skill route usage, ZIP export behavior, schemas, and generator core unchanged.
+- Deferred extracting `src/components/product-delivery/ProductDeliveryPanel.tsx` because Product Delivery state/actions are tightly coupled to Export Center preview and ZIP state; used the task-approved visual separation fallback instead.
+- Ran task `UX-000-milestone-1-technical-status-check`.
+- Added `docs/MILESTONE_1_TECHNICAL_STATUS.md` summarizing Milestone 1 technical status, task `000` through `017` completion evidence, integration check status, User-Facing Readiness Sprint dependencies, and known risks across real AI, Product Delivery, Export Center, QA, D01/D02, and user-facing language.
+- Kept this task documentation-only; no application source code, dependencies, AI behavior, generator behavior, task queue, or runtime behavior was changed.
+- Ran task `UX-create-user-facing-readiness-tasks`.
+- Added User-Facing Readiness Sprint task definitions under `.codex/tasks/` for UX-000, UX-001 through UX-012, including Product Delivery separation, Export Center simplification, mixed-language/mock label cleanup, AI Connection status cleanup, PTR simple mode, tooltips, Getting Started, Input Brief validation timing, QA Panel cleanup, D01/D02 preview improvements, AI error/retry feedback, save/unsaved feedback, local workspace backup/restore, and final regression check.
+- Updated `.codex/TASK_QUEUE.md` to include the UX tasks in the required implementation order.
+- Kept this task meta/documentation-only; no application source code, dependencies, AI behavior, or generator behavior was changed.
+- Ran task `017-user-gate-1-preparation`.
+- Added `docs/USER_GATE_1_GUIDE.md` as a practical 30-45 minute User Gate 1 demo and feedback guide for validating MVP1-AI Stable with real users.
+- Covered setup checklist, facilitator script, AI Input Brief, Process Task Register, QA Panel, D01 BPMN, D02 Service Blueprint, Export Center, user tasks, feedback prompts, observation notes, known limitations, sensitive data response, and follow-up capture format.
+- Documented explicit human-in-the-loop messaging: AI creates drafts, recommendations, or review findings; users preview and approve before apply or export.
+- Kept this task documentation-only; no app source code, dependencies, AI behavior, or D01/D02 generator behavior was changed.
+- Ran task `016-data-service-abstraction`.
+- Added `src/lib/data/data-service.ts` with a small `DataService` interface and browser-safe `LocalDataService` implementation for typed JSON read, write, and remove helpers.
+- Added fallback/result handling for unavailable `localStorage`, missing values, invalid JSON, and write/remove failures without introducing database or server persistence.
+- Added `src/lib/data/index.ts` as a stable export path for future storage work.
+- Kept existing `localStorage` usage in Process Task Register, Export Center, and Template Library unchanged; no broad storage refactor or behavior migration was performed.
+- Ran task `015-release-hardening`.
+- Added `docs/MVP1_AI_STABLE_RELEASE_CHECK.md` documenting MVP1-AI Stable hardening results, source inspection coverage, automated checks, manual browser limitations, and release follow-up items.
+- Confirmed `npx.cmd tsc --noEmit`, `npm run build`, `scripts/test-draft-ptr-gate.ps1`, and `scripts/test-provider-normalizer.ps1` pass.
+- Verified by source inspection that QA findings/recommendations, Draft PTR gate/advisory, AI route normalizer, D01/D02 pre/post gates, and Export Center Generate All/ZIP paths remain scoped and preview/user-approval oriented.
+- Kept application behavior, AI auto-apply behavior, provider key handling, generator core, dependencies, and Export Center implementation unchanged.
+- Ran task `014-chain-resilience-types`.
+- Added `src/lib/quality-engine/chain-resilience.ts` with type-only chain resilience foundations for future multi-artifact Product Delivery gate chains.
+- Defined `ChainStepResult`, `ChainStepResultStatus`, `CHAIN_STEP_RESULT_STATUSES`, and `ChainConfig`, with optional `GateVerdict` support plus warnings, errors, skipped reason, and chain stop/continue configuration.
+- Exported the new chain resilience types from `src/lib/quality-engine/index.ts`.
+- Kept Product Delivery model/generator behavior, Export Center, dependencies, and chain wiring unchanged.
+- Ran task `013d-wire-post-gates-ui`.
+- Wired `runD01PostGenerationGate` into `src/components/bpmn-output/D01BpmnOutput.tsx` and `runD02PostGenerationGate` into `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx` immediately after successful XML generation.
+- D01 and D02 output UIs now show compact post-generation gate status with blocker/warning counts and collapsible findings, while preserving the existing preview and AI artifact review behavior.
+- Disabled `.bpmn` / `.drawio` downloads only when the relevant post-generation verdict is `fail`; warning verdicts remain downloadable.
+- Kept D01/D02 generator core, dependencies, Rule QA, QARecommendation types, and recommendation behavior unchanged.
+- Ran task `013c-d02-post-gen-gate`.
+- Added `src/lib/quality-engine/d02-post-generation-gate.ts` with pure `runD02PostGenerationGate(xml)` returning a `GateVerdict` for generated D02 Service Blueprint draw.io XML.
+- The D02 post-generation gate checks empty XML, XML parser availability, malformed XML, draw.io `mxfile` / `diagram` / `mxGraphModel` / `root` / base `mxCell` structures, generated task card three-box patterns, large card count, missing card geometry, and potential card overlaps from `mxGeometry` bounds.
+- Exported `runD02PostGenerationGate` and `D02_POST_GENERATION_GATE_ID` from `src/lib/quality-engine/index.ts`.
+- Kept D02 generator core, D02 UI wiring, dependencies, Rule QA, QARecommendation types, and recommendation behavior unchanged.
+- Ran task `013b-d01-post-gen-gate`.
+- Added `src/lib/quality-engine/d01-post-generation-gate.ts` with pure `runD01PostGenerationGate(xml)` returning a `GateVerdict` for generated D01 BPMN XML.
+- The D01 post-generation gate checks empty XML, XML parser availability, malformed XML, BPMN `definitions`, `collaboration`, `participant`, `process`, and `laneSet` structures without mutating the generated XML.
+- Exported `runD01PostGenerationGate` and `D01_POST_GENERATION_GATE_ID` from `src/lib/quality-engine/index.ts`.
+- Kept D01 generator core, D01 UI wiring, dependencies, Rule QA, QARecommendation types, and recommendation behavior unchanged.
+- Ran task `013a-xml-parser-strategy`.
+- Added `docs/XML_PARSER_STRATEGY.md` documenting the safe XML parser strategy for future D01 BPMN and D02 draw.io post-generation gates.
+- Checked existing dependencies first: there is no dedicated shared/server-compatible XML parser; `bpmn-js` remains a browser BPMN viewer/modeler dependency, and `DOMParser` usage is browser/client-side only.
+- Rejected regex-only XML validation; future gates should parse XML structurally through a small project-owned wrapper and ask before adding a new parser dependency.
+- Kept D01/D02 generators, output UI, Rule QA, QARecommendation types, recommendation behavior, `package.json`, and dependencies unchanged.
+- Ran task `012-d02-pre-gate`.
+- Added `src/lib/quality-engine/d02-pre-generation-gate.ts` with pure `runD02PreGenerationGate` returning a `GateVerdict` for D02 Service Blueprint input readiness.
+- The D02 pre-generation gate checks empty input, missing step id, missing phase, missing actor, missing task name, missing system/app for system-oriented tasks, too many cards in a phase/row, selected Service Blueprint template fit, row rules, and foundational card mandatory fields.
+- Exported `runD02PreGenerationGate` and `D02_PRE_GENERATION_GATE_ID` from `src/lib/quality-engine/index.ts`; UI wiring is deferred and D02 draw.io generator core remains unchanged.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `011-d01-pre-gate`.
+- Added `src/lib/quality-engine/d01-pre-generation-gate.ts` with pure `runD01PreGenerationGate` returning a `GateVerdict` for D01 BPMN input readiness.
+- The D01 pre-generation gate checks ProcessTask readiness for empty input, missing start/end events, missing or duplicate step ids, missing task names, invalid next-step references, gateway branch readiness, unsupported/fallback BPMN types, actor/system visibility, and selected BPMN template fit.
+- Exported `runD01PreGenerationGate` and `D01_PRE_GENERATION_GATE_ID` from `src/lib/quality-engine/index.ts`; UI wiring is deferred and D01 BPMN generator core remains unchanged.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `INT-03-ai-route-normalizer-integration-check`.
+- Added `docs/AI_ROUTE_NORMALIZER_CHECK.md` documenting source inspection, mock/local smoke test, safe metadata review, and provider-backed verification limits for the AI route normalizer integration.
+- Confirmed mock/local `/api/ai/run-skill` behavior still returns before provider normalization; smoke test passed with `mode=mock`, `externalApiCalled=false`, `validationPassed=true`, and no `outputNormalization` metadata.
+- Confirmed by source inspection that provider-backed flow runs parse/repair, then `normalizeProviderOutput`, then `validateAISkillOutput`, with unsafe normalization and schema validation failures returning safe `422` responses.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `010-normalizer-golden-tests`.
+- Added `src/lib/ai/provider-output-normalizer.test-data.ts` with deterministic golden fixtures for already-normalized output, wrapped output with aliases, nested result wrapper behavior, unsafe broken references, and unknown schema handling.
+- Added `scripts/test-provider-normalizer.ps1` as a no-dependency check that verifies required fixture ids and runs `npx.cmd tsc --noEmit`.
+- Kept provider normalizer behavior, `/api/ai/run-skill` wiring, mock/local behavior, schemas, dependencies, and D01/D02 generators unchanged.
+- Confirmed `scripts/test-provider-normalizer.ps1`, `npx.cmd tsc --noEmit`, and `npm run build` pass.
+- Ran task `009b-wire-normalizer-route`.
+- Wired `normalizeProviderOutput` into the provider-backed `/api/ai/run-skill` flow after JSON parse/repair and before `validateAISkillOutput`.
+- Provider output normalization now returns safe 422 responses for unsafe normalization errors, while normalizer warning/error counts, changed paths, and safe issue summaries are included in provider response metadata.
+- Kept mock/local behavior unchanged because `createMockResponse` still returns before the provider-backed normalizer path.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `009a-provider-normalizer`.
+- Added `src/lib/ai/provider-output-normalizer.ts` as a pure, route-unwired helper for provider output normalization.
+- The normalizer accepts parsed provider output with skill/schema context, unwraps shallow `{ result }` / `{ data }` payloads, normalizes common shallow field aliases, reports missing required arrays, and reports broken step references as errors without silently nulling them.
+- Kept `/api/ai/run-skill/route.ts`, mock/local behavior, provider adapters, AI auto-apply behavior, schemas, and D01/D02 generators unchanged.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `INT-02-draft-ptr-gate-integration-check`.
+- Added `docs/DRAFT_PTR_GATE_CHECK.md` to document the Draft PTR Gate + Source Coverage advisory integration check.
+- Verified by source inspection that Draft PTR preview renders `GateVerdict` separately from Source Coverage advisory, Source Coverage remains non-blocking, and Replace/Append Apply remains explicit.
+- Kept app source, Rule QA, QARecommendation schema/types, QA Panel UI, recommendation behavior, AI auto-apply behavior, and D01/D02 generators unchanged.
+- Confirmed `scripts/test-draft-ptr-gate.ps1`, `npm run build`, and `npx.cmd tsc --noEmit` pass. The first standalone `tsc` run failed before build due to stale/missing generated Next `.next/types/routes.js`; it passed after `npm run build` regenerated Next type artifacts.
+- Ran task `008-draft-ptr-golden-tests`.
+- Added `src/lib/quality-engine/draft-ptr-gate-v1.test-data.ts` with deterministic golden fixtures for passing Draft PTR, schema blocker, gateway safety blocker, and source coverage advisory-only behavior.
+- Added `scripts/test-draft-ptr-gate.ps1` as a no-dependency check that verifies required fixture ids and runs `npx.cmd tsc --noEmit`.
+- Kept Draft PTR Gate v1 logic, source coverage advisory logic, AI behavior, UI, package scripts, and dependencies unchanged.
+- Confirmed `scripts/test-draft-ptr-gate.ps1`, `npx.cmd tsc --noEmit`, and `npm run build` pass.
+- Ran task `007-source-coverage-advisory`.
+- Added `src/lib/quality-engine/source-coverage-advisory.ts` as a pure, non-blocking helper for Draft PTR source coverage signals and warnings.
+- Exported the source coverage advisory helper from `src/lib/quality-engine/index.ts`.
+- Updated Draft PTR preview UI to show source coverage status, source mode, coverage percent, row-level `sourceRef` coverage, and advisory warnings separately from `GateVerdict`.
+- Kept source coverage out of `GateVerdict` score/blockers and preserved explicit Replace/Append Apply behavior.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `006b-wire-draft-ptr-gate-ui`.
+- Wired `runDraftPtrGateV1` into the Draft PTR preview UI in `src/components/input-brief/AIInputBriefPanel.tsx`.
+- Draft PTR preview now shows the Draft PTR Gate verdict status, default blockers/top warnings, and advanced score/dimension breakdown.
+- Preserved existing schema/quality gate blocking and explicit Replace/Append Apply behavior; no AI route, generation, schema, or apply behavior was changed.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `006a-draft-ptr-gate-v1`.
+- Added `src/lib/quality-engine/draft-ptr-gate-v1.ts` with `runDraftPtrGateV1`, returning a `GateVerdict` for validated Draft PTR output.
+- Draft PTR Gate v1 evaluates exactly five dimensions: `schemaCompleteness`, `flowIntegrity`, `gatewaySafety`, `actorSystemCoverage`, and `decompositionQuality`.
+- Kept source coverage out of scoring/blocking logic and did not migrate or replace `runDraftProcessTaskRegisterQualityGate`.
+- Exported `runDraftPtrGateV1` from `src/lib/quality-engine/index.ts`.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `005-gateverdict-framework`.
+- Added `src/lib/quality-engine/gate-verdict.ts` with shared GateVerdict status, issue, blocker, warning, score breakdown, summary, and pure helper types/functions for future gates.
+- Exported the GateVerdict framework from `src/lib/quality-engine/index.ts`.
+- Kept existing `runDraftProcessTaskRegisterQualityGate` unchanged; no AI route, UI, D01/D02 generator, or existing gate migration was introduced.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass.
+- Ran task `INT-01-qa-flow-integration-check`.
+- Verified the QA integration flow from Rule QA issues to `QAFinding`, QA Panel Findings, AI findings via `ai-process-qa-finding`, and existing `QARecommendation` preview/apply behavior.
+- Added `docs/QA_FLOW_CHECK.md` with the integration check result, edge cases reviewed, and residual manual UI test risk.
+- Confirmed `npx.cmd tsc --noEmit` and `npm run build` pass for the QA findings/recommendations flow.
+- Ran task `004-qa-panel-split`.
+- Updated `src/components/qa-panel/QAPanel.tsx` so Rule QA issues are derived into read-only `QAFinding` items via `src/lib/qa/rule-qa-to-findings.ts`.
+- Added a separate Findings section with a route-backed AI findings action using skill `ai-process-qa-finding`; findings have no apply buttons.
+- Kept the existing Recommendations section, safe-selection controls, provider compare, preview/apply confirmations, and recommendation feedback logging unchanged.
+- Ran task `003-ai-qa-finding-skill`.
+- Added skill `ai-process-qa-finding` as a review-only AI QA finding skill that returns `QAFindingSet` output.
+- Added prompt pack `process-modeling-qa-finding-v1` and schema validation for `QAFindingSet` or `{ findings: QAFinding[] }`, explicitly rejecting recommendations, operations, and patches.
+- Added mock/local route support in `/api/ai/run-skill` that derives AI-source findings from existing Rule QA issue context through `src/lib/qa/rule-qa-to-findings.ts`.
+- Kept existing `ai-process-qa` behavior returning `QARecommendation[]`; no Rule QA engine, `QARecommendation` schema/types, QA Panel UI, preview/apply behavior, or recommendation apply logic was changed.
+- Ran task `002-rule-qa-to-findings`.
+- Added `src/lib/qa/rule-qa-to-findings.ts` to convert existing Rule QA `QaIssue[]` into `QAFindingSet` without changing `validateProcessTasks`, `QARecommendation`, QA Panel UI, or recommendation apply behavior.
+- Ran task `M1-create-remaining-task-files`.
+- Created detailed Codex task definitions for remaining Milestone 1 tasks `002` through `017`, including QA findings, GateVerdict, Draft PTR gates, provider normalizer, D01/D02 gates, chain resilience, release hardening, data service abstraction, and User Gate 1 preparation.
+- Kept this meta-task documentation-only: no application source code, AI behavior, generator behavior, dependencies, or auto-apply behavior were changed.
+- Ran task `001-qafinding-schema`.
+- Added `src/lib/qa/qa-finding.ts` with `QAFindingSeverity`, `QAFindingCategory`, `QAFinding`, `QAFindingSet`, `createFindingSummary`, `validateQAFinding`, and `mergeFindingSets`.
+- Kept `QARecommendation` schema, recommendation apply behavior, UI, AI route, and D01/D02 generators unchanged.
+- Ran task `000-source-code-audit`.
+- Created `docs/CODE_AUDIT_REPORT.md` to identify the real source-code entry points for `ProcessTask`, `TemplateProfile`, `QARecommendation`, rule QA, Draft PTR quality gates, `/api/ai/run-skill`, provider parse/validate/repair, D01/D02 generators and UI, Product Delivery generation/state, Generate All, and existing test framework.
+- Confirmed this task was documentation-only and did not modify app source code or AI behavior.
+- Polished File Intake and AI Development Handoff Pack UX for MVP1-AI RC2.
+- Added clearer File Intake supported-format guidance: text-based PDF, DOCX, and XLSX are supported locally; Image/OCR/Voice intake is coming soon.
+- Made selected File Intake rows show file name, file type, processing status, next step, Generate Draft PTR, and Clear file actions.
+- Kept File Intake stale preview/draft clearing when a new file is selected or removed.
+- Renamed the user-facing AI Coding Pack section to `AI Development Handoff Pack` while keeping technical files such as `AGENTS.md`, `CLAUDE.md`, cursor rules, and `spec.json` visible in included-file details.
+- Added non-technical handoff copy explaining that the package can be sent to a development team or used with Codex, Claude Code, and Cursor.
+- Preserved preview-before-download behavior, server-side AI route usage, mock/local fallback, no browser API key exposure, and no auto-apply behavior.
+- Improved D01 BPMN, D02 Service Blueprint, and Export Center preview UX for MVP1-AI RC2.
+- Kept visual previews prominent for D01 BPMN and D02 Service Blueprint.
+- Added BPMN preview Fit, Zoom -, and Zoom + controls using the existing `bpmn-js` viewer canvas.
+- Moved raw BPMN XML and draw.io XML into closed-by-default Advanced / View XML sections for technical users.
+- Kept XML download actions available and did not modify D01/D02 generator logic.
+- Kept Export Center artifact status cards visible in the primary flow.
+- Moved AI Run History into an Advanced collapsible area and removed its export action from the primary header action group so it no longer visually dominates package export.
+- Preserved AI audit metadata behavior, no browser API key exposure, and no auto-apply behavior.
+- Improved Process Task Register table UX for MVP1-AI RC2.
+- Added Simple / Advanced column mode without changing the `ProcessTask` schema.
+- Added sticky table header inside the table scroll area.
+- Kept checkbox, row number, `stepId`, and `taskName` usable during horizontal scroll where feasible.
+- Added clearer selected row count and a bulk action area for PTR AI Assistant and clear selection.
+- Moved per-row Duplicate/Delete actions into a compact row action menu with locale-aware labels.
+- Added visible save state feedback: `Saved`, `Unsaved changes`, and `Saving`.
+- Preserved existing save/add/duplicate/delete/import/export behavior and kept AI output review/apply rules unchanged.
+- Applied visual design system polish for MVP1-AI RC2.
+- Added global design tokens for primary blue, AI purple, success green, warning amber, danger red, and neutral slate.
+- Added shared `btn`, semantic button variants, status badge, soft panel, and surface card styles.
+- Replaced heavy black primary action buttons with semantic primary, AI, and success button styles across the main RC2 modules.
+- Improved shared module cards through `SessionFrame` with softer background, clearer header spacing, 8px radius, and subtle shadow.
+- Improved the left sidebar with grouped modules and active section state.
+- Improved the top workspace header with product title treatment, MVP1-AI RC badge, AI provider/status badge, and artifact readiness summary.
+- Kept the polish UI-only: no business logic, generator behavior, AI route, provider adapter, schema, API key handling, or auto-apply behavior was changed.
+- Improved QA recommendation safety UX for MVP1-AI RC2.
+- Graph-changing recommendations are now hidden by default behind the Advanced structure changes option.
+- Renamed the graph-changing toggle to user-friendly EN/VI copy: `Show advanced structure changes` / `Hiển thị thay đổi cấu trúc nâng cao`.
+- Replaced per-card direct apply wording with `Preview change`; recommendations still require preview/confirmation before apply.
+- Tightened Select safe so it excludes graph-changing, high-risk, high-impact, and medium-impact recommendations unless the existing medium opt-in is enabled.
+- Recommendation cards now expose confidence, risk, affected steps, and change summary for easier review.
+- QA issues are grouped as Critical, Warnings, Suggestions, and Advanced structure changes.
+- Improved AI provider status and AI Run History for MVP1-AI RC2.
+- AI Connection Center now receives selected provider status, effective provider, and fallback-active metadata from `/api/ai/run-skill`.
+- Product AI/OpenAI/Claude missing-env or disabled states now clearly surface local/mock fallback instead of implying a successful external provider call.
+- AI Run History now derives explicit validation states: `valid`, `invalid`, `skipped`, and `not applicable`.
+- AI Run History rows now show skill, provider, model, status, validation status, external API flag, latency, tokens, and timestamp.
+- Failure or warning rows now have expandable safe details: error type, safe error message, validation summary, provider request id, warnings, and suggested next action.
+- AI history remains metadata-only; full prompt text and full model output are still not stored.
+- Fixed MVP1-AI RC2 release-facing P0 UI blockers.
+- Removed the visible Workspace placeholder card and duplicate QA Panel placeholder card from the main page flow.
+- Made the left navigation locale-aware and filtered hidden placeholder-only sections from release navigation.
+- Replaced the `MVP Skeleton` eyebrow with an MVP1-AI release candidate label.
+- Updated AI Input Brief and AI Connection Center copy so mock mode clearly says local/mock with no external provider call, while real AI mode shows provider/cloud-processing warning copy.
+- Normalized QA Panel AI run labels to `Run AI QA` / `Run mock QA` and removed release-facing placeholder wording from recommendation warnings.
+- Updated navigation sample metadata so hidden/ready sections no longer carry `Placeholder` release status.
+- Added optional Provider Compare mode for selected AI skills.
+- Added server-side `providerId` override support to `/api/ai/run-skill`; provider selection still stays server-side and continues to enforce feature flags, data mode, provider config, allowed providers, schema validation, quality gates, mock/local fallback, and safe audit metadata.
+- Added Provider Compare UI for Product Delivery BRD generation, User Story generation, and AI Coding Pack generation in Export Center.
+- Added Provider Compare UI for Process QA in QA Panel.
+- Added Provider Compare UI for Template Review in Template Hub.
+- Compare mode is off by default, requires explicit provider selection, shows side-by-side provider/model/confidence/warnings/summary/validation status, and requires the user to choose one output for preview.
+- Added cost warning and cloud AI consent checks before multi-provider/non-mock compare runs.
+- Preserved no auto-merge and no auto-apply behavior for provider outputs.
+- Added AI Run History and audit visibility for Module 2 and Module 3.
+- Extended local audit helpers to derive safe `AI Run History` records from `ai_call` entries.
+- Captured AI run metadata for route-backed Product Delivery and AI Coding Pack skill calls: skill id, provider, model, status, timestamp, latency, validation result, token usage, external API flag, warnings, and request id when available.
+- Added Export Center Local Audit Log / AI Run History panel with refresh and JSON export.
+- Kept audit storage metadata-only; full prompts and full AI outputs are not stored in browser local audit history.
+- Updated AI Implementation Matrix for AI Run History behavior and remaining durable server-audit gap.
+- Added Requirement QA and basic cross-artifact consistency checks for Module 3.
+- Added route-backed skill id `requirement-quality-check` through `/api/ai/run-skill`.
+- Added canonical `RequirementQAResponse` with findings, draft patch recommendations, coverage summary, assumptions, open questions, and warnings.
+- Reused BRD/SRS/User Story/Acceptance Criteria quality gates and added AI Coding Pack checks for missing constraints, missing test plan, and missing non-goals.
+- Added basic trace coverage checks for BRD requirement -> SRS, SRS requirement -> User Story, and User Story -> Acceptance Criteria.
+- Wired Export Center action to preview Requirement QA without saving/applying changes.
+- Updated AI Skill Registry and AI Implementation Matrix for Product AI/OpenAI/Claude/Mock support on Requirement QA.
+- Completed AI Coding Pack generation from Product Delivery artifacts.
+- Added route-backed skill id `user-stories-to-ai-coding-pack` through `/api/ai/run-skill`.
+- Extended AI Coding Pack generation to use BRD, SRS, user stories, acceptance criteria, and optional Process Task Register context.
+- Generated `AGENTS.md`, `CLAUDE.md`, `cursor-rules.md`, `spec.json`, `implementation-plan.md`, `acceptance-criteria.md`, and `test-plan.md` with project goal, non-goals, requirements, user stories, AC, architecture constraints, data/privacy constraints, testing expectations, and traceability refs.
+- Added AI Coding Pack quality gate checks for missing acceptance criteria, missing non-goals, missing test expectations, and unresolved open questions.
+- Added Export Center action to preview Product Delivery AI Coding Pack before ZIP download.
+- Added local audit actions for `generate_product_delivery_ai_coding_pack` and `export_product_delivery_ai_coding_pack`.
+- Updated AI Skill Registry and AI Implementation Matrix for Product Delivery AI Coding Pack support.
+- Added Product Scope Review and MVP Slicing AI for Product Delivery Core.
+- Added route-backed skill ids `product-scope-review` and `mvp-slicing` through `/api/ai/run-skill`.
+- Added canonical `ProductScopeReview` output with in-scope items, out-of-scope items, assumptions, open questions, MVP slice, later phases, dependencies, risks, quality issues, and trace links.
+- Wired Product Scope Review and MVP Slicing through Product AI/OpenAI/Claude/Mock support with schema validation, quality gate, preview-first behavior, and no auto-save/apply.
+- Added Export Center actions to preview Product Scope Review/MVP Slicing and download Scope JSON only after preview.
+- Added local audit actions for `generate_product_scope_review_preview` and `export_product_scope_review_draft`.
+- Updated AI Skill Registry and AI Implementation Matrix for scope review and MVP slicing support.
+- Completed AI User Story and Acceptance Criteria generation for Product Delivery Core.
+- Added route-backed skill ids `srs-to-user-stories`, `brd-to-user-stories`, legacy-compatible `brd-or-notes-to-user-stories`, and `user-stories-to-acceptance-criteria` through `/api/ai/run-skill`.
+- Extended canonical user story and acceptance criteria models with epics, stable ids, role, goal/action, business value, dependencies, priority/complexity, source requirement refs, source step refs, and quality issues.
+- Added quality gates for missing role, missing value, missing acceptance criteria, non-testable acceptance criteria, broad stories, and missing source trace.
+- Wired Export Center actions to preview structured user stories from SRS/BRD and preview structured acceptance criteria from user stories before JSON download.
+- Added local audit actions for `generate_user_stories_preview`, `export_user_stories_draft`, `generate_acceptance_criteria_preview`, and `export_acceptance_criteria_draft`.
+- Updated AI Skill Registry and AI Implementation Matrix for Product AI/OpenAI/Claude/Mock support on story and acceptance-criteria generation.
+- Completed AI SRS Generator for Product Delivery Core.
+- Added route-backed skill ids `brd-to-srs` and `notes-to-srs` through `/api/ai/run-skill`.
+- Extended canonical SRS model with actors/roles, systems/components, stable functional and non-functional requirement ids, data requirements, interface/integration requirements, constraints, quality issues, assumptions, open questions, and trace links.
+- Added SRS quality gate checks for requirement not testable, missing actor/system, missing NFR, and unclear dependency.
+- Wired SRS generation through Product AI/OpenAI/Claude/Mock support with server-side schema validation and mock/local fallback.
+- Added Export Center actions to generate SRS from BRD/PTR or notes/source context, preview structured SRS JSON, and download SRS JSON only after preview.
+- Added local audit actions for `generate_srs_preview` and `export_srs_draft`.
+- Updated AI Skill Registry and AI Implementation Matrix for SRS route support and remaining Module 3 gaps.
+- Completed AI BRD Generator for Product Delivery Core.
+- Added route-backed skill ids `notes-to-brd` and `ptr-to-brd`, with `ptr-to-brd-outline` treated as a legacy alias for PTR-based BRD generation.
+- Extended canonical BRD model with business objective, background/context, stakeholders, business requirements, process references, risks/dependencies, and quality issues.
+- Added BRD quality gate checks for missing objective, missing scope, vague requirement, and missing stakeholder.
+- Wired BRD generation through `/api/ai/run-skill` with Product AI/OpenAI/Claude/Mock support, schema validation, quality gate, preview-first behavior, and no auto-apply.
+- Added Export Center actions to generate BRD from PTR or notes/source context, preview structured BRD JSON, and download BRD JSON only after preview.
+- Added optional uploaded file text input for Product Delivery BRD generation; no persistent file artifact store or OCR was added.
+- Updated AI Skill Registry and AI Implementation Matrix for BRD route support and remaining gaps.
+- Stabilized Product Delivery Core canonical models for BRD, SRS, UserStory, AcceptanceCriteria, ProductScope, Assumptions, and OpenQuestions.
+- Added Product Delivery schema validation helpers and wired deterministic Product Delivery generation through the canonical validated draft model.
+- Updated Product Delivery preview in Export Center to show structured counts for source steps, BRD sections, SRS requirements, user stories, acceptance criteria, assumptions, and open questions.
+- Enforced preview-first Product Delivery export by disabling/download-blocking markdown export until a draft preview exists.
+- Reused canonical Product Delivery validators from AI Skill schema helpers for BRD/SRS/UserStorySet/AcceptanceCriteria responses.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for the structured Product Delivery deterministic slice and remaining real AI route gaps.
+- Kept Product Delivery preview/export only; no full Artifact Graph, no auto-save/apply, no D01/D02 generator changes, and no browser AI provider calls were introduced.
+- Completed Template Hub AI Template Review output contract.
+- Expanded Template Review response validation to include `warnings` and `assumptions` alongside `TemplateRecommendation[]` and quality score.
+- Strengthened mock/local Template Review to check BPMN fit, Service Blueprint fit, mandatory fields, lane/row rules, connector/layout risks, and business domain/process type fit.
+- Updated Template Hub UI to display AI Template Review quality score, warnings, assumptions, and recommendations as review-only output.
+- Preserved no auto-apply for template recommendations; users must still edit/save templates explicitly.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for completed Template Hub AI Template Review behavior.
+- Added AI artifact review for generated D01 BPMN and D02 Service Blueprint outputs.
+- Added `artifact-review` to AI Skill Registry V2 with Product AI/OpenAI/Claude/Mock support.
+- Added `ArtifactReviewResponse` validation for PTR `QARecommendation[]`, template `TemplateRecommendation[]`, and artifact warnings.
+- Added a process-modeling artifact review prompt pack that forbids direct BPMN/draw.io XML mutation and routes fixes back to PTR or template recommendations.
+- Added deterministic mock/local route support for `/api/ai/run-skill` skill id `artifact-review`.
+- Added UI actions `Review BPMN with AI` and `Review Service Blueprint with AI` in the D01/D02 output panels.
+- Kept artifact review read-only: generated XML is not changed and no recommendation is auto-applied.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for artifact review skill support.
+- Completed AI QA and AI Recommendation V2 hardening for Process Modeling Core.
+- Updated QA Panel so AI QA receives `ProcessTask[]`, rule-based QA issues, existing rule recommendations, and selected D01/D02 template metadata.
+- Hardened `QARecommendation[]` validation for AI output: source `ai`/`hybrid`, confidence/impact/risk, target step ids, operation kinds, operation step references, and graph-changing safety.
+- Normalized graph-changing AI recommendations to high impact/high risk with explicit confirmation required.
+- Updated mock AI QA to use rule issue/recommendation context and return hybrid recommendations when extending rule recommendations instead of duplicating them blindly.
+- Preserved existing Select safe, Apply selected confirmation, and local feedback logging behavior.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for AI QA/Recommendation V2 behavior.
+- Added PTR AI Assistant selected-row actions in Process Task Register.
+- Added row selection checkboxes and an AI Assistant menu for normalize, infer actor/system/lane, improve wording, split complex task, generate input/output, and suggest interaction/channel.
+- Wired PTR AI Assistant actions to `/api/ai/run-skill` with skill id `process-improvement-recommendation`.
+- Returned AI Assistant output as `QARecommendation[]` surfaced through the existing QA Panel recommendation workflow.
+- Preserved no direct mutation: recommendations still require QA Panel preview/confirmation before apply.
+- Added deterministic mock/local route support for `process-improvement-recommendation` and allowed provider-backed Product AI/OpenAI/Claude execution through Orchestration V2.
+- Kept split task recommendations high risk/graph-changing so they are not selected by Select safe.
+- Updated `docs/AI_IMPLEMENTATION_MATRIX.md` for PTR AI Assistant route/UI support.
+- Completed Module 2 route-backed Draft PTR generation from three sources: structured Manual Input, File Intake extracted text, and pasted Chat/Notes.
+- Added route/registry support for `file-to-ptr-draft` and `chat-to-ptr-draft`, with legacy route aliases for `file-to-draft-ptr` and `chat-to-draft-ptr`.
+- Added `qualityIssues` to the Draft PTR contract and validation path.
+- Wired File Intake PDF/DOCX extracted text through `/api/ai/run-skill` for Product AI/OpenAI/Claude/Mock support; image/OCR remains unsupported.
+- Added a Manual Input Chat/Notes card that generates a Draft PTR preview through `/api/ai/run-skill`.
+- Kept Apply as explicit Replace/Append only and preserved artifact stale marking after apply.
+- Updated `docs/AI_SKILL_REGISTRY.md` and `docs/AI_IMPLEMENTATION_MATRIX.md` for Module 2 draft PTR skills.
+- Completed the AI Connection Center provider surface for Product AI, OpenAI, Claude, and Local/Mock.
+- Added provider cards with server-derived statuses: `configured`, `missing env`, `disabled`, and `available`.
+- Added a Test Connection action that calls `/api/ai/run-skill` server-side and never calls provider APIs directly from the browser.
+- Added non-secret Advanced Settings for default provider, model/capability, allow cloud AI, require approval, data usage mode, and simple active-skill provider overrides.
+- Updated `.env.example`, `docs/AI_CONNECTION_SETUP.md`, and `docs/AI_IMPLEMENTATION_MATRIX.md` for the completed AI Connection Center behavior.
+- Upgraded `/api/ai/run-skill` to AI Orchestration V2 while keeping the same route path.
+- Wired route execution to AI Skill Registry V2 for skill validation, prompt pack selection, allowed provider checks, and schema validation dispatch.
+- Added route-level provider/data mode enforcement using feature flags, configured provider, allowed providers, provider config status, and optional server `AI_DATA_USAGE_MODE`.
+- Added provider timeout handling with optional `AI_PROVIDER_TIMEOUT_MS`.
+- Added one scoped malformed-JSON repair attempt for provider output; repaired output still must pass schema validation.
+- Added server-safe audit metadata in route responses and server logs without logging full sensitive payloads or full model output.
+- Preserved existing deterministic mock/local fallbacks for `input-brief-to-ptr`, `ai-process-qa`, and `ai-template-review`.
+- Updated `docs/AI_CONNECTION_SETUP.md` and `docs/AI_IMPLEMENTATION_MATRIX.md` for Orchestration V2 behavior.
+- Implemented AI Skill Registry V2 for MVP1-AI under `src/lib/ai/`.
+- Added provider-neutral, process modeling, and product delivery prompt pack definitions.
+- Added runtime schema helpers for Draft PTR, BRD, SRS, User Story Set, Acceptance Criteria, AI Coding Pack, QARecommendation, and TemplateRecommendation outputs.
+- Reused existing canonical validators for StructuredProcessBrief, DraftProcessTaskRegister, QARecommendation, and TemplateRecommendation where available.
+- Updated `docs/AI_SKILL_REGISTRY.md` and `docs/AI_IMPLEMENTATION_MATRIX.md` to document Registry V2, prompt packs, schema contracts, and remaining wiring gaps.
+- Implemented AI Provider Adapter V2 for Mock, Product AI, OpenAI, and Claude.
+- Added a normalized provider response shape with `rawText`, `rawJson`, `parsedJson`, `providerId`, `model`, `requestId`, `tokenUsage`, `latencyMs`, and `warnings`.
+- Updated `/api/ai/run-skill` to select providers through a server-side provider factory while preserving existing mock fallback, validation, and preview-first behavior.
+- Updated `.env.example`, `docs/AI_CONNECTION_SETUP.md`, and `docs/AI_IMPLEMENTATION_MATRIX.md` for Product AI/OpenAI/Claude/Mock provider support.
+- Audited the current AI implementation across the AI skill route, provider types/adapters, AI intake, quality gates, recommendation validation, template review validation, audit log, AI settings UI, AI Input Brief, QA Panel, Template Hub, Product Delivery, and AI Coding Pack export.
+- Created `docs/AI_IMPLEMENTATION_MATRIX.md` covering skill id, module, input/output schema, Mock/Product AI/OpenAI/Claude support, validation, UI surface, apply behavior, audit behavior, and gaps.
+- Pivoted planning docs from an immediate MVP1 release to MVP1-AI after full Module 2 and Module 3 completion.
+- Updated the next implementation plan with the new phase, branch, release target, and priority order.
+- Updated the roadmap so MVP1-AI includes full Module 2 Process Modeling Core and Module 3 Product Delivery Core.
+- Kept UI/Experience Generation, Business Architecture, and IT/Solution Architecture as future phases.
+- Expanded the AI Skill Registry with MVP1-AI skills for Module 2 and Module 3, including status labels: `planned`, `implemented`, `mock`, and `real-ai-ready`.
+- Added an ADR to delay release until M2/M3 full AI are complete.
+- Did not change application code.
+
+## Files changed
+
+- `src/lib/quality-engine/draft-ptr-gate-v1.ts`
+- `src/lib/quality-engine/gate-verdict.ts`
+- `src/lib/quality-engine/index.ts`
+- `docs/QA_FLOW_CHECK.md`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/skill-schemas.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/app/api/ai/run-skill/route.ts`
+- `src/lib/qa/rule-qa-to-findings.ts`
+- `docs/SESSION_HANDOFF.md`
+- `.codex/tasks/002-rule-qa-to-findings.md`
+- `.codex/tasks/003-ai-qa-finding-skill.md`
+- `.codex/tasks/004-qa-panel-split.md`
+- `.codex/tasks/INT-01-qa-flow-integration-check.md`
+- `.codex/tasks/005-gateverdict-framework.md`
+- `.codex/tasks/006a-draft-ptr-gate-v1.md`
+- `.codex/tasks/006b-wire-draft-ptr-gate-ui.md`
+- `.codex/tasks/007-source-coverage-advisory.md`
+- `.codex/tasks/008-draft-ptr-golden-tests.md`
+- `.codex/tasks/INT-02-draft-ptr-gate-integration-check.md`
+- `.codex/tasks/009a-provider-normalizer.md`
+- `.codex/tasks/009b-wire-normalizer-route.md`
+- `.codex/tasks/010-normalizer-golden-tests.md`
+- `.codex/tasks/INT-03-ai-route-normalizer-integration-check.md`
+- `.codex/tasks/011-d01-pre-gate.md`
+- `.codex/tasks/012-d02-pre-gate.md`
+- `.codex/tasks/013a-xml-parser-strategy.md`
+- `.codex/tasks/013b-d01-post-gen-gate.md`
+- `.codex/tasks/013c-d02-post-gen-gate.md`
+- `.codex/tasks/013d-wire-post-gates-ui.md`
+- `.codex/tasks/014-chain-resilience-types.md`
+- `.codex/tasks/015-release-hardening.md`
+- `.codex/tasks/016-data-service-abstraction.md`
+- `.codex/tasks/017-user-gate-1-preparation.md`
+- `docs/SESSION_HANDOFF.md`
+- `src/lib/qa/qa-finding.ts`
+- `docs/SESSION_HANDOFF.md`
+- `docs/CODE_AUDIT_REPORT.md`
+- `docs/SESSION_HANDOFF.md`
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/components/export-center/ExportCenter.tsx`
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `docs/SESSION_HANDOFF.md`
+- `src/components/preview/BpmnPreview.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/export-center/ExportCenter.tsx`
+- `docs/SESSION_HANDOFF.md`
+- `src/lib/models/product-delivery.ts`
+- `src/lib/generators/product-delivery-generator.ts`
+- `src/lib/ai/skill-schemas.ts`
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/app/api/ai/run-skill/route.ts`
+- `src/lib/audit/audit-log.ts`
+- `src/lib/ai/ai-governance.ts`
+- `src/components/export-center/ExportCenter.tsx`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
+- `docs/AI_SKILL_REGISTRY.md`
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
+- `docs/SESSION_HANDOFF.md`
+- `src/app/globals.css`
+- `src/components/AppShell.tsx`
+- `src/components/Navigation.tsx`
+- `src/components/layout/SessionFrame.tsx`
+- `src/components/ai-settings/AIProviderSettingsPanel.tsx`
+- `src/components/input-brief/AIInputBriefPanel.tsx`
+- `src/components/task-register/ProcessTaskRegister.tsx`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/export-center/ExportCenter.tsx`
+- `src/components/bpmn-output/D01BpmnOutput.tsx`
+- `src/components/service-blueprint-output/D02ServiceBlueprintOutput.tsx`
+- `src/components/template-library/TemplateLibraryEditor.tsx`
+- `src/components/qa-panel/QAPanel.tsx`
+- `src/app/api/ai/run-skill/route.ts`
+- `src/lib/ai/ai-qa-types.ts`
+- `src/lib/ai/ai-qa-service.ts`
+- `src/lib/ai/ai-template-review-service.ts`
+- `src/lib/ai/ai-template-review-types.ts`
+- `src/lib/ai/skill-schemas.ts`
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/lib/recommendation-engine/qa-recommendation-schema.ts`
+- `src/lib/template-recommendation-engine/template-recommendation-schema.ts`
+- `docs/AI_SKILL_REGISTRY.md`
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
+- `docs/SESSION_HANDOFF.md`
+- `src/components/input-brief/AIInputBriefPanel.tsx`
+- `src/lib/ai-intake/draft-ptr-generator.ts`
+- `src/lib/ai-intake/draft-ptr-schema.ts`
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
+- `src/lib/ai/skill-schemas.ts`
+- `src/lib/ai/prompt-packs.ts`
+- `src/lib/ai/skill-registry-v2.ts`
+- `src/lib/ai/providers/provider-types.ts`
+- `src/lib/ai/providers/mock-provider.ts`
+- `src/lib/ai/providers/product-ai-provider.ts`
+- `src/lib/ai/providers/openai-provider.ts`
+- `src/lib/ai/providers/claude-provider.ts`
+- `src/lib/ai/providers/provider-factory.ts`
+- `src/app/api/ai/run-skill/route.ts`
+- `.env.example`
+- `docs/AI_CONNECTION_SETUP.md`
+- `docs/AI_IMPLEMENTATION_MATRIX.md`
+- `docs/NEXT_IMPLEMENTATION_PLAN.md`
+- `docs/ROADMAP.md`
+- `docs/AI_SKILL_REGISTRY.md`
+- `docs/DECISION_LOG.md`
+- `docs/SESSION_HANDOFF.md`
+
+## Important decisions made
+
+- SRS generation is route-backed real-ai-ready, but remains preview/export only; it does not create or persist Artifact Graph nodes.
+- SRS requirements use stable ids (`FR-*`, `NFR-*`) and preserve `ProcessTask.stepId` / BRD requirement references where available.
+- `brd-to-srs` and `notes-to-srs` are the active real-ai-ready SRS route ids; `ptr-to-srs-outline` remains a deterministic legacy/full-draft path.
+- Template Hub AI Template Review remains display/review-only in this slice; even low-risk template recommendations are not applied automatically.
+- Product Delivery Core now has a canonical validated draft model, but it remains preview/export only until Artifact Graph persistence is intentionally added.
+- BRD generation is now real-ai-ready through the server-side skill route, but still preview/export only; it does not create or persist Artifact Graph nodes.
+- `notes-to-brd` supports notes/chat and optional uploaded file text by payload contract. The current UI provides a paste field for uploaded file text because raw File Intake extraction text is not yet persisted as a reusable source artifact.
+- Product Delivery markdown is derived from the validated structured draft, not maintained as a separate source of truth.
+- Product Delivery download requires an existing preview draft to preserve Draft -> Preview -> Export behavior.
+- Template Review output now includes warnings and assumptions as first-class review metadata.
+- AI artifact review is read-only for generated BPMN/draw.io XML; any fix must be represented as a PTR QA recommendation or Template recommendation.
+- `artifact-review` uses general `ENABLE_REAL_AI` for provider-backed execution and mock/local fallback otherwise.
+- Artifact review UI currently previews counts and warnings to keep D01/D02 output panels uncluttered; deeper recommendation handoff to QA Panel/Template Hub is a later slice.
+- AI QA V2 treats rule QA as the first-pass source of deterministic issues and recommendations.
+- AI QA may return `source=hybrid` when it extends a rule recommendation with extra rationale/context.
+- Graph-changing AI recommendations are always high risk/high impact and require explicit confirmation, regardless of provider output.
+- PTR AI Assistant uses `process-improvement-recommendation` rather than adding six separate skill ids for this slice; the selected action is carried in `metadata.ptrAiAction`.
+- PTR AI Assistant outputs `QARecommendation[]` so it can reuse existing QA Panel preview/apply/feedback behavior.
+- PTR AI Assistant does not mutate `ProcessTask[]` directly.
+- Module 2 Draft PTR source skills now use canonical route ids `input-brief-to-ptr`, `file-to-ptr-draft`, and `chat-to-ptr-draft`.
+- `qualityIssues` is now part of the Draft PTR AI output contract alongside assumptions, open questions, source summary, confidence, and quality gate warnings.
+- File Intake real AI support uses locally extracted text only; OCR/image extraction remains explicitly unsupported.
+- AI Connection Center remains a non-secret browser preference UI; provider secrets stay in server env only.
+- Test Connection reports server-side readiness and does not perform direct browser provider calls.
+- Per-skill provider overrides are stored as local UI preferences in this slice; server execution remains governed by env/config and AI Orchestration V2.
+- `/api/ai/run-skill` remains the controlled server-side AI entrypoint for MVP1-AI.
+- Orchestration V2 blocks malformed or schema-invalid AI output and returns reviewable validation errors.
+- `ai-template-review` remains the UI/route skill id, mapped internally to registry skill `template-review`.
+- Server data mode can force local/mock behavior with `AI_DATA_USAGE_MODE=local-only`.
+- AI Skill Registry V2 is now the contract layer for Module 2 and Module 3 real AI work.
+- Prompt packs are provider-neutral and do not expose API keys or browser-only provider behavior.
+- Module 3 and AI Coding Pack now have structured response schemas with route/UI wiring for the active MVP1-AI Product Delivery flows.
+- AI Provider Adapter V2 is now the server-side provider abstraction for active AI skill routes.
+- Product AI, OpenAI, Claude, and Mock share the same normalized response shape.
+- Product AI and Claude are now implemented as server-side adapters, but still require real environment configuration and provider contract testing before production use.
+- Product Delivery BRD, SRS, story, criteria, scope/MVP, and AI Coding Pack flows are now route-backed real-ai-ready, preview/export only.
+- Product Delivery Workspace UI is now organized by artifact row (BRD, SRS, Stories, AC, Scope, QA, Package) with small download actions, AI/local indicators, collapsed optional inputs, and generated-count summaries.
+- Process Task Register AI Assistant now hides raw schema/validation dumps behind console technical logs, shows a retryable friendly failure message, and displays the active AI/local mode under the main AI QA & Suggest button.
+- AppShell now has a guided workspace hero with Input Brief/PTR/Export CTAs plus a footer trust/governance banner covering server-side AI calls, no browser API keys, Draft/Preview/Approve, and local workspace backup.
+- Template Hub is no longer rendered as a full default workflow module; AppShell now shows a compact D01/D02 selected-template summary and mounts the full Template Library editor only when users open Template Hub from Settings/Manage templates.
+- AI Connection Center has been upgraded toward a Provider Capability Center with a separate model catalog, compact default summary, model/runtime preferences, custom model ids, and advanced tabs for Provider, Models, Skill defaults, and Advanced params. Browser settings remain non-secret and do not call provider APIs directly.
+- MVP1 release is delayed until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with safe real AI support.
+- The active planning branch is now `feature/m2-m3-full-ai`.
+- The release target is now `v0.8.0-mvp1-ai`.
+- Real AI must remain server-side only, feature-flagged, schema-validated, previewed, and user-approved before apply/save/export.
+- Mock/local fallback remains required.
+- No API keys should be exposed in browser code.
+- AI output must not be auto-applied.
+- `docs/AI_SKILL_CONTRACT_MATRIX.md` is now the working baseline for Bài 2 AI skill contract design and should be consulted before implementing new json_schema contracts or eval datasets.
+- `docs/AI_SKILL_DESIGN_REVIEW.md` is now the focused reviewer baseline for the next three AI skill decisions: input brief semantic quality, process recommendation schema, and artifact review split.
+- `docs/AI_SKILL_REDESIGN_PLAN.md` is now the implementation plan for the two failing skills and should be followed before changing route, prompt packs, or output schemas.
+- `docs/AI_ORCHESTRATOR_LESSON_02_HANDOFF.md` is now the lesson-level handoff for Bài 2 and the entry checklist for Bài 3.
+- `docs/STRUCTURED_OUTPUT_SCHEMA_AUDIT.md` is now the Bài 3 schema audit baseline for implementing `QA_RECOMMENDATION_OUTPUT_SCHEMA` and `ARTIFACT_REVIEW_OUTPUT_SCHEMA`.
+
+## Current blockers
+
+- `process-improvement-recommendation` still needs a strict `QARecommendationResponse` json_schema to address `schema_validation_failed`.
+- `artifact-review` still needs a narrower contract; recommended direction is to split it into BPMN artifact review and Service Blueprint artifact review.
+- Artifact review recommendations are validated and returned by the route, but the D01/D02 UI currently shows counts/warnings only; full handoff into QA Panel and Template Hub still needs a scoped follow-up.
+- Excel File Intake still uses deterministic local row extraction rather than the new real AI file-to-PTR route because it already produces PTR rows directly.
+- Pasted Chat/Notes is a lightweight text-to-draft flow only; it is not a persistent conversational agent.
+- The branch may still need to be created or switched in git if it does not already exist.
+- Module 3 Jira export and scope/non-scope definition aliasing still need scoped task breakdown using Registry V2.
+- Product Delivery BRD route support exists; full Artifact Graph persistence and durable server-side audit are still pending.
+- Product AI endpoint contract is generic and needs integration testing with the actual hosted Product AI service.
+- Provider-specific Claude/OpenAI schema repair and contract tests are not implemented yet; only route-level malformed JSON repair exists.
+- AI Connection Center per-skill override is not wired to server execution yet.
+- Full Artifact Graph is intentionally not part of MVP1-AI.
+
+## Next recommended task
+
+Start Bài 3 implementation from `docs/STRUCTURED_OUTPUT_SCHEMA_AUDIT.md` and `docs/AI_SKILL_REDESIGN_PLAN.md`: add `QA_RECOMMENDATION_OUTPUT_SCHEMA`, add `ARTIFACT_REVIEW_OUTPUT_SCHEMA`, wire OpenAI json_schema selection through a route schema resolver, then add evals and provider-backed smoke tests.
+
+## Exact prompt for next ChatGPT session
+
+Paste this:
+
+"Day la phien tiep theo cua Process Blueprint AI Workbench. Hay doc context trong project/repo, dac biet PRODUCT_CONTEXT.md, CURRENT_STATE.md, NEXT_IMPLEMENTATION_PLAN.md, ROADMAP.md, AI_SKILL_REGISTRY.md, DECISION_LOG.md va SESSION_HANDOFF.md. Truoc tien hay tom tat trang thai hien tai, quyet dinh da chot, viec can lam tiep theo, sau do moi de xuat plan."
+
+## Exact prompt for next Codex session
+
+Paste this:
+
+"Ban dang lam trong repo D:\AI_PRODUCTS\process-blueprint-ai-workbench. Hay doc AGENTS.md va cac tai lieu docs/CURRENT_STATE.md, docs/PRODUCT_CONTEXT.md, docs/NEXT_IMPLEMENTATION_PLAN.md, docs/ROADMAP.md, docs/AI_SKILL_REGISTRY.md, docs/DECISION_LOG.md, docs/SESSION_HANDOFF.md truoc khi code. Sau do chay git status --short. Neu can sua file, hay neu plan bang tieng Viet, liet ke file du kien sua, roi moi trien khai thay doi nho nhat can thiet. Current phase la Complete Module 2 + Module 3 with full real AI support, branch muc tieu la feature/m2-m3-full-ai, release target la v0.8.0-mvp1-ai."

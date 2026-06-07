@@ -41,3 +41,15 @@ Thumbs.db
 
 # Vercel
 .vercel/
+
+# Codex transient current task
+.codex/CURRENT_TASK.md
+
+# Generated eval run outputs
+evals/**/results-*.json
+
+# Generated eval run outputs
+evals/**/results-*.json
+
+# Local Claude/Codex workspace state
+.claude/

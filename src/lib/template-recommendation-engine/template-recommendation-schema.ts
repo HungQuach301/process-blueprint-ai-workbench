@@ -19,6 +19,8 @@ export type TemplateReviewValidationResult =
       ok: true;
       recommendations: TemplateRecommendation[];
       qualityScore?: TemplateQualityScore;
+      warnings: string[];
+      assumptions: string[];
       errors: [];
     }
   | {
@@ -122,6 +124,20 @@ function validateQualityScore(
   }
 }
 
+function validateOptionalStringArray(
+  value: unknown,
+  fieldName: string,
+  errors: string[]
+) {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(value) || value.some((item) => !isString(item))) {
+    errors.push(`${fieldName} must be a string array when provided.`);
+  }
+}
+
 export function validateTemplateReviewOutput(
   value: unknown,
   selectedTemplate: TemplateProfile
@@ -139,6 +155,8 @@ export function validateTemplateReviewOutput(
   }
 
   validateQualityScore(output.qualityScore, selectedTemplate.id, errors);
+  validateOptionalStringArray(output.warnings, "warnings", errors);
+  validateOptionalStringArray(output.assumptions, "assumptions", errors);
 
   if (errors.length > 0) {
     return {
@@ -157,6 +175,12 @@ export function validateTemplateReviewOutput(
       })
     ),
     qualityScore: output.qualityScore as TemplateQualityScore | undefined,
+    warnings: Array.isArray(output.warnings)
+      ? (output.warnings as string[])
+      : [],
+    assumptions: Array.isArray(output.assumptions)
+      ? (output.assumptions as string[])
+      : [],
     errors: []
   };
 }

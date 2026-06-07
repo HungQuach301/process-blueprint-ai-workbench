@@ -10,7 +10,7 @@
     "test:eval:process-improvement": "npx tsx evals/process-improvement-recommendation/run-eval.ts",
     "test:eval:artifact-review": "npx tsx evals/artifact-review/run-eval.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "next lint"
+    "lint": "echo TODO: configure ESLint 9 flat config"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",

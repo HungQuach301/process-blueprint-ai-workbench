@@ -3,7 +3,8 @@
 (Mirror of CURRICULUM_V7_3.md Gate 0 evidence — tick as you go.)
 
 ```text
-[ ] P1.1 Unify skill IDs — no legacy aliases remain (grep proof in PR)
+[x] P1.1 Unify skill IDs — registry = single source; dead draft-ptr aliases removed
+    (ptr-to-brd-outline + provider-namespace deferred — see ADR-skill-id-aliases.md)
 [ ] skill-registry-v2 is the only skill source of truth
 [ ] P1.3 Retire skill-engine
 [ ] P1.4 Pin dependencies — no `latest`, lockfile committed

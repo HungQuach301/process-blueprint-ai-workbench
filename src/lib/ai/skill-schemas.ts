@@ -562,11 +562,11 @@ export function validateAISkillInput(
     return validateStructuredProcessBrief(value);
   }
 
-  if (skillId === "file-to-ptr-draft" || skillId === "file-to-draft-ptr") {
+  if (skillId === "file-to-ptr-draft") {
     return validateFileIntakeContext(value);
   }
 
-  if (skillId === "chat-to-ptr-draft" || skillId === "chat-to-draft-ptr") {
+  if (skillId === "chat-to-ptr-draft") {
     return validateChatNotesContext(value);
   }
 
@@ -799,9 +799,7 @@ export function validateAISkillOutput(
   if (
     skillId === "input-brief-to-ptr" ||
     skillId === "file-to-ptr-draft" ||
-    skillId === "file-to-draft-ptr" ||
-    skillId === "chat-to-ptr-draft" ||
-    skillId === "chat-to-draft-ptr"
+    skillId === "chat-to-ptr-draft"
   ) {
     return validateDraftProcessTaskRegister(value);
   }

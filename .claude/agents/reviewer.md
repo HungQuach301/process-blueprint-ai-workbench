@@ -1,5 +1,6 @@
 ---
 name: reviewer
+color: blue
 description: Review a diff against rules, contracts, and risks before human approval.
 tools: [read, bash]
 ---

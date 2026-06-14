@@ -1,5 +1,6 @@
 ---
 name: eval-runner
+color: purple
 description: Run the regression eval and report pass/fail vs the stamped baseline.
 tools: [read, bash]
 ---

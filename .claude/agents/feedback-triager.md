@@ -1,5 +1,6 @@
 ---
 name: feedback-triager
+color: cyan
 description: Turn a raw user report into a structured record and PROPOSE a disposition.
 tools: [read]
 ---

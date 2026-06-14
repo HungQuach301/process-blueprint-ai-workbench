@@ -1,5 +1,6 @@
 ---
 name: dev
+color: green
 description: Implement a single scoped change on a branch. Use for feature/cleanup slices.
 tools: [read, edit, bash]
 ---

@@ -1,5 +1,6 @@
 ---
 name: debug
+color: orange
 description: Diagnose a failing build/test/typecheck and propose a minimal fix.
 tools: [read, bash]
 ---

@@ -66,6 +66,7 @@ import { ARTIFACT_REVIEW_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/artifact-
 import { DRAFT_PTR_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/draft-ptr-output-schema";
 import { QA_RECOMMENDATION_OUTPUT_SCHEMA } from "@/lib/ai/output-schemas/qa-recommendation-output-schema";
 import {
+  AI_SKILL_IDS,
   getAISkillDefinitionV2,
   getPromptPackForSkill,
   type AISkillDefinitionV2
@@ -118,8 +119,6 @@ const AI_PROCESS_QA_FINDING_SKILL_ID = "ai-process-qa-finding";
 const PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID =
   "process-improvement-recommendation";
 const ARTIFACT_REVIEW_SKILL_ID = "artifact-review";
-const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
-const TEMPLATE_REVIEW_REGISTRY_SKILL_ID = "template-review";
 const NOTES_TO_BRD_SKILL_ID = "notes-to-brd";
 const PTR_TO_BRD_SKILL_ID = "ptr-to-brd";
 const LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID = "ptr-to-brd-outline";
@@ -160,10 +159,6 @@ function isValidRunSkillRequest(
 }
 
 function getRegistrySkillId(routeSkillId: string) {
-  if (routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID) {
-    return TEMPLATE_REVIEW_REGISTRY_SKILL_ID;
-  }
-
   if (routeSkillId === LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID) {
     return FILE_TO_PTR_DRAFT_SKILL_ID;
   }
@@ -251,7 +246,7 @@ function isRealAIEnabledForSkill(routeSkillId: string) {
     return process.env.ENABLE_REAL_AI_QA === "true";
   }
 
-  if (routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID) {
+  if (routeSkillId === AI_SKILL_IDS.TEMPLATE_REVIEW) {
     return process.env.ENABLE_REAL_AI_TEMPLATE_REVIEW === "true";
   }
 
@@ -269,7 +264,7 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
     AI_PROCESS_QA_FINDING_SKILL_ID,
     PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
     ARTIFACT_REVIEW_SKILL_ID,
-    AI_TEMPLATE_REVIEW_SKILL_ID,
+    AI_SKILL_IDS.TEMPLATE_REVIEW,
     NOTES_TO_BRD_SKILL_ID,
     PTR_TO_BRD_SKILL_ID,
     LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID,
@@ -1151,7 +1146,7 @@ function getValidationContext(
     };
   }
 
-  if (routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID && isTemplateReviewPayload(payload)) {
+  if (routeSkillId === AI_SKILL_IDS.TEMPLATE_REVIEW && isTemplateReviewPayload(payload)) {
     return {
       selectedTemplate: payload.selectedTemplate as AITemplateReviewRequest["templateProfiles"][number]
     };
@@ -1305,7 +1300,7 @@ function createMockTemplateReviewResponse({
 
   const audit = createSafeAuditMetadata({
     skill,
-    routeSkillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+    routeSkillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
     providerId: "mock",
     dataUsageMode,
     mode: "mock",
@@ -1319,7 +1314,7 @@ function createMockTemplateReviewResponse({
     mode: "mock",
     provider: "mock",
     model: getConfiguredAIModel("mock"),
-    skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+    skillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
     result: {
       recommendations: validation.recommendations,
       qualityScore: validation.qualityScore,
@@ -3068,7 +3063,7 @@ function createMockResponse({
     return createMockArtifactReviewResponse({ skill, payload, dataUsageMode });
   }
 
-  if (routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID) {
+  if (routeSkillId === AI_SKILL_IDS.TEMPLATE_REVIEW) {
     return createMockTemplateReviewResponse({ skill, payload, dataUsageMode });
   }
 
@@ -3165,7 +3160,7 @@ function createRouteSpecificInputValidationError(
   }
 
   if (
-    routeSkillId === AI_TEMPLATE_REVIEW_SKILL_ID &&
+    routeSkillId === AI_SKILL_IDS.TEMPLATE_REVIEW &&
     !isTemplateReviewPayload(payload)
   ) {
     return "Template review request must include selectedTemplate.";

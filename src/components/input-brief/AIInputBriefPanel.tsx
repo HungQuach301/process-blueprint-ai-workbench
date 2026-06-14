@@ -29,6 +29,7 @@ import {
 } from "@/lib/ai-intake";
 import type { StructuredProcessBrief } from "@/lib/ai-intake";
 import { getLocale, t, type Locale } from "@/lib/i18n";
+import { AI_SKILL_IDS } from "@/lib/ai/skill-registry-v2";
 import type { ProcessTask } from "@/lib/models/process-task";
 import {
   createSourceCoverageAdvisory,
@@ -56,9 +57,6 @@ const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
 const LOCALE_EVENT = "process-blueprint-locale-change";
-const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
-const FILE_TO_PTR_DRAFT_SKILL_ID = "file-to-ptr-draft";
-const CHAT_TO_PTR_DRAFT_SKILL_ID = "chat-to-ptr-draft";
 
 const fileStatusStyles: Record<IntakeFileMetadata["status"], string> = {
   selected: "border-slate-200 bg-slate-50 text-slate-700",
@@ -1119,7 +1117,7 @@ export function AIInputBriefPanel() {
       setDocxExtraction(result);
       updateIntakeFileStatus(file, "extracted");
       await generateDraftPtrViaSkill({
-        skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+        skillId: AI_SKILL_IDS.FILE_TO_PTR_DRAFT,
         payload: {
           fileName: file.name,
           fileType:
@@ -1403,7 +1401,7 @@ export function AIInputBriefPanel() {
       setPdfExtraction(result);
       updateIntakeFileStatus(file, "extracted");
       await generateDraftPtrViaSkill({
-        skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+        skillId: AI_SKILL_IDS.FILE_TO_PTR_DRAFT,
         payload: {
           fileName: file.name,
           fileType: file.type || "application/pdf",
@@ -1438,7 +1436,7 @@ export function AIInputBriefPanel() {
 
     setDraftRetryAction("docx-extraction");
     void generateDraftPtrViaSkill({
-      skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+      skillId: AI_SKILL_IDS.FILE_TO_PTR_DRAFT,
       payload: {
         fileName: "DOCX extraction",
         fileType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -1470,7 +1468,7 @@ export function AIInputBriefPanel() {
 
     setDraftRetryAction("pdf-extraction");
     void generateDraftPtrViaSkill({
-      skillId: FILE_TO_PTR_DRAFT_SKILL_ID,
+      skillId: AI_SKILL_IDS.FILE_TO_PTR_DRAFT,
       payload: {
         fileName: "PDF extraction",
         fileType: "application/pdf",
@@ -1498,7 +1496,7 @@ export function AIInputBriefPanel() {
     }
 
     await generateDraftPtrViaSkill({
-      skillId: CHAT_TO_PTR_DRAFT_SKILL_ID,
+      skillId: AI_SKILL_IDS.CHAT_TO_PTR_DRAFT,
       payload: {
         notes: chatNotes,
         userContext: [
@@ -1720,7 +1718,7 @@ export function AIInputBriefPanel() {
         }
       });
       logAICallAudit({
-        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        skillId: AI_SKILL_IDS.INPUT_BRIEF_TO_PTR,
         success: true,
         realAIEnabled: false,
         externalApiCalled: false,
@@ -1745,7 +1743,7 @@ export function AIInputBriefPanel() {
         },
         body: JSON.stringify(
           createAISkillRequestBody({
-            skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+            skillId: AI_SKILL_IDS.INPUT_BRIEF_TO_PTR,
             payload: structuredBrief
           })
         )
@@ -1782,7 +1780,7 @@ export function AIInputBriefPanel() {
           }
         });
         logAICallAudit({
-          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          skillId: AI_SKILL_IDS.INPUT_BRIEF_TO_PTR,
           success: false,
           errorMessage,
           realAIEnabled: true,
@@ -1815,7 +1813,7 @@ export function AIInputBriefPanel() {
           }
         });
         logAICallAudit({
-          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          skillId: AI_SKILL_IDS.INPUT_BRIEF_TO_PTR,
           success: false,
           errorMessage,
           realAIEnabled: true,
@@ -1844,7 +1842,7 @@ export function AIInputBriefPanel() {
           }
         });
         logAICallAudit({
-          skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+          skillId: AI_SKILL_IDS.INPUT_BRIEF_TO_PTR,
           success: false,
           errorMessage: "Draft PTR khong dat Quality Gate.",
           realAIEnabled: true,
@@ -1881,7 +1879,7 @@ export function AIInputBriefPanel() {
         }
       });
       logAICallAudit({
-        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        skillId: AI_SKILL_IDS.INPUT_BRIEF_TO_PTR,
         success: true,
         realAIEnabled: true,
         externalApiCalled: data.meta?.externalApiCalled ?? true,
@@ -1894,7 +1892,7 @@ export function AIInputBriefPanel() {
       );
     } catch {
       logAICallAudit({
-        skillId: INPUT_BRIEF_TO_PTR_SKILL_ID,
+        skillId: AI_SKILL_IDS.INPUT_BRIEF_TO_PTR,
         success: false,
         errorMessage: "AI draft generation request failed.",
         realAIEnabled: true,

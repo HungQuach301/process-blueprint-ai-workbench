@@ -8,6 +8,7 @@ import {
   logAICallAudit,
   resolveAISkillModelSelection
 } from "@/lib/ai/ai-governance";
+import { AI_SKILL_IDS } from "@/lib/ai/skill-registry-v2";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
 import type { ProcessTask } from "@/lib/models/process-task";
 import type { TemplateProfile } from "@/lib/models/template-profile";
@@ -48,8 +49,6 @@ const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
 const D01_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d01-template";
 const D02_STORAGE_KEY = "process-blueprint-ai-workbench:selected-d02-template";
-const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
-const AI_PROCESS_QA_FINDING_SKILL_ID = "ai-process-qa-finding";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
@@ -532,7 +531,7 @@ export function QAPanel({
 
         if (active) {
           const isRealAIQAEnabled = data.realAIQAEnabled === true;
-          const selection = resolveAISkillModelSelection(AI_PROCESS_QA_SKILL_ID);
+          const selection = resolveAISkillModelSelection(AI_SKILL_IDS.AI_PROCESS_QA);
 
           setRealAIQAEnabled(isRealAIQAEnabled);
           setQaAiSelection({
@@ -892,7 +891,7 @@ export function QAPanel({
           },
           body: JSON.stringify(
             createAISkillRequestBody({
-              skillId: AI_PROCESS_QA_SKILL_ID,
+              skillId: AI_SKILL_IDS.AI_PROCESS_QA,
               providerId,
               payload: {
               processTasks,
@@ -943,7 +942,7 @@ export function QAPanel({
         );
 
         nextResults.push({
-          id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
+          id: `${AI_SKILL_IDS.AI_PROCESS_QA}-${providerId}-${Date.now()}`,
           providerId,
           model: data.meta?.model ?? data.model ?? "",
           confidence:
@@ -962,7 +961,7 @@ export function QAPanel({
           error: routeResponse.ok && data.ok ? undefined : friendlyErrorMessage
         });
         logAICallAudit({
-          skillId: AI_PROCESS_QA_SKILL_ID,
+          skillId: AI_SKILL_IDS.AI_PROCESS_QA,
           success: routeResponse.ok && data.ok === true,
           errorMessage: routeResponse.ok && data.ok ? undefined : errorMessage,
           realAIEnabled: data.mode === "provider-backed",
@@ -982,7 +981,7 @@ export function QAPanel({
         const errorMessage = getFriendlyAIQAErrorMessage(auditErrorMessage);
 
         nextResults.push({
-          id: `${AI_PROCESS_QA_SKILL_ID}-${providerId}-${Date.now()}`,
+          id: `${AI_SKILL_IDS.AI_PROCESS_QA}-${providerId}-${Date.now()}`,
           providerId,
           model: "",
           confidence: "unknown",
@@ -993,7 +992,7 @@ export function QAPanel({
           error: errorMessage
         });
         logAICallAudit({
-          skillId: AI_PROCESS_QA_SKILL_ID,
+          skillId: AI_SKILL_IDS.AI_PROCESS_QA,
           success: false,
           errorMessage: auditErrorMessage,
           realAIEnabled: realAIQAEnabled && providerId !== "mock",
@@ -1060,7 +1059,7 @@ export function QAPanel({
         },
         body: JSON.stringify(
           createAISkillRequestBody({
-            skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+            skillId: AI_SKILL_IDS.AI_PROCESS_QA_FINDING,
             payload: {
             processTasks,
             qaIssues: issues,
@@ -1089,7 +1088,7 @@ export function QAPanel({
         const friendlyMessage = text.aiSuggestionUnavailable;
 
         logAICallAudit({
-          skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+          skillId: AI_SKILL_IDS.AI_PROCESS_QA_FINDING,
           success: false,
           errorMessage,
           realAIEnabled: realAIQAEnabled,
@@ -1106,7 +1105,7 @@ export function QAPanel({
         `${data.mode === "provider-backed" ? "Real AI" : "Local analysis"} findings returned ${data.result.findings.length} finding(s). External API called: ${data.meta?.externalApiCalled === true ? "yes" : "no"}.`
       );
       logAICallAudit({
-        skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+        skillId: AI_SKILL_IDS.AI_PROCESS_QA_FINDING,
         success: true,
         realAIEnabled: data.mode === "provider-backed",
         externalApiCalled: data.meta?.externalApiCalled === true,
@@ -1117,7 +1116,7 @@ export function QAPanel({
       });
     } catch {
       logAICallAudit({
-        skillId: AI_PROCESS_QA_FINDING_SKILL_ID,
+        skillId: AI_SKILL_IDS.AI_PROCESS_QA_FINDING,
         success: false,
         errorMessage: "AI findings request failed.",
         realAIEnabled: realAIQAEnabled,
@@ -1152,7 +1151,7 @@ export function QAPanel({
         },
         body: JSON.stringify(
           createAISkillRequestBody({
-            skillId: AI_PROCESS_QA_SKILL_ID,
+            skillId: AI_SKILL_IDS.AI_PROCESS_QA,
             payload: {
             processTasks,
             qaIssues: issues,
@@ -1184,7 +1183,7 @@ export function QAPanel({
         const friendlyMessage = text.aiSuggestionUnavailable;
 
         logAICallAudit({
-          skillId: AI_PROCESS_QA_SKILL_ID,
+          skillId: AI_SKILL_IDS.AI_PROCESS_QA,
           success: false,
           errorMessage,
           realAIEnabled: realAIQAEnabled,
@@ -1234,7 +1233,7 @@ export function QAPanel({
       );
       setAiRetryAction(null);
       logAICallAudit({
-        skillId: AI_PROCESS_QA_SKILL_ID,
+        skillId: AI_SKILL_IDS.AI_PROCESS_QA,
         success: true,
         realAIEnabled: data.mode === "provider-backed",
         externalApiCalled: data.meta?.externalApiCalled === true,
@@ -1246,7 +1245,7 @@ export function QAPanel({
       });
     } catch {
       logAICallAudit({
-        skillId: AI_PROCESS_QA_SKILL_ID,
+        skillId: AI_SKILL_IDS.AI_PROCESS_QA,
         success: false,
         errorMessage: "AI QA request failed.",
         realAIEnabled: realAIQAEnabled,

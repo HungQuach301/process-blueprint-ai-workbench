@@ -8,6 +8,7 @@ import {
   logAICallAudit
 } from "@/lib/ai/ai-governance";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
+import { AI_SKILL_IDS } from "@/lib/ai/skill-registry-v2";
 import type {
   TemplateQualityScore,
   TemplateRecommendation
@@ -40,7 +41,6 @@ const D01_GENERATED_STATUS_KEY =
 const D02_GENERATED_STATUS_KEY =
   "process-blueprint-ai-workbench:generated-d02-service-blueprint-status";
 const ARTIFACT_STATUS_EVENT = "process-blueprint-artifact-status-change";
-const AI_TEMPLATE_REVIEW_SKILL_ID = "ai-template-review";
 const LOCALE_EVENT = "process-blueprint-locale-change";
 
 type CompareProviderId = "product-ai" | "openai" | "claude" | "mock";
@@ -862,7 +862,7 @@ export function TemplateLibraryEditor() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           createAISkillRequestBody({
-            skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+            skillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
             payload: {
             selectedTemplate,
             outputType: selectedTemplate.outputType,
@@ -897,7 +897,7 @@ export function TemplateLibraryEditor() {
         );
 
         logAICallAudit({
-          skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+          skillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
           success: false,
           errorMessage,
           realAIEnabled: realAITemplateReviewEnabled,
@@ -923,7 +923,7 @@ export function TemplateLibraryEditor() {
         } recommendation(s). No template change was auto-applied.`
       );
       logAICallAudit({
-        skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+        skillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
         success: true,
         realAIEnabled: data.mode === "provider-backed",
         externalApiCalled: data.meta?.externalApiCalled === true,
@@ -936,7 +936,7 @@ export function TemplateLibraryEditor() {
       });
     } catch {
       logAICallAudit({
-        skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+        skillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
         success: false,
         errorMessage: "Template QA request failed.",
         realAIEnabled: realAITemplateReviewEnabled,
@@ -1024,7 +1024,7 @@ export function TemplateLibraryEditor() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
             createAISkillRequestBody({
-              skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+              skillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
               providerId,
               payload: {
               selectedTemplate,
@@ -1069,7 +1069,7 @@ export function TemplateLibraryEditor() {
         );
 
         nextResults.push({
-          id: `${AI_TEMPLATE_REVIEW_SKILL_ID}-${providerId}-${Date.now()}`,
+          id: `${AI_SKILL_IDS.TEMPLATE_REVIEW}-${providerId}-${Date.now()}`,
           providerId,
           model: data.meta?.model ?? data.model ?? "",
           confidence:
@@ -1094,7 +1094,7 @@ export function TemplateLibraryEditor() {
           error: response.ok && data.ok ? undefined : friendlyErrorMessage
         });
         logAICallAudit({
-          skillId: AI_TEMPLATE_REVIEW_SKILL_ID,
+          skillId: AI_SKILL_IDS.TEMPLATE_REVIEW,
           success: response.ok && data.ok === true,
           errorMessage: response.ok && data.ok ? undefined : errorMessage,
           realAIEnabled: data.mode === "provider-backed",
@@ -1115,7 +1115,7 @@ export function TemplateLibraryEditor() {
         const errorMessage = getFriendlyTemplateAIErrorMessage(auditErrorMessage);
 
         nextResults.push({
-          id: `${AI_TEMPLATE_REVIEW_SKILL_ID}-${providerId}-${Date.now()}`,
+          id: `${AI_SKILL_IDS.TEMPLATE_REVIEW}-${providerId}-${Date.now()}`,
           providerId,
           model: "",
           confidence: "unknown",

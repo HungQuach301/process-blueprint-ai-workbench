@@ -2,6 +2,48 @@ import type { AIProviderId } from "@/lib/ai/providers/provider-types";
 import type { AISkillSchemaId } from "@/lib/ai/skill-schemas";
 import { getAIPromptPack } from "@/lib/ai/prompt-packs";
 
+/**
+ * Canonical AI skill IDs — the single source of truth for skill identifiers.
+ * Consumers (components, the run-skill route) import these instead of
+ * re-declaring string literals. The registry below is typed against AISkillId,
+ * so any drift between an entry and this list fails typecheck. (Gate 0 / P1.1)
+ */
+export const AI_SKILL_IDS = {
+  INPUT_BRIEF_TO_PTR: "input-brief-to-ptr",
+  FILE_TO_PTR_DRAFT: "file-to-ptr-draft",
+  CHAT_TO_PTR_DRAFT: "chat-to-ptr-draft",
+  AI_PROCESS_QA: "ai-process-qa",
+  AI_PROCESS_QA_FINDING: "ai-process-qa-finding",
+  PROCESS_IMPROVEMENT_RECOMMENDATION: "process-improvement-recommendation",
+  ARTIFACT_REVIEW: "artifact-review",
+  TEMPLATE_REVIEW: "template-review",
+  TEMPLATE_RECOMMENDATION: "template-recommendation",
+  NOTES_TO_BRD: "notes-to-brd",
+  PTR_TO_BRD: "ptr-to-brd",
+  PTR_TO_BRD_OUTLINE: "ptr-to-brd-outline",
+  BRD_TO_SRS: "brd-to-srs",
+  NOTES_TO_SRS: "notes-to-srs",
+  PTR_TO_SRS_OUTLINE: "ptr-to-srs-outline",
+  SRS_TO_USER_STORIES: "srs-to-user-stories",
+  BRD_TO_USER_STORIES: "brd-to-user-stories",
+  BRD_OR_NOTES_TO_USER_STORIES: "brd-or-notes-to-user-stories",
+  PTR_TO_USER_STORIES: "ptr-to-user-stories",
+  USER_STORIES_TO_ACCEPTANCE_CRITERIA: "user-stories-to-acceptance-criteria",
+  USER_STORIES_TO_JIRA_EXPORT: "user-stories-to-jira-export",
+  PRODUCT_SCOPE_REVIEW: "product-scope-review",
+  MVP_SLICING: "mvp-slicing",
+  SCOPE_NONSCOPE_DEFINITION: "scope-nonscope-definition",
+  REQUIREMENT_QUALITY_CHECK: "requirement-quality-check",
+  PTR_TO_AI_CODING_PACK: "ptr-to-ai-coding-pack",
+  USER_STORIES_TO_AI_CODING_PACK: "user-stories-to-ai-coding-pack"
+} as const;
+
+export type AISkillId = (typeof AI_SKILL_IDS)[keyof typeof AI_SKILL_IDS];
+
+export function isAISkillId(value: string): value is AISkillId {
+  return (Object.values(AI_SKILL_IDS) as string[]).includes(value);
+}
+
 export type AISkillModule =
   | "module-2-process-modeling"
   | "module-3-product-delivery"
@@ -26,7 +68,7 @@ export type AISkillSchemaReference = {
 };
 
 export type AISkillDefinitionV2 = {
-  skillId: string;
+  skillId: AISkillId;
   version: string;
   module: AISkillModule;
   status: AISkillStatus;

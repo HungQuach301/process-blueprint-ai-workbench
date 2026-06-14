@@ -24,8 +24,8 @@ import {
   sampleBpmnTemplateProfile,
   sampleProcessTasks
 } from "@/lib/sample-data/sme-online-loan";
+import { AI_SKILL_IDS } from "@/lib/ai/skill-registry-v2";
 
-const ARTIFACT_REVIEW_SKILL_ID = "artifact-review";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
@@ -307,7 +307,7 @@ export function D01BpmnOutput() {
         },
         body: JSON.stringify(
           createAISkillRequestBody({
-            skillId: ARTIFACT_REVIEW_SKILL_ID,
+            skillId: AI_SKILL_IDS.ARTIFACT_REVIEW,
             payload: {
             artifactType: "bpmn",
             artifactXml: xml,
@@ -340,7 +340,7 @@ export function D01BpmnOutput() {
           data.validationErrors
         );
         logAICallAudit({
-          skillId: ARTIFACT_REVIEW_SKILL_ID,
+          skillId: AI_SKILL_IDS.ARTIFACT_REVIEW,
           success: false,
           errorMessage,
           realAIEnabled,
@@ -360,7 +360,7 @@ export function D01BpmnOutput() {
 
       setReviewResult(result);
       logAICallAudit({
-        skillId: ARTIFACT_REVIEW_SKILL_ID,
+        skillId: AI_SKILL_IDS.ARTIFACT_REVIEW,
         success: true,
         realAIEnabled,
         externalApiCalled: data.meta?.externalApiCalled,

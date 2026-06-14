@@ -25,8 +25,8 @@ import {
   sampleProcessTasks,
   sampleServiceBlueprintTemplateProfile
 } from "@/lib/sample-data/sme-online-loan";
+import { AI_SKILL_IDS } from "@/lib/ai/skill-registry-v2";
 
-const ARTIFACT_REVIEW_SKILL_ID = "artifact-review";
 const TASKS_STORAGE_KEY = "process-blueprint-ai-workbench:process-tasks";
 const TEMPLATES_STORAGE_KEY =
   "process-blueprint-ai-workbench:template-profiles";
@@ -344,7 +344,7 @@ export function D02ServiceBlueprintOutput() {
         },
         body: JSON.stringify(
           createAISkillRequestBody({
-            skillId: ARTIFACT_REVIEW_SKILL_ID,
+            skillId: AI_SKILL_IDS.ARTIFACT_REVIEW,
             payload: {
             artifactType: "service-blueprint",
             artifactXml: xml,
@@ -377,7 +377,7 @@ export function D02ServiceBlueprintOutput() {
           data.validationErrors
         );
         logAICallAudit({
-          skillId: ARTIFACT_REVIEW_SKILL_ID,
+          skillId: AI_SKILL_IDS.ARTIFACT_REVIEW,
           success: false,
           errorMessage,
           realAIEnabled,
@@ -397,7 +397,7 @@ export function D02ServiceBlueprintOutput() {
 
       setReviewResult(result);
       logAICallAudit({
-        skillId: ARTIFACT_REVIEW_SKILL_ID,
+        skillId: AI_SKILL_IDS.ARTIFACT_REVIEW,
         success: true,
         realAIEnabled,
         externalApiCalled: data.meta?.externalApiCalled,

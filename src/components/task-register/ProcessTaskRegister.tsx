@@ -30,6 +30,7 @@ import {
   type RelatedSampleProcessId
 } from "@/lib/ai-intake";
 import { getAIValidationUserMessage } from "@/lib/ai/user-facing-ai-errors";
+import { AI_SKILL_IDS } from "@/lib/ai/skill-registry-v2";
 import {
   type QaIssue,
   type QARecommendation,
@@ -211,7 +212,6 @@ type PtrAIAssistantActionId =
   | "generate-missing-input-output"
   | "suggest-interaction-channel";
 
-const PTR_AI_ASSISTANT_SKILL_ID = "process-improvement-recommendation";
 const PTR_AI_DEFAULT_ACTION_ID: PtrAIAssistantActionId = "normalize-selected-rows";
 
 const ptrAIAssistantActions: Array<{
@@ -996,7 +996,7 @@ export function ProcessTaskRegister() {
           realAIEnabled?: boolean;
         };
         const selection = resolveAISkillModelSelection(
-          PTR_AI_ASSISTANT_SKILL_ID
+          AI_SKILL_IDS.PROCESS_IMPROVEMENT_RECOMMENDATION
         );
 
         if (active) {
@@ -1202,7 +1202,7 @@ export function ProcessTaskRegister() {
         },
         body: JSON.stringify(
           createAISkillRequestBody({
-            skillId: PTR_AI_ASSISTANT_SKILL_ID,
+            skillId: AI_SKILL_IDS.PROCESS_IMPROVEMENT_RECOMMENDATION,
             payload: {
             processTasks: tasks,
             templateProfiles: readTemplateProfiles(),
@@ -1244,7 +1244,7 @@ export function ProcessTaskRegister() {
           status: "failure",
           summary: "PTR AI Assistant request failed.",
           metadata: {
-            skillId: PTR_AI_ASSISTANT_SKILL_ID,
+            skillId: AI_SKILL_IDS.PROCESS_IMPROVEMENT_RECOMMENDATION,
             actionId,
             selectedRowCount: targetTasks.length,
             externalApiCalled: data.meta?.externalApiCalled === true
@@ -1300,7 +1300,7 @@ export function ProcessTaskRegister() {
         status: "success",
         summary: "PTR AI Assistant generated recommendations.",
         metadata: {
-          skillId: PTR_AI_ASSISTANT_SKILL_ID,
+          skillId: AI_SKILL_IDS.PROCESS_IMPROVEMENT_RECOMMENDATION,
           actionId,
           selectedRowCount: targetTasks.length,
           recommendationCount: recommendations.length,
@@ -1321,7 +1321,7 @@ export function ProcessTaskRegister() {
         status: "failure",
         summary: "PTR AI Assistant network request failed.",
         metadata: {
-          skillId: PTR_AI_ASSISTANT_SKILL_ID,
+          skillId: AI_SKILL_IDS.PROCESS_IMPROVEMENT_RECOMMENDATION,
           actionId,
           selectedRowCount: targetTasks.length,
           externalApiCalled: false

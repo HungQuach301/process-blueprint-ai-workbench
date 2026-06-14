@@ -53,3 +53,4 @@ evals/**/results-*.json
 
 # Local Claude/Codex workspace state
 .claude/
+/HUONG_DAN_BUOC_TIEP_THEO.md

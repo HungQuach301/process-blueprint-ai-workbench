@@ -111,9 +111,7 @@ type DataUsageMode =
 
 const INPUT_BRIEF_TO_PTR_SKILL_ID = "input-brief-to-ptr";
 const FILE_TO_PTR_DRAFT_SKILL_ID = "file-to-ptr-draft";
-const LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID = "file-to-draft-ptr";
 const CHAT_TO_PTR_DRAFT_SKILL_ID = "chat-to-ptr-draft";
-const LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID = "chat-to-draft-ptr";
 const AI_PROCESS_QA_SKILL_ID = "ai-process-qa";
 const AI_PROCESS_QA_FINDING_SKILL_ID = "ai-process-qa-finding";
 const PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID =
@@ -159,14 +157,6 @@ function isValidRunSkillRequest(
 }
 
 function getRegistrySkillId(routeSkillId: string) {
-  if (routeSkillId === LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID) {
-    return FILE_TO_PTR_DRAFT_SKILL_ID;
-  }
-
-  if (routeSkillId === LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID) {
-    return CHAT_TO_PTR_DRAFT_SKILL_ID;
-  }
-
   if (routeSkillId === LEGACY_PTR_TO_BRD_OUTLINE_SKILL_ID) {
     return PTR_TO_BRD_SKILL_ID;
   }
@@ -257,9 +247,7 @@ function isRouteBackedByDeterministicMock(routeSkillId: string) {
   return [
     INPUT_BRIEF_TO_PTR_SKILL_ID,
     FILE_TO_PTR_DRAFT_SKILL_ID,
-    LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID,
     CHAT_TO_PTR_DRAFT_SKILL_ID,
-    LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID,
     AI_PROCESS_QA_SKILL_ID,
     AI_PROCESS_QA_FINDING_SKILL_ID,
     PROCESS_IMPROVEMENT_RECOMMENDATION_SKILL_ID,
@@ -324,9 +312,7 @@ function isDraftPtrGenerationSkill(routeSkillId: string) {
   return [
     INPUT_BRIEF_TO_PTR_SKILL_ID,
     FILE_TO_PTR_DRAFT_SKILL_ID,
-    LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID,
-    CHAT_TO_PTR_DRAFT_SKILL_ID,
-    LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID
+    CHAT_TO_PTR_DRAFT_SKILL_ID
   ].includes(routeSkillId);
 }
 
@@ -3023,10 +3009,7 @@ function createMockResponse({
     return createMockInputBriefResponse({ skill, payload, dataUsageMode });
   }
 
-  if (
-    routeSkillId === FILE_TO_PTR_DRAFT_SKILL_ID ||
-    routeSkillId === LEGACY_FILE_TO_DRAFT_PTR_SKILL_ID
-  ) {
+  if (routeSkillId === FILE_TO_PTR_DRAFT_SKILL_ID) {
     return createMockFileToPtrDraftResponse({
       routeSkillId,
       skill,
@@ -3035,10 +3018,7 @@ function createMockResponse({
     });
   }
 
-  if (
-    routeSkillId === CHAT_TO_PTR_DRAFT_SKILL_ID ||
-    routeSkillId === LEGACY_CHAT_TO_DRAFT_PTR_SKILL_ID
-  ) {
+  if (routeSkillId === CHAT_TO_PTR_DRAFT_SKILL_ID) {
     return createMockChatToPtrDraftResponse({
       routeSkillId,
       skill,

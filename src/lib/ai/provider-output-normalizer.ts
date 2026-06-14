@@ -47,9 +47,7 @@ const knownOutputSchemas = new Set<string>([
 const knownSkillIds = new Set<string>([
   "input-brief-to-ptr",
   "file-to-ptr-draft",
-  "file-to-draft-ptr",
   "chat-to-ptr-draft",
-  "chat-to-draft-ptr",
   "ai-process-qa",
   "ai-process-qa-finding",
   "process-qa-recommendation",

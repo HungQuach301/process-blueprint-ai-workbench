@@ -1,0 +1,13 @@
+{
+  "_comment": "Hook registration skeleton. VERIFY exact schema at code.claude.com/docs/en/hooks. The bash scripts are stable; only this registration format may change.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/typecheck-on-edit.sh" }
+        ]
+      }
+    ]
+  }
+}

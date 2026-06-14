@@ -2,7 +2,7 @@
 name: dev
 color: green
 description: Implement a single scoped change on a branch. Use for feature/cleanup slices.
-tools: [read, edit, bash]
+tools: Read, Edit, Bash
 ---
 You implement ONE scoped change on a feature branch.
 Input: a lesson slice or cleanup task with clear scope.

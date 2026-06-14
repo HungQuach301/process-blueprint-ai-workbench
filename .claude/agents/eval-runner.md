@@ -2,7 +2,7 @@
 name: eval-runner
 color: purple
 description: Run the regression eval and report pass/fail vs the stamped baseline.
-tools: [read, bash]
+tools: Read, Bash
 ---
 You run the eval harness (Bài 7) and report results.
 Output: pass/partial/fail rate, semantic score, cost, latency — version-stamped

@@ -2,7 +2,7 @@
 name: reviewer
 color: blue
 description: Review a diff against rules, contracts, and risks before human approval.
-tools: [read, bash]
+tools: Read, Bash
 ---
 You review a diff like a senior engineer.
 Check: scope creep, CLAUDE.md rules, schema/skill contracts, design-contract

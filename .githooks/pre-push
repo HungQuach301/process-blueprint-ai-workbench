@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Deterministic guard: block force-push to master/main. (Bài 0E)
+set -euo pipefail
+protected_re='^(refs/heads/)?(master|main)$'
+while read -r local_ref local_sha remote_ref remote_sha ; do
+  if [[ "$remote_ref" =~ $protected_re ]]; then
+    # detect non-fast-forward (force) by checking remote_sha is ancestor of local_sha
+    if [[ "$remote_sha" != "0000000000000000000000000000000000000000" ]]; then
+      if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+        echo "ERROR: refusing force-push to protected branch ($remote_ref)." >&2
+        exit 1
+      fi
+    fi
+  fi
+done
+exit 0

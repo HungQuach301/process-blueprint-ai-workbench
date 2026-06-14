@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Deterministic guard: block committing secrets. (Bai 0E)
+set -euo pipefail
+
+# 1) Chan file tro giong secret theo TEN — nhung CHO PHEP *.example / *.sample
+bad=$(git diff --cached --name-only \
+  | grep -E '(^|/)(\.env($|\..*)|.*\.(key|pem|p12|pfx)$|.*credentials.*|.*secret.*)' \
+  | grep -Ev '\.(example|sample)$' || true)
+if [ -n "$bad" ]; then
+  echo "$bad" >&2
+  echo "ERROR: attempt to commit a secret-looking file. Remove it or add to .gitignore." >&2
+  exit 1
+fi
+
+# 2) Chan gia tri giong secret trong NOI DUNG (bo qua *.example / *.sample)
+if git diff --cached -U0 -- . ':(exclude)*.example' ':(exclude)*.sample' \
+   | grep -E '(AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|sk-[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,})' ; then
+  echo "ERROR: a secret-like value is staged. Remove it before committing." >&2
+  exit 1
+fi
+
+exit 0

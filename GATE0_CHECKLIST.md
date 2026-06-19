@@ -7,8 +7,8 @@
     (ptr-to-brd-outline + provider-namespace deferred — see ADR-skill-id-aliases.md)
 [x] skill-registry-v2 is the only skill source of truth
 [x] P1.3 Retire skill-engine — src/lib/skill-engine/ deleted; typecheck + build green
-[ ] P1.4 Pin dependencies — no `latest`, lockfile committed
-[ ] P1.5 SDK vs raw fetch — decision recorded as ADR (use ADR-0000-template)
+[x] P1.4 Pin dependencies — no `latest`, lockfile committed
+[x] P1.5 SDK vs raw fetch — raw fetch; SDK deps removed (see ADR-sdk-vs-raw-fetch.md)
 [ ] Lint — configure or intentionally defer, recorded as ADR
 [ ] Typecheck/build green (CI or local log)
 [ ] Bài 0E starter hooks active (secrets block, typecheck-on-edit, no-force-push)

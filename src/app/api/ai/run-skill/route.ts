@@ -71,7 +71,6 @@ import {
   getPromptPackForSkill,
   type AISkillDefinitionV2
 } from "@/lib/ai/skill-registry-v2";
-import { getSkillDefinition } from "@/lib/skill-engine/skill-registry";
 import {
   normalizeDeterministicCodingPack,
   runAICodingPackQualityGate,
@@ -490,13 +489,6 @@ function createProviderMeta(
   };
 }
 
-function getSupportsStructuredOutput(routeSkillId: string) {
-  return (
-    getSkillDefinition(routeSkillId)?.modelRequirements.supportsStructuredOutput ===
-    true
-  );
-}
-
 function getStructuredOutputSchemaForSkill(
   routeSkillId: string,
   providerId: AIProviderId
@@ -506,10 +498,6 @@ function getStructuredOutputSchemaForSkill(
   }
 
   if (routeSkillId === INPUT_BRIEF_TO_PTR_SKILL_ID) {
-    if (!getSupportsStructuredOutput(routeSkillId)) {
-      return undefined;
-    }
-
     return {
       name: "draft_process_task_register",
       schema: DRAFT_PTR_OUTPUT_SCHEMA

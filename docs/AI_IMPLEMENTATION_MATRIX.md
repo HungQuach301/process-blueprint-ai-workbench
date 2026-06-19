@@ -12,7 +12,7 @@ Inspected areas:
 - `src/lib/recommendation-engine/`
 - `src/lib/template-recommendation-engine/`
 - `src/lib/audit/`
-- `src/lib/skill-engine/`
+- ~~`src/lib/skill-engine/`~~ — retired in Gate 0 P1.3 (superseded by `skill-registry-v2.ts`)
 - `src/lib/generators/product-delivery-generator.ts`
 - `src/lib/generators/ai-coding-pack-generator.ts`
 - `src/components/ai-settings/AIProviderSettingsPanel.tsx`

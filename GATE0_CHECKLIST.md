@@ -9,9 +9,9 @@
 [x] P1.3 Retire skill-engine — src/lib/skill-engine/ deleted; typecheck + build green
 [x] P1.4 Pin dependencies — no `latest`, lockfile committed
 [x] P1.5 SDK vs raw fetch — raw fetch; SDK deps removed (see ADR-sdk-vs-raw-fetch.md)
-[ ] Lint — configure or intentionally defer, recorded as ADR
-[ ] Typecheck/build green (CI or local log)
-[ ] Bài 0E starter hooks active (secrets block, typecheck-on-edit, no-force-push)
+[x] Lint — ESLint 9 flat config; baseline documented (see ADR-lint-decision.md)
+[x] Typecheck/build green (CI or local log)
+[x] Bài 0E starter hooks active (secrets block, typecheck-on-edit, no-force-push)
     so they guard the cleanup commits themselves
 ```
 

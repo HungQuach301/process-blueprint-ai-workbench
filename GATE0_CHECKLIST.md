@@ -5,8 +5,8 @@
 ```text
 [x] P1.1 Unify skill IDs — registry = single source; dead draft-ptr aliases removed
     (ptr-to-brd-outline + provider-namespace deferred — see ADR-skill-id-aliases.md)
-[ ] skill-registry-v2 is the only skill source of truth
-[ ] P1.3 Retire skill-engine
+[x] skill-registry-v2 is the only skill source of truth
+[x] P1.3 Retire skill-engine — src/lib/skill-engine/ deleted; typecheck + build green
 [ ] P1.4 Pin dependencies — no `latest`, lockfile committed
 [ ] P1.5 SDK vs raw fetch — decision recorded as ADR (use ADR-0000-template)
 [ ] Lint — configure or intentionally defer, recorded as ADR

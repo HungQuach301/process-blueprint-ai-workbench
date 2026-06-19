@@ -13,12 +13,10 @@
     "lint": "echo TODO: configure ESLint 9 flat config"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.95.1",
     "bpmn-js": "^18.16.1",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
     "next": "^16.2.4",
-    "openai": "^6.37.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

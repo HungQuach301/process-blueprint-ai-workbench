@@ -1,15 +1,15 @@
 # CURRICULUM STATUS (rolling 2-week plan — update weekly)
 
 Updated: 2026-06-14
-Current spine step: **Bài 0E — Dev-Agent Layer**
-Next: Gate 0 cleanup
+Current spine step: **Gate 0 — done.** Next: Bài 0D — Design System Contract
+Known debt: 7 real lint errors (5 rules-of-hooks + 1 purity + 1 unescaped) — fix as a slice (see ADR-lint-decision.md)
 Budget this month: $0 / $50   (track spend per lesson)
 
 ## This week (≤3 items)
 - [x] Bài 0E: finalize `.claude/` (subagents + starter hooks), enable git hooks
       (`git config core.hooksPath .githooks`) → evidence: PR #1 + #2 merged
 - [x] Bài 0E: enable Claude Code Remote Control (mobile) → evidence: connected from phone
-- [ ] Gate 0: P1.1 skill-ID cleanup → evidence: grep proof in PR
+- [x] Gate 0: P1.1–P1.5 + lint baseline → evidence: master commits, ADRs, ticked GATE0_CHECKLIST
 
 ## Next week (provisional)
 - Gate 0: P1.3 retire skill-engine, P1.4 pin deps, P1.5 SDK ADR, lint ADR
@@ -21,6 +21,7 @@ Budget this month: $0 / $50   (track spend per lesson)
 | 2026-06-14 | Curriculum v7.3 operating set adopted | PR #1 (curriculum/v7.3-operating-set) |
 | 2026-06-14 | Bài 0E dev-agent layer + deliverables | PR #2 (lesson/0E-dev-agent-layer) |
 | 2026-06-14 | Remote Control enabled (mobile) | connected from phone |
+| 2026-06-14 | Gate 0 cleanup (P1.1–P1.5 + lint) | master @ 05cc299; ADRs in docs/decisions |
 
 ## Blocked / decisions needed
 - Budget cap set to $50/month (2026-06-14).

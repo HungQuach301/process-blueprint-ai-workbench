@@ -1011,7 +1011,7 @@ export function QAPanel({
     setIsRunningCompare(false);
   }
 
-  function useCompareResult(result: AIQACompareResult) {
+  function applyCompareResult(result: AIQACompareResult) {
     setAiQaIssues(
       result.recommendations.length > 0
         ? [
@@ -1630,7 +1630,7 @@ export function QAPanel({
               <button
                 className="btn btn-ai mt-3 text-xs"
                 disabled={result.recommendations.length === 0}
-                onClick={() => useCompareResult(result)}
+                onClick={() => applyCompareResult(result)}
                 type="button"
               >
                 Use this output

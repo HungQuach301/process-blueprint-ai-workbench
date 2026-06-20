@@ -97,14 +97,11 @@ function readSelectedTemplateSummary(): SelectedTemplateSummary {
 }
 
 export function AppShell() {
-  const [locale, setActiveLocale] = useState<Locale>("vi");
+  const [locale, setActiveLocale] = useState<Locale>(getLocale);
   const [isTemplateHubOpen, setIsTemplateHubOpen] = useState(false);
   const [isTemplatePreviewOpen, setIsTemplatePreviewOpen] = useState(false);
   const [selectedTemplates, setSelectedTemplates] =
-    useState<SelectedTemplateSummary>(() => ({
-      d01: sampleBpmnTemplateProfile,
-      d02: sampleServiceBlueprintTemplateProfile
-    }));
+    useState<SelectedTemplateSummary>(readSelectedTemplateSummary);
   const artifactCount = releaseNavigationSections.filter(
     (section) =>
       section.id === "d01-bpmn-preview" ||
@@ -250,11 +247,6 @@ export function AppShell() {
     domain: locale === "vi" ? "Domain" : "Domain",
     processType: locale === "vi" ? "Process" : "Process"
   };
-
-  useEffect(() => {
-    setActiveLocale(getLocale());
-    setSelectedTemplates(readSelectedTemplateSummary());
-  }, []);
 
   useEffect(() => {
     function refreshSelectedTemplates() {

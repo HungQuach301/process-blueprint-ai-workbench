@@ -21,7 +21,7 @@ belongs in a HOOK (see .claude/hooks and .githooks), not here.
 - Run cloud/delegate sessions on a branch with real bank data.
 
 ## Subagents (see .claude/agents)
-dev, debug, reviewer, eval-runner, feedback-triager. Each is a bounded role; the
+dev, debug, reviewer, eval-runner, feedback-triager, security-reviewer. Each is a bounded role; the
 human approves the final diff.
 
 ## Workflow guardrails (learned — keep these true)

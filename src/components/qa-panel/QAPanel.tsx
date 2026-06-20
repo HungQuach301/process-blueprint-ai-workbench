@@ -1016,6 +1016,7 @@ export function QAPanel({
       result.recommendations.length > 0
         ? [
             {
+              // eslint-disable-next-line react-hooks/purity -- Date.now() generates a unique id inside an event handler, not during render
               id: `ai-process-qa-compare-${Date.now()}`,
               issueCode: "SERVICE_BLUEPRINT_CARD_READINESS",
               stepId:

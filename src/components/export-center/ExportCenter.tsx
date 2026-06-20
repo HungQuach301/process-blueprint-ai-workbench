@@ -1027,7 +1027,7 @@ export function ExportCenter() {
     setMessage("Provider Compare finished. Choose one output to preview further.");
   }
 
-  function useExportCompareResult(result: ExportCompareResult) {
+  function applyExportCompareResult(result: ExportCompareResult) {
     if (!result.result) {
       return;
     }
@@ -2474,7 +2474,7 @@ export function ExportCenter() {
         <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           <p className="font-semibold">Local workspace</p>
           <p className="mt-1">
-            Workspace backup and restore use this browser's localStorage only.
+            Workspace backup and restore use this browser&apos;s localStorage only.
             No server sync or database write is performed.
           </p>
         </div>
@@ -3244,7 +3244,7 @@ export function ExportCenter() {
                     <button
                       className="btn btn-ai mt-3 text-xs"
                       disabled={!result.result || result.validationStatus !== "passed"}
-                      onClick={() => useExportCompareResult(result)}
+                      onClick={() => applyExportCompareResult(result)}
                       type="button"
                     >
                       Use this output

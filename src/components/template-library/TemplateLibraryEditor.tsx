@@ -788,14 +788,14 @@ export function TemplateLibraryEditor() {
     setMessage("Reset to sample and banking starter templates.");
   }
 
-  function useForD01(templateId: string) {
+  function applyForD01(templateId: string) {
     setSelectedD01TemplateId(templateId);
     window.localStorage.setItem(D01_STORAGE_KEY, templateId);
     markGeneratedArtifactsStale();
     setMessage("Selected template for D01 BPMN.");
   }
 
-  function useForD02(templateId: string) {
+  function applyForD02(templateId: string) {
     setSelectedD02TemplateId(templateId);
     window.localStorage.setItem(D02_STORAGE_KEY, templateId);
     markGeneratedArtifactsStale();
@@ -1136,7 +1136,7 @@ export function TemplateLibraryEditor() {
     setIsRunningCompare(false);
   }
 
-  function useCompareResult(result: TemplateCompareResult) {
+  function applyCompareResult(result: TemplateCompareResult) {
     setTemplateReviewRecommendations(result.recommendations);
     setTemplateQualityScore(result.qualityScore);
     setTemplateReviewWarnings(result.warnings);
@@ -1321,7 +1321,7 @@ export function TemplateLibraryEditor() {
               <button
                 className="btn btn-ai mt-3 text-xs"
                 disabled={result.validationStatus !== "passed"}
-                onClick={() => useCompareResult(result)}
+                onClick={() => applyCompareResult(result)}
                 type="button"
               >
                 Use this output
@@ -1506,14 +1506,14 @@ export function TemplateLibraryEditor() {
                     </button>
                     <button
                       className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      onClick={() => useForD01(draft.id)}
+                      onClick={() => applyForD01(draft.id)}
                       type="button"
                     >
                       {text.useD01}
                     </button>
                     <button
                       className="rounded border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      onClick={() => useForD02(draft.id)}
+                      onClick={() => applyForD02(draft.id)}
                       type="button"
                     >
                       {text.useD02}

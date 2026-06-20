@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Deterministic push guards (Bài 0E): (1) typecheck + lint must pass, (2) no force-push to master/main.
+# Deterministic push guards (Bài 0E): typecheck passes; no lint errors and warnings <= baseline; no force-push to master/main.
 set -uo pipefail
+
+LINT_WARNING_BASELINE=20
 
 if [ -f package.json ]; then
   if grep -q '"typecheck"' package.json ; then
@@ -11,9 +13,10 @@ if [ -f package.json ]; then
     fi
   fi
   if grep -q '"lint"' package.json ; then
-    echo "pre-push: lint (errors only)..." >&2
-    if ! npm run lint -- --quiet ; then
-      echo "ERROR: lint errors — fix before pushing (warnings are allowed)." >&2
+    echo "pre-push: lint (errors block; warnings must stay <= $LINT_WARNING_BASELINE)..." >&2
+    if ! npm run lint -- --max-warnings "$LINT_WARNING_BASELINE" ; then
+      echo "ERROR: lint has errors, or warnings exceed baseline ($LINT_WARNING_BASELINE)." >&2
+      echo "       Fix it, or if warnings were intentionally reduced, lower LINT_WARNING_BASELINE in .githooks/pre-push." >&2
       exit 1
     fi
   fi

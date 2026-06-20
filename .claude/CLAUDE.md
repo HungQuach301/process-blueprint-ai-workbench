@@ -23,3 +23,13 @@ belongs in a HOOK (see .claude/hooks and .githooks), not here.
 ## Subagents (see .claude/agents)
 dev, debug, reviewer, eval-runner, feedback-triager. Each is a bounded role; the
 human approves the final diff.
+
+## Workflow guardrails (learned — keep these true)
+- The Cowork assistant does NOT edit `src/**` directly; source changes go through the dev
+  subagent + reviewer + human approval. Cowork handles plans, briefs, review discussion, docs (.md).
+- Re-run the verifier (typecheck + lint) after EVERY edit, including "cleanup" edits like
+  removing a comment. A small change still needs verification.
+- The reviewer raises flags; the human adjudicates what is truly blocking (it can over/under-call).
+- A small change must produce a small diff. A blown-up diff signals a line-ending/tooling problem —
+  stop and fix the cause, do not commit it.
+- Record real decisions as an ADR in docs/decisions/, not only in chat.

@@ -2,7 +2,7 @@
 
 Updated: 2026-06-14
 Current spine step: **Gate 0 — done.** Next: Bài 0D — Design System Contract
-Known debt: 7 real lint errors (5 rules-of-hooks + 1 purity + 1 unescaped) — fix as a slice (see ADR-lint-decision.md)
+Known debt: 21 lint warnings (mostly set-state-in-effect) — fix incrementally (see ADR-lint-decision.md). 7 lint errors fixed @ 56bd425.
 Budget this month: $0 / $50   (track spend per lesson)
 
 ## This week (≤3 items)
@@ -22,6 +22,7 @@ Budget this month: $0 / $50   (track spend per lesson)
 | 2026-06-14 | Bài 0E dev-agent layer + deliverables | PR #2 (lesson/0E-dev-agent-layer) |
 | 2026-06-14 | Remote Control enabled (mobile) | connected from phone |
 | 2026-06-14 | Gate 0 cleanup (P1.1–P1.5 + lint) | master @ 05cc299; ADRs in docs/decisions |
+| 2026-06-14 | Lint: cleared 7 errors (helper renames + apostrophe) | master @ 56bd425 |
 
 ## Blocked / decisions needed
 - Budget cap set to $50/month (2026-06-14).

@@ -243,3 +243,16 @@ Draft / Recommendation / Review Finding
 → User approval
 → Apply or export
 → Audit
+
+## 17. Design system rules (Bài 0D)
+
+Source of truth: `docs/DESIGN_SYSTEM_CONTRACT.md` (tokens in `src/design/tokens.ts` + `globals.css` `:root`).
+
+- Use design tokens and registry components only — never hard-code colors, radii, or shadows,
+  and no ad-hoc inline styles. Reference tokens via CSS variables or `src/design/tokens.ts`.
+- Reuse the canonical components (Button/`.btn` variants, `.surface-card`, `.soft-panel`,
+  `.status-badge` variants, and the structural React components). Do not invent ad-hoc equivalents.
+- Cover the UI state catalog (loading / empty / error / degraded / blocked-by-governance /
+  ready-for-review) for any data or AI surface.
+- Introducing a NEW component, or changing a token, requires human approval.
+- Generated UI must still pass the design contract + visual-regression + a11y gates (Bài 21B).

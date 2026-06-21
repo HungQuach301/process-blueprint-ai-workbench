@@ -12,6 +12,7 @@
     "test:eval:dry-run": "npx tsx evals/input-brief-to-ptr/run-eval.ts --dry-run",
     "test:eval:dry-run:process-improvement": "npx tsx evals/process-improvement-recommendation/run-eval.ts --dry-run",
     "test:eval:dry-run:artifact-review": "npx tsx evals/artifact-review/run-eval.ts --dry-run",
+    "test:judge": "node --env-file=.env.local node_modules/.bin/tsx evals/common/test-judge.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },

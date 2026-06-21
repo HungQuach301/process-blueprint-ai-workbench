@@ -3,6 +3,7 @@
     "id": "eval-001",
     "name": "Banking lending - day du",
     "description": "Quy trinh cho vay SME voi actor, system, scope va du lieu kha day du.",
+    "origin": "seed",
     "input": {
       "processInfo": {
         "processName": "Quy trinh cho vay SME",
@@ -63,6 +64,7 @@
     "id": "eval-002",
     "name": "Account opening KYC - don gian",
     "description": "Mo tai khoan thanh toan cho khach hang ca nhan voi KYC co ban.",
+    "origin": "seed",
     "input": {
       "processInfo": {
         "processName": "Mo tai khoan thanh toan ca nhan",
@@ -112,6 +114,7 @@
     "id": "eval-003",
     "name": "Payment processing - nhieu he thong",
     "description": "Xu ly thanh toan voi it actor nhung nhieu he thong tich hop.",
+    "origin": "seed",
     "input": {
       "processInfo": {
         "processName": "Xu ly thanh toan lien ngan hang",
@@ -168,6 +171,7 @@
     "id": "eval-004",
     "name": "Brief toi thieu - chi ten process",
     "description": "Brief cuc ngan de danh gia kha nang tao draft voi gia dinh va confidence thap.",
+    "origin": "seed",
     "input": {
       "processInfo": {
         "processName": "Quy trinh xu ly yeu cau dich vu"
@@ -199,6 +203,7 @@
     "id": "eval-005",
     "name": "Brief phuc tap - nhieu exception",
     "description": "Lending process co nhieu cap phe duyet, reject path va resubmission.",
+    "origin": "seed",
     "input": {
       "processInfo": {
         "processName": "Phe duyet khoan vay doanh nghiep co tai san bao dam",
@@ -265,6 +270,232 @@
       "maxTasks": 30,
       "hasGateway": true,
       "gatewayCount": 2
+    }
+  },
+  {
+    "id": "eval-006",
+    "name": "HR Onboarding - nhan vien moi day du",
+    "description": "[typical] Quy trinh onboarding voi day du actor, system, happy path va exception. Khac nganh Banking.",
+    "origin": "synthetic",
+    "input": {
+      "processInfo": {
+        "processName": "Quy trinh onboarding nhan vien moi",
+        "processOwner": "Phong Nhan su",
+        "businessDomain": "Human Resources",
+        "organizationName": "Cong ty dich vu tai chinh"
+      },
+      "businessObjective": "Dam bao nhan vien moi duoc tiep nhan, dao tao, cap quyen truy cap he thong va san sang lam viec trong 5 ngay lam viec.",
+      "scope": "Tu luc Phong NS xac nhan nhan vien sap vao lam den khi nhan vien hoan thanh checklist onboarding va quan ly xac nhan san sang.",
+      "startEnd": {
+        "startEvent": "Phong NS nhan duoc thong tin nhan vien sap vao",
+        "endEvent": "Nhan vien hoan thanh onboarding checklist va duoc quan ly xac nhan san sang"
+      },
+      "actors": [
+        { "name": "Nhan vien moi", "role": "Nguoi duoc onboard", "type": "customer" },
+        { "name": "HR Specialist", "role": "Quan ly quy trinh onboarding", "type": "internal" },
+        { "name": "Quan ly truc tiep", "role": "Xac nhan san sang lam viec", "type": "internal" },
+        { "name": "IT Support", "role": "Cap quyen truy cap va thiet bi", "type": "internal" }
+      ],
+      "relatedSystems": [
+        { "name": "HRMS", "purpose": "Quan ly thong tin nhan su va ho so", "category": "internal" },
+        { "name": "Active Directory", "purpose": "Cap tai khoan va phan quyen", "category": "internal" },
+        { "name": "LMS", "purpose": "Quan ly khoa dao tao noi bo", "category": "internal" }
+      ],
+      "dataDocuments": [
+        { "name": "Ho so nhan vien", "type": "document", "description": "CCCD, hop dong lao dong, giay to lien quan" },
+        { "name": "Onboarding checklist", "type": "record", "description": "Danh sach cac muc can hoan thanh" }
+      ],
+      "happyPath": [
+        "HR Specialist tao ho so tren HRMS",
+        "IT Support cap tai khoan Active Directory va cai dat thiet bi",
+        "Nhan vien nhan thiet bi va dang nhap lan dau",
+        "Nhan vien hoan thanh cac khoa dao tao tren LMS",
+        "Quan ly xac nhan onboarding hoan thanh"
+      ],
+      "exceptionPaths": [
+        "Ho so khong hop le thi yeu cau bo sung truoc khi tiep tuc",
+        "Nhan vien khong hoan thanh dao tao trong deadline thi gia han hoac bao cao HR"
+      ],
+      "riskControls": [
+        "Xac thuc giay to truoc khi tao ho so HRMS",
+        "Audit log moi lan cap hoac thu hoi quyen truy cap"
+      ],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual"
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "minTasks": 6,
+      "maxTasks": 20,
+      "hasGateway": true,
+      "allStepsHaveActor": true
+    }
+  },
+  {
+    "id": "eval-007",
+    "name": "Batch settlement - tu dong hoan toan, khong co human actor",
+    "description": "[edge] Quy trinh doi soat cuoi ngay hoan toan tu dong; tat ca actor la he thong (system). Test xu ly khi khong co human actor.",
+    "origin": "synthetic",
+    "input": {
+      "processInfo": {
+        "processName": "Quy trinh doi soat giao dich cuoi ngay",
+        "processOwner": "Khoi Van hanh Thanh toan",
+        "businessDomain": "Banking payments"
+      },
+      "businessObjective": "Doi soat tu dong tat ca giao dich trong ngay giua Core Banking va cac kenh thanh toan truoc 23:59.",
+      "scope": "Tu luc batch job doi soat duoc lich tu dong den khi bao cao doi soat duoc luu va thong bao gui thanh cong.",
+      "startEnd": {
+        "startEvent": "Batch job doi soat duoc khoi chay tu dong luc 22:00",
+        "endEvent": "Bao cao doi soat cuoi ngay duoc luu va thong bao gui den bo phan van hanh"
+      },
+      "actors": [
+        { "name": "Settlement Engine", "role": "Chay batch doi soat tu dong", "type": "system" },
+        { "name": "Core Banking", "role": "Cung cap du lieu giao dich", "type": "system" },
+        { "name": "Notification Service", "role": "Gui bao cao ket qua", "type": "system" }
+      ],
+      "relatedSystems": [
+        { "name": "Core Banking", "purpose": "Nguon du lieu giao dich trong ngay", "category": "internal" },
+        { "name": "Settlement Engine", "purpose": "Xu ly doi soat tu dong", "category": "internal" },
+        { "name": "Reconciliation DB", "purpose": "Luu ket qua doi soat", "category": "internal" },
+        { "name": "Notification Service", "purpose": "Gui bao cao qua email", "category": "internal" }
+      ],
+      "dataDocuments": [
+        { "name": "Transaction log", "type": "record", "description": "Danh sach giao dich trong ngay" },
+        { "name": "Settlement report", "type": "document", "description": "Bao cao doi soat cuoi ngay" }
+      ],
+      "happyPath": [
+        "Settlement Engine lay du lieu giao dich tu Core Banking",
+        "Doi chieu voi du lieu doi tac NAPAS",
+        "Tinh toan so du chenh lech",
+        "Luu ket qua vao Reconciliation DB",
+        "Gui bao cao qua Notification Service"
+      ],
+      "exceptionPaths": [
+        "Neu co giao dich khong khop thi danh dau can xu ly thu cong sang ngay hom sau"
+      ],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual"
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "hasServiceTask": true,
+      "minTasks": 4,
+      "maxTasks": 15
+    }
+  },
+  {
+    "id": "eval-008",
+    "name": "Brief chi co happy path - khong co exception hay risk control",
+    "description": "[edge] Brief don gian cho quy trinh xac nhan don hang, co chu y khong khai bao exception path hay risk control. Test xu ly khi input thieu phan ngoai le.",
+    "origin": "synthetic",
+    "input": {
+      "processInfo": {
+        "processName": "Quy trinh xac nhan don hang ban le",
+        "processOwner": "Khoi Ban hang",
+        "businessDomain": "Sales"
+      },
+      "businessObjective": "Xac nhan don hang khach hang nhanh chong va chinh xac truoc khi chuyen sang kho chuan bi.",
+      "scope": "Tu luc khach hang gui don hang tren he thong den khi don hang duoc xac nhan va chuyen sang bo phan kho.",
+      "startEnd": {
+        "startEvent": "Khach hang gui don hang qua portal",
+        "endEvent": "Don hang duoc xac nhan va chuyen sang kho"
+      },
+      "actors": [
+        { "name": "Khach hang", "role": "Nguoi dat hang", "type": "customer" },
+        { "name": "Sales Agent", "role": "Xu ly va xac nhan don hang", "type": "internal" }
+      ],
+      "relatedSystems": [
+        { "name": "OMS", "purpose": "Quan ly don hang", "category": "internal" }
+      ],
+      "dataDocuments": [
+        { "name": "Don hang", "type": "document", "description": "Chi tiet san pham va so luong dat hang" }
+      ],
+      "happyPath": [
+        "Tiep nhan don hang tu khach hang",
+        "Kiem tra ton kho",
+        "Xac nhan don hang",
+        "Chuyen thong tin sang kho chuan bi"
+      ],
+      "exceptionPaths": [],
+      "riskControls": [],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual"
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "minTasks": 3,
+      "maxTasks": 10
+    }
+  },
+  {
+    "id": "eval-009",
+    "name": "Brief bare minimum - chi processName va businessObjective",
+    "description": "[known-bad] Brief cuc ki toi thieu: chi co processName va businessObjective, khong co actor, system, scope, hay startEnd ro rang. Model phai cho ra confidence thap.",
+    "origin": "synthetic",
+    "input": {
+      "processInfo": {
+        "processName": "Quy trinh cham soc khach hang sau ban"
+      },
+      "businessObjective": "Tang su hai long cua khach hang sau khi mua san pham.",
+      "scope": "",
+      "startEnd": {
+        "startEvent": "",
+        "endEvent": ""
+      },
+      "actors": [],
+      "relatedSystems": [],
+      "dataDocuments": [],
+      "happyPath": [],
+      "exceptionPaths": [],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual"
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "confidenceLow": true,
+      "minTasks": 2,
+      "maxTasks": 8
+    }
+  },
+  {
+    "id": "eval-010",
+    "name": "Brief voi startEvent va endEvent giong het nhau",
+    "description": "[known-bad] Brief co startEvent trung voi endEvent - logic mau thuan. Model phai cho confidence thap.",
+    "origin": "synthetic",
+    "input": {
+      "processInfo": {
+        "processName": "Quy trinh giai quyet khieu nai khach hang",
+        "processOwner": "Phong Cham soc Khach hang"
+      },
+      "businessObjective": "Giai quyet khieu nai khach hang dung han va dung quy dinh.",
+      "scope": "Khong xac dinh ro rang.",
+      "startEnd": {
+        "startEvent": "Khieu nai duoc dong",
+        "endEvent": "Khieu nai duoc dong"
+      },
+      "actors": [
+        { "name": "Khach hang", "role": "Nguoi gui khieu nai", "type": "customer" }
+      ],
+      "relatedSystems": [],
+      "dataDocuments": [],
+      "happyPath": [
+        "Tiep nhan khieu nai",
+        "Xu ly khieu nai",
+        "Dong khieu nai"
+      ],
+      "exceptionPaths": [],
+      "inputLanguage": "vi",
+      "outputLanguage": "bilingual",
+      "notes": "startEvent va endEvent giong het nhau - logical contradiction de kiem tra xu ly cua model."
+    },
+    "expectedCriteria": {
+      "hasStartEvent": true,
+      "hasEndEvent": true,
+      "confidenceLow": true
     }
   }
 ]

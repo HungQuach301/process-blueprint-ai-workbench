@@ -3,6 +3,7 @@
     "id": "eval-001",
     "name": "Infer missing actor/system",
     "description": "PTR has one service task with missing ownership fields.",
+    "origin": "seed",
     "input": {
       "processTasks": [
         {
@@ -119,6 +120,7 @@
     "id": "eval-002",
     "name": "Generate missing input/output",
     "description": "PTR has a manual task missing input and output fields.",
+    "origin": "seed",
     "input": {
       "processTasks": [
         {
@@ -171,6 +173,7 @@
     "id": "eval-003",
     "name": "Suggest split complex task",
     "description": "PTR has a compound task that should produce a high-risk split recommendation.",
+    "origin": "seed",
     "input": {
       "processTasks": [
         {
@@ -209,6 +212,504 @@
       "targetStepIds": ["S020"],
       "metadata": {
         "ptrAiAction": "suggest-split-complex-task"
+      }
+    },
+    "expectedCriteria": {
+      "hasRecommendations": true,
+      "allRecommendationsHaveTargetSteps": true,
+      "allRecommendationsRequireConfirmation": true,
+      "noUnsupportedOperations": true,
+      "riskLevelPresent": true
+    }
+  },
+  {
+    "id": "eval-004",
+    "name": "Task thieu SLA - credit review",
+    "description": "[typical] Task Credit Officer review co doi tuong ro rang nhung truong SLA de trong. Model phai de xuat bo sung SLA.",
+    "origin": "synthetic",
+    "input": {
+      "processTasks": [
+        {
+          "id": "task-s030",
+          "stepId": "S030",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "userTask",
+          "taskNature": "manual",
+          "phase": "Appraisal",
+          "group": "",
+          "actor": "Credit Officer",
+          "actorLane": "Credit Officer",
+          "system": "LOS",
+          "systemLane": "LOS",
+          "dataObject": "Credit file",
+          "dataAction": "read",
+          "taskName": "Phan tich nang luc tai chinh khach hang",
+          "input": "Ho so vay da duoc RM tao",
+          "output": "Bao cao tham dinh tin dung",
+          "defaultNextStep": null,
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "",
+          "riskControl": "Kiem tra CIC va lich su tin dung",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage People",
+          "channel": "Internal System"
+        }
+      ],
+      "targetStepIds": ["S030"],
+      "metadata": {
+        "ptrAiAction": "suggest-add-sla"
+      }
+    },
+    "expectedCriteria": {
+      "hasRecommendations": true,
+      "allRecommendationsHaveTargetSteps": true,
+      "allRecommendationsRequireConfirmation": true,
+      "noUnsupportedOperations": true,
+      "riskLevelPresent": true
+    }
+  },
+  {
+    "id": "eval-005",
+    "name": "Nhieu task thieu riskControl - luong giai ngan",
+    "description": "[typical] Ba task lien tiep trong luong giai ngan deu de trong truong riskControl. Model phai de xuat bo sung kiem soat rui ro cho tung task.",
+    "origin": "synthetic",
+    "input": {
+      "processTasks": [
+        {
+          "id": "task-s040",
+          "stepId": "S040",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "userTask",
+          "taskNature": "manual",
+          "phase": "Disbursement",
+          "group": "",
+          "actor": "Ops Support",
+          "actorLane": "Ops Support",
+          "system": "Core Banking",
+          "systemLane": "Core Banking",
+          "dataObject": "Disbursement instruction",
+          "dataAction": "update",
+          "taskName": "Kiem tra dieu kien giai ngan",
+          "input": "Bien ban phe duyet",
+          "output": "Checklist dieu kien da xac nhan",
+          "defaultNextStep": "S041",
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "2 gio lam viec",
+          "riskControl": "",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage People",
+          "channel": "Internal System"
+        },
+        {
+          "id": "task-s041",
+          "stepId": "S041",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "serviceTask",
+          "taskNature": "automatic",
+          "phase": "Disbursement",
+          "group": "",
+          "actor": "Core Banking",
+          "actorLane": "Core Banking",
+          "system": "Core Banking",
+          "systemLane": "Core Banking",
+          "dataObject": "Loan account",
+          "dataAction": "update",
+          "taskName": "Thuc hien giai ngan tren Core Banking",
+          "input": "Checklist dieu kien da xac nhan",
+          "output": "Giao dich giai ngan thanh cong",
+          "defaultNextStep": "S042",
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "15 phut",
+          "riskControl": "",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage System",
+          "channel": "Internal System"
+        },
+        {
+          "id": "task-s042",
+          "stepId": "S042",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "userTask",
+          "taskNature": "manual",
+          "phase": "Disbursement",
+          "group": "",
+          "actor": "Ops Support",
+          "actorLane": "Ops Support",
+          "system": "LOS",
+          "systemLane": "LOS",
+          "dataObject": "Disbursement record",
+          "dataAction": "update",
+          "taskName": "Cap nhat trang thai giai ngan tren LOS",
+          "input": "Giao dich giai ngan thanh cong",
+          "output": "Ho so cap nhat trang thai Disbursed",
+          "defaultNextStep": null,
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "30 phut",
+          "riskControl": "",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage People",
+          "channel": "Internal System"
+        }
+      ],
+      "targetStepIds": ["S040", "S041", "S042"],
+      "metadata": {
+        "ptrAiAction": "suggest-add-risk-control"
+      }
+    },
+    "expectedCriteria": {
+      "hasRecommendations": true,
+      "allRecommendationsHaveTargetSteps": true,
+      "allRecommendationsRequireConfirmation": true,
+      "noUnsupportedOperations": true,
+      "riskLevelPresent": true
+    }
+  },
+  {
+    "id": "eval-006",
+    "name": "Task day du tat ca truong - khong nen over-recommend",
+    "description": "[edge] Task co tat ca truong bat buoc da dien day du, bao gom conditionQuestion, sla, riskControl va reviewStatus approved. Model khong nen tao khuyen nghi thua.",
+    "origin": "synthetic",
+    "input": {
+      "processTasks": [
+        {
+          "id": "task-s050",
+          "stepId": "S050",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "userTask",
+          "taskNature": "manual",
+          "phase": "Approval",
+          "group": "",
+          "actor": "Branch Director",
+          "actorLane": "Branch Director",
+          "system": "LOS",
+          "systemLane": "LOS",
+          "dataObject": "Credit proposal",
+          "dataAction": "update",
+          "taskName": "Phe duyet ho so vay trong han muc uy quyen",
+          "input": "De xuat tin dung tu Credit Officer",
+          "output": "Quyet dinh phe duyet hoac tu choi",
+          "defaultNextStep": "S051",
+          "conditionQuestion": "Ho so co duoc phe duyet khong?",
+          "yesNextStep": "S052",
+          "noNextStep": "S060",
+          "exception": "Ho so vuot han muc",
+          "exceptionHandling": "Chuyen len cap phe duyet cao hon",
+          "sla": "1 ngay lam viec",
+          "riskControl": "Kiem tra han muc uy quyen; four-eyes review",
+          "sourceRef": "eval",
+          "reviewStatus": "approved",
+          "comment": "Reviewed and approved",
+          "customerInteractionType": "Back-stage People",
+          "channel": "Internal System"
+        }
+      ],
+      "targetStepIds": ["S050"],
+      "metadata": {
+        "ptrAiAction": "suggest-completeness-check"
+      }
+    },
+    "expectedCriteria": {
+      "hasRecommendations": false,
+      "allRecommendationsHaveTargetSteps": true,
+      "allRecommendationsRequireConfirmation": true,
+      "noUnsupportedOperations": true,
+      "riskLevelPresent": true
+    }
+  },
+  {
+    "id": "eval-007",
+    "name": "Gateway thieu conditionQuestion",
+    "description": "[edge] Mot exclusiveGateway co mat nhung truong conditionQuestion de trong. Model phai de xuat bo sung dieu kien phan nhanh.",
+    "origin": "synthetic",
+    "input": {
+      "processTasks": [
+        {
+          "id": "task-s060",
+          "stepId": "S060",
+          "parentStepId": null,
+          "rowType": "gateway",
+          "bpmnType": "exclusiveGateway",
+          "taskNature": "manual",
+          "phase": "Validation",
+          "group": "",
+          "actor": "System",
+          "actorLane": "System",
+          "system": "LOS",
+          "systemLane": "LOS",
+          "dataObject": "",
+          "dataAction": "none",
+          "taskName": "Kiem tra dieu kien ho so",
+          "input": "Ho so vay",
+          "output": "Ket qua kiem tra",
+          "defaultNextStep": "S061",
+          "conditionQuestion": "",
+          "yesNextStep": "S061",
+          "noNextStep": "S070",
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "",
+          "riskControl": "",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage System",
+          "channel": "Internal System"
+        }
+      ],
+      "targetStepIds": ["S060"],
+      "metadata": {
+        "ptrAiAction": "suggest-add-condition-question"
+      }
+    },
+    "expectedCriteria": {
+      "hasRecommendations": true,
+      "allRecommendationsHaveTargetSteps": true,
+      "allRecommendationsRequireConfirmation": true,
+      "noUnsupportedOperations": true,
+      "riskLevelPresent": true
+    }
+  },
+  {
+    "id": "eval-008",
+    "name": "processTasks rong - khong co task nao",
+    "description": "[known-bad] Input voi processTasks la mang rong va targetStepIds rong. Model khong duoc tao ra khuyen nghi vi khong co gi de cai thien.",
+    "origin": "synthetic",
+    "input": {
+      "processTasks": [],
+      "targetStepIds": [],
+      "metadata": {
+        "ptrAiAction": "suggest-completeness-check"
+      }
+    },
+    "expectedCriteria": {
+      "hasRecommendations": false,
+      "allRecommendationsHaveTargetSteps": true,
+      "allRecommendationsRequireConfirmation": true,
+      "noUnsupportedOperations": true,
+      "riskLevelPresent": true
+    }
+  },
+  {
+    "id": "eval-009",
+    "name": "Task ket hop nhieu hanh dong - can tach (KYC + CIF creation)",
+    "description": "[known-bad] TaskName mo ta nhieu hanh dong trong cung mot task: 'Thu thap ho so, kiem tra KYC va tao CIF dong thoi ghi nhan vao CRM'. Model phai de xuat tach task.",
+    "origin": "synthetic",
+    "input": {
+      "processTasks": [
+        {
+          "id": "task-s070",
+          "stepId": "S070",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "userTask",
+          "taskNature": "manual",
+          "phase": "Onboarding",
+          "group": "",
+          "actor": "DVKH",
+          "actorLane": "DVKH",
+          "system": "CRM",
+          "systemLane": "CRM",
+          "dataObject": "Customer record",
+          "dataAction": "update",
+          "taskName": "Thu thap ho so, kiem tra KYC va tao CIF dong thoi ghi nhan vao CRM",
+          "input": "Yeu cau mo tai khoan",
+          "output": "CIF duoc tao va KYC xac nhan",
+          "defaultNextStep": null,
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "1 ngay lam viec",
+          "riskControl": "KYC policy",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Front-stage People",
+          "channel": "Branch"
+        }
+      ],
+      "targetStepIds": ["S070"],
+      "metadata": {
+        "ptrAiAction": "suggest-split-complex-task"
+      }
+    },
+    "expectedCriteria": {
+      "hasRecommendations": true,
+      "allRecommendationsHaveTargetSteps": true,
+      "allRecommendationsRequireConfirmation": true,
+      "noUnsupportedOperations": true,
+      "riskLevelPresent": true
+    }
+  },
+  {
+    "id": "eval-010",
+    "name": "Nhieu task voi van de khac nhau - luong the tin dung",
+    "description": "[typical] 4 task trong luong phat hanh the tin dung, moi task co 1 van de: thieu input, thieu output, thieu actor, thieu SLA. Kiem tra model nhan biet va xu ly nhieu loai van de.",
+    "origin": "synthetic",
+    "input": {
+      "processTasks": [
+        {
+          "id": "task-s080",
+          "stepId": "S080",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "userTask",
+          "taskNature": "manual",
+          "phase": "Application",
+          "group": "",
+          "actor": "RM",
+          "actorLane": "RM",
+          "system": "Card System",
+          "systemLane": "Card System",
+          "dataObject": "Card application",
+          "dataAction": "update",
+          "taskName": "Tiep nhan yeu cau lam the tin dung",
+          "input": "",
+          "output": "Don dang ky the duoc tao tren Card System",
+          "defaultNextStep": "S081",
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "30 phut",
+          "riskControl": "Xac thuc CCCD khach hang",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Front-stage People",
+          "channel": "Branch"
+        },
+        {
+          "id": "task-s081",
+          "stepId": "S081",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "serviceTask",
+          "taskNature": "automatic",
+          "phase": "Scoring",
+          "group": "",
+          "actor": "Scoring Engine",
+          "actorLane": "Scoring Engine",
+          "system": "Scoring Engine",
+          "systemLane": "Scoring Engine",
+          "dataObject": "Credit score",
+          "dataAction": "validate",
+          "taskName": "Chay mo hinh credit score",
+          "input": "Don dang ky the",
+          "output": "",
+          "defaultNextStep": "S082",
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "5 phut",
+          "riskControl": "Model validation quarterly",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage System",
+          "channel": "Internal System"
+        },
+        {
+          "id": "task-s082",
+          "stepId": "S082",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "userTask",
+          "taskNature": "manual",
+          "phase": "Approval",
+          "group": "",
+          "actor": "",
+          "actorLane": "",
+          "system": "Card System",
+          "systemLane": "Card System",
+          "dataObject": "Card application",
+          "dataAction": "update",
+          "taskName": "Phe duyet phat hanh the",
+          "input": "Ket qua credit score",
+          "output": "Quyet dinh phat hanh the",
+          "defaultNextStep": "S083",
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "1 ngay lam viec",
+          "riskControl": "Four-eyes review",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage People",
+          "channel": "Internal System"
+        },
+        {
+          "id": "task-s083",
+          "stepId": "S083",
+          "parentStepId": null,
+          "rowType": "task",
+          "bpmnType": "serviceTask",
+          "taskNature": "automatic",
+          "phase": "Issuance",
+          "group": "",
+          "actor": "Card Production System",
+          "actorLane": "Card Production System",
+          "system": "Card Production System",
+          "systemLane": "Card Production System",
+          "dataObject": "Physical card",
+          "dataAction": "update",
+          "taskName": "Khoi tao lenh san xuat the vat ly",
+          "input": "Quyet dinh phat hanh the",
+          "output": "Lenh san xuat the da gui",
+          "defaultNextStep": null,
+          "conditionQuestion": "",
+          "yesNextStep": null,
+          "noNextStep": null,
+          "exception": "",
+          "exceptionHandling": "",
+          "sla": "",
+          "riskControl": "Card personalization security",
+          "sourceRef": "eval",
+          "reviewStatus": "draft",
+          "comment": "",
+          "customerInteractionType": "Back-stage System",
+          "channel": "Internal System"
+        }
+      ],
+      "targetStepIds": ["S080", "S081", "S082", "S083"],
+      "metadata": {
+        "ptrAiAction": "infer-missing-actor-system-lane"
       }
     },
     "expectedCriteria": {

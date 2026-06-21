@@ -41,6 +41,14 @@ type EvalResult = {
 
 const API_URL =
   process.env.EVAL_API_URL || "http://localhost:3000/api/ai/run-skill";
+
+const DATASET_VERSION = "v1";
+const JUDGE_VERSION = "rule-based-v1";
+const RUBRIC_VERSION = "n/a";
+const MODEL_VERSION = "n/a";
+const PROMPT_PACK_VERSION = "1.0.0";
+const SKILL_VERSION = "1.0.0";
+
 const CASE_TIMEOUT_MS = 60000;
 const WAIT_BETWEEN_CASES_MS = 2000;
 const PASS_RATE_THRESHOLD = 0.6;
@@ -258,8 +266,16 @@ function printSummary(results: EvalResult[]) {
 
 async function main() {
   const evalDir = path.resolve("evals/input-brief-to-ptr");
-  const datasetPath = path.join(evalDir, "dataset.json");
+  const datasetPath = path.resolve("evals/datasets/input-brief-to-ptr/v1/dataset.json");
   const dataset = JSON.parse(await readFile(datasetPath, "utf8")) as EvalCase[];
+
+  const dryRun = process.argv.includes("--dry-run");
+  if (dryRun) {
+    console.log(`Dry-run: dataset loaded, ${dataset.length} cases.`);
+    console.log(JSON.stringify({ datasetVersion: DATASET_VERSION, judgeVersion: JUDGE_VERSION, rubricVersion: RUBRIC_VERSION, modelVersion: MODEL_VERSION, promptPackVersion: PROMPT_PACK_VERSION, skillVersion: SKILL_VERSION }, null, 2));
+    process.exit(0);
+  }
+
   const results: EvalResult[] = [];
 
   console.log(`Running ${dataset.length} input-brief-to-ptr eval cases.`);
@@ -287,6 +303,14 @@ async function main() {
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
+        versions: {
+          datasetVersion: DATASET_VERSION,
+          judgeVersion: JUDGE_VERSION,
+          rubricVersion: RUBRIC_VERSION,
+          modelVersion: MODEL_VERSION,
+          promptPackVersion: PROMPT_PACK_VERSION,
+          skillVersion: SKILL_VERSION,
+        },
         apiUrl: API_URL,
         results
       },

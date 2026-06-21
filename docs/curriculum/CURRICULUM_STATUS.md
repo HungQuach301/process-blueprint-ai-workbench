@@ -1,17 +1,17 @@
 # CURRICULUM STATUS (rolling 2-week plan — update weekly)
 
-Updated: 2026-06-14
-Current spine step: **Bài 0D — done.** Next: Bài 7 (-min) — golden dataset v1 × 3 skills + baseline + judge calibration (activates eval-runner)
+Updated: 2026-06-21
+Current spine step: **Bài 7-4 — done (LLM-judge runner, Claude judge).** Next: Bài 7-5 — judge calibration (≥20 hand-labels + judge–human agreement) + version-stamped baseline per skill
 Known debt: 20 lint warnings (ratcheted at 20, ADR-lint-decision.md); 6 npm-audit moderate/low vulns (dev/transitive — do NOT `audit fix --force`, it downgrades next); 4 Date.now()-id sites → crypto.randomUUID later; DESIGN_SYSTEM_CONTRACT "Open decisions". 5 HIGH Next.js vulns fixed @ 003eb11; 7 lint errors fixed @ 56bd425.
-Budget this month: $0 / $50   (track spend per lesson)
+Budget this month: ~$0 / $50   (7-4 judge smoke test: 2 Opus calls, a few cents)
 
 ## This week (≤3 items)
-- [x] Bài 0D: tokens + contract + AGENTS.md design rules → evidence: DESIGN_SYSTEM_CONTRACT.md
-- [x] Dev-loop automation (/slice, /retro, pre-push gate, memory) + security-reviewer + Next.js security fix
-- [ ] Bài 7 (-min): golden dataset v1 × 3 skills + baseline + judge calibration
+- [x] Bài 7-1..7-3: golden datasets v1 × 3 skills (versioned) + rubrics + run-eval scaffolding
+- [x] Bài 7-4: LLM-judge runner (evals/common/judge.ts + test:judge) — Claude judge, GOOD>BAD verified
+- [ ] Bài 7-5: ≥20 hand-labels + judge–human agreement + version-stamped baseline per skill
 
 ## Next week (provisional)
-- Bài 7 (-min): eval harness baseline (activates eval-runner)
+- Finish Bài 7-5 baseline (activates eval-runner against stamped baseline)
 - Then Bài 9 (-min): executor/advisor both directions + prompt caching + cost per attempt
 
 ## Done log
@@ -26,6 +26,8 @@ Budget this month: $0 / $50   (track spend per lesson)
 | 2026-06-14 | Bài 0D: tokens + contract + AGENTS design rules | master @ 745613d |
 | 2026-06-14 | security-reviewer agent + Next.js 16.2.9 (5 HIGH fixed) | master @ 003eb11 |
 | 2026-06-14 | ADRs: skill-id-aliases, sdk-vs-raw-fetch, lint-decision, reusable-dev-agent-standard | docs/decisions/ |
+| 2026-06-21 | Bài 7-1..7-3: golden datasets v1 (3 skills, versioned) + rubrics + run-eval scaffold | evals/datasets/*/v1/ |
+| 2026-06-21 | Bài 7-4: LLM-judge runner (Claude judge); GOOD 0.63 > BAD 0.13 verified | evals/common/judge.ts; master merged |
 
 ## Blocked / decisions needed
 - Budget cap set to $50/month (2026-06-14).

@@ -197,11 +197,21 @@ function isGraphChangingRecommendation(recommendation: QARecommendation) {
   );
 }
 
+function stripNullFields(obj: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== null));
+}
+
 function normalizeAIRecommendation(recommendation: QARecommendation) {
   const normalized = normalizeRecommendation({
     ...recommendation,
     source: recommendation.source === "hybrid" ? "hybrid" : "ai",
-    requiresConfirmation: true
+    requiresConfirmation: true,
+    operations: Array.isArray(recommendation.operations)
+      ? recommendation.operations.map(
+          (op) =>
+            (isObject(op) ? stripNullFields(op) : op) as QARecommendationOperation
+        )
+      : recommendation.operations
   });
 
   if (!isGraphChangingRecommendation(normalized)) {

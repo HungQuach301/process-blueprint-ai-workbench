@@ -45,14 +45,14 @@ const QA_OPERATION_SCHEMA = {
   type: "object",
   properties: {
     kind: { type: "string", enum: QA_OPERATION_KINDS },
-    stepId: { type: "string" },
-    targetStepId: { type: "string" },
-    sourceStepId: { type: "string" },
-    anchorStepId: { type: "string" },
-    gatewayStepId: { type: "string" },
-    afterStepId: { type: "string" },
-    beforeStepId: { type: "string" },
-    field: { type: "string" },
+    stepId: { anyOf: [{ type: "string" }, { type: "null" }] },
+    targetStepId: { anyOf: [{ type: "string" }, { type: "null" }] },
+    sourceStepId: { anyOf: [{ type: "string" }, { type: "null" }] },
+    anchorStepId: { anyOf: [{ type: "string" }, { type: "null" }] },
+    gatewayStepId: { anyOf: [{ type: "string" }, { type: "null" }] },
+    afterStepId: { anyOf: [{ type: "string" }, { type: "null" }] },
+    beforeStepId: { anyOf: [{ type: "string" }, { type: "null" }] },
+    field: { anyOf: [{ type: "string" }, { type: "null" }] },
     value: {
       anyOf: [
         { type: "string" },
@@ -61,36 +61,71 @@ const QA_OPERATION_SCHEMA = {
         { type: "null" }
       ]
     },
-    actor: { type: "string" },
-    actorLane: { type: "string" },
-    system: { type: "string" },
-    systemLane: { type: "string" },
-    laneName: { type: "string" },
-    laneType: { type: "string", enum: ["actor", "system", "data"] },
-    branch: {
-      type: "string",
-      enum: ["defaultNextStep", "yesNextStep", "noNextStep"]
+    actor: { anyOf: [{ type: "string" }, { type: "null" }] },
+    actorLane: { anyOf: [{ type: "string" }, { type: "null" }] },
+    system: { anyOf: [{ type: "string" }, { type: "null" }] },
+    systemLane: { anyOf: [{ type: "string" }, { type: "null" }] },
+    laneName: { anyOf: [{ type: "string" }, { type: "null" }] },
+    laneType: {
+      anyOf: [
+        { type: "string", enum: ["actor", "system", "data"] },
+        { type: "null" }
+      ]
     },
-    targetStepIds: STRING_ARRAY_SCHEMA,
+    branch: {
+      anyOf: [
+        { type: "string", enum: ["defaultNextStep", "yesNextStep", "noNextStep"] },
+        { type: "null" }
+      ]
+    },
+    targetStepIds: { anyOf: [STRING_ARRAY_SCHEMA, { type: "null" }] },
     reviewStatus: {
-      type: "string",
-      enum: ["draft", "needsReview", "approved", "rejected"]
+      anyOf: [
+        { type: "string", enum: ["draft", "needsReview", "approved", "rejected"] },
+        { type: "null" }
+      ]
     },
     customerInteractionType: {
-      type: "string",
-      enum: [
-        "None",
-        "Customer Action",
-        "Front-stage People",
-        "Front-stage System",
-        "Back-stage People",
-        "Back-stage System",
-        "Support Process",
-        "Data / Control"
+      anyOf: [
+        {
+          type: "string",
+          enum: [
+            "None",
+            "Customer Action",
+            "Front-stage People",
+            "Front-stage System",
+            "Back-stage People",
+            "Back-stage System",
+            "Support Process",
+            "Data / Control"
+          ]
+        },
+        { type: "null" }
       ]
     }
   },
-  required: ["kind"],
+  required: [
+    "kind",
+    "stepId",
+    "targetStepId",
+    "sourceStepId",
+    "anchorStepId",
+    "gatewayStepId",
+    "afterStepId",
+    "beforeStepId",
+    "field",
+    "value",
+    "actor",
+    "actorLane",
+    "system",
+    "systemLane",
+    "laneName",
+    "laneType",
+    "branch",
+    "targetStepIds",
+    "reviewStatus",
+    "customerInteractionType"
+  ],
   additionalProperties: false
 } as const;
 

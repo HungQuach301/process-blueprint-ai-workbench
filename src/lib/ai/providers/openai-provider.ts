@@ -152,7 +152,17 @@ export function createOpenAIProvider(
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI request failed with status ${response.status}.`);
+        const errorBody = await response.text();
+        const bodySnippet = errorBody.slice(0, 500);
+        console.error(JSON.stringify({
+          event: "openai_error",
+          status: response.status,
+          skillId: request.skillId,
+          body: bodySnippet
+        }));
+        throw new Error(
+          `OpenAI request failed with status ${response.status}. Body: ${bodySnippet}`
+        );
       }
 
       const rawJson = await response.json();

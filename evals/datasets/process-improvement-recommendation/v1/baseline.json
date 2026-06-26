@@ -1,0 +1,1329 @@
+{
+  "skillId": "process-improvement-recommendation",
+  "datasetVersion": "v1",
+  "judgeVersion": "v1",
+  "judgeModel": "claude-sonnet-4-6",
+  "skillProvider": "openai",
+  "skillModel": "gpt-5.4-mini",
+  "generatedAt": "2026-06-26T16:32:47.843Z",
+  "summary": {
+    "pass": 7,
+    "partial": 1,
+    "fail": 2,
+    "passRate": 0.7,
+    "avgOverall": 0.75
+  },
+  "cases": [
+    {
+      "id": "eval-001",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "start",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Start",
+            "group": "",
+            "actor": "Customer",
+            "actorLane": "Customer",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Submit request",
+            "input": "",
+            "output": "Request submitted",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Customer Action",
+            "channel": "Portal"
+          },
+          {
+            "id": "task-s002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "automatic",
+            "phase": "Validation",
+            "group": "",
+            "actor": "",
+            "actorLane": "",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "Request record",
+            "dataAction": "validate",
+            "taskName": "Validate request data",
+            "input": "Request submitted",
+            "output": "Validation result",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "5 minutes",
+            "riskControl": "Validation rules",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-s003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "end",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Done",
+            "group": "",
+            "actor": "Operations",
+            "actorLane": "Operations",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Request closed",
+            "input": "Validation result",
+            "output": "",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "None",
+            "channel": "Other"
+          }
+        ],
+        "targetStepIds": [
+          "S002"
+        ],
+        "metadata": {
+          "ptrAiAction": "infer-missing-actor-system-lane"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-001",
+            "title": "Assign the validating system lane",
+            "description": "Add the missing system lane for the automated validation step so the process model clearly identifies the execution environment.",
+            "rationale": "S002 is a serviceTask with customerInteractionType set to Back-stage System and channel set to Internal System, but systemLane is blank. The selected action is to infer the missing actor/system/lane metadata, and this step is clearly system-executed.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S002"
+            ],
+            "recommendationType": "AssignSystem",
+            "operations": [
+              {
+                "kind": "AssignSystem",
+                "stepId": "S002",
+                "system": "Validation Engine",
+                "systemLane": "Internal System"
+              }
+            ],
+            "previewText": "Update S002 to show it is executed by Validation Engine in the Internal System lane.",
+            "warnings": [
+              "This is a metadata update only; confirm the exact system name used in your organization before applying."
+            ],
+            "requiresConfirmation": true,
+            "type": "AssignSystem"
+          }
+        ]
+      },
+      "verdict": "fail",
+      "overall": 0,
+      "judgeNotes": {
+        "completeness": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in",
+        "domainTerms": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in",
+        "traceability": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in",
+        "safety": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in"
+      }
+    },
+    {
+      "id": "eval-002",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s010",
+            "stepId": "S010",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Review",
+            "group": "",
+            "actor": "Credit Officer",
+            "actorLane": "Credit Officer",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Credit file",
+            "dataAction": "read",
+            "taskName": "Review customer credit file",
+            "input": "",
+            "output": "",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 business day",
+            "riskControl": "Four-eyes review",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          }
+        ],
+        "targetStepIds": [
+          "S010"
+        ],
+        "metadata": {
+          "ptrAiAction": "generate-missing-input-output"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-S010-input-output-001",
+            "title": "Add missing input and output for credit file review",
+            "description": "Populate the missing input and output fields for the 'Review customer credit file' task to make the step definition complete and auditable.",
+            "rationale": "The task currently has empty input and output fields, which reduces clarity for downstream modeling, automation analysis, and QA validation. This is a reviewable metadata update with no graph changes.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S010"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S010",
+                "field": "input",
+                "value": "Customer application details, supporting documents, and credit file data"
+              },
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S010",
+                "field": "output",
+                "value": "Credit assessment notes and decision recommendation"
+              }
+            ],
+            "previewText": "Update S010 with a clear input and output description for the credit file review step.",
+            "warnings": [],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          }
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "S010 had empty input and output fields; recommendation addresses both via two UpdateTaskField operations. Gap fully covered.",
+        "domainTerms": "operation kinds are UpdateTaskField (valid); riskLevel 'low' is valid; no invalid vocabulary detected.",
+        "traceability": "targetStepIds contains only S010 (valid); description references empty input/output fields on S010; no fabricated business rules.",
+        "safety": "requiresConfirmation: true on sole recommendation; riskLevel 'low' appropriate for field-only update; no claim of automatic application."
+      }
+    },
+    {
+      "id": "eval-003",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s020",
+            "stepId": "S020",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Fulfillment",
+            "group": "",
+            "actor": "Operations",
+            "actorLane": "Operations",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Disbursement file",
+            "dataAction": "update",
+            "taskName": "Check documents and then release disbursement",
+            "input": "Approved credit memo",
+            "output": "Disbursement completed",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 business day",
+            "riskControl": "Maker-checker",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          }
+        ],
+        "targetStepIds": [
+          "S020"
+        ],
+        "metadata": {
+          "ptrAiAction": "suggest-split-complex-task"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "high",
+            "complianceTags": [],
+            "id": "rec-s020-split-release-disbursement",
+            "title": "Split combined manual task into document check and disbursement release",
+            "description": "Separate S020 into two reviewable tasks: one for checking documents and one for releasing the disbursement in Core Banking.",
+            "rationale": "The current task combines two distinct actions with different control points: document verification and funds release. Splitting improves traceability, control clarity, and auditability for the maker-checker control.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "S020"
+            ],
+            "recommendationType": "SplitTask",
+            "operations": [
+              {
+                "kind": "SplitTask",
+                "targetStepId": "S020",
+                "newTasks": [
+                  {
+                    "id": "task-s020a",
+                    "stepId": "S020A",
+                    "rowType": "task",
+                    "bpmnType": "userTask",
+                    "taskNature": "control",
+                    "phase": "Fulfillment",
+                    "group": "",
+                    "actor": "Operations",
+                    "actorLane": "Operations",
+                    "system": "Core Banking",
+                    "systemLane": "Core Banking",
+                    "dataObject": "Disbursement file",
+                    "dataAction": "validate",
+                    "taskName": "Check documents",
+                    "input": "Approved credit memo",
+                    "output": "Documents validated",
+                    "defaultNextStep": "S020B",
+                    "conditionQuestion": "",
+                    "exception": "Documents incomplete or invalid",
+                    "exceptionHandling": "Reject or return for correction",
+                    "sla": "1 business day",
+                    "riskControl": "Maker-checker",
+                    "sourceRef": "eval",
+                    "reviewStatus": "needsReview",
+                    "comment": "Split from combined task S020 for control clarity.",
+                    "customerInteractionType": "Back-stage People",
+                    "channel": "Internal System"
+                  },
+                  {
+                    "id": "task-s020b",
+                    "stepId": "S020B",
+                    "rowType": "task",
+                    "bpmnType": "serviceTask",
+                    "taskNature": "system",
+                    "phase": "Fulfillment",
+                    "group": "",
+                    "actor": "Operations",
+                    "actorLane": "Operations",
+                    "system": "Core Banking",
+                    "systemLane": "Core Banking",
+                    "dataObject": "Disbursement file",
+                    "dataAction": "update",
+                    "taskName": "Release disbursement",
+                    "input": "Documents validated",
+                    "output": "Disbursement completed",
+                    "conditionQuestion": "",
+                    "exception": "Release failed",
+                    "exceptionHandling": "Escalate for manual resolution",
+                    "sla": "1 business day",
+                    "riskControl": "Maker-checker",
+                    "sourceRef": "eval",
+                    "reviewStatus": "needsReview",
+                    "comment": "Split from combined task S020 for clearer execution and audit trail.",
+                    "customerInteractionType": "Back-stage System",
+                    "channel": "Internal System"
+                  }
+                ]
+              }
+            ],
+            "previewText": "Split S020 into S020A Check documents and S020B Release disbursement to improve control separation and auditability.",
+            "warnings": [
+              "Graph-changing recommendation: this split changes the process model and should be reviewed by the process owner.",
+              "Confirm downstream connections and any control dependencies after the split.",
+              "Graph-changing AI recommendation requires explicit human confirmation.",
+              "Graph-changing AI recommendation requires explicit human confirmation."
+            ],
+            "requiresConfirmation": true,
+            "type": "SplitTask"
+          }
+        ]
+      },
+      "verdict": "pass",
+      "overall": 0.88,
+      "judgeNotes": {
+        "completeness": "S020 taskName contains 'and then'; SplitTask produces two new tasks (S020A, S020B) covering the compound connector gap fully.",
+        "domainTerms": "operation.kind 'SplitTask' is valid; however taskNature 'control' and 'system' are not in the allowed set ('manual'|'automatic'), causing vocabulary errors.",
+        "traceability": "targetStepIds contains only S020 (present in INPUT); description references S020 and the compound action; split rationale tied to maker-checker control in INPUT.",
+        "safety": "requiresConfirmation: true on the single recommendation; riskLevel 'high' appropriate for structural SplitTask; warnings explicitly note human review required."
+      }
+    },
+    {
+      "id": "eval-004",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s030",
+            "stepId": "S030",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Appraisal",
+            "group": "",
+            "actor": "Credit Officer",
+            "actorLane": "Credit Officer",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Credit file",
+            "dataAction": "read",
+            "taskName": "Phan tich nang luc tai chinh khach hang",
+            "input": "Ho so vay da duoc RM tao",
+            "output": "Bao cao tham dinh tin dung",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "Kiem tra CIC va lich su tin dung",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          }
+        ],
+        "targetStepIds": [
+          "S030"
+        ],
+        "metadata": {
+          "ptrAiAction": "suggest-add-sla"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-S030-add-sla",
+            "title": "Add SLA to Credit Analysis step",
+            "description": "Define an SLA for step S030 to make the appraisal timeline explicit and reviewable.",
+            "rationale": "The selected action is suggest-add-sla, and S030 currently has no SLA field populated. Adding a clear SLA improves operational control and makes the review measurable without changing process flow.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S030"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S030",
+                "field": "sla",
+                "value": "TBD - define turnaround target for credit financial analysis"
+              }
+            ],
+            "previewText": "Update S030 (Phan tich nang luc tai chinh khach hang) with an SLA placeholder for approval.",
+            "warnings": [
+              "SLA should be validated with the credit policy owner before approval."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          }
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "S030 has empty sla field; one recommendation addresses it with UpdateTaskField on sla. Gap fully covered.",
+        "domainTerms": "operation.kind 'UpdateTaskField' is valid; riskLevel 'low' is valid; field 'sla' is correct PTR vocabulary. No invalid terms.",
+        "traceability": "targetStepIds:[S030] matches INPUT; description references empty sla on S030; value is placeholder (TBD), no fabricated business rules.",
+        "safety": "requiresConfirmation:true on all recs; riskLevel 'low' appropriate for field addition (SLA); warns to validate with credit policy owner."
+      }
+    },
+    {
+      "id": "eval-005",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s040",
+            "stepId": "S040",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Disbursement",
+            "group": "",
+            "actor": "Ops Support",
+            "actorLane": "Ops Support",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Disbursement instruction",
+            "dataAction": "update",
+            "taskName": "Kiem tra dieu kien giai ngan",
+            "input": "Bien ban phe duyet",
+            "output": "Checklist dieu kien da xac nhan",
+            "defaultNextStep": "S041",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "2 gio lam viec",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-s041",
+            "stepId": "S041",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "automatic",
+            "phase": "Disbursement",
+            "group": "",
+            "actor": "Core Banking",
+            "actorLane": "Core Banking",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Loan account",
+            "dataAction": "update",
+            "taskName": "Thuc hien giai ngan tren Core Banking",
+            "input": "Checklist dieu kien da xac nhan",
+            "output": "Giao dich giai ngan thanh cong",
+            "defaultNextStep": "S042",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "15 phut",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-s042",
+            "stepId": "S042",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Disbursement",
+            "group": "",
+            "actor": "Ops Support",
+            "actorLane": "Ops Support",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Disbursement record",
+            "dataAction": "update",
+            "taskName": "Cap nhat trang thai giai ngan tren LOS",
+            "input": "Giao dich giai ngan thanh cong",
+            "output": "Ho so cap nhat trang thai Disbursed",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "30 phut",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          }
+        ],
+        "targetStepIds": [
+          "S040",
+          "S041",
+          "S042"
+        ],
+        "metadata": {
+          "ptrAiAction": "suggest-add-risk-control"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-risk-control-s040-s041-s042-001",
+            "title": "Add explicit risk controls to the disbursement sequence",
+            "description": "Add a risk control statement to the three disbursement steps covering condition verification, core banking execution, and LOS status update.",
+            "rationale": "The current steps perform a sensitive financial operation but have empty riskControl fields. Adding concise controls improves auditability and reduces operational risk without changing the process flow.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S040",
+              "S041",
+              "S042"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S040",
+                "field": "riskControl",
+                "value": "Verify disbursement approval and checklist completeness before proceeding."
+              },
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S041",
+                "field": "riskControl",
+                "value": "Execute disbursement only after valid checklist confirmation and authorized approval are present."
+              },
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S042",
+                "field": "riskControl",
+                "value": "Update LOS status only after successful core banking transaction confirmation."
+              }
+            ],
+            "previewText": "Add risk control notes to S040, S041, and S042 to improve auditability and control over disbursement activities.",
+            "warnings": [
+              "Text-only metadata update; no process flow changes.",
+              "Ensure wording aligns with your internal control and audit standards."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          }
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "All three target steps (S040, S041, S042) had empty riskControl fields; all three are addressed by UpdateTaskField operations.",
+        "domainTerms": "All operation.kind values are 'UpdateTaskField' (valid); riskLevel 'low' is valid; field name 'riskControl' is correct PTR vocabulary.",
+        "traceability": "Each operation targets a valid stepId from INPUT; description references empty riskControl fields; no fabricated business rules beyond process context.",
+        "safety": "requiresConfirmation: true on all recommendations; riskLevel 'low' appropriate for metadata-only field updates; no claims of automatic application."
+      }
+    },
+    {
+      "id": "eval-006",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s050",
+            "stepId": "S050",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Approval",
+            "group": "",
+            "actor": "Branch Director",
+            "actorLane": "Branch Director",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Credit proposal",
+            "dataAction": "update",
+            "taskName": "Phe duyet ho so vay trong han muc uy quyen",
+            "input": "De xuat tin dung tu Credit Officer",
+            "output": "Quyet dinh phe duyet hoac tu choi",
+            "defaultNextStep": "S051",
+            "conditionQuestion": "Ho so co duoc phe duyet khong?",
+            "yesNextStep": "S052",
+            "noNextStep": "S060",
+            "exception": "Ho so vuot han muc",
+            "exceptionHandling": "Chuyen len cap phe duyet cao hon",
+            "sla": "1 ngay lam viec",
+            "riskControl": "Kiem tra han muc uy quyen; four-eyes review",
+            "sourceRef": "eval",
+            "reviewStatus": "approved",
+            "comment": "Reviewed and approved",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          }
+        ],
+        "targetStepIds": [
+          "S050"
+        ],
+        "metadata": {
+          "ptrAiAction": "suggest-completeness-check"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "medium",
+            "complianceTags": [],
+            "id": "rec-s050-completeness-review",
+            "title": "Add explicit completeness check before approval decision",
+            "description": "Introduce a review step or field clarifying that the Branch Director verifies dossier completeness before making the approval/rejection decision for S050.",
+            "rationale": "The current task includes authority-limit checking and four-eyes control, but it does not explicitly state a completeness check. For approval quality and auditability, completeness should be confirmed as a distinct control point.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S050"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S050",
+                "field": "riskControl",
+                "value": "Kiem tra ho so day du; Kiem tra han muc uy quyen; four-eyes review"
+              }
+            ],
+            "previewText": "Update S050 risk control to explicitly include dossier completeness check alongside authorization-limit and four-eyes controls.",
+            "warnings": [
+              "Text-only metadata update; no workflow structure change.",
+              "Business wording should be validated by the process owner before final approval."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          }
+        ]
+      },
+      "verdict": "partial",
+      "overall": 0.5,
+      "judgeNotes": {
+        "completeness": "S050 has no gaps: all fields populated including actor, sla, riskControl, input, output. Correct output for suggest-completeness-check is zero recommendations, not one.",
+        "domainTerms": "operation.kind=UpdateTaskField is valid; riskLevel='medium' is valid; field and value are PTR-consistent vocabulary.",
+        "traceability": "targetStepId S050 is valid, but recommendation invents a gap (missing completeness check) not present in INPUT; riskControl already contains four-eyes review.",
+        "safety": "requiresConfirmation:true on all recommendations; riskLevel='medium' for a field update is appropriate; however output hallucinated a gap on a complete task, violating the completeness-check safety rule."
+      }
+    },
+    {
+      "id": "eval-007",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s060",
+            "stepId": "S060",
+            "parentStepId": null,
+            "rowType": "gateway",
+            "bpmnType": "exclusiveGateway",
+            "taskNature": "manual",
+            "phase": "Validation",
+            "group": "",
+            "actor": "System",
+            "actorLane": "System",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Kiem tra dieu kien ho so",
+            "input": "Ho so vay",
+            "output": "Ket qua kiem tra",
+            "defaultNextStep": "S061",
+            "conditionQuestion": "",
+            "yesNextStep": "S061",
+            "noNextStep": "S070",
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          }
+        ],
+        "targetStepIds": [
+          "S060"
+        ],
+        "metadata": {
+          "ptrAiAction": "suggest-add-condition-question"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-S060-condition-question",
+            "title": "Add a condition question to the gateway",
+            "description": "Populate the exclusive gateway S060 with a clear condition question that explains the decision being made.",
+            "rationale": "S060 is modeled as an exclusive gateway but its conditionQuestion is empty. Adding a question improves readability, supports downstream rule definition, and makes the yes/no branches easier to validate during QA. This matches the selected-row action requested by metadata.ptrAiAction.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S060"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S060",
+                "field": "conditionQuestion",
+                "value": "Ho so vay co dat dieu kien khong?"
+              }
+            ],
+            "previewText": "Update S060.conditionQuestion to: \"Ho so vay co dat dieu kien khong?\"",
+            "warnings": [
+              "Review the exact wording with the business owner to ensure it matches the decision logic and terminology used in the process."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          }
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "S060 has empty conditionQuestion and is an exclusiveGateway; one recommendation proposes a conditionQuestion value. Gap fully covered.",
+        "domainTerms": "operation.kind 'UpdateTaskField' is valid; field 'conditionQuestion' is correct PTR vocabulary; riskLevel 'low' is valid enum value.",
+        "traceability": "targetStepIds contains only S060 which exists in INPUT; description explicitly references conditionQuestion being empty on S060; value derived from task context.",
+        "safety": "requiresConfirmation: true on all recommendations; riskLevel 'low' appropriate for a field addition; warnings note business owner review needed."
+      }
+    },
+    {
+      "id": "eval-008",
+      "input": {
+        "processTasks": [],
+        "targetStepIds": [],
+        "metadata": {
+          "ptrAiAction": "suggest-completeness-check"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-1",
+            "title": "Add completeness check step",
+            "description": "Review the selected row for missing prerequisite, input, or exception handling details and document any gaps.",
+            "rationale": "The requested action is a completeness check, but the payload does not include any process tasks or selected step IDs to assess. A human review is needed to confirm whether the model is missing required fields or linked steps.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Flag the selected item for completeness review before any model changes are made.",
+            "warnings": [
+              "No process tasks were provided, so this recommendation cannot be tied to a specific existing ProcessTask.stepId.",
+              "Human approval is required before any changes are applied."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ]
+      },
+      "verdict": "fail",
+      "overall": 0.38,
+      "judgeNotes": {
+        "completeness": "INPUT has empty processTasks and targetStepIds; correct output is zero recommendations. Output produced one recommendation — over-recommendation failure.",
+        "domainTerms": "operation.kind 'MarkReviewStatus' is valid; riskLevel 'low' is valid; no invalid vocabulary detected.",
+        "traceability": "Recommendation targets no valid step IDs (stepId is empty string) and has no traceable gap in INPUT. Output is generic with no basis in INPUT tasks.",
+        "safety": "requiresConfirmation is true on the recommendation. However, riskLevel 'low' for a MarkReviewStatus when no tasks exist is questionable; structural concern minor."
+      }
+    },
+    {
+      "id": "eval-009",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s070",
+            "stepId": "S070",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Onboarding",
+            "group": "",
+            "actor": "DVKH",
+            "actorLane": "DVKH",
+            "system": "CRM",
+            "systemLane": "CRM",
+            "dataObject": "Customer record",
+            "dataAction": "update",
+            "taskName": "Thu thap ho so, kiem tra KYC va tao CIF dong thoi ghi nhan vao CRM",
+            "input": "Yeu cau mo tai khoan",
+            "output": "CIF duoc tao va KYC xac nhan",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 ngay lam viec",
+            "riskControl": "KYC policy",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Front-stage People",
+            "channel": "Branch"
+          }
+        ],
+        "targetStepIds": [
+          "S070"
+        ],
+        "metadata": {
+          "ptrAiAction": "suggest-split-complex-task"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "high",
+            "complianceTags": [],
+            "id": "rec-S070-split-001",
+            "title": "Split complex onboarding task into KYC, CIF creation, and CRM update",
+            "description": "Break S070 into smaller sequential tasks to separate document collection/KYC validation from CIF creation and CRM recording.",
+            "rationale": "The current step combines multiple distinct activities, making it hard to assign ownership, measure SLA, and control compliance risk. A split improves traceability and reduces operational ambiguity.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "S070"
+            ],
+            "recommendationType": "SplitTask",
+            "operations": [
+              {
+                "kind": "SplitTask",
+                "targetStepId": "S070",
+                "newTasks": [
+                  {
+                    "id": "task-s070a",
+                    "stepId": "S070A",
+                    "parentStepId": "S070",
+                    "rowType": "task",
+                    "bpmnType": "userTask",
+                    "taskNature": "manual",
+                    "phase": "Onboarding",
+                    "group": "",
+                    "actor": "DVKH",
+                    "actorLane": "DVKH",
+                    "system": "",
+                    "systemLane": "",
+                    "dataObject": "Customer documents",
+                    "dataAction": "validate",
+                    "taskName": "Thu thap ho so va kiem tra KYC",
+                    "input": "Yeu cau mo tai khoan va bo ho so",
+                    "output": "Ho so hop le, KYC xac nhan",
+                    "defaultNextStep": "S070B",
+                    "conditionQuestion": "",
+                    "exception": "",
+                    "exceptionHandling": "Tu choi hoac yeu cau bo sung ho so neu khong dat",
+                    "sla": "1 ngay lam viec",
+                    "riskControl": "KYC policy",
+                    "sourceRef": "eval",
+                    "reviewStatus": "needsReview",
+                    "comment": "",
+                    "customerInteractionType": "Front-stage People",
+                    "channel": "Branch"
+                  },
+                  {
+                    "id": "task-s070b",
+                    "stepId": "S070B",
+                    "parentStepId": "S070",
+                    "rowType": "task",
+                    "bpmnType": "userTask",
+                    "taskNature": "manual",
+                    "phase": "Onboarding",
+                    "group": "",
+                    "actor": "DVKH",
+                    "actorLane": "DVKH",
+                    "system": "CRM",
+                    "systemLane": "CRM",
+                    "dataObject": "CIF",
+                    "dataAction": "create",
+                    "taskName": "Tao CIF va ghi nhan vao CRM",
+                    "input": "Ho so hop le, KYC xac nhan",
+                    "output": "CIF duoc tao va da ghi nhan CRM",
+                    "defaultNextStep": "S070C",
+                    "conditionQuestion": "",
+                    "exception": "",
+                    "exceptionHandling": "Xu ly loi he thong hoac lap lai khi tao CIF that bai",
+                    "sla": "1 ngay lam viec",
+                    "riskControl": "KYC policy",
+                    "sourceRef": "eval",
+                    "reviewStatus": "needsReview",
+                    "comment": "",
+                    "customerInteractionType": "Front-stage People",
+                    "channel": "Branch"
+                  },
+                  {
+                    "id": "task-s070c",
+                    "stepId": "S070C",
+                    "parentStepId": "S070",
+                    "rowType": "task",
+                    "bpmnType": "userTask",
+                    "taskNature": "manual",
+                    "phase": "Onboarding",
+                    "group": "",
+                    "actor": "DVKH",
+                    "actorLane": "DVKH",
+                    "system": "CRM",
+                    "systemLane": "CRM",
+                    "dataObject": "Customer record",
+                    "dataAction": "update",
+                    "taskName": "Cap nhat thong tin khach hang vao CRM",
+                    "input": "CIF da duoc tao",
+                    "output": "Ho so CRM hoan tat",
+                    "conditionQuestion": "",
+                    "exception": "",
+                    "exceptionHandling": "Doi chieu lai du lieu va sua thong tin neu co sai lech",
+                    "sla": "1 ngay lam viec",
+                    "riskControl": "KYC policy",
+                    "sourceRef": "eval",
+                    "reviewStatus": "needsReview",
+                    "comment": "",
+                    "customerInteractionType": "Front-stage People",
+                    "channel": "Branch"
+                  }
+                ]
+              }
+            ],
+            "previewText": "Recommended split for S070 into three reviewable tasks: KYC validation, CIF creation, and CRM update. This improves ownership, compliance traceability, and SLA monitoring.",
+            "warnings": [
+              "This is a graph-changing recommendation and should be human reviewed before applying.",
+              "The proposed split may require downstream connection updates to preserve flow continuity.",
+              "Graph-changing AI recommendation requires explicit human confirmation.",
+              "Graph-changing AI recommendation requires explicit human confirmation."
+            ],
+            "requiresConfirmation": true,
+            "type": "SplitTask"
+          }
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "S070 taskName contains 'dong thoi' (compound connector); output proposes SplitTask with 3 new tasks, satisfying the split requirement.",
+        "domainTerms": "operation.kind 'SplitTask' is valid; bpmnType 'userTask', taskNature 'manual', riskLevel 'high' all correct PTR vocabulary.",
+        "traceability": "targetStepIds ['S070'] matches INPUT; description references S070 compound activities; no fabricated business rules beyond INPUT context.",
+        "safety": "requiresConfirmation: true on the recommendation; riskLevel 'high' appropriate for structural split; warnings explicitly note human review required."
+      }
+    },
+    {
+      "id": "eval-010",
+      "input": {
+        "processTasks": [
+          {
+            "id": "task-s080",
+            "stepId": "S080",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Application",
+            "group": "",
+            "actor": "RM",
+            "actorLane": "RM",
+            "system": "Card System",
+            "systemLane": "Card System",
+            "dataObject": "Card application",
+            "dataAction": "update",
+            "taskName": "Tiep nhan yeu cau lam the tin dung",
+            "input": "",
+            "output": "Don dang ky the duoc tao tren Card System",
+            "defaultNextStep": "S081",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "30 phut",
+            "riskControl": "Xac thuc CCCD khach hang",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Front-stage People",
+            "channel": "Branch"
+          },
+          {
+            "id": "task-s081",
+            "stepId": "S081",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "automatic",
+            "phase": "Scoring",
+            "group": "",
+            "actor": "Scoring Engine",
+            "actorLane": "Scoring Engine",
+            "system": "Scoring Engine",
+            "systemLane": "Scoring Engine",
+            "dataObject": "Credit score",
+            "dataAction": "validate",
+            "taskName": "Chay mo hinh credit score",
+            "input": "Don dang ky the",
+            "output": "",
+            "defaultNextStep": "S082",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "5 phut",
+            "riskControl": "Model validation quarterly",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-s082",
+            "stepId": "S082",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Approval",
+            "group": "",
+            "actor": "",
+            "actorLane": "",
+            "system": "Card System",
+            "systemLane": "Card System",
+            "dataObject": "Card application",
+            "dataAction": "update",
+            "taskName": "Phe duyet phat hanh the",
+            "input": "Ket qua credit score",
+            "output": "Quyet dinh phat hanh the",
+            "defaultNextStep": "S083",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 ngay lam viec",
+            "riskControl": "Four-eyes review",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-s083",
+            "stepId": "S083",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "automatic",
+            "phase": "Issuance",
+            "group": "",
+            "actor": "Card Production System",
+            "actorLane": "Card Production System",
+            "system": "Card Production System",
+            "systemLane": "Card Production System",
+            "dataObject": "Physical card",
+            "dataAction": "update",
+            "taskName": "Khoi tao lenh san xuat the vat ly",
+            "input": "Quyet dinh phat hanh the",
+            "output": "Lenh san xuat the da gui",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "Card personalization security",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          }
+        ],
+        "targetStepIds": [
+          "S080",
+          "S081",
+          "S082",
+          "S083"
+        ],
+        "metadata": {
+          "ptrAiAction": "infer-missing-actor-system-lane"
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-001",
+            "title": "Assign RM lane details for application intake",
+            "description": "Fill the missing actorLane/systemLane metadata on the RM intake step to make the front-stage ownership explicit.",
+            "rationale": "Step S080 already has actor and system populated, but lane fields are missing. Since the selected action is infer-missing-actor-system-lane, this is a low-risk metadata correction that improves model clarity and downstream lane rendering.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S080"
+            ],
+            "recommendationType": "AssignActor",
+            "operations": [
+              {
+                "kind": "AssignActor",
+                "stepId": "S080",
+                "actor": "RM",
+                "actorLane": "RM"
+              }
+            ],
+            "previewText": "Assign actor lane RM to S080 (Tiep nhan yeu cau lam the tin dung).",
+            "warnings": [
+              "Metadata-only change; verify that RM is the intended lane label in the process taxonomy."
+            ],
+            "requiresConfirmation": true,
+            "type": "AssignActor"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-002",
+            "title": "Assign scoring engine lane details",
+            "description": "Confirm and preserve the scoring engine ownership on the automated credit score step by explicitly setting the lane metadata.",
+            "rationale": "Step S081 is already an automated service task with the scoring engine as actor/system, but lane fields are blank. Explicit lane assignment improves readability and aligns the BPMN swimlane model with the current task metadata.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S081"
+            ],
+            "recommendationType": "AssignSystem",
+            "operations": [
+              {
+                "kind": "AssignSystem",
+                "stepId": "S081",
+                "system": "Scoring Engine",
+                "systemLane": "Scoring Engine"
+              }
+            ],
+            "previewText": "Assign system lane Scoring Engine to S081 (Chay mo hinh credit score).",
+            "warnings": [
+              "Metadata-only change; confirm the lane name matches the canonical system lane label."
+            ],
+            "requiresConfirmation": true,
+            "type": "AssignSystem"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-003",
+            "title": "Assign approval actor lane details",
+            "description": "Populate the missing approval actor/lane metadata for the card issuance approval step.",
+            "rationale": "Step S082 represents a manual approval task but has empty actor and actorLane fields. Setting these fields clarifies human responsibility and supports accurate lane-based process analysis.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S082"
+            ],
+            "recommendationType": "AssignActor",
+            "operations": [
+              {
+                "kind": "AssignActor",
+                "stepId": "S082",
+                "actor": "Card Ops Approver",
+                "actorLane": "Card Ops Approver"
+              }
+            ],
+            "previewText": "Assign actor lane Card Ops Approver to S082 (Phe duyet phat hanh the).",
+            "warnings": [
+              "The exact approver role is inferred; confirm the intended approving function before applying."
+            ],
+            "requiresConfirmation": true,
+            "type": "AssignActor"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-004",
+            "title": "Assign card production system lane details",
+            "description": "Explicitly set the system lane metadata for the physical card production initiation step.",
+            "rationale": "Step S083 is a back-stage automated service task with a clear system owner, but lane metadata is missing. Adding the system lane improves process map completeness and supports consistent automation grouping.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S083"
+            ],
+            "recommendationType": "AssignSystem",
+            "operations": [
+              {
+                "kind": "AssignSystem",
+                "stepId": "S083",
+                "system": "Card Production System",
+                "systemLane": "Card Production System"
+              }
+            ],
+            "previewText": "Assign system lane Card Production System to S083 (Khoi tao lenh san xuat the vat ly).",
+            "warnings": [
+              "Metadata-only change; confirm the canonical system lane label used across the model."
+            ],
+            "requiresConfirmation": true,
+            "type": "AssignSystem"
+          }
+        ]
+      },
+      "verdict": "pass",
+      "overall": 0.75,
+      "judgeNotes": {
+        "completeness": "Action is infer-missing-actor-system-lane. S082 has genuinely empty actor/actorLane — covered. S080/S081/S083 already have actor/system/lane fields populated in INPUT, so recommendations for them are over-recommendations. Only S082 had a real gap.",
+        "domainTerms": "All operation.kind values (AssignActor, AssignSystem) are valid. riskLevel 'low' used consistently. No invalid vocabulary or type errors detected.",
+        "traceability": "S082 rec correctly traces to empty actor/actorLane. S080/S081/S083 recs claim lane fields are blank but INPUT shows they are populated, making those descriptions factually incorrect and untraceable to real gaps.",
+        "safety": "All four recommendations have requiresConfirmation: true. riskLevel 'low' is appropriate for metadata-only lane assignments. No ungrounded compliance claims made."
+      }
+    }
+  ]
+}

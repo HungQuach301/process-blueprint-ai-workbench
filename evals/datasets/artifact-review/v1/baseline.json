@@ -1,0 +1,1898 @@
+{
+  "skillId": "artifact-review",
+  "datasetVersion": "v1",
+  "judgeVersion": "v1",
+  "judgeModel": "claude-sonnet-4-6",
+  "skillProvider": "openai",
+  "skillModel": "gpt-5.4-mini",
+  "generatedAt": "2026-06-26T16:35:40.001Z",
+  "summary": {
+    "pass": 10,
+    "partial": 0,
+    "fail": 0,
+    "passRate": 1,
+    "avgOverall": 0.93
+  },
+  "cases": [
+    {
+      "id": "eval-001",
+      "input": {
+        "artifactType": "bpmn",
+        "artifactXml": "<?xml version=\"1.0\"?><bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"><bpmn:process id=\"Process_Eval\"><bpmn:startEvent id=\"S001\"/><bpmn:userTask id=\"S002\"/><bpmn:endEvent id=\"S003\"/></bpmn:process></bpmn:definitions>",
+        "processTasks": [
+          {
+            "id": "task-s001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "start",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Start",
+            "group": "",
+            "actor": "Customer",
+            "actorLane": "Customer",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Submit request",
+            "input": "",
+            "output": "Request submitted",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Customer Action",
+            "channel": "Portal"
+          },
+          {
+            "id": "task-s002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Review",
+            "group": "",
+            "actor": "Operations",
+            "actorLane": "Operations",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Request file",
+            "dataAction": "read",
+            "taskName": "Review request",
+            "input": "Request submitted",
+            "output": "Review decision",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 day",
+            "riskControl": "Review checklist",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-s003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "end",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Done",
+            "group": "",
+            "actor": "Operations",
+            "actorLane": "Operations",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Request closed",
+            "input": "Review decision",
+            "output": "",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "None",
+            "channel": "Other"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-bpmn-eval",
+          "name": "BPMN Eval Template",
+          "type": "bpmn",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "BPMN",
+          "processType": "Generic",
+          "scopeType": "End-to-end",
+          "businessDomain": "Generic",
+          "notationStandard": "BPMN 2.0",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "stepId",
+            "taskName",
+            "bpmnType"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-1",
+            "title": "Mark all three steps as reviewed/approved before publication",
+            "description": "Update reviewStatus for S001, S002, and S003 from draft to approved (or needsReview if your review workflow requires another pass) once the model is confirmed.",
+            "rationale": "The artifact appears structurally complete, but all ProcessTask rows remain in draft status, which is inconsistent with a ready-for-use generated artifact.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S001",
+              "S002",
+              "S003"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "S001",
+                "reviewStatus": "approved"
+              },
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "S002",
+                "reviewStatus": "approved"
+              },
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "S003",
+                "reviewStatus": "approved"
+              }
+            ],
+            "previewText": "Approve S001, S002, and S003 for the artifact review workflow.",
+            "warnings": [
+              "This is a governance/status recommendation only; it does not change the BPMN structure."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ],
+        "templateRecommendations": [],
+        "warnings": [
+          "The BPMN XML contains only a process with startEvent, userTask, and endEvent elements and no sequenceFlow connectors, so the rendered flow may be disconnected or incomplete.",
+          "The XML snippet does not include BPMN DI information (shapes/edges), so visual layout cannot be validated from the artifact provided.",
+          "The processTasks indicate a linear path S001 -> S002 -> S003, but the XML does not explicitly encode that path with sequence flows."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 0.75,
+      "judgeNotes": {
+        "completeness": "Warnings address missing sequenceFlow, DI absence, and S001->S002->S003 path gap; PTR-XML alignment noted; mandatory fields all present in PTR so no template rec needed.",
+        "domainTerms": "Correct BPMN terms: startEvent, userTask, endEvent, sequenceFlow. However 'MarkReviewStatus' is not a valid operation.kind from the allowed PTR schema set.",
+        "traceability": "Warnings traceable to XML content. targetStepIds S001/S002/S003 valid. But 'MarkReviewStatus' operation.kind is non-standard; templateRecommendations empty despite template having mandatoryFields worth checking.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
+      }
+    },
+    {
+      "id": "eval-002",
+      "input": {
+        "artifactType": "service-blueprint",
+        "artifactXml": "<mxfile><diagram id=\"eval\"><mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/></root></mxGraphModel></diagram></mxfile>",
+        "processTasks": [
+          {
+            "id": "task-s010",
+            "stepId": "S010",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Frontstage",
+            "group": "",
+            "actor": "RM",
+            "actorLane": "RM",
+            "system": "CRM",
+            "systemLane": "CRM",
+            "dataObject": "Customer profile",
+            "dataAction": "read",
+            "taskName": "Confirm customer request",
+            "input": "Customer request",
+            "output": "Confirmed request",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "30 minutes",
+            "riskControl": "Identity check",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Front-stage People",
+            "channel": "RM Meeting"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-sb-eval",
+          "name": "Service Blueprint Eval Template",
+          "type": "serviceBlueprint",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "Service Blueprint",
+          "processType": "Servicing",
+          "journeyType": "Customer Journey",
+          "scopeType": "Sub-process",
+          "businessDomain": "Banking",
+          "notationStandard": "Service Blueprint",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "actor",
+            "taskName",
+            "system"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "medium",
+            "complianceTags": [],
+            "id": "rec-001",
+            "title": "Populate missing process connection for S010",
+            "description": "The task has no defaultNextStep, yesNextStep, or noNextStep defined, so the process is currently a single isolated step. Add the appropriate outgoing connection(s) to reflect the intended flow.",
+            "rationale": "A service blueprint with only one task and no sequence connections is likely incomplete and prevents validation of process flow.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "S010"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S010",
+                "field": "defaultNextStep",
+                "value": "<define next step id>"
+              }
+            ],
+            "previewText": "Add a valid next-step connection from S010 to the following task or gateway.",
+            "warnings": [
+              "The artifact currently contains no connected process flow beyond a single task."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-002",
+            "title": "Review and set review status for the draft task",
+            "description": "The only task is still marked as draft. Mark it for review or approved after confirming the step definition and flow connections are correct.",
+            "rationale": "Draft status indicates the task is not yet validated for use in the generated artifact.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S010"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "S010",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Change S010 review status from draft to needsReview.",
+            "warnings": [
+              "Review status changes should be confirmed by a human reviewer."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ],
+        "templateRecommendations": [],
+        "warnings": [
+          "The generated draw.io XML is effectively empty: the diagram contains only the base mxfile/root structure and no visible BPMN or service blueprint elements.",
+          "The artifact does not appear to encode any lanes, tasks, connectors, or labels, so the output is not a usable rendered blueprint.",
+          "Only one process task was provided, which may be insufficient to represent the selected service blueprint template.",
+          "Mandatory template fields are present in the task data, but the artifact itself does not show a corresponding modeled structure."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 0.88,
+      "judgeNotes": {
+        "completeness": "Empty diagram warning present; lane/structure gap noted; mandatory fields acknowledged; single-task flow gap addressed in rec-001.",
+        "domainTerms": "Warnings use 'BPMN' vocabulary ('no visible BPMN or service blueprint elements') on a service-blueprint artifact; lane terms not explicitly cited but no systematic error.",
+        "traceability": "All warnings trace to empty artifactXml; rec-001/rec-002 target S010 which exists in processTasks; templateRecommendations empty is consistent with all mandatory fields present.",
+        "safety": "No forbidden XML-patch fields present; both recommendations have requiresConfirmation: true; no approval claim made."
+      }
+    },
+    {
+      "id": "eval-003",
+      "input": {
+        "artifactType": "bpmn",
+        "artifactXml": "<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"><bpmn:process id=\"Process_QA\"><bpmn:startEvent id=\"S100\"/><bpmn:endEvent id=\"S101\"/></bpmn:process></bpmn:definitions>",
+        "processTasks": [
+          {
+            "id": "task-s100",
+            "stepId": "S100",
+            "parentStepId": null,
+            "rowType": "start",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Start",
+            "group": "",
+            "actor": "System",
+            "actorLane": "System",
+            "system": "Workflow",
+            "systemLane": "Workflow",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Case starts",
+            "input": "",
+            "output": "Case opened",
+            "defaultNextStep": "S101",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "None",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-s101",
+            "stepId": "S101",
+            "parentStepId": null,
+            "rowType": "end",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Done",
+            "group": "",
+            "actor": "System",
+            "actorLane": "System",
+            "system": "Workflow",
+            "systemLane": "Workflow",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Case ends",
+            "input": "Case opened",
+            "output": "",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "None",
+            "channel": "Internal System"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-bpmn-qa-eval",
+          "name": "BPMN QA Eval Template",
+          "type": "bpmn",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "BPMN",
+          "processType": "Operation",
+          "scopeType": "Task-level",
+          "businessDomain": "Generic",
+          "notationStandard": "BPMN 2.0",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "stepId",
+            "taskName",
+            "bpmnType"
+          ]
+        },
+        "qaIssues": [
+          {
+            "id": "qa-001",
+            "severity": "warning",
+            "message": "Only start and end events exist; review process completeness."
+          }
+        ]
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "high",
+            "complianceTags": [],
+            "id": "rec-001",
+            "title": "Review process completeness and add missing intermediate steps",
+            "description": "The BPMN currently contains only a start event and an end event, with no intermediate activities, gateways, or flows represented in the XML beyond the implied process sequence.",
+            "rationale": "A start-to-end-only model is usually insufficient for an operational process blueprint and aligns with the provided QA warning about completeness. Additional tasks or decision points may be required to accurately represent the actual process.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "S100",
+              "S101"
+            ],
+            "recommendationType": "CreateTask",
+            "operations": [
+              {
+                "kind": "CreateTaskAfter",
+                "stepId": "S100",
+                "targetStepId": "S100",
+                "sourceStepId": "S101",
+                "anchorStepId": "S100",
+                "afterStepId": "S100",
+                "actor": "System",
+                "actorLane": "System",
+                "system": "Workflow",
+                "systemLane": "Workflow",
+                "reviewStatus": "draft",
+                "customerInteractionType": "None"
+              }
+            ],
+            "previewText": "Add at least one intermediate task between S100 and S101 to better represent the process.",
+            "warnings": [
+              "The exact missing activities cannot be determined from the current artifact alone.",
+              "Graph-changing AI recommendation requires explicit human confirmation.",
+              "Graph-changing AI recommendation requires explicit human confirmation."
+            ],
+            "requiresConfirmation": true,
+            "type": "CreateTask"
+          },
+          {
+            "source": "hybrid",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-002",
+            "title": "Mark the model for review due to minimal BPMN coverage",
+            "description": "The artifact likely needs human validation because the generated BPMN is structurally valid but extremely sparse and may not reflect the intended process scope.",
+            "rationale": "With only a start and end event, the diagram may pass basic technical checks but still be a poor fit for process documentation or execution review. Marking the steps for review helps surface the need for subject matter input.",
+            "confidence": "high",
+            "impact": "medium",
+            "targetStepIds": [
+              "S100",
+              "S101"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "S100",
+                "reviewStatus": "needsReview"
+              },
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "S101",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Flag the existing start and end steps for further review.",
+            "warnings": [
+              "This does not resolve missing process detail; it only highlights it."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ],
+        "templateRecommendations": [],
+        "warnings": [
+          "The BPMN XML appears to define only a process container, one start event, and one end event, with no sequence flows or intermediate elements present.",
+          "The artifact may be technically minimal but is likely not representative of a real operational process.",
+          "If sequence flows are expected by the target tooling, the current XML may be incomplete even though it is well-formed."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "Addresses structural observation (only start/end, no sequenceFlow), acknowledges qa-001 QA issue in rec-001 rationale, and mandatory fields S100/S101 all present.",
+        "domainTerms": "Uses correct BPMN terms: startEvent, endEvent, sequenceFlow. PTR fields actor, actorLane, system, systemLane, reviewStatus, bpmnType all correct. operation.kind values valid.",
+        "traceability": "All targetStepIds (S100, S101) present in processTasks. Warnings trace to specific XML condition (no sequenceFlow). QA issue qa-001 referenced explicitly.",
+        "safety": "No forbidden XML-patch fields present. Both recommendations have requiresConfirmation: true. No approval claim made."
+      }
+    },
+    {
+      "id": "eval-004",
+      "input": {
+        "artifactType": "bpmn",
+        "artifactXml": "<?xml version=\"1.0\"?><bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"><bpmn:process id=\"Process_NoFlow\"><bpmn:startEvent id=\"Start001\" name=\"Bat dau\"/><bpmn:userTask id=\"Task001\" name=\"Kiem tra ho so\"/><bpmn:userTask id=\"Task002\" name=\"Phe duyet\"/><bpmn:endEvent id=\"End001\" name=\"Ket thuc\"/></bpmn:process></bpmn:definitions>",
+        "processTasks": [
+          {
+            "id": "task-start001",
+            "stepId": "Start001",
+            "parentStepId": null,
+            "rowType": "start",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Start",
+            "group": "",
+            "actor": "Customer",
+            "actorLane": "Customer",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Bat dau",
+            "input": "",
+            "output": "Quy trinh bat dau",
+            "defaultNextStep": "Task001",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "None",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-t001",
+            "stepId": "Task001",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Review",
+            "group": "",
+            "actor": "Credit Officer",
+            "actorLane": "Credit Officer",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Credit file",
+            "dataAction": "read",
+            "taskName": "Kiem tra ho so",
+            "input": "Ho so vay",
+            "output": "Ket qua kiem tra",
+            "defaultNextStep": "Task002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 ngay lam viec",
+            "riskControl": "Checklist kiem tra",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-t002",
+            "stepId": "Task002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Approval",
+            "group": "",
+            "actor": "Branch Director",
+            "actorLane": "Branch Director",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Credit file",
+            "dataAction": "update",
+            "taskName": "Phe duyet",
+            "input": "Ket qua kiem tra",
+            "output": "Quyet dinh phe duyet",
+            "defaultNextStep": "End001",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 ngay lam viec",
+            "riskControl": "Uy quyen phe duyet",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-end001",
+            "stepId": "End001",
+            "parentStepId": null,
+            "rowType": "end",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Done",
+            "group": "",
+            "actor": "System",
+            "actorLane": "System",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Ket thuc",
+            "input": "Quyet dinh phe duyet",
+            "output": "",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "None",
+            "channel": "Internal System"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-bpmn-loan-eval",
+          "name": "BPMN Loan Eval Template",
+          "type": "bpmn",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "BPMN",
+          "processType": "Lending",
+          "scopeType": "End-to-end",
+          "businessDomain": "Banking",
+          "notationStandard": "BPMN 2.0",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "stepId",
+            "taskName",
+            "bpmnType",
+            "actor"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "high",
+            "complianceTags": [],
+            "id": "rec-001",
+            "title": "Add explicit sequence flow from Start001 to Task001",
+            "description": "The BPMN artifact contains start, task, and end elements but no sequenceFlow connectors. Add a flow from the start event to the first review task to make the process executable and structurally valid.",
+            "rationale": "A BPMN process with no sequence flows is incomplete and may not render or validate as an executable path. The start event already indicates Task001 as the default next step, so the missing connector should be added for traceability and correctness.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "Start001",
+              "Task001"
+            ],
+            "recommendationType": "CreateTask",
+            "operations": [
+              {
+                "kind": "UpdateConnection",
+                "stepId": "Start001",
+                "targetStepId": "Task001",
+                "sourceStepId": "Start001",
+                "branch": "defaultNextStep"
+              }
+            ],
+            "previewText": "Connect Start001 -> Task001 using the default next step flow.",
+            "warnings": [
+              "No sequenceFlow exists in the XML; this recommendation assumes the modeler supports adding connectors between existing nodes.",
+              "Graph-changing AI recommendation requires explicit human confirmation.",
+              "Graph-changing AI recommendation requires explicit human confirmation."
+            ],
+            "requiresConfirmation": true,
+            "type": "CreateTask"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "high",
+            "complianceTags": [],
+            "id": "rec-002",
+            "title": "Add explicit sequence flow from Task001 to Task002",
+            "description": "Create a connector from the credit file check task to the approval task to reflect the intended process path.",
+            "rationale": "Task001 already declares Task002 as its default next step, but the XML lacks the corresponding BPMN sequenceFlow. Without it, the process path is disconnected.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "Task001",
+              "Task002"
+            ],
+            "recommendationType": "CreateTask",
+            "operations": [
+              {
+                "kind": "UpdateConnection",
+                "stepId": "Task001",
+                "targetStepId": "Task002",
+                "sourceStepId": "Task001",
+                "branch": "defaultNextStep"
+              }
+            ],
+            "previewText": "Connect Task001 -> Task002 using the default next step flow.",
+            "warnings": [
+              "The XML has no flow elements, so this is a structural fix rather than a content change.",
+              "Graph-changing AI recommendation requires explicit human confirmation.",
+              "Graph-changing AI recommendation requires explicit human confirmation."
+            ],
+            "requiresConfirmation": true,
+            "type": "CreateTask"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "high",
+            "complianceTags": [],
+            "id": "rec-003",
+            "title": "Add explicit sequence flow from Task002 to End001",
+            "description": "Connect the approval task to the end event so the modeled process has a complete path to completion.",
+            "rationale": "Task002 already points to End001 as the default next step in the task register, but the BPMN XML omits the connector. This leaves the end event unreachable in the diagram semantics.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "Task002",
+              "End001"
+            ],
+            "recommendationType": "CreateTask",
+            "operations": [
+              {
+                "kind": "UpdateConnection",
+                "stepId": "Task002",
+                "targetStepId": "End001",
+                "sourceStepId": "Task002",
+                "branch": "defaultNextStep"
+              }
+            ],
+            "previewText": "Connect Task002 -> End001 using the default next step flow.",
+            "warnings": [
+              "The process is linear, but BPMN still requires explicit sequence flows between nodes.",
+              "Graph-changing AI recommendation requires explicit human confirmation.",
+              "Graph-changing AI recommendation requires explicit human confirmation."
+            ],
+            "requiresConfirmation": true,
+            "type": "CreateTask"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-004",
+            "title": "Mark the process tasks for review due to missing BPMN completeness",
+            "description": "Set the review status of all involved steps to needsReview until the missing connectors are validated and rendered correctly.",
+            "rationale": "The XML is structurally minimal and lacks the flows required to confirm that the process is complete and consistent with the task register. Marking as needsReview helps prevent accidental approval of an incomplete model.",
+            "confidence": "medium",
+            "impact": "medium",
+            "targetStepIds": [
+              "Start001",
+              "Task001",
+              "Task002",
+              "End001"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "Start001",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Mark the model steps as needsReview until sequence flows are added and validated.",
+            "warnings": [
+              "This is a quality-control action, not a process design change."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ],
+        "templateRecommendations": [],
+        "warnings": [
+          "The BPMN XML is structurally incomplete because it contains no sequenceFlow elements between the start event, tasks, and end event.",
+          "There are no BPMN collaboration, lane, or diagram layout elements in the XML, so rendering fidelity and participant separation cannot be verified.",
+          "The process model appears linear in the task register, but the XML does not encode that linearity; this may cause validation or import issues in BPMN tools.",
+          "The start and end events are present, but without connectors the process may be interpreted as disconnected nodes rather than a usable process."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "Warnings address missing sequenceFlow (structural issue), recommendations cover all flow gaps, all PTR stepIds matched in XML; mandatory fields covered.",
+        "domainTerms": "Uses correct BPMN terms: startEvent, endEvent, userTask, sequenceFlow. PTR fields cited (actor, bpmnType, reviewStatus) are accurate schema names.",
+        "traceability": "All targetStepIds (Start001, Task001, Task002, End001) present in processTasks. Warnings trace to specific XML absence of sequenceFlow elements.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
+      }
+    },
+    {
+      "id": "eval-005",
+      "input": {
+        "artifactType": "bpmn",
+        "artifactXml": "<?xml version=\"1.0\"?><bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"><bpmn:process id=\"Process_Empty\"></bpmn:process></bpmn:definitions>",
+        "processTasks": [],
+        "selectedTemplate": {
+          "id": "tpl-bpmn-empty-eval",
+          "name": "BPMN Empty Eval",
+          "type": "bpmn",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "BPMN",
+          "processType": "Generic",
+          "scopeType": "End-to-end",
+          "businessDomain": "Generic",
+          "notationStandard": "BPMN 2.0",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "stepId",
+            "taskName",
+            "bpmnType"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [],
+        "templateRecommendations": [],
+        "warnings": [
+          "The BPMN process is empty: the artifact contains only an empty bpmn:process element with no flow nodes, lanes, events, or sequence flows.",
+          "No ProcessTask records were provided, so there are no traceable stepId targets for process-task recommendations.",
+          "The selected template requires mandatory fields stepId, taskName, and bpmnType, but there are no tasks to validate against.",
+          "The XML appears structurally minimal and may be valid XML, but it does not represent a usable process model for evaluation."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "Empty process warned correctly; mandatory fields stepId/taskName/bpmnType noted; no processTasks so zero-output exemption does not apply but warnings cover all applicable elements.",
+        "domainTerms": "Correct BPMN terms used: bpmn:process, flow nodes, sequenceFlow, startEvent/endEvent implied via 'events'; PTR field names stepId, taskName, bpmnType are accurate.",
+        "traceability": "All warnings trace to specific INPUT elements: empty bpmn:process in artifactXml, empty processTasks array, mandatoryFields list in selectedTemplate. No fabricated elements.",
+        "safety": "No forbidden XML-patch fields present. No requiresConfirmation violations (both recommendation arrays are empty). No approval claim made."
+      }
+    },
+    {
+      "id": "eval-006",
+      "input": {
+        "artifactType": "service-blueprint",
+        "artifactXml": "<mxfile><diagram id=\"eval-sb-sys\"><mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"2\" value=\"Confirm Request\" style=\"\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"100\" y=\"100\" width=\"120\" height=\"60\" as=\"geometry\"/></mxCell></root></mxGraphModel></diagram></mxfile>",
+        "processTasks": [
+          {
+            "id": "task-sb100",
+            "stepId": "SB100",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Frontstage",
+            "group": "",
+            "actor": "RM",
+            "actorLane": "RM",
+            "system": "CRM",
+            "systemLane": "",
+            "dataObject": "Customer profile",
+            "dataAction": "read",
+            "taskName": "Xac nhan yeu cau khach hang",
+            "input": "Yeu cau khach hang",
+            "output": "Yeu cau da xac nhan",
+            "defaultNextStep": "SB101",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "30 phut",
+            "riskControl": "Kiem tra dinh danh",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Front-stage People",
+            "channel": "Branch"
+          },
+          {
+            "id": "task-sb101",
+            "stepId": "SB101",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "automatic",
+            "phase": "Backstage",
+            "group": "",
+            "actor": "CRM",
+            "actorLane": "CRM",
+            "system": "CRM",
+            "systemLane": "",
+            "dataObject": "Customer record",
+            "dataAction": "update",
+            "taskName": "Cap nhat thong tin khach hang tren CRM",
+            "input": "Yeu cau da xac nhan",
+            "output": "Ho so khach hang cap nhat",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "5 phut",
+            "riskControl": "Data validation",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-sb-banking-eval",
+          "name": "Service Blueprint Banking Eval",
+          "type": "serviceBlueprint",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "Service Blueprint",
+          "processType": "Servicing",
+          "journeyType": "Customer Journey",
+          "scopeType": "End-to-end",
+          "businessDomain": "Banking",
+          "notationStandard": "Service Blueprint",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "actor",
+            "taskName",
+            "system",
+            "systemLane"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "hybrid",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-1",
+            "title": "Add missing system lane for CRM task SB101",
+            "description": "Task SB101 has system set to CRM but systemLane is empty, which violates the selected template's mandatoryFields and weakens blueprint lane clarity. Assign the task to an explicit system lane.",
+            "rationale": "The template requires systemLane, and the current artifact leaves it blank for an automated backstage system step.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "SB101"
+            ],
+            "recommendationType": "AssignSystem",
+            "operations": [
+              {
+                "kind": "AssignSystem",
+                "stepId": "SB101",
+                "system": "CRM",
+                "systemLane": "CRM"
+              }
+            ],
+            "previewText": "Assign SB101 to system lane CRM.",
+            "warnings": [
+              "The exact lane name may need alignment with the template's existing lane naming convention."
+            ],
+            "requiresConfirmation": true,
+            "type": "AssignSystem"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-2",
+            "title": "Mark both tasks for review due to minimal artifact completeness",
+            "description": "The XML contains only a single visible node and does not clearly represent the two-step process described in the task data. Mark the affected steps for human review to confirm the generated artifact matches the intended process model.",
+            "rationale": "There is a likely mismatch between the structured processTasks list and the sparse XML artifact, which suggests the generated diagram may be incomplete or partially rendered.",
+            "confidence": "medium",
+            "impact": "medium",
+            "targetStepIds": [
+              "SB100",
+              "SB101"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "SB100",
+                "reviewStatus": "needsReview"
+              },
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "SB101",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Mark SB100 and SB101 as needs review.",
+            "warnings": [
+              "This is a QA safeguard, not a model correction.",
+              "The XML may be intentionally minimal in the provided sample."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ],
+        "templateRecommendations": [
+          {
+            "id": "tmpl-rec-1",
+            "templateId": "tpl-sb-banking-eval",
+            "source": "ai",
+            "type": "AddMandatoryField",
+            "title": "Enforce systemLane completion for automated steps",
+            "description": "Update the template rules or validation guidance so that serviceTask/backstage system steps cannot be considered complete unless systemLane is populated.",
+            "confidence": "high",
+            "riskLevel": "low",
+            "affectedFields": [
+              "systemLane",
+              "bpmnType",
+              "customerInteractionType"
+            ],
+            "warnings": [
+              "May increase validation failures for legacy artifacts until lane mapping is standardized."
+            ],
+            "requiresConfirmation": true
+          }
+        ],
+        "warnings": [
+          "The provided mxfile is extremely sparse: it shows only one visible vertex and does not visibly encode the two process tasks described in the input.",
+          "The artifact appears to omit connectors, lanes, and most service-blueprint structure, so diagram fidelity cannot be fully verified from the XML sample alone.",
+          "Step SB100 uses romanized Vietnamese text without diacritics; this is acceptable for QA but may reduce readability in the final artifact."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 0.88,
+      "judgeNotes": {
+        "completeness": "Warnings address sparse XML/missing lanes; rec-1 covers missing systemLane mandatory field; rec-2 addresses PTR vs XML mismatch for both SB100 and SB101.",
+        "domainTerms": "Uses correct SB terms like 'systemLane','Backstage','Front-stage People'. However 'AssignSystem','MarkReviewStatus' are non-standard operation kinds not in PTR schema; 'bpmnType' cited in affectedFields is a BPMN term on a blueprint review.",
+        "traceability": "All targetStepIds (SB100,SB101) present in processTasks; templateId 'tpl-sb-banking-eval' matches input; affectedFields 'systemLane' traceable to mandatory fields; XML sparseness warning grounded in actual XML content.",
+        "safety": "No forbidden XML-patch fields present; all recommendations and templateRecommendations have requiresConfirmation:true; no approval claim made."
+      }
+    },
+    {
+      "id": "eval-007",
+      "input": {
+        "artifactType": "bpmn",
+        "artifactXml": "THIS IS NOT VALID XML <<malformed>>",
+        "processTasks": [
+          {
+            "id": "task-s200",
+            "stepId": "S200",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Review",
+            "group": "",
+            "actor": "Analyst",
+            "actorLane": "Analyst",
+            "system": "Workflow",
+            "systemLane": "Workflow",
+            "dataObject": "Report",
+            "dataAction": "read",
+            "taskName": "Review bao cao",
+            "input": "Du lieu dau vao",
+            "output": "Bao cao da duyet",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-bpmn-malformed-eval",
+          "name": "BPMN Malformed Eval",
+          "type": "bpmn",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "BPMN",
+          "processType": "Generic",
+          "scopeType": "End-to-end",
+          "businessDomain": "Generic",
+          "notationStandard": "BPMN 2.0",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "stepId",
+            "taskName",
+            "bpmnType"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "high",
+            "complianceTags": [],
+            "id": "rec-1",
+            "title": "Mark malformed BPMN artifact for review",
+            "description": "The provided BPMN artifact XML is malformed and cannot be safely validated or mapped to the process task structure. Flag the existing step for manual review and regeneration.",
+            "rationale": "The artifact contains non-XML content ('THIS IS NOT VALID XML <<malformed>>'), which prevents reliable BPMN quality assessment and downstream processing.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "S200"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "S200",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Flag step S200 as needsReview because the BPMN XML is malformed and cannot be validated.",
+            "warnings": [
+              "Artifact XML is not valid BPMN/XML; no structural verification can be performed."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-2",
+            "title": "Confirm or normalize task naming to match language and notation standards",
+            "description": "The task name 'Review bao cao' appears partially transliterated and may not meet documentation standards for BPMN labels. Consider normalizing it to a consistent business-language label if this is unintended.",
+            "rationale": "Clear, standardized task labels improve readability and reduce ambiguity in BPMN models, especially in enterprise review flows.",
+            "confidence": "medium",
+            "impact": "medium",
+            "targetStepIds": [
+              "S200"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "S200",
+                "field": "taskName",
+                "value": "Review report"
+              }
+            ],
+            "previewText": "Update S200 taskName from 'Review bao cao' to 'Review report' for clearer BPMN labeling.",
+            "warnings": [
+              "This is a language/style normalization suggestion; confirm intended business terminology before applying."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          }
+        ],
+        "templateRecommendations": [
+          {
+            "id": "tplrec-1",
+            "templateId": "tpl-bpmn-malformed-eval",
+            "source": "ai",
+            "type": "MarkForReview",
+            "title": "Template should be flagged due to malformed output artifact",
+            "description": "The selected BPMN template produced or received an invalid artifact payload. The template should be marked for review to inspect generation rules and output validation behavior.",
+            "confidence": "high",
+            "riskLevel": "high",
+            "affectedFields": [
+              "connectorRules",
+              "layoutRules",
+              "taskCardRules"
+            ],
+            "warnings": [
+              "Cannot assess actual template fit because the artifact XML is malformed and not parseable."
+            ],
+            "requiresConfirmation": true
+          }
+        ],
+        "warnings": [
+          "The artifactXml field does not contain valid XML, so BPMN parsing, topology validation, and layout verification are not possible.",
+          "Only one process task is provided, which may be acceptable for a minimal model but limits structural review.",
+          "No gateway, event, or sequence flow structure is present in the provided task data; this may be intentional or may indicate an incomplete model."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 0.88,
+      "judgeNotes": {
+        "completeness": "Malformed XML warned; PTR task S200 addressed; mandatory fields covered via templateRecommendations; all applicable elements present.",
+        "domainTerms": "'MarkReviewStatus' and 'UpdateTaskField' are non-standard operation.kind values not in the allowed PTR schema set; PTR field names otherwise correct.",
+        "traceability": "All warnings grounded in malformed XML; targetStepIds use S200 from processTasks; templateId matches tpl-bpmn-malformed-eval; no fabricated elements.",
+        "safety": "No forbidden XML-patch fields present; all recommendations have requiresConfirmation:true; no approval claim made."
+      }
+    },
+    {
+      "id": "eval-008",
+      "input": {
+        "artifactType": "bpmn",
+        "artifactXml": "<?xml version=\"1.0\"?><bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"><bpmn:process id=\"Process_GW\"><bpmn:startEvent id=\"S001\"/><bpmn:userTask id=\"T001\" name=\"Tham dinh\"/><bpmn:exclusiveGateway id=\"GW001\"/><bpmn:userTask id=\"T002\" name=\"Phe duyet\"/><bpmn:endEvent id=\"E001\"/><bpmn:sequenceFlow id=\"F1\" sourceRef=\"S001\" targetRef=\"T001\"/><bpmn:sequenceFlow id=\"F2\" sourceRef=\"T001\" targetRef=\"GW001\"/><bpmn:sequenceFlow id=\"F3\" sourceRef=\"GW001\" targetRef=\"T002\"/><bpmn:sequenceFlow id=\"F4\" sourceRef=\"T002\" targetRef=\"E001\"/></bpmn:process></bpmn:definitions>",
+        "processTasks": [
+          {
+            "id": "task-s001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "start",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Start",
+            "group": "",
+            "actor": "Customer",
+            "actorLane": "Customer",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Bat dau",
+            "input": "",
+            "output": "Yeu cau duoc tao",
+            "defaultNextStep": "T001",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Customer Action",
+            "channel": "Portal"
+          },
+          {
+            "id": "task-t001",
+            "stepId": "T001",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Appraisal",
+            "group": "",
+            "actor": "Credit Officer",
+            "actorLane": "Credit Officer",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Application",
+            "dataAction": "read",
+            "taskName": "Tham dinh",
+            "input": "Yeu cau",
+            "output": "Ket qua tham dinh",
+            "defaultNextStep": "GW001",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "1 ngay",
+            "riskControl": "Four-eyes",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-gw001",
+            "stepId": "GW001",
+            "parentStepId": null,
+            "rowType": "gateway",
+            "bpmnType": "exclusiveGateway",
+            "taskNature": "manual",
+            "phase": "Decision",
+            "group": "",
+            "actor": "System",
+            "actorLane": "System",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "",
+            "input": "Ket qua tham dinh",
+            "output": "",
+            "defaultNextStep": "T002",
+            "conditionQuestion": "",
+            "yesNextStep": "T002",
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-t002",
+            "stepId": "T002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Approval",
+            "group": "",
+            "actor": "Branch Director",
+            "actorLane": "Branch Director",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Application",
+            "dataAction": "update",
+            "taskName": "Phe duyet",
+            "input": "Ket qua tham dinh",
+            "output": "Quyet dinh phe duyet",
+            "defaultNextStep": "E001",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "4 gio",
+            "riskControl": "Uy quyen phe duyet",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage People",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-e001",
+            "stepId": "E001",
+            "parentStepId": null,
+            "rowType": "end",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Done",
+            "group": "",
+            "actor": "System",
+            "actorLane": "System",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Ket thuc",
+            "input": "Quyet dinh",
+            "output": "",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "None",
+            "channel": "Internal System"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-bpmn-gw-eval",
+          "name": "BPMN Gateway Eval Template",
+          "type": "bpmn",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "BPMN",
+          "processType": "Generic",
+          "scopeType": "End-to-end",
+          "businessDomain": "Banking",
+          "notationStandard": "BPMN 2.0",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "stepId",
+            "taskName",
+            "bpmnType",
+            "conditionQuestion"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "medium",
+            "complianceTags": [],
+            "id": "rec-1",
+            "title": "Convert the gateway into a proper decision with explicit branch conditions",
+            "description": "The exclusive gateway GW001 currently has no conditionQuestion and no clearly labeled outgoing conditions in the artifact model. Add a decision question and define the yes/no branches so the approval path is unambiguous.",
+            "rationale": "An exclusive gateway should represent a concrete business decision. Without a condition question and branch semantics, reviewers may not be able to validate the intended routing logic.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "GW001"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "GW001",
+                "field": "conditionQuestion",
+                "value": "Khoan vay co duoc phe duyet khong?"
+              },
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "GW001",
+                "field": "yesNextStep",
+                "value": "T002"
+              },
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "GW001",
+                "field": "noNextStep",
+                "value": "E001"
+              }
+            ],
+            "previewText": "Define GW001 as an explicit approval decision with yes -> T002 and no -> E001.",
+            "warnings": [
+              "The generated BPMN XML does not include explicit conditional sequence flows or gateway labeling, so the visual diagram may not communicate the decision logic clearly."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-2",
+            "title": "Align the end event text with the process outcome",
+            "description": "The end event E001 is named 'Ket thuc', but its input and process context indicate the real outcome is the approval decision. Consider clarifying the end state text to reflect completion of the approval flow.",
+            "rationale": "A generic end label can be acceptable, but in banking workflows it is often better to show the business outcome clearly for audit and review purposes.",
+            "confidence": "medium",
+            "impact": "medium",
+            "targetStepIds": [
+              "E001"
+            ],
+            "recommendationType": "UpdateField",
+            "operations": [
+              {
+                "kind": "UpdateTaskField",
+                "stepId": "E001",
+                "field": "taskName",
+                "value": "Ket thuc phe duyet"
+              }
+            ],
+            "previewText": "Rename the end event to better reflect the completed approval process.",
+            "warnings": [
+              "If the intended meaning is simply process completion, the current name may already be acceptable."
+            ],
+            "requiresConfirmation": true,
+            "type": "UpdateField"
+          }
+        ],
+        "templateRecommendations": [
+          {
+            "id": "tplrec-1",
+            "templateId": "tpl-bpmn-gw-eval",
+            "source": "ai",
+            "type": "AddMandatoryField",
+            "title": "Require conditionQuestion for gateway-oriented templates",
+            "description": "The selected template already marks conditionQuestion as mandatory, which is appropriate. Consider strengthening template guidance so exclusive gateways also require explicit branch semantics or a decision question example.",
+            "confidence": "medium",
+            "riskLevel": "low",
+            "affectedFields": [
+              "conditionQuestion",
+              "yesNextStep",
+              "noNextStep"
+            ],
+            "warnings": [
+              "This is a template guidance improvement, not an artifact fix.",
+              "Any template change may affect future generated models more than the current artifact."
+            ],
+            "requiresConfirmation": true
+          }
+        ],
+        "warnings": [
+          "The BPMN XML is structurally minimal and lacks BPMN diagram interchange (BPMN DI) information, so visual layout and rendering fidelity may be limited.",
+          "Sequence flows are present, but gateway decision labeling is not explicit in the XML, which may reduce reviewer clarity.",
+          "Lane information is represented in task metadata but not in the XML, so lane-to-task ownership may not be visually reflected.",
+          "The end event is generic and may not clearly communicate the business outcome without additional labeling or documentation."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "Covers gateway missing conditionQuestion, lane-XML mismatch, missing BPMN DI, structural flow check, and mandatory field conditionQuestion from selectedTemplate.",
+        "domainTerms": "Uses correct BPMN terms: exclusiveGateway, sequenceFlow, startEvent, endEvent, userTask. PTR fields cited: conditionQuestion, yesNextStep, noNextStep, taskName. operation.kind uses UpdateTaskField.",
+        "traceability": "GW001 conditionQuestion gap traceable to PTR task-gw001 (empty field) and mandatoryFields. E001 rec targets task-e001. templateId tpl-bpmn-gw-eval matches. All stepIds present in processTasks.",
+        "safety": "No forbidden XML-patch fields present. All recommendations and templateRecommendations have requiresConfirmation: true. No approval claim made."
+      }
+    },
+    {
+      "id": "eval-009",
+      "input": {
+        "artifactType": "service-blueprint",
+        "artifactXml": "<mxfile><diagram id=\"eval-sb-full\"><mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/><mxCell id=\"lane1\" value=\"Customer\" style=\"swimlane\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"0\" y=\"0\" width=\"800\" height=\"100\" as=\"geometry\"/></mxCell><mxCell id=\"lane2\" value=\"Mobile Banking\" style=\"swimlane\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"0\" y=\"100\" width=\"800\" height=\"100\" as=\"geometry\"/></mxCell><mxCell id=\"lane3\" value=\"Core Banking\" style=\"swimlane\" vertex=\"1\" parent=\"1\"><mxGeometry x=\"0\" y=\"200\" width=\"800\" height=\"100\" as=\"geometry\"/></mxCell></root></mxGraphModel></diagram></mxfile>",
+        "processTasks": [
+          {
+            "id": "task-sb001",
+            "stepId": "SB001",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Customer Action",
+            "group": "",
+            "actor": "Customer",
+            "actorLane": "Customer",
+            "system": "Mobile Banking",
+            "systemLane": "Mobile Banking",
+            "dataObject": "Transfer request",
+            "dataAction": "update",
+            "taskName": "Khoi tao lenh chuyen tien",
+            "input": "So tai khoan va so tien",
+            "output": "Lenh chuyen tien da gui",
+            "defaultNextStep": "SB002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "OTP xac thuc",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Customer Action",
+            "channel": "Mobile App"
+          },
+          {
+            "id": "task-sb002",
+            "stepId": "SB002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "automatic",
+            "phase": "Backstage",
+            "group": "",
+            "actor": "Core Banking",
+            "actorLane": "Core Banking",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Account balance",
+            "dataAction": "validate",
+            "taskName": "Kiem tra so du va limit chuyen tien",
+            "input": "Lenh chuyen tien",
+            "output": "Ket qua kiem tra so du",
+            "defaultNextStep": "SB003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong du so du",
+            "exceptionHandling": "Tra loi loi cho khach hang",
+            "sla": "2 giay",
+            "riskControl": "Fraud check tu dong",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          },
+          {
+            "id": "task-sb003",
+            "stepId": "SB003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "automatic",
+            "phase": "Backstage",
+            "group": "",
+            "actor": "Payment Hub",
+            "actorLane": "Payment Hub",
+            "system": "Payment Hub",
+            "systemLane": "Payment Hub",
+            "dataObject": "Payment instruction",
+            "dataAction": "update",
+            "taskName": "Xu ly chuyen tien qua NAPAS",
+            "input": "Lenh chuyen tien da xac thuc",
+            "output": "Ket qua chuyen tien",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Timeout",
+            "exceptionHandling": "Tra ve doi soat",
+            "sla": "30 giay",
+            "riskControl": "Retry va timeout handling",
+            "sourceRef": "eval",
+            "reviewStatus": "draft",
+            "comment": "",
+            "customerInteractionType": "Back-stage System",
+            "channel": "Internal System"
+          }
+        ],
+        "selectedTemplate": {
+          "id": "tpl-sb-payment-eval",
+          "name": "Service Blueprint Payment Eval",
+          "type": "serviceBlueprint",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "Service Blueprint",
+          "processType": "Payments",
+          "journeyType": "Customer Journey",
+          "scopeType": "End-to-end",
+          "businessDomain": "Banking",
+          "notationStandard": "Service Blueprint",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "actor",
+            "taskName",
+            "system",
+            "systemLane"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "medium",
+            "complianceTags": [],
+            "id": "rec-001",
+            "title": "Mark SB002 for review due to missing explicit exception branch",
+            "description": "The validation step for insufficient balance has an exception outcome ('Khong du so du') and handling text, but the model does not represent an explicit alternate flow or gateway. Mark this task for review so a human can confirm whether a rejection branch or customer notification step should be modeled.",
+            "rationale": "The current artifact shows only a linear defaultNextStep from SB002 to SB003, which may hide an important business exception path in a payments blueprint.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [
+              "SB002"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "SB002",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Set SB002 review status to needsReview to confirm handling of the insufficient balance exception.",
+            "warnings": [
+              "Exception handling exists in text but is not modeled as a separate branch."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          },
+          {
+            "source": "ai",
+            "riskLevel": "low",
+            "complianceTags": [],
+            "id": "rec-002",
+            "title": "Mark SB003 for review because no downstream step is defined",
+            "description": "SB003 is the last step in the artifact and has no defaultNextStep or modeled end state. Review whether the process should terminate, loop back with a result, or continue to a customer communication step.",
+            "rationale": "A service blueprint usually benefits from an explicit end condition or handoff after payment execution to avoid ambiguity in process completion.",
+            "confidence": "medium",
+            "impact": "medium",
+            "targetStepIds": [
+              "SB003"
+            ],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "stepId": "SB003",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Set SB003 review status to needsReview because the process ends without an explicit completion step.",
+            "warnings": [
+              "No terminal or completion step is modeled after payment processing."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ],
+        "templateRecommendations": [],
+        "warnings": [
+          "The draw.io XML contains only swimlane containers and no task or connector geometry, so the diagram representation appears incomplete relative to the provided processTasks.",
+          "The artifact mixes a service-blueprint structure with BPMN-like task metadata; this may be acceptable for the workbench but should be verified for notation consistency.",
+          "Selected template mandatory fields are present in the task data, but the artifact XML does not visually reflect the task lanes or flows."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 0.88,
+      "judgeNotes": {
+        "completeness": "Warns about empty diagram (no task/connector cells), lane gaps, mandatory fields check, and PTR task mismatch. qaIssues absent so not applicable.",
+        "domainTerms": "Uses correct SB lane terms (Customer, Frontstage, Backstage) and PTR fields. However 'BPMN-like task metadata' note conflates BPMN/SB vocabulary inappropriately; minor issue.",
+        "traceability": "Warnings trace to specific XML observation (swimlane-only cells) and PTR tasks. rec-001 targets SB002, rec-002 targets SB003, both valid stepIds from INPUT processTasks.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation:true. No approval claims made."
+      }
+    },
+    {
+      "id": "eval-010",
+      "input": {
+        "artifactType": "bpmn",
+        "artifactXml": "<?xml version=\"1.0\"?><bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\"><bpmn:process id=\"Process_NoTasks\"><bpmn:startEvent id=\"S001\" name=\"Start\"/><bpmn:userTask id=\"T001\" name=\"Do something\"/><bpmn:endEvent id=\"E001\" name=\"End\"/></bpmn:process></bpmn:definitions>",
+        "processTasks": [],
+        "selectedTemplate": {
+          "id": "tpl-bpmn-notasks-eval",
+          "name": "BPMN No-Tasks Eval",
+          "type": "bpmn",
+          "version": "1.0.0",
+          "status": "active",
+          "outputType": "BPMN",
+          "processType": "Generic",
+          "scopeType": "End-to-end",
+          "businessDomain": "Generic",
+          "notationStandard": "BPMN 2.0",
+          "organizationType": "Enterprise",
+          "tags": [
+            "eval"
+          ],
+          "laneRules": {},
+          "rowRules": {},
+          "taskCardRules": {},
+          "connectorRules": {},
+          "colorRules": {},
+          "layoutRules": {},
+          "mandatoryFields": [
+            "stepId",
+            "taskName",
+            "bpmnType"
+          ]
+        }
+      },
+      "output": {
+        "recommendations": [
+          {
+            "source": "ai",
+            "riskLevel": "medium",
+            "complianceTags": [],
+            "id": "rec-1",
+            "title": "Mark process model for review due to missing task register traceability",
+            "description": "The BPMN artifact contains flow elements, but the provided processTasks array is empty, so there is no traceable source mapping for the generated steps.",
+            "rationale": "A quality review should flag that the artifact cannot be validated against the task register because no ProcessTask.stepId values were provided.",
+            "confidence": "high",
+            "impact": "high",
+            "targetStepIds": [],
+            "recommendationType": "MarkReviewStatus",
+            "operations": [
+              {
+                "kind": "MarkReviewStatus",
+                "reviewStatus": "needsReview"
+              }
+            ],
+            "previewText": "Mark the artifact as needsReview because no ProcessTask records were provided for traceability.",
+            "warnings": [
+              "No ProcessTask.stepId values were available to anchor process-fix recommendations."
+            ],
+            "requiresConfirmation": true,
+            "type": "MarkReviewStatus"
+          }
+        ],
+        "templateRecommendations": [
+          {
+            "id": "tpl-rec-1",
+            "templateId": "tpl-bpmn-notasks-eval",
+            "source": "ai",
+            "type": "MarkForReview",
+            "title": "Review template suitability for a model without task register input",
+            "description": "The selected template is a BPMN evaluation template, but the input lacks ProcessTask records, limiting meaningful validation against mandatory step fields.",
+            "confidence": "high",
+            "riskLevel": "low",
+            "affectedFields": [
+              "mandatoryFields",
+              "taskCardRules"
+            ],
+            "warnings": [
+              "Template validation is constrained because no task register data was supplied."
+            ],
+            "requiresConfirmation": true
+          }
+        ],
+        "warnings": [
+          "The BPMN XML appears to be structurally minimal and includes startEvent, userTask, and endEvent, but no sequenceFlow elements connect them.",
+          "The process id is generic and the artifact lacks lane/participant structure, which may be acceptable for a draft but limits completeness.",
+          "The provided processTasks array is empty, so there is no source-of-truth mapping to verify the generated BPMN against."
+        ]
+      },
+      "verdict": "pass",
+      "overall": 1,
+      "judgeNotes": {
+        "completeness": "Covers missing sequenceFlow, empty processTasks mismatch, and mandatory fields check via templateRecommendations. All applicable elements addressed.",
+        "domainTerms": "Correct BPMN terms used: startEvent, userTask, endEvent, sequenceFlow, participant. PTR field names stepId, bpmnType, taskCardRules, mandatoryFields all accurate.",
+        "traceability": "All warnings trace to specific XML content. templateId matches selectedTemplate.id. targetStepIds is empty matching empty processTasks. affectedFields cite actual template fields.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
+      }
+    }
+  ]
+}

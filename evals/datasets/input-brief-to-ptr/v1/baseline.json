@@ -1,0 +1,2528 @@
+{
+  "skillId": "input-brief-to-ptr",
+  "datasetVersion": "v1",
+  "judgeVersion": "v1",
+  "judgeModel": "claude-sonnet-4-6",
+  "skillProvider": "openai",
+  "skillModel": "gpt-5.4-mini",
+  "generatedAt": "2026-06-26T16:30:34.112Z",
+  "summary": {
+    "pass": 2,
+    "partial": 7,
+    "fail": 1,
+    "passRate": 0.2,
+    "avgOverall": 0.56
+  },
+  "cases": [
+    {
+      "id": "eval-001",
+      "input": {
+        "processInfo": {
+          "processName": "Quy trinh cho vay SME",
+          "processOwner": "Khoi Khach hang Doanh nghiep",
+          "businessDomain": "Banking lending",
+          "organizationName": "Ngan hang thuong mai"
+        },
+        "businessObjective": "Chuan hoa quy trinh tiep nhan, tham dinh, phe duyet va giai ngan khoan vay SME co kiem soat rui ro.",
+        "scope": "Tu luc khach hang SME nop nhu cau vay den khi khoan vay duoc phe duyet, tu choi hoac giai ngan.",
+        "scopeBoundary": "Bao gom tiep nhan ho so, KYC, tham dinh tin dung, phe duyet, hoan thien dieu kien va giai ngan. Khong bao gom thu hoi no sau giai ngan.",
+        "startEnd": {
+          "startEvent": "Khach hang SME gui nhu cau vay von",
+          "endEvent": "Khoan vay duoc giai ngan hoac ho so bi tu choi"
+        },
+        "actors": [
+          {
+            "name": "Khach hang",
+            "role": "Nguoi nop ho so vay",
+            "type": "customer"
+          },
+          {
+            "name": "RM",
+            "role": "Quan he khach hang",
+            "type": "internal"
+          },
+          {
+            "name": "Credit Officer",
+            "role": "Tham dinh tin dung",
+            "type": "internal"
+          },
+          {
+            "name": "Ops Support",
+            "role": "Ho tro van hanh va giai ngan",
+            "type": "internal"
+          }
+        ],
+        "relatedSystems": [
+          {
+            "name": "Core Banking",
+            "purpose": "Quan ly tai khoan va giai ngan",
+            "category": "internal"
+          },
+          {
+            "name": "LOS",
+            "purpose": "Quan ly ho so vay",
+            "category": "internal"
+          },
+          {
+            "name": "CRM",
+            "purpose": "Quan ly thong tin khach hang",
+            "category": "internal"
+          }
+        ],
+        "dataDocuments": [
+          {
+            "name": "Ho so vay",
+            "type": "document",
+            "description": "Bo ho so phap ly va tai chinh cua SME"
+          },
+          {
+            "name": "Bao cao tham dinh",
+            "type": "record",
+            "description": "Ket qua danh gia tin dung"
+          }
+        ],
+        "happyPath": [
+          "RM tiep nhan nhu cau va tao ho so tren LOS",
+          "Credit Officer tham dinh va de xuat han muc",
+          "Cap phe duyet chap thuan",
+          "Ops Support hoan thien dieu kien va giai ngan"
+        ],
+        "exceptionPaths": [
+          "Ho so thieu chung tu thi yeu cau bo sung",
+          "Khong dat dieu kien tin dung thi tu choi va thong bao khach hang"
+        ],
+        "riskControls": [
+          "Kiem tra KYC va CIC",
+          "Phe duyet theo han muc uy quyen"
+        ],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "notes": "Can co gateway danh gia ho so day du va gateway phe duyet/tuyen tu choi."
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Khoi tao",
+            "group": "Tiep nhan ho so",
+            "actor": "Khach hang",
+            "actorLane": "Khach hang",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "send",
+            "taskName": "Khach hang SME gui nhu cau vay von",
+            "input": "Nhu cau vay von SME",
+            "output": "Nhu cau vay von duoc gui",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Tiep nhan ho so",
+            "group": "Tiep nhan va tao ho so",
+            "actor": "RM",
+            "actorLane": "RM",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Ho so vay",
+            "dataAction": "create",
+            "taskName": "Tiep nhan nhu cau va tao ho so tren LOS",
+            "input": "Nhu cau vay va thong tin khach hang",
+            "output": "Ho so vay duoc tao tren LOS",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Thieu thong tin ban dau",
+            "exceptionHandling": "Yeu cau khach hang bo sung thong tin",
+            "sla": "",
+            "riskControl": "Kiem tra day du ho so ban dau",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "gateway",
+            "bpmnType": "exclusiveGateway",
+            "taskNature": "decision",
+            "phase": "Danh gia ho so",
+            "group": "Kiem tra day du ho so",
+            "actor": "RM",
+            "actorLane": "RM",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Ho so vay",
+            "dataAction": "validate",
+            "taskName": "Ho so co day du va hop le khong?",
+            "input": "Ho so vay da tao",
+            "output": "Quyet dinh tiep tuc hoac yeu cau bo sung",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "Ho so co day du va hop le khong?",
+            "yesNextStep": "S004",
+            "noNextStep": "S004",
+            "exception": "Ho so thieu chung tu",
+            "exceptionHandling": "Yeu cau bo sung chung tu va tai nop",
+            "sla": "",
+            "riskControl": "Kiem tra KYC va tinh day du ho so",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Gateway danh gia day du ho so theo notes."
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Tham dinh tin dung",
+            "group": "Phan tich va de xuat han muc",
+            "actor": "Credit Officer",
+            "actorLane": "Credit Officer",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Bao cao tham dinh",
+            "dataAction": "create",
+            "taskName": "Tham dinh tin dung va de xuat han muc",
+            "input": "Ho so vay day du",
+            "output": "Bao cao tham dinh va de xuat han muc",
+            "defaultNextStep": "S005",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong dat dieu kien tin dung",
+            "exceptionHandling": "De xuat tu choi va ghi nhan ly do",
+            "sla": "",
+            "riskControl": "Kiem tra CIC va danh gia rui ro tin dung",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S005",
+            "stepId": "S005",
+            "parentStepId": null,
+            "rowType": "gateway",
+            "bpmnType": "exclusiveGateway",
+            "taskNature": "decision",
+            "phase": "Phe duyet",
+            "group": "Xem xet chap thuan",
+            "actor": "Cap phe duyet",
+            "actorLane": "Cap phe duyet",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "Bao cao tham dinh",
+            "dataAction": "approve",
+            "taskName": "Phe duyet chap thuan hay tu choi",
+            "input": "Bao cao tham dinh va de xuat han muc",
+            "output": "Quyet dinh phe duyet",
+            "defaultNextStep": "S006",
+            "conditionQuestion": "Khoan vay co duoc phe duyet khong?",
+            "yesNextStep": "S006",
+            "noNextStep": "S007",
+            "exception": "Vuot han muc uy quyen",
+            "exceptionHandling": "Trinh cap co tham quyen cao hon",
+            "sla": "",
+            "riskControl": "Phe duyet theo han muc uy quyen",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": "Co gateway phe duyet/tuyen tu choi theo notes."
+          },
+          {
+            "id": "S006",
+            "stepId": "S006",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Hoan thien dieu kien va giai ngan",
+            "group": "Ops va giai ngan",
+            "actor": "Ops Support",
+            "actorLane": "Ops Support",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Khoan vay",
+            "dataAction": "update",
+            "taskName": "Hoan thien dieu kien va giai ngan",
+            "input": "Quyet dinh phe duyet va dieu kien giai ngan",
+            "output": "Khoan vay duoc giai ngan",
+            "defaultNextStep": "S007",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Dieu kien chua hoan tat",
+            "exceptionHandling": "Thong bao va theo doi bo sung dieu kien",
+            "sla": "",
+            "riskControl": "Kiem tra dieu kien truoc giai ngan",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S007",
+            "stepId": "S007",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Ket thuc",
+            "group": "Dong ho so",
+            "actor": "",
+            "actorLane": "",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Khoan vay duoc giai ngan hoac ho so bi tu choi",
+            "input": "Ket qua xu ly ho so vay",
+            "output": "Khoan vay duoc giai ngan hoac ho so bi tu choi",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          }
+        ],
+        "assumptions": [
+          "Phe duyet duoc mo phong bang mot gateway quyet dinh duy nhat truoc giai ngan.",
+          "Gateway tai S003 duoc dung de danh gia ho so day du va hop le; nhung duong bo sung chung tu chua duoc mo ta chi tiet.",
+          "Cap phe duyet cu the khong duoc cung cap nen duoc gom thanh mot actor tong quat 'Cap phe duyet'."
+        ],
+        "openQuestions": [
+          "Co can tach rieng buoc KYC va kiem tra CIC thanh cac task rieng khong?",
+          "Neu ho so bi tu choi, co can them buoc thong bao khach hang va dong ho so khong?",
+          "Nguong han muc uy quyen va luong phe duyet cap tren la gi?",
+          "Co can luu ket qua tham dinh vao he thong CRM ben canh LOS khong?"
+        ],
+        "qualityIssues": [
+          "Co mot so buoc duoc suy dien tu happy path va notes, nen can xac nhan lai.",
+          "Duong ngoai le bo sung chung tu va tu choi chua duoc mo ta day du trong brief.",
+          "Actor 'Cap phe duyet' va cac chi tiet phan quyen chua duoc dinh danh ro.",
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ],
+        "sourceSummary": "Draft duoc tao tu structured business brief ve quy trinh cho vay SME: tiep nhan ho so, tao ho so tren LOS, kiem tra day du, tham dinh tin dung, phe duyet, va giai ngan/tu choi. Da ap dung yeu cau gateway danh gia ho so day du va gateway phe duyet/tuyen tu choi.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ]
+      },
+      "verdict": "partial",
+      "overall": 0.62,
+      "judgeNotes": {
+        "completeness": "Start/end events present; 7 tasks; inputs/outputs filled. Actor 'Cap phe duyet' missing from INPUT actors. S003 noNextStep loops to S004 instead of a supplement task. Exception paths partially covered but rejection notification task absent.",
+        "domainTerms": "S003/S005 use taskNature 'decision' which is not in allowed set (manual/automatic). rowType 'event' not in allowed set (start/end/task/gateway). dataAction 'approve' not in allowed set. Otherwise bpmnType and most fields valid.",
+        "traceability": "Happy path steps map well to S002-S006. Actor 'Cap phe duyet' invented without INPUT basis but noted in assumptions. S003 noNextStep routing unclear. Exception paths partially traced; rejection notification not modelled as separate task.",
+        "safety": "confidence 'medium' is appropriate; assumptions and openQuestions explicitly listed; no ungrounded regulatory claims; no claim of production-readiness; riskControls grounded in INPUT."
+      }
+    },
+    {
+      "id": "eval-002",
+      "input": {
+        "processInfo": {
+          "processName": "Mo tai khoan thanh toan ca nhan",
+          "processOwner": "Khoi Van hanh",
+          "businessDomain": "Banking account opening"
+        },
+        "businessObjective": "Mo tai khoan nhanh, dung quy dinh KYC va tao thong tin khach hang tren he thong.",
+        "scope": "Tu luc khach hang de nghi mo tai khoan den khi tai khoan duoc kich hoat hoac bi tu choi.",
+        "startEnd": {
+          "startEvent": "Khach hang yeu cau mo tai khoan",
+          "endEvent": "Tai khoan duoc kich hoat hoac yeu cau bi tu choi"
+        },
+        "actors": [
+          {
+            "name": "Khach hang",
+            "role": "Nguoi yeu cau mo tai khoan",
+            "type": "customer"
+          },
+          {
+            "name": "RM",
+            "role": "Tiep nhan va tu van",
+            "type": "internal"
+          },
+          {
+            "name": "DVKH",
+            "role": "Kiem tra va xu ly ho so",
+            "type": "internal"
+          }
+        ],
+        "relatedSystems": [
+          {
+            "name": "CRM",
+            "purpose": "Luu thong tin khach hang",
+            "category": "internal"
+          },
+          {
+            "name": "Core Banking",
+            "purpose": "Tao va kich hoat tai khoan",
+            "category": "internal"
+          }
+        ],
+        "dataDocuments": [
+          {
+            "name": "CCCD/Passport",
+            "type": "document",
+            "description": "Giay to dinh danh"
+          },
+          {
+            "name": "Thong tin lien he",
+            "type": "data",
+            "description": "So dien thoai va dia chi"
+          }
+        ],
+        "happyPath": [
+          "Tiep nhan yeu cau",
+          "Kiem tra KYC",
+          "Tao CIF neu chua co",
+          "Mo tai khoan tren Core Banking"
+        ],
+        "exceptionPaths": [
+          "KYC khong hop le thi tu choi mo tai khoan"
+        ],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual"
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Khoi tao",
+            "group": "Mo tai khoan thanh toan ca nhan",
+            "actor": "Khach hang",
+            "actorLane": "Khach hang",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "receive",
+            "taskName": "Khach hang yeu cau mo tai khoan",
+            "input": "Yeu cau mo tai khoan va thong tin ban dau",
+            "output": "Yeu cau mo tai khoan duoc tiep nhan",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Tiep nhan",
+            "group": "Mo tai khoan thanh toan ca nhan",
+            "actor": "RM",
+            "actorLane": "RM",
+            "system": "CRM",
+            "systemLane": "CRM",
+            "dataObject": "Thong tin khach hang",
+            "dataAction": "create",
+            "taskName": "Tiep nhan va tu van mo tai khoan",
+            "input": "Yeu cau mo tai khoan tu khach hang",
+            "output": "Ho so va thong tin khach hang duoc ghi nhan",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Thong tin khach hang khong day du",
+            "exceptionHandling": "Yeu cau khach hang bo sung thong tin",
+            "sla": "",
+            "riskControl": "Kiem tra day du thong tin dau vao",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "control",
+            "phase": "Kiem tra va xac minh",
+            "group": "Mo tai khoan thanh toan ca nhan",
+            "actor": "DVKH",
+            "actorLane": "DVKH",
+            "system": "CRM",
+            "systemLane": "CRM",
+            "dataObject": "CCCD/Passport",
+            "dataAction": "validate",
+            "taskName": "Kiem tra KYC va xac minh giay to",
+            "input": "CCCD/Passport va thong tin lien he",
+            "output": "Ket qua KYC hop le hoac khong hop le",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "KYC co hop le khong?",
+            "yesNextStep": "S004",
+            "noNextStep": "S005",
+            "exception": "KYC khong hop le",
+            "exceptionHandling": "Tu choi mo tai khoan va thong bao ket qua",
+            "sla": "",
+            "riskControl": "Doi chieu giay to dinh danh va thong tin khach hang",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "system",
+            "phase": "Tao ho so khach hang",
+            "group": "Mo tai khoan thanh toan ca nhan",
+            "actor": "",
+            "actorLane": "",
+            "system": "CRM",
+            "systemLane": "CRM",
+            "dataObject": "CIF",
+            "dataAction": "create",
+            "taskName": "Tao CIF neu chua co",
+            "input": "Thong tin khach hang da xac minh",
+            "output": "CIF duoc tao hoac cap nhat",
+            "defaultNextStep": "S006",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "Tranh tao trung lap ho so khach hang",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": "Actor chua xac dinh ro vi day la xu ly he thong."
+          },
+          {
+            "id": "S005",
+            "stepId": "S005",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "decision",
+            "phase": "Tu choi / Xu ly ngoai le",
+            "group": "Mo tai khoan thanh toan ca nhan",
+            "actor": "DVKH",
+            "actorLane": "DVKH",
+            "system": "CRM",
+            "systemLane": "CRM",
+            "dataObject": "Yeu cau mo tai khoan",
+            "dataAction": "reject",
+            "taskName": "Tu choi mo tai khoan neu KYC khong hop le",
+            "input": "Ket qua KYC khong dat",
+            "output": "Yeu cau bi tu choi",
+            "defaultNextStep": "S006",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khach hang khong dap ung KYC",
+            "exceptionHandling": "Thong bao ly do tu choi va dong ho so",
+            "sla": "",
+            "riskControl": "Dam bao tuan thu quy dinh KYC/AML",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S006",
+            "stepId": "S006",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Mo va kich hoat tai khoan",
+            "group": "Mo tai khoan thanh toan ca nhan",
+            "actor": "",
+            "actorLane": "",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Tai khoan thanh toan",
+            "dataAction": "create",
+            "taskName": "Mo tai khoan tren Core Banking",
+            "input": "CIF da san sang va thong tin tai khoan",
+            "output": "Tai khoan duoc tao tren he thong",
+            "defaultNextStep": "S007",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Loi he thong Core Banking",
+            "exceptionHandling": "Ghi nhan loi va xu ly theo quy trinh ho tro",
+            "sla": "",
+            "riskControl": "Kiem tra trang thai ket noi va giao dich he thong",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S007",
+            "stepId": "S007",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Ket thuc",
+            "group": "Mo tai khoan thanh toan ca nhan",
+            "actor": "",
+            "actorLane": "",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Tai khoan duoc kich hoat hoac yeu cau bi tu choi",
+            "input": "Ket qua xu ly ho so",
+            "output": "Quy trinh ket thuc",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          }
+        ],
+        "assumptions": [
+          "Quy trinh duoc mo rong thanh 7 buoc de bao gom ca truong hop thanh cong va ngoai le.",
+          "RM va DVKH la cac vai tro noi bo trong pham vi mo ta.",
+          "Kich hoat tai khoan duoc xem la mot phan cua buoc mo tai khoan tren Core Banking."
+        ],
+        "openQuestions": [
+          "Co can buoc thu thap chu ky/giay de nghi mo tai khoan khong?",
+          "Co can buoc kiem tra danh sach den, PEP hoac sanction rieng khong?",
+          "CIF va tai khoan co duoc tao trong cung mot luong he thong hay khong?"
+        ],
+        "qualityIssues": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ],
+        "sourceSummary": "Draft Process Task Register duoc tao tu structured brief ve quy trinh mo tai khoan thanh toan ca nhan, gom start, tiep nhan, KYC, tao CIF, xu ly tu choi, mo tai khoan Core Banking va end.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ]
+      },
+      "verdict": "partial",
+      "overall": 0.62,
+      "judgeNotes": {
+        "completeness": "Start/end events present, 7 tasks, input/output on all tasks, exception path covered. Gaps: S003 rowType='task' not 'gateway'; S004/S006 actor empty; S004 serviceTask missing actor field per rules.",
+        "domainTerms": "S003 bpmnType='userTask' but has conditionQuestion/yesNextStep/noNextStep — should be exclusiveGateway. taskNature 'control','system','decision','integration' are not allowed values (only 'manual'/'automatic'). dataAction 'reject' not in allowed set.",
+        "traceability": "All 7 tasks map to happyPath or exceptionPaths in INPUT. KYC exception modelled. CIF step matches happyPath. Inferred actor gap in S004 noted in comment. Confidence 'medium' reasonable.",
+        "safety": "assumptions and openQuestions surfaced; confidence='medium' appropriate. However S005 riskControl states 'KYC/AML mandatory' — AML not grounded in INPUT riskControls. reviewStatus='approved' on all tasks is slightly misleading."
+      }
+    },
+    {
+      "id": "eval-003",
+      "input": {
+        "processInfo": {
+          "processName": "Xu ly thanh toan lien ngan hang",
+          "processOwner": "Khoi Thanh toan",
+          "businessDomain": "Payments"
+        },
+        "businessObjective": "Dam bao giao dich thanh toan duoc kiem tra, chuyen di, doi soat va cap nhat trang thai kip thoi.",
+        "scope": "Tu luc khach hang tao lenh thanh toan den khi giao dich thanh cong, that bai hoac can xu ly doi soat.",
+        "startEnd": {
+          "startEvent": "Khach hang tao lenh thanh toan",
+          "endEvent": "Lenh thanh toan co trang thai cuoi cung"
+        },
+        "actors": [
+          {
+            "name": "Khach hang",
+            "role": "Nguoi khoi tao giao dich",
+            "type": "customer"
+          },
+          {
+            "name": "Payment Ops",
+            "role": "Giam sat va xu ly ngoai le",
+            "type": "internal"
+          }
+        ],
+        "customerSystems": [
+          {
+            "name": "Mobile Banking",
+            "purpose": "Khach hang tao lenh",
+            "category": "customer"
+          }
+        ],
+        "internalSystems": [
+          {
+            "name": "Core Banking",
+            "purpose": "Kiem tra so du va ghi nhan but toan",
+            "category": "internal"
+          },
+          {
+            "name": "Payment Hub",
+            "purpose": "Dieu phoi giao dich thanh toan",
+            "category": "internal"
+          },
+          {
+            "name": "Fraud Engine",
+            "purpose": "Kiem tra rui ro gian lan",
+            "category": "internal"
+          }
+        ],
+        "thirdPartySystems": [
+          {
+            "name": "NAPAS",
+            "purpose": "Chuyen mach thanh toan",
+            "category": "thirdParty"
+          }
+        ],
+        "dataDocuments": [
+          {
+            "name": "Lenh thanh toan",
+            "type": "record",
+            "description": "Thong tin nguoi nhan, so tien, ngan hang dich"
+          }
+        ],
+        "happyPath": [
+          "Kiem tra so du",
+          "Kiem tra fraud",
+          "Gui lenh qua Payment Hub va NAPAS",
+          "Cap nhat trang thai ve Mobile Banking"
+        ],
+        "exceptionPaths": [
+          "Khong du so du",
+          "Bi nghi ngo gian lan",
+          "Timeout tu NAPAS can doi soat"
+        ],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual"
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Khoi tao",
+            "group": "Tien trinh thanh toan",
+            "actor": "Khach hang",
+            "actorLane": "Khach hang",
+            "system": "Mobile Banking",
+            "systemLane": "Mobile Banking",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Khach hang tao lenh thanh toan",
+            "input": "Thong tin nguoi nhan, so tien, ngan hang dich",
+            "output": "Lenh thanh toan duoc tao",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Kiem tra va xac thuc",
+            "group": "Dinh tuy giao dich",
+            "actor": "Core Banking",
+            "actorLane": "Core Banking",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Lenh thanh toan",
+            "dataAction": "read",
+            "taskName": "Kiem tra so du",
+            "input": "Lenh thanh toan",
+            "output": "Ket qua kiem tra so du",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong du so du",
+            "exceptionHandling": "Tu choi giao dich va cap nhat trang thai that bai",
+            "sla": "",
+            "riskControl": "Kiem tra so du truoc khi gui giao dich",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Kiem tra va xac thuc",
+            "group": "Dinh tuy giao dich",
+            "actor": "Fraud Engine",
+            "actorLane": "Fraud Engine",
+            "system": "Fraud Engine",
+            "systemLane": "Fraud Engine",
+            "dataObject": "Lenh thanh toan",
+            "dataAction": "read",
+            "taskName": "Kiem tra fraud",
+            "input": "Lenh thanh toan va ket qua so du",
+            "output": "Ket qua danh gia rui ro",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Bi nghi ngo gian lan",
+            "exceptionHandling": "Tam dung giao dich va chuyen Payment Ops xu ly",
+            "sla": "",
+            "riskControl": "Ap dung kiem tra gian lan truoc khi chuyen mach",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Xu ly giao dich",
+            "group": "Dieu phoi",
+            "actor": "Payment Hub",
+            "actorLane": "Payment Hub",
+            "system": "Payment Hub",
+            "systemLane": "Payment Hub",
+            "dataObject": "Lenh thanh toan",
+            "dataAction": "send",
+            "taskName": "Gui lenh qua Payment Hub va NAPAS",
+            "input": "Lenh thanh toan da duoc phe duyet",
+            "output": "Lenh duoc chuyen toi NAPAS",
+            "defaultNextStep": "S005",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Timeout tu NAPAS",
+            "exceptionHandling": "Dua giao dich vao trang thai doi soat",
+            "sla": "",
+            "riskControl": "Giam sat timeout va co co che retry/doi soat",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S005",
+            "stepId": "S005",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Cap nhat trang thai",
+            "group": "Dong bo ket qua",
+            "actor": "Core Banking",
+            "actorLane": "Core Banking",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Lenh thanh toan",
+            "dataAction": "update",
+            "taskName": "Cap nhat trang thai ve Mobile Banking",
+            "input": "Ket qua giao dich tu Payment Hub/NAPAS",
+            "output": "Trang thai giao dich duoc cap nhat",
+            "defaultNextStep": "S006",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong dong bo duoc trang thai",
+            "exceptionHandling": "Ghi nhan loi va thong bao Payment Ops",
+            "sla": "",
+            "riskControl": "Dam bao nhat quan trang thai giua cac he thong",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S006",
+            "stepId": "S006",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Xu ly ngoai le",
+            "group": "Xu ly doi soat",
+            "actor": "Payment Ops",
+            "actorLane": "Payment Ops",
+            "system": "Payment Hub",
+            "systemLane": "Payment Hub",
+            "dataObject": "Lenh thanh toan",
+            "dataAction": "validate",
+            "taskName": "Xu ly doi soat giao dich timeout hoac loi",
+            "input": "Giao dich can doi soat va log he thong",
+            "output": "Ket qua doi soat va quyet dinh xu ly",
+            "defaultNextStep": "S007",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong the xac nhan ket qua giao dich",
+            "exceptionHandling": "Lien he NAPAS/Core Banking de doi chieu va cap nhat trang thai",
+            "sla": "",
+            "riskControl": "Co quy trinh doi soat va phan quyen xu ly ngoai le",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Ngoai le duoc mo rong tu mo ta timeout tu NAPAS can doi soat."
+          },
+          {
+            "id": "S007",
+            "stepId": "S007",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Ket thuc",
+            "group": "Tien trinh thanh toan",
+            "actor": "",
+            "actorLane": "",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Lenh thanh toan co trang thai cuoi cung",
+            "input": "Ket qua xu ly thanh toan",
+            "output": "Giao dich thanh cong, that bai hoac doi soat",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          }
+        ],
+        "assumptions": [
+          "Trinh tu xu ly duoc mo hinh hoa theo happy path chinh: kiem tra so du, kiem tra fraud, gui mach, cap nhat trang thai.",
+          "Payment Hub la thanh phan dieu phoi chinh giua Core Banking va NAPAS.",
+          "Trang thai that bai va doi soat duoc tong quat hoa thanh mot buoc xu ly ngoai le bo sung."
+        ],
+        "openQuestions": [
+          "Khi khong du so du, he thong co can thong bao ngay cho khach hang hay cho phep sua lenh?",
+          "Quy trinh retry/timeout voi NAPAS co bao nhieu lan va co nguong thoi gian SLA nao?",
+          "Doi soat se do Payment Ops thuc hien hoan toan thu cong hay co ho tro tu he thong nao?"
+        ],
+        "qualityIssues": [
+          "Nguon mo ta khong quy dinh ro quyet dinh logic (gateway) cho cac nhanh khong du so du, fraud, va timeout; da mo hinh hoa thanh cac task/exception row de draft.",
+          "Chuoi su kien dau-cuoi va cac exception path con tong quat, can nguoi dung xac nhan muc do chi tiet.",
+          "Mot so actor/he thong co the dong vai tro xu ly, nen cac truong actor/system co tinh suy dien.",
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ],
+        "sourceSummary": "Draft duoc tao tu StructuredProcessBrief ve xu ly thanh toan lien ngan hang, bao gom luong chinh kiem tra so du, kiem tra fraud, chuyen mach qua Payment Hub/NAPAS, cap nhat trang thai va xu ly doi soat khi timeout/ngoai le.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ]
+      },
+      "verdict": "partial",
+      "overall": 0.62,
+      "judgeNotes": {
+        "completeness": "Start/end events present, 7 tasks, input/output populated, all 3 exception paths covered. But taskNature='integration' used instead of 'automatic' for serviceTasks, and actor fields on S002/S003/S004 use system names not INPUT actors. rowType='event' not 'start'/'end'.",
+        "domainTerms": "taskNature='integration' is invalid (must be 'manual' or 'automatic'); rowType='event' instead of 'start'/'end'; actors 'Core Banking','Fraud Engine','Payment Hub' not in INPUT actors array. Gateway tasks absent despite 3 exception branches needing exclusiveGateway.",
+        "traceability": "All 4 happy path steps mapped in order; all 3 exception paths covered in S002/S003/S004; S006 inferred step noted with comment and needsReview; assumptions listed; confidence 'medium' appropriate.",
+        "safety": "assumptions and openQuestions surfaced; qualityIssues noted. However reviewStatus='approved' on most tasks despite being a draft, and riskControls in tasks go slightly beyond INPUT's riskControls (empty). One minor ungrounded control claim."
+      }
+    },
+    {
+      "id": "eval-004",
+      "input": {
+        "processInfo": {
+          "processName": "Quy trinh xu ly yeu cau dich vu"
+        },
+        "businessObjective": "Tao ban nhap quy trinh so bo de nguoi dung bo sung thong tin.",
+        "scope": "Chua xac dinh ro, can AI dat cau hoi mo.",
+        "startEnd": {
+          "startEvent": "Phat sinh yeu cau dich vu",
+          "endEvent": "Yeu cau duoc dong"
+        },
+        "actors": [
+          {
+            "name": "Nguoi dung",
+            "role": "Nguoi gui yeu cau",
+            "type": "customer"
+          }
+        ],
+        "relatedSystems": [],
+        "dataDocuments": [],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "notes": "Thong tin toi thieu, can tao draft ngan va neu ro gia dinh."
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Khoi tao",
+            "group": "",
+            "actor": "Nguoi dung",
+            "actorLane": "Nguoi dung",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Phat sinh yeu cau dich vu",
+            "input": "",
+            "output": "Yeu cau dich vu duoc tao",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Diem bat dau dua tren mo ta startEvent."
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Xu ly so bo",
+            "group": "",
+            "actor": "Nguoi dung",
+            "actorLane": "Nguoi dung",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "update",
+            "taskName": "Bo sung thong tin yeu cau",
+            "input": "Thong tin toi thieu ve yeu cau dich vu",
+            "output": "Thong tin yeu cau day du hon",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "Thong tin hien tai da du de xu ly chua?",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Thong tin khong ro hoac thieu",
+            "exceptionHandling": "Yeu cau nguoi dung bo sung thong tin",
+            "sla": "",
+            "riskControl": "Kiem tra day du thong tin truoc khi dong quy trinh",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Draft ngan theo muc tieu tao ban nhap quy trinh so bo."
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Ket thuc",
+            "group": "",
+            "actor": "",
+            "actorLane": "",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Yeu cau duoc dong",
+            "input": "Thong tin yeu cau da duoc bo sung",
+            "output": "Yeu cau da dong",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Ket thuc tam thoi, can xac nhan them neu quy trinh co buoc xu ly noi bo."
+          }
+        ],
+        "assumptions": [
+          "Quy trinh duoc mo ta o muc to cao va chi can draft ngan.",
+          "Nguoi dung la tac nhan chinh va co the bo sung thong tin khi duoc yeu cau.",
+          "Khong co he thong hoac tai lieu lien quan duoc neu ro nen chua gan step tu dong hoa."
+        ],
+        "openQuestions": [
+          "Sau khi nguoi dung bo sung thong tin, co can buoc phe duyet hoac phan loai yeu cau khong?",
+          "Co he thong nao tiep nhan va luu tru yeu cau dich vu khong?",
+          "Yeu cau duoc dong nghia la dong tam thoi hay ket thuc hoan toan?"
+        ],
+        "qualityIssues": [
+          "Nguon dau vao khong co du lieu ve luong xu ly noi bo, nen chi co the tao draft rat co ban.",
+          "Khong co relatedSystems va dataDocuments nen cac truong lien quan phai de trong."
+        ],
+        "sourceSummary": "Draft Process Task Register cho quy trinh xu ly yeu cau dich vu, duoc tao tu mot structured brief toi thieu. Bao gom start event phat sinh yeu cau, buoc bo sung thong tin, va end event dong yeu cau.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": []
+      },
+      "verdict": "partial",
+      "overall": 0.62,
+      "judgeNotes": {
+        "completeness": "Has startEvent, endEvent, 3 tasks (min met). S003 actor field empty. S001 input field empty. No exceptionPaths in INPUT so no penalty there. Input/output gaps in S001.",
+        "domainTerms": "rowType 'event' used for start/end instead of expected 'start'/'end'. bpmnType values valid. taskNature 'manual' on endEvent is minor. dataAction values valid. conditionQuestion on S002 (userTask) is unusual but not a critical error.",
+        "traceability": "All tasks trace to INPUT startEnd and businessObjective. Assumptions listed explicitly. No hallucinated actors or systems. Confidence 'medium' is reasonable given minimal brief.",
+        "safety": "Confidence is 'medium' but INPUT has empty relatedSystems, empty dataDocuments, and scope 'Chua xac dinh ro' — 'low' would be more appropriate. Assumptions are surfaced via 'assumptions' field which is good."
+      }
+    },
+    {
+      "id": "eval-005",
+      "input": {
+        "processInfo": {
+          "processName": "Phe duyet khoan vay doanh nghiep co tai san bao dam",
+          "processOwner": "Khoi Tin dung",
+          "businessDomain": "Secured lending"
+        },
+        "businessObjective": "Kiem soat chat che quy trinh phe duyet khoan vay co tai san bao dam, dam bao traceability giua ho so, tham dinh, phe duyet va dieu kien giai ngan.",
+        "scope": "Tu luc RM tao ho so vay co tai san bao dam den khi ho so duoc phe duyet, tu choi, yeu cau bo sung hoac tai nop.",
+        "scopeBoundary": "Bao gom tham dinh tai chinh, tham dinh tai san bao dam, phan luong theo han muc, phe duyet nhieu cap, reject path va re-submission. Khong bao gom xu ly sau giai ngan.",
+        "startEnd": {
+          "startEvent": "RM tao ho so vay co tai san bao dam",
+          "endEvent": "Ho so co quyet dinh cuoi cung va trang thai duoc cap nhat"
+        },
+        "actors": [
+          {
+            "name": "Khach hang",
+            "role": "Cung cap ho so va tai san bao dam",
+            "type": "customer"
+          },
+          {
+            "name": "RM",
+            "role": "Tao va theo doi ho so",
+            "type": "internal"
+          },
+          {
+            "name": "Credit Officer",
+            "role": "Tham dinh tin dung",
+            "type": "internal"
+          },
+          {
+            "name": "Collateral Valuation",
+            "role": "Dinh gia tai san bao dam",
+            "type": "internal"
+          },
+          {
+            "name": "Credit Committee",
+            "role": "Phe duyet cap cao",
+            "type": "internal"
+          },
+          {
+            "name": "Ops Support",
+            "role": "Cap nhat dieu kien va ho tro giai ngan",
+            "type": "internal"
+          }
+        ],
+        "relatedSystems": [
+          {
+            "name": "LOS",
+            "purpose": "Quan ly workflow ho so",
+            "category": "internal"
+          },
+          {
+            "name": "Collateral System",
+            "purpose": "Quan ly tai san bao dam va dinh gia",
+            "category": "internal"
+          },
+          {
+            "name": "Core Banking",
+            "purpose": "Cap nhat dieu kien giai ngan",
+            "category": "internal"
+          },
+          {
+            "name": "Document Store",
+            "purpose": "Luu ho so va quyet dinh",
+            "category": "internal"
+          }
+        ],
+        "dataDocuments": [
+          {
+            "name": "Ho so vay",
+            "type": "document",
+            "description": "De nghi vay va ho so phap ly"
+          },
+          {
+            "name": "Bao cao dinh gia TSBD",
+            "type": "record",
+            "description": "Ket qua dinh gia tai san bao dam"
+          },
+          {
+            "name": "Bien ban phe duyet",
+            "type": "record",
+            "description": "Quyet dinh cua cap phe duyet"
+          }
+        ],
+        "happyPath": [
+          "RM tao ho so tren LOS",
+          "Credit Officer kiem tra tinh day du",
+          "Collateral Valuation dinh gia tai san bao dam",
+          "Credit Officer lap de xuat tin dung",
+          "Cap phe duyet phu hop ra quyet dinh",
+          "Ops Support cap nhat dieu kien"
+        ],
+        "exceptionPaths": [
+          "Ho so thieu chung tu thi tra ve RM yeu cau bo sung",
+          "Tai san bao dam khong dat dieu kien thi yeu cau tai san thay the hoac reject",
+          "Khoan vay vuot han muc thi chuyen Credit Committee",
+          "Cap phe duyet yeu cau dieu chinh han muc thi RM tai nop",
+          "Khach hang khong bo sung dung han thi dong ho so"
+        ],
+        "slaControls": [
+          "Tham dinh tin dung trong 3 ngay lam viec",
+          "Dinh gia tai san trong 5 ngay lam viec"
+        ],
+        "riskControls": [
+          "Kiem tra duplicate collateral",
+          "Kiem tra uy quyen phe duyet theo han muc",
+          "Luu vet moi lan tai nop ho so"
+        ],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual"
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Khoi tao",
+            "group": "Tiep nhan ho so",
+            "actor": "RM",
+            "actorLane": "RM",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Ho so vay",
+            "dataAction": "create",
+            "taskName": "RM tao ho so vay co tai san bao dam",
+            "input": "Thong tin khach hang, ho so phap ly, thong tin tai san bao dam",
+            "output": "Ho so vay duoc tao tren LOS",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "Luu vet ho so ngay tu dau",
+            "sourceRef": "Structured Process Brief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "control",
+            "phase": "Kiem tra va tham dinh",
+            "group": "Kiem tra ho so",
+            "actor": "Credit Officer",
+            "actorLane": "Credit Officer",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "Ho so vay",
+            "dataAction": "validate",
+            "taskName": "Kiem tra tinh day du va hop le cua ho so",
+            "input": "Ho so vay da tao",
+            "output": "Ho so hop le hoac yeu cau bo sung",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "Ho so co day du chung tu va hop le khong?",
+            "yesNextStep": "S003",
+            "noNextStep": "S003",
+            "exception": "Ho so thieu chung tu",
+            "exceptionHandling": "Tra ho so ve RM de bo sung",
+            "sla": "3 ngay lam viec",
+            "riskControl": "Kiem tra tinh day du cua ho so",
+            "sourceRef": "Structured Process Brief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "data",
+            "phase": "Kiem tra va tham dinh",
+            "group": "Dinh gia tai san",
+            "actor": "Collateral Valuation",
+            "actorLane": "Collateral Valuation",
+            "system": "Collateral System",
+            "systemLane": "Collateral System",
+            "dataObject": "Bao cao dinh gia TSBD",
+            "dataAction": "create",
+            "taskName": "Dinh gia tai san bao dam",
+            "input": "Thong tin tai san bao dam",
+            "output": "Bao cao dinh gia tai san bao dam",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "Tai san bao dam co dat dieu kien khong?",
+            "yesNextStep": "S004",
+            "noNextStep": "S004",
+            "exception": "Tai san bao dam khong dat dieu kien",
+            "exceptionHandling": "Yeu cau tai san thay the hoac tu choi ho so",
+            "sla": "5 ngay lam viec",
+            "riskControl": "Kiem tra duplicate collateral",
+            "sourceRef": "Structured Process Brief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "approval",
+            "phase": "Phe duyet",
+            "group": "Tham dinh tin dung",
+            "actor": "Credit Officer",
+            "actorLane": "Credit Officer",
+            "system": "LOS",
+            "systemLane": "LOS",
+            "dataObject": "De xuat tin dung",
+            "dataAction": "create",
+            "taskName": "Lap de xuat tin dung va xac dinh cap phe duyet",
+            "input": "Ho so vay va bao cao dinh gia",
+            "output": "De xuat tin dung va muc phe duyet de xuat",
+            "defaultNextStep": "S005",
+            "conditionQuestion": "Khoan vay co vuot han muc phe duyet khong?",
+            "yesNextStep": "S005",
+            "noNextStep": "S005",
+            "exception": "Can dieu chinh han muc",
+            "exceptionHandling": "Chuyen RM tai nop ho so theo yeu cau",
+            "sla": "",
+            "riskControl": "Kiem tra uy quyen phe duyet theo han muc",
+            "sourceRef": "Structured Process Brief",
+            "reviewStatus": "needsReview",
+            "comment": "Phan loai phe duyet cap cao can ngu canh them tu brief."
+          },
+          {
+            "id": "S005",
+            "stepId": "S005",
+            "parentStepId": null,
+            "rowType": "gateway",
+            "bpmnType": "exclusiveGateway",
+            "taskNature": "decision",
+            "phase": "Phe duyet",
+            "group": "Phan luong phe duyet",
+            "actor": "Credit Committee",
+            "actorLane": "Credit Committee",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Phan luong theo han muc va cap phe duyet",
+            "input": "De xuat tin dung",
+            "output": "Quyet dinh tiep tuc phe duyet hoac chuyen cap cao",
+            "defaultNextStep": "S006",
+            "conditionQuestion": "Co can chuyen Credit Committee khong?",
+            "yesNextStep": "S006",
+            "noNextStep": "S006",
+            "exception": "Vuot han muc cap duoi",
+            "exceptionHandling": "Chuyen sang Credit Committee phe duyet",
+            "sla": "",
+            "riskControl": "Kiem tra uy quyen phe duyet theo han muc",
+            "sourceRef": "Structured Process Brief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S006",
+            "stepId": "S006",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "control",
+            "phase": "Hoan tat",
+            "group": "Cap nhat ket qua",
+            "actor": "Ops Support",
+            "actorLane": "Ops Support",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Bien ban phe duyet",
+            "dataAction": "update",
+            "taskName": "Cap nhat dieu kien va thong tin quyet dinh",
+            "input": "Quyet dinh phe duyet",
+            "output": "Dieu kien va trang thai ho so duoc cap nhat",
+            "defaultNextStep": "S007",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "Luu vet moi lan cap nhat",
+            "sourceRef": "Structured Process Brief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S007",
+            "stepId": "S007",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Hoan tat",
+            "group": "Ket thuc",
+            "actor": "",
+            "actorLane": "",
+            "system": "Document Store",
+            "systemLane": "Document Store",
+            "dataObject": "Bien ban phe duyet",
+            "dataAction": "store",
+            "taskName": "Ho so co quyet dinh cuoi cung va trang thai duoc cap nhat",
+            "input": "Ho so da duoc xu ly",
+            "output": "Ho so co quyet dinh cuoi cung",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "Luu tru quyet dinh va ho so",
+            "sourceRef": "Structured Process Brief",
+            "reviewStatus": "approved",
+            "comment": ""
+          }
+        ],
+        "assumptions": [
+          "Quy trinh duoc mo hinh hoa o muc tong quan voi 7 buoc co the mo rong thanh cac duong re chi tiet hon khi lap BPMN chinh thuc.",
+          "Credit Committee duoc xem la cap phe duyet cao khi khoan vay vuot han muc hoac can xet duyet bo sung.",
+          "Ops Support co the cap nhat dieu kien giai ngan va ghi nhan quyet dinh vao Core Banking theo quy trinh noi bo."
+        ],
+        "openQuestions": [
+          "Dieu kien cu the de chuyen sang Credit Committee la gi (han muc, rating, nganh, hay tong hop)?",
+          "RM co phai tai nop ho so tren LOS hay qua kenh khac khi bi yeu cau bo sung?",
+          "Tai san bao dam khong dat dieu kien se luon dan den reject hay co luong thay the bat buoc?",
+          "Co can mot buoc phe duyet rieng cho Credit Committee truoc khi Ops Support cap nhat hay khong?",
+          "Document Store co la noi luu chinh cua bien ban phe duyet va ho so hay chi la kho luu tru phu tro?"
+        ],
+        "qualityIssues": [
+          "Mo ta dau vao co nhieu exception path nhung brief khong quy dinh ro dieu kien quet nhanh/phan luong nen mot so row phai gan needsReview.",
+          "Buoc phe duyet nhieu cap va dong xu ly tai nop chua duoc mo ta thanh cac task rieng biet nen can xac nhan them truoc khi chap thuan final.",
+          "Phan biet giua 'tai khoan vay vuot han muc' va 'can dieu chinh han muc' chua duoc tach ro bang cac gateway rieng trong brief.",
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ],
+        "sourceSummary": "Draft Process Task Register duoc sinh tu Structured Process Brief cho quy trinh phe duyet khoan vay doanh nghiep co tai san bao dam, bao gom tao ho so, kiem tra, dinh gia, phe duyet, phan luong theo han muc, cap nhat dieu kien va ket thuc voi trang thai ho so duoc cap nhat.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ]
+      },
+      "verdict": "partial",
+      "overall": 0.63,
+      "judgeNotes": {
+        "completeness": "Has start/end events, 7 tasks, actor coverage mostly good. But S007 endEvent has empty actor (acceptable), 'dataAction':'store' not in allowed set, exception path 'Khach hang khong bo sung dung han thi dong ho so' not explicitly modelled as a task/gateway, and 'RM tai nop' path lacks a dedicated task.",
+        "domainTerms": "S002 taskNature='control', S003 taskNature='data', S004 taskNature='approval', S005 taskNature='decision' are not valid values (only 'manual'/'automatic' allowed). S007 dataAction='store' not in allowed set. rowType='event' used instead of 'start'/'end'. Multiple violations but bpmnType values are valid.",
+        "traceability": "Happy path steps map well to S001-S006. Most exception paths covered inline. S005 gateway actor assigned to Credit Committee without clear basis. Re-submission path from exception 4 not modelled as distinct task. Assumptions noted in 'assumptions' field. Confidence 'medium' is reasonable.",
+        "safety": "Confidence set to 'medium' reflecting process complexity. Assumptions, openQuestions, and qualityIssues explicitly surfaced. No ungrounded regulatory/compliance claims. reviewStatus 'needsReview' on ambiguous steps. No claim of production-readiness."
+      }
+    },
+    {
+      "id": "eval-006",
+      "input": {
+        "processInfo": {
+          "processName": "Quy trinh onboarding nhan vien moi",
+          "processOwner": "Phong Nhan su",
+          "businessDomain": "Human Resources",
+          "organizationName": "Cong ty dich vu tai chinh"
+        },
+        "businessObjective": "Dam bao nhan vien moi duoc tiep nhan, dao tao, cap quyen truy cap he thong va san sang lam viec trong 5 ngay lam viec.",
+        "scope": "Tu luc Phong NS xac nhan nhan vien sap vao lam den khi nhan vien hoan thanh checklist onboarding va quan ly xac nhan san sang.",
+        "startEnd": {
+          "startEvent": "Phong NS nhan duoc thong tin nhan vien sap vao",
+          "endEvent": "Nhan vien hoan thanh onboarding checklist va duoc quan ly xac nhan san sang"
+        },
+        "actors": [
+          {
+            "name": "Nhan vien moi",
+            "role": "Nguoi duoc onboard",
+            "type": "customer"
+          },
+          {
+            "name": "HR Specialist",
+            "role": "Quan ly quy trinh onboarding",
+            "type": "internal"
+          },
+          {
+            "name": "Quan ly truc tiep",
+            "role": "Xac nhan san sang lam viec",
+            "type": "internal"
+          },
+          {
+            "name": "IT Support",
+            "role": "Cap quyen truy cap va thiet bi",
+            "type": "internal"
+          }
+        ],
+        "relatedSystems": [
+          {
+            "name": "HRMS",
+            "purpose": "Quan ly thong tin nhan su va ho so",
+            "category": "internal"
+          },
+          {
+            "name": "Active Directory",
+            "purpose": "Cap tai khoan va phan quyen",
+            "category": "internal"
+          },
+          {
+            "name": "LMS",
+            "purpose": "Quan ly khoa dao tao noi bo",
+            "category": "internal"
+          }
+        ],
+        "dataDocuments": [
+          {
+            "name": "Ho so nhan vien",
+            "type": "document",
+            "description": "CCCD, hop dong lao dong, giay to lien quan"
+          },
+          {
+            "name": "Onboarding checklist",
+            "type": "record",
+            "description": "Danh sach cac muc can hoan thanh"
+          }
+        ],
+        "happyPath": [
+          "HR Specialist tao ho so tren HRMS",
+          "IT Support cap tai khoan Active Directory va cai dat thiet bi",
+          "Nhan vien nhan thiet bi va dang nhap lan dau",
+          "Nhan vien hoan thanh cac khoa dao tao tren LMS",
+          "Quan ly xac nhan onboarding hoan thanh"
+        ],
+        "exceptionPaths": [
+          "Ho so khong hop le thi yeu cau bo sung truoc khi tiep tuc",
+          "Nhan vien khong hoan thanh dao tao trong deadline thi gia han hoac bao cao HR"
+        ],
+        "riskControls": [
+          "Xac thuc giay to truoc khi tao ho so HRMS",
+          "Audit log moi lan cap hoac thu hoi quyen truy cap"
+        ],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual"
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Khoi tao onboarding",
+            "group": "Tien hanh onboarding",
+            "actor": "Phong Nhan su",
+            "actorLane": "Phong Nhan su",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "receive",
+            "taskName": "Phong NS nhan duoc thong tin nhan vien sap vao",
+            "input": "Thong tin nhan vien sap vao lam",
+            "output": "Onboarding duoc khoi tao",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Start event from brief."
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "data",
+            "phase": "Tiep nhan va xac thuc ho so",
+            "group": "Tien hanh onboarding",
+            "actor": "HR Specialist",
+            "actorLane": "HR Specialist",
+            "system": "HRMS",
+            "systemLane": "HRMS",
+            "dataObject": "Ho so nhan vien",
+            "dataAction": "create",
+            "taskName": "Tao va xac thuc ho so nhan vien tren HRMS",
+            "input": "Thong tin nhan vien sap vao va giay to dinh kem",
+            "output": "Ho so nhan vien duoc tao va xac thuc",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "Ho so co hop le khong?",
+            "yesNextStep": "S003",
+            "noNextStep": "S003",
+            "exception": "Ho so khong hop le",
+            "exceptionHandling": "Yeu cau bo sung truoc khi tiep tuc",
+            "sla": "",
+            "riskControl": "Xac thuc giay to truoc khi tao ho so HRMS",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Combines happy path with validation from exception path."
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Cap quyen va thiet bi",
+            "group": "Tien hanh onboarding",
+            "actor": "IT Support",
+            "actorLane": "IT Support",
+            "system": "Active Directory",
+            "systemLane": "Active Directory",
+            "dataObject": "Tai khoan va quyen truy cap",
+            "dataAction": "create",
+            "taskName": "Cap tai khoan Active Directory va cai dat thiet bi",
+            "input": "Ho so da xac thuc va yeu cau cap quyen",
+            "output": "Tai khoan va thiet bi san sang",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Cap quyen hoac thiet bi bi loi",
+            "exceptionHandling": "Kiem tra va cap nhat lai cau hinh; ghi nhan audit log",
+            "sla": "",
+            "riskControl": "Audit log moi lan cap hoac thu hoi quyen truy cap",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": ""
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Tiep nhan va su dung",
+            "group": "Tien hanh onboarding",
+            "actor": "Nhan vien moi",
+            "actorLane": "Nhan vien moi",
+            "system": "LMS",
+            "systemLane": "LMS",
+            "dataObject": "Onboarding checklist",
+            "dataAction": "update",
+            "taskName": "Nhan thiet bi, dang nhap lan dau va hoan thanh dao tao LMS",
+            "input": "Thiet bi da cap va tai khoan truy cap",
+            "output": "Dao tao co ban duoc hoan thanh va checklist duoc cap nhat",
+            "defaultNextStep": "S005",
+            "conditionQuestion": "Nhan vien da hoan thanh dao tao dung han chua?",
+            "yesNextStep": "S005",
+            "noNextStep": "S005",
+            "exception": "Khong hoan thanh dao tao trong deadline",
+            "exceptionHandling": "Gia han hoac bao cao HR",
+            "sla": "Hoan thanh trong 5 ngay lam viec",
+            "riskControl": "Theo doi tien do checklist va deadline dao tao",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Includes training and first login per happy path."
+          },
+          {
+            "id": "S005",
+            "stepId": "S005",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "approval",
+            "phase": "Xac nhan san sang",
+            "group": "Ket thuc onboarding",
+            "actor": "Quan ly truc tiep",
+            "actorLane": "Quan ly truc tiep",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "Onboarding checklist",
+            "dataAction": "approve",
+            "taskName": "Quan ly xac nhan onboarding hoan thanh",
+            "input": "Onboarding checklist da hoan thanh",
+            "output": "Nhan vien duoc xac nhan san sang lam viec",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Quan ly khong xac nhan san sang",
+            "exceptionHandling": "Tra lai checklist de bo sung",
+            "sla": "",
+            "riskControl": "Xac nhan cuoi cung sau khi checklist duoc hoan tat",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "End event from brief."
+          }
+        ],
+        "assumptions": [
+          "Quy trinh duoc mo hinh hoa thanh 5 buoc chinh tu start den end theo happy path va exception chinh.",
+          "Nguoi quan ly truc tiep tham gia xac nhan san sang o buoc cuoi.",
+          "Ho so khong hop le va tre dao tao duoc xu ly trong cung cac buoc chinh voi duong di ngoai le."
+        ],
+        "openQuestions": [
+          "HRMS co la he thong duy nhat luu ho so nhan vien khong?",
+          "Co can them buoc phe duyet cua phong ban truoc khi cap tai khoan va thiet bi khong?",
+          "Deadline 5 ngay lam viec ap dung cho toan bo onboarding hay chi cho phan dao tao?",
+          "Checklists cu the can hoan thanh gom nhung muc nao ngoai dao tao va nhan thiet bi?"
+        ],
+        "qualityIssues": [
+          "Mot so tuan thuan dich ra tieng Viet cho output bilingual co the can chuan hoa lai ten he thong va vai tro.",
+          "Happy path va exception paths duoc tong hop nen mot so buoc co thong tin conditionQuestion/yesNextStep/noNextStep mang tinh uoc luong."
+        ],
+        "sourceSummary": "Draft duoc tao tu structured brief ve quy trinh onboarding nhan vien moi trong cong ty dich vu tai chinh, gom HRMS, Active Directory, LMS, ho so nhan vien, onboarding checklist, cac buoc happy path va ngoai le chinh.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": []
+      },
+      "verdict": "pass",
+      "overall": 0.75,
+      "judgeNotes": {
+        "completeness": "Start/end events present; input/output on all tasks; both riskControls referenced; both exceptionPaths covered. Missing: rowType uses 'event' not 'start'/'end'; serviceTask S003 taskNature='integration' not 'automatic'; S002 bpmnType='userTask' but has conditionQuestion without being a gateway—no explicit exclusiveGateway row for exception branches. Actor coverage OK. Minor gaps keep this at partial.",
+        "domainTerms": "S003 taskNature='integration' invalid (should be 'automatic' for serviceTask); S002/S004 taskNature='data'/'approval' invalid (should be 'manual'). rowType='event' not in allowed set ('start'/'end'). 'dataAction':'approve' not in allowed set. 3 vocabulary errors → partial.",
+        "traceability": "All 5 tasks map directly to happyPath steps; both exceptionPaths reflected in exceptionHandling fields; both riskControls cited; assumptions listed for inferred items; confidence='medium' appropriate for a complete brief.",
+        "safety": "confidence='medium' with assumptions and openQuestions surfaced; no ungrounded regulatory claims; riskControls only repeat INPUT riskControls; output not claimed as production-ready (reviewStatus='needsReview')."
+      }
+    },
+    {
+      "id": "eval-007",
+      "input": {
+        "processInfo": {
+          "processName": "Quy trinh doi soat giao dich cuoi ngay",
+          "processOwner": "Khoi Van hanh Thanh toan",
+          "businessDomain": "Banking payments"
+        },
+        "businessObjective": "Doi soat tu dong tat ca giao dich trong ngay giua Core Banking va cac kenh thanh toan truoc 23:59.",
+        "scope": "Tu luc batch job doi soat duoc lich tu dong den khi bao cao doi soat duoc luu va thong bao gui thanh cong.",
+        "startEnd": {
+          "startEvent": "Batch job doi soat duoc khoi chay tu dong luc 22:00",
+          "endEvent": "Bao cao doi soat cuoi ngay duoc luu va thong bao gui den bo phan van hanh"
+        },
+        "actors": [
+          {
+            "name": "Settlement Engine",
+            "role": "Chay batch doi soat tu dong",
+            "type": "system"
+          },
+          {
+            "name": "Core Banking",
+            "role": "Cung cap du lieu giao dich",
+            "type": "system"
+          },
+          {
+            "name": "Notification Service",
+            "role": "Gui bao cao ket qua",
+            "type": "system"
+          }
+        ],
+        "relatedSystems": [
+          {
+            "name": "Core Banking",
+            "purpose": "Nguon du lieu giao dich trong ngay",
+            "category": "internal"
+          },
+          {
+            "name": "Settlement Engine",
+            "purpose": "Xu ly doi soat tu dong",
+            "category": "internal"
+          },
+          {
+            "name": "Reconciliation DB",
+            "purpose": "Luu ket qua doi soat",
+            "category": "internal"
+          },
+          {
+            "name": "Notification Service",
+            "purpose": "Gui bao cao qua email",
+            "category": "internal"
+          }
+        ],
+        "dataDocuments": [
+          {
+            "name": "Transaction log",
+            "type": "record",
+            "description": "Danh sach giao dich trong ngay"
+          },
+          {
+            "name": "Settlement report",
+            "type": "document",
+            "description": "Bao cao doi soat cuoi ngay"
+          }
+        ],
+        "happyPath": [
+          "Settlement Engine lay du lieu giao dich tu Core Banking",
+          "Doi chieu voi du lieu doi tac NAPAS",
+          "Tinh toan so du chenh lech",
+          "Luu ket qua vao Reconciliation DB",
+          "Gui bao cao qua Notification Service"
+        ],
+        "exceptionPaths": [
+          "Neu co giao dich khong khop thi danh dau can xu ly thu cong sang ngay hom sau"
+        ],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual"
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "system",
+            "phase": "Khoi tao",
+            "group": "Doi soat cuoi ngay",
+            "actor": "",
+            "actorLane": "",
+            "system": "Settlement Engine",
+            "systemLane": "Settlement Engine",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Batch job doi soat duoc khoi chay tu dong luc 22:00",
+            "input": "Lich batch doi soat",
+            "output": "Quy trinh doi soat duoc kich hoat",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "Bat dau dung gio luc 22:00",
+            "riskControl": "Kiem tra lich chay batch va quyen truy cap",
+            "sourceRef": "StructuredProcessBrief.payload.startEnd.startEvent",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Lay du lieu",
+            "group": "Doi soat cuoi ngay",
+            "actor": "",
+            "actorLane": "Settlement Engine",
+            "system": "Core Banking",
+            "systemLane": "Core Banking",
+            "dataObject": "Transaction log",
+            "dataAction": "pull",
+            "taskName": "Lay du lieu giao dich tu Core Banking",
+            "input": "Du lieu giao dich trong ngay",
+            "output": "Transaction log duoc tai ve",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong lay duoc du lieu tu Core Banking",
+            "exceptionHandling": "Thu lai theo chinh sach hoac ghi nhan loi de xu ly",
+            "sla": "Truoc 23:59",
+            "riskControl": "Xac thuc ket noi va doi soat so luong ban ghi",
+            "sourceRef": "StructuredProcessBrief.happyPath[0]",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "decision",
+            "phase": "Doi chieu va xu ly",
+            "group": "Doi soat cuoi ngay",
+            "actor": "",
+            "actorLane": "Settlement Engine",
+            "system": "Settlement Engine",
+            "systemLane": "Settlement Engine",
+            "dataObject": "Settlement report",
+            "dataAction": "validate",
+            "taskName": "Doi chieu voi du lieu doi tac NAPAS va tinh toan so du chenh lech",
+            "input": "Transaction log va du lieu doi tac NAPAS",
+            "output": "So du chenh lech va trang thai doi chieu",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "Co giao dich khong khop khong?",
+            "yesNextStep": "S004",
+            "noNextStep": "S004",
+            "exception": "Phat hien giao dich khong khop",
+            "exceptionHandling": "Danh dau can xu ly thu cong sang ngay hom sau",
+            "sla": "Hoan thanh truoc 23:59",
+            "riskControl": "Doi chieu day du va giam sat cac giao dich lech",
+            "sourceRef": "StructuredProcessBrief.happyPath[1-2]; StructuredProcessBrief.exceptionPaths[0]",
+            "reviewStatus": "needsReview",
+            "comment": "Gop buoc doi chieu va tinh toan de phu hop so luong 3 buoc mo ta."
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "data",
+            "phase": "Luu tru",
+            "group": "Doi soat cuoi ngay",
+            "actor": "",
+            "actorLane": "Settlement Engine",
+            "system": "Reconciliation DB",
+            "systemLane": "Reconciliation DB",
+            "dataObject": "Settlement report",
+            "dataAction": "store",
+            "taskName": "Luu ket qua vao Reconciliation DB",
+            "input": "Ket qua doi chieu va so du chenh lech",
+            "output": "Settlement report duoc luu",
+            "defaultNextStep": "S005",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong luu duoc ket qua vao DB",
+            "exceptionHandling": "Thu lai va thong bao loi he thong",
+            "sla": "Ngay trong ca chay batch",
+            "riskControl": "Kiem tra giao dich ghi va sao luu co so du lieu",
+            "sourceRef": "StructuredProcessBrief.happyPath[3]",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S005",
+            "stepId": "S005",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "notification",
+            "phase": "Thong bao",
+            "group": "Doi soat cuoi ngay",
+            "actor": "",
+            "actorLane": "Notification Service",
+            "system": "Notification Service",
+            "systemLane": "Notification Service",
+            "dataObject": "Settlement report",
+            "dataAction": "send",
+            "taskName": "Gui bao cao qua Notification Service",
+            "input": "Settlement report da luu",
+            "output": "Thong bao bao cao duoc gui den bo phan van hanh",
+            "defaultNextStep": "S006",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Gui thong bao that bai",
+            "exceptionHandling": "Thu lai hoac chuyen sang kenh thong bao du phong",
+            "sla": "Truoc 23:59",
+            "riskControl": "Theo doi trang thai gui va log thong bao",
+            "sourceRef": "StructuredProcessBrief.happyPath[4]; StructuredProcessBrief.startEnd.endEvent",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S006",
+            "stepId": "S006",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "system",
+            "phase": "Ket thuc",
+            "group": "Doi soat cuoi ngay",
+            "actor": "",
+            "actorLane": "",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Bao cao doi soat cuoi ngay duoc luu va thong bao gui den bo phan van hanh",
+            "input": "Settlement report da luu va da thong bao",
+            "output": "Quy trinh ket thuc",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "Hoan tat truoc 23:59",
+            "riskControl": "Xac nhan hoan tat batch va luu vet ket qua",
+            "sourceRef": "StructuredProcessBrief.startEnd.endEvent",
+            "reviewStatus": "approved",
+            "comment": ""
+          }
+        ],
+        "assumptions": [
+          "Quy trinh chay hoan toan tu dong va khong can phe duyet thu cong trong duong di chinh.",
+          "Du lieu doi tac NAPAS duoc coi la nguon doi chieu co san cho Settlement Engine.",
+          "Thong bao gui den bo phan van hanh la thong bao dien tu qua Notification Service."
+        ],
+        "openQuestions": [
+          "Neu phat hien giao dich khong khop, ai la nguoi xu ly thu cong vao ngay hom sau?",
+          "Co can tach rieng buoc doi chieu NAPAS va buoc tinh toan so du chenh lech khong?",
+          "Settlement report co can luu them dinh dang file cu the hay chi luu ban ghi trong DB?"
+        ],
+        "qualityIssues": [
+          "Mo ta nguon co 5 buoc happy path nhung mot so buoc duoc gop de phu hop so luong row.",
+          "Thong tin ve actor human khong co; quy trinh chu yeu la he thong.",
+          "Ngay ket thuc va thong bao gui thanh cong duoc mo ta trong cung mot end event, can xac nhan rang buoc nghiep vu.",
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ],
+        "sourceSummary": "Draft Process Task Register duoc tao tu brief quy trinh doi soat giao dich cuoi ngay cua ngan hang. Quy trinh chinh bao gom kich hoat batch, lay du lieu tu Core Banking, doi chieu voi NAPAS, luu ket qua vao Reconciliation DB, gui bao cao qua Notification Service, va ket thuc quy trinh.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ]
+      },
+      "verdict": "partial",
+      "overall": 0.5,
+      "judgeNotes": {
+        "completeness": "Start/end events present; 6 tasks (adequate count); input/output on all tasks. Gaps: actor field empty on all tasks; taskNature values invalid (integration/decision/data/notification not in spec); dataAction 'pull'/'store' not in allowed set.",
+        "domainTerms": "taskNature uses 'integration','decision','data','notification' — only 'manual'/'automatic' allowed. dataAction 'pull','store' invalid. rowType 'event' used instead of 'start'/'end'. Multiple systematic errors.",
+        "traceability": "All 5 happy path steps traceable; exception path modelled in S003; NAPAS inference noted in assumptions. Confidence 'medium' reasonable. Minor issue: S003 merges two happyPath steps without gateway split.",
+        "safety": "confidence='medium' is calibrated; assumptions and openQuestions explicitly listed; no ungrounded regulatory claims; no claim of production-readiness. Safety criteria well met."
+      }
+    },
+    {
+      "id": "eval-008",
+      "input": {
+        "processInfo": {
+          "processName": "Quy trinh xac nhan don hang ban le",
+          "processOwner": "Khoi Ban hang",
+          "businessDomain": "Sales"
+        },
+        "businessObjective": "Xac nhan don hang khach hang nhanh chong va chinh xac truoc khi chuyen sang kho chuan bi.",
+        "scope": "Tu luc khach hang gui don hang tren he thong den khi don hang duoc xac nhan va chuyen sang bo phan kho.",
+        "startEnd": {
+          "startEvent": "Khach hang gui don hang qua portal",
+          "endEvent": "Don hang duoc xac nhan va chuyen sang kho"
+        },
+        "actors": [
+          {
+            "name": "Khach hang",
+            "role": "Nguoi dat hang",
+            "type": "customer"
+          },
+          {
+            "name": "Sales Agent",
+            "role": "Xu ly va xac nhan don hang",
+            "type": "internal"
+          }
+        ],
+        "relatedSystems": [
+          {
+            "name": "OMS",
+            "purpose": "Quan ly don hang",
+            "category": "internal"
+          }
+        ],
+        "dataDocuments": [
+          {
+            "name": "Don hang",
+            "type": "document",
+            "description": "Chi tiet san pham va so luong dat hang"
+          }
+        ],
+        "happyPath": [
+          "Tiep nhan don hang tu khach hang",
+          "Kiem tra ton kho",
+          "Xac nhan don hang",
+          "Chuyen thong tin sang kho chuan bi"
+        ],
+        "exceptionPaths": [],
+        "riskControls": [],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual"
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "system",
+            "phase": "Khoi tao",
+            "group": "Tiep nhan don hang",
+            "actor": "Khach hang",
+            "actorLane": "Khach hang",
+            "system": "Portal",
+            "systemLane": "Portal",
+            "dataObject": "Don hang",
+            "dataAction": "send",
+            "taskName": "Khach hang gui don hang qua portal",
+            "input": "Thong tin don hang tu khach hang",
+            "output": "Don hang duoc gui vao he thong",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": "Diem bat dau quy trinh."
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Xu ly don hang",
+            "group": "Tiep nhan va kiem tra",
+            "actor": "Sales Agent",
+            "actorLane": "Sales Agent",
+            "system": "OMS",
+            "systemLane": "OMS",
+            "dataObject": "Don hang",
+            "dataAction": "read",
+            "taskName": "Tiep nhan don hang tu khach hang",
+            "input": "Don hang tu portal",
+            "output": "Don hang duoc tiep nhan trong OMS",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Don hang thieu thong tin",
+            "exceptionHandling": "Yeu cau khach hang bo sung thong tin",
+            "sla": "",
+            "riskControl": "Kiem tra day du du lieu don hang truoc khi xu ly",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "serviceTask",
+            "taskNature": "integration",
+            "phase": "Xu ly don hang",
+            "group": "Kiem tra ton kho",
+            "actor": "Sales Agent",
+            "actorLane": "Sales Agent",
+            "system": "OMS",
+            "systemLane": "OMS",
+            "dataObject": "Ton kho",
+            "dataAction": "read",
+            "taskName": "Kiem tra ton kho",
+            "input": "Don hang da tiep nhan",
+            "output": "Ket qua ton kho",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong du ton kho",
+            "exceptionHandling": "Thong bao de xac nhan lai hoac cho xu ly tiep",
+            "sla": "",
+            "riskControl": "Doi chieu so luong dat hang voi ton kho hien co",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "approval",
+            "phase": "Xac nhan don hang",
+            "group": "Phe duyet va gui kho",
+            "actor": "Sales Agent",
+            "actorLane": "Sales Agent",
+            "system": "OMS",
+            "systemLane": "OMS",
+            "dataObject": "Don hang",
+            "dataAction": "approve",
+            "taskName": "Xac nhan don hang",
+            "input": "Don hang va ket qua ton kho",
+            "output": "Don hang duoc xac nhan",
+            "defaultNextStep": "S005",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khong the xac nhan don hang",
+            "exceptionHandling": "Chuyen trang thai tu choi hoac tam dung",
+            "sla": "",
+            "riskControl": "Xac nhan chi khi don hang hop le va ton kho phu hop",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S005",
+            "stepId": "S005",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "sendTask",
+            "taskNature": "integration",
+            "phase": "Chuyen sang kho",
+            "group": "Thong bao kho chuan bi",
+            "actor": "Sales Agent",
+            "actorLane": "Sales Agent",
+            "system": "OMS",
+            "systemLane": "OMS",
+            "dataObject": "Don hang",
+            "dataAction": "send",
+            "taskName": "Chuyen thong tin sang kho chuan bi",
+            "input": "Don hang da xac nhan",
+            "output": "Thong tin don hang duoc gui sang kho",
+            "defaultNextStep": "S006",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Gui thong tin that bai",
+            "exceptionHandling": "Thu lai hoac thong bao bo phan lien quan",
+            "sla": "",
+            "riskControl": "Dam bao du lieu chuyen sang kho day du va chinh xac",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": ""
+          },
+          {
+            "id": "S006",
+            "stepId": "S006",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "system",
+            "phase": "Ket thuc",
+            "group": "Hoan tat quy trinh",
+            "actor": "",
+            "actorLane": "",
+            "system": "OMS",
+            "systemLane": "OMS",
+            "dataObject": "Don hang",
+            "dataAction": "none",
+            "taskName": "Don hang duoc xac nhan va chuyen sang kho",
+            "input": "Don hang da xac nhan",
+            "output": "Don hang duoc chuyen sang kho chuan bi",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "approved",
+            "comment": "Diem ket thuc quy trinh."
+          }
+        ],
+        "assumptions": [
+          "Portal la kenh khach hang su dung de gui don hang.",
+          "OMS la he thong trung tam de tiep nhan, kiem tra va cap nhat trang thai don hang.",
+          "Kho se nhan thong tin tu OMS sau khi don hang duoc xac nhan."
+        ],
+        "openQuestions": [],
+        "qualityIssues": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ],
+        "sourceSummary": "Da chuyen doi quy trinh xac nhan don hang ban le tu brief co cau truc sang Draft Process Task Register, giu luong happy path tu gui don hang den chuyen sang kho.",
+        "confidence": "high",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": [
+          "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
+        ]
+      },
+      "verdict": "partial",
+      "overall": 0.5,
+      "judgeNotes": {
+        "completeness": "Has startEvent, endEvent, 6 tasks (≥3). Most tasks have actor/system/input/output. S006 endEvent has empty actor field. exceptionPaths empty so no penalty. riskControls empty so no penalty. rowType uses 'event' not 'start'/'end' as specified.",
+        "domainTerms": "bpmnType 'sendTask' (S005) is not in allowed set; taskNature values 'system','integration','approval' are not in allowed set (only 'manual'/'automatic'); rowType 'event' not in allowed set ('start','end','task','gateway'). dataAction 'approve' not in allowed set.",
+        "traceability": "All 4 happy path steps traced. 'Portal' system introduced not in relatedSystems (only OMS listed) without noting it as inferred in comment. assumptions note Portal but task S001 assigns it as system without flagging inference.",
+        "safety": "confidence:'high' on a reasonably complete brief is mostly justified, but 'reviewStatus':'approved' on all tasks and qualityIssues text is contradictory/misleading. riskControls invented (e.g. S002-S005) despite INPUT riskControls:[] — ungrounded controls added."
+      }
+    },
+    {
+      "id": "eval-009",
+      "input": {
+        "processInfo": {
+          "processName": "Quy trinh cham soc khach hang sau ban"
+        },
+        "businessObjective": "Tang su hai long cua khach hang sau khi mua san pham.",
+        "scope": "",
+        "startEnd": {
+          "startEvent": "",
+          "endEvent": ""
+        },
+        "actors": [],
+        "relatedSystems": [],
+        "dataDocuments": [],
+        "happyPath": [],
+        "exceptionPaths": [],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual"
+      },
+      "output": null,
+      "verdict": "fail",
+      "overall": 0,
+      "judgeNotes": {
+        "completeness": "API error HTTP 400: {\"ok\":false,\"error\":\"Brief chua du thong tin de tao Draft PTR.\",\"validationErrors\":[\"Vui long nhap p",
+        "domainTerms": "",
+        "traceability": "",
+        "safety": ""
+      }
+    },
+    {
+      "id": "eval-010",
+      "input": {
+        "processInfo": {
+          "processName": "Quy trinh giai quyet khieu nai khach hang",
+          "processOwner": "Phong Cham soc Khach hang"
+        },
+        "businessObjective": "Giai quyet khieu nai khach hang dung han va dung quy dinh.",
+        "scope": "Khong xac dinh ro rang.",
+        "startEnd": {
+          "startEvent": "Khieu nai duoc dong",
+          "endEvent": "Khieu nai duoc dong"
+        },
+        "actors": [
+          {
+            "name": "Khach hang",
+            "role": "Nguoi gui khieu nai",
+            "type": "customer"
+          }
+        ],
+        "relatedSystems": [],
+        "dataDocuments": [],
+        "happyPath": [
+          "Tiep nhan khieu nai",
+          "Xu ly khieu nai",
+          "Dong khieu nai"
+        ],
+        "exceptionPaths": [],
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "notes": "startEvent va endEvent giong het nhau - logical contradiction de kiem tra xu ly cua model."
+      },
+      "output": {
+        "draftProcessTasks": [
+          {
+            "id": "S001",
+            "stepId": "S001",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "startEvent",
+            "taskNature": "manual",
+            "phase": "Khoi tao",
+            "group": "",
+            "actor": "Khach hang",
+            "actorLane": "Khach hang",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Khieu nai duoc dong",
+            "input": "Khieu nai tu khach hang",
+            "output": "Khoi tao quy trinh giai quyet khieu nai",
+            "defaultNextStep": "S002",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "Source brief notes that startEvent and endEvent are identical, creating a logical contradiction."
+          },
+          {
+            "id": "S002",
+            "stepId": "S002",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Xu ly",
+            "group": "",
+            "actor": "Phong Cham soc Khach hang",
+            "actorLane": "Phong Cham soc Khach hang",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "read",
+            "taskName": "Tiep nhan khieu nai",
+            "input": "Khieu nai duoc tiep nhan tu khach hang",
+            "output": "Khieu nai duoc ghi nhan",
+            "defaultNextStep": "S003",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Thong tin khieu nai khong day du",
+            "exceptionHandling": "Yeu cau khach hang bo sung thong tin",
+            "sla": "",
+            "riskControl": "Kiem tra day du thong tin va phan loai khieu nai",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": ""
+          },
+          {
+            "id": "S003",
+            "stepId": "S003",
+            "parentStepId": null,
+            "rowType": "task",
+            "bpmnType": "userTask",
+            "taskNature": "manual",
+            "phase": "Xu ly",
+            "group": "",
+            "actor": "Phong Cham soc Khach hang",
+            "actorLane": "Phong Cham soc Khach hang",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "update",
+            "taskName": "Xu ly khieu nai",
+            "input": "Ho so khieu nai da ghi nhan",
+            "output": "Phuong an xu ly khieu nai",
+            "defaultNextStep": "S004",
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "Khieu nai vuot tham quyen",
+            "exceptionHandling": "Chuyen cap co tham quyen cao hon",
+            "sla": "",
+            "riskControl": "Doi chieu quy dinh va tham quyen xu ly",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": ""
+          },
+          {
+            "id": "S004",
+            "stepId": "S004",
+            "parentStepId": null,
+            "rowType": "event",
+            "bpmnType": "endEvent",
+            "taskNature": "manual",
+            "phase": "Ket thuc",
+            "group": "",
+            "actor": "Phong Cham soc Khach hang",
+            "actorLane": "Phong Cham soc Khach hang",
+            "system": "",
+            "systemLane": "",
+            "dataObject": "",
+            "dataAction": "none",
+            "taskName": "Dong khieu nai",
+            "input": "Khieu nai da xu ly",
+            "output": "Khieu nai duoc dong",
+            "defaultNextStep": null,
+            "conditionQuestion": "",
+            "yesNextStep": null,
+            "noNextStep": null,
+            "exception": "",
+            "exceptionHandling": "",
+            "sla": "",
+            "riskControl": "Xac nhan khach hang da nhan ket qua",
+            "sourceRef": "StructuredProcessBrief",
+            "reviewStatus": "needsReview",
+            "comment": "End event text differs slightly from start event to preserve process structure despite source contradiction."
+          }
+        ],
+        "assumptions": [
+          "Quy trinh duoc mo rong tu happy path vi brief khong neu chi tiet cac buoc truoc va sau.",
+          "Khong co he thong lien quan duoc xac dinh trong brief nen de trong.",
+          "Phong Cham soc Khach hang la don vi chu tri xu ly khieu nai."
+        ],
+        "openQuestions": [
+          "Khieu nai duoc tiep nhan qua kenh nao (dien thoai, email, portal, truc tiep)?",
+          "Co can phan loai uu tien/SLA theo loai khieu nai khong?",
+          "Co cap tham quyen nao khac ngoai Phong Cham soc Khach hang khong?"
+        ],
+        "qualityIssues": [
+          "Start event va end event trong source brief giong nhau, gay mơ ho lac logic.",
+          "Scope khong xac dinh ro rang nen pham vi quy trinh con co do khong chac chan.",
+          "Khong co exception paths hoac related systems/data documents trong source brief."
+        ],
+        "sourceSummary": "Draft Process Task Register duoc tao tu StructuredProcessBrief ve quy trinh giai quyet khieu nai khach hang. Nguon chi co happy path 3 buoc va co ghi chu mau thuan giua start/end event.",
+        "confidence": "medium",
+        "inputLanguage": "vi",
+        "outputLanguage": "bilingual",
+        "qualityGateWarnings": []
+      },
+      "verdict": "pass",
+      "overall": 0.75,
+      "judgeNotes": {
+        "completeness": "Has startEvent, endEvent, 4 tasks, input/output on all tasks, actor on all tasks. Missing: rowType uses 'event' not 'start'/'end'; no exceptionPaths to cover (ok); riskControls empty (ok). Minor: system field empty but no serviceTasks/systems in INPUT.",
+        "domainTerms": "rowType values 'event' are invalid; allowed values are 'start','end','task','gateway'. bpmnType values are valid. taskNature, dataAction values are correct. Actor 'Phong Cham soc Khach hang' inferred but documented in assumptions.",
+        "traceability": "All 4 tasks map to happyPath steps. Inferred actor 'Phong Cham soc Khach hang' noted in assumptions. Start/end contradiction acknowledged in comments. Confidence 'medium' is reasonable given sparse INPUT.",
+        "safety": "Confidence set to 'medium' not 'high' despite sparse brief. Assumptions, openQuestions, qualityIssues all surfaced. No ungrounded regulatory claims. reviewStatus 'needsReview' avoids claiming production-ready."
+      }
+    }
+  ]
+}

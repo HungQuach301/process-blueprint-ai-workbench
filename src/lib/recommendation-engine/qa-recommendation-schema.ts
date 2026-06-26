@@ -111,13 +111,15 @@ function validateOperation(
     errors.push(`recommendations[${index}].operations[${operationIndex}].kind is invalid.`);
   }
 
-  getOperationStepReferences(operation).forEach((stepId) => {
-    if (!validStepIds.has(stepId)) {
-      errors.push(
-        `recommendations[${index}].operations[${operationIndex}] references missing stepId ${stepId}.`
-      );
-    }
-  });
+  if (validStepIds.size > 0) {
+    getOperationStepReferences(operation).forEach((stepId) => {
+      if (!validStepIds.has(stepId)) {
+        errors.push(
+          `recommendations[${index}].operations[${operationIndex}] references missing stepId ${stepId}.`
+        );
+      }
+    });
+  }
 }
 
 function validateRecommendation(
@@ -166,18 +168,26 @@ function validateRecommendation(
     errors.push(`recommendations[${index}].recommendationType is invalid.`);
   }
 
-  if (
-    !Array.isArray(recommendation.targetStepIds) ||
-    recommendation.targetStepIds.length === 0 ||
-    recommendation.targetStepIds.some((stepId) => !isString(stepId))
+  if (validStepIds.size > 0) {
+    if (
+      !Array.isArray(recommendation.targetStepIds) ||
+      recommendation.targetStepIds.length === 0 ||
+      recommendation.targetStepIds.some((stepId) => !isString(stepId))
+    ) {
+      errors.push(`recommendations[${index}].targetStepIds must be a non-empty string array.`);
+    } else {
+      recommendation.targetStepIds.forEach((stepId) => {
+        if (!validStepIds.has(stepId)) {
+          errors.push(`recommendations[${index}] targets missing stepId ${stepId}.`);
+        }
+      });
+    }
+  } else if (
+    recommendation.targetStepIds !== undefined &&
+    recommendation.targetStepIds !== null &&
+    !Array.isArray(recommendation.targetStepIds)
   ) {
     errors.push(`recommendations[${index}].targetStepIds must be a non-empty string array.`);
-  } else {
-    recommendation.targetStepIds.forEach((stepId) => {
-      if (!validStepIds.has(stepId)) {
-        errors.push(`recommendations[${index}] targets missing stepId ${stepId}.`);
-      }
-    });
   }
 
   if (recommendation.operations !== undefined) {

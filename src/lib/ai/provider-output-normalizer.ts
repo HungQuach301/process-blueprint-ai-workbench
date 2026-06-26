@@ -29,6 +29,8 @@ export type ProviderOutputNormalizerResult<T = unknown> = {
 
 type JsonObject = Record<string, unknown>;
 
+const STRIP_NULL_SCHEMAS = new Set<string>(["QARecommendationResponse", "ArtifactReviewResponse"]);
+
 const knownOutputSchemas = new Set<string>([
   "DraftProcessTaskRegister",
   "BRDResponse",
@@ -245,6 +247,22 @@ function normalizeFieldAliases(
   return normalized;
 }
 
+function stripNullsDeep(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== null).map(stripNullsDeep);
+  }
+  if (isObject(value)) {
+    const result: JsonObject = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v !== null) {
+        result[k] = stripNullsDeep(v);
+      }
+    }
+    return result;
+  }
+  return value;
+}
+
 function collectOutputStepIds(value: unknown) {
   if (!isObject(value) || !Array.isArray(value.draftProcessTasks)) {
     return [];
@@ -256,9 +274,64 @@ function collectOutputStepIds(value: unknown) {
     .filter((stepId): stepId is string => typeof stepId === "string" && stepId.length > 0);
 }
 
+function collectNewTaskStepIds(value: unknown): string[] {
+  if (!isObject(value) || !Array.isArray(value.recommendations)) {
+    return [];
+  }
+
+  const stepIds: string[] = [];
+
+  value.recommendations.forEach((rec) => {
+    if (!isObject(rec) || !Array.isArray(rec.operations)) {
+      return;
+    }
+
+    rec.operations.forEach((op) => {
+      if (!isObject(op)) {
+        return;
+      }
+
+      // SplitTask: newTasks[*].stepId
+      if (Array.isArray(op.newTasks)) {
+        op.newTasks.forEach((t) => {
+          if (isObject(t) && typeof t.stepId === "string" && t.stepId.length > 0) {
+            stepIds.push(t.stepId);
+          }
+        });
+      }
+
+      // CreateTaskAfter, CreateTaskBefore, InsertTaskBetween: task.stepId
+      if (isObject(op.task) && typeof op.task.stepId === "string" && op.task.stepId.length > 0) {
+        stepIds.push(op.task.stepId);
+      }
+
+      // CreateGateway: gatewayTask.stepId
+      if (
+        isObject(op.gatewayTask) &&
+        typeof op.gatewayTask.stepId === "string" &&
+        op.gatewayTask.stepId.length > 0
+      ) {
+        stepIds.push(op.gatewayTask.stepId);
+      }
+
+      // AddGatewayBranch: newTask.stepId
+      if (
+        isObject(op.newTask) &&
+        typeof op.newTask.stepId === "string" &&
+        op.newTask.stepId.length > 0
+      ) {
+        stepIds.push(op.newTask.stepId);
+      }
+    });
+  });
+
+  return stepIds;
+}
+
 function getReferenceStepIds(value: unknown, context: ProviderOutputNormalizerContext) {
   const outputStepIds = collectOutputStepIds(value);
-  return new Set([...(context.validStepIds ?? []), ...outputStepIds]);
+  const newTaskStepIds = collectNewTaskStepIds(value);
+  return new Set([...(context.validStepIds ?? []), ...outputStepIds, ...newTaskStepIds]);
 }
 
 function checkRequiredArrays(
@@ -376,12 +449,14 @@ export function normalizeProviderOutput<T = unknown>(
     warnings,
     changedPaths
   );
-  const normalizedOutput = normalizeFieldAliases(
+  const fieldAliasedOutput = normalizeFieldAliases(
     unwrappedOutput,
     schemaId,
     warnings,
     changedPaths
   );
+  const normalizedOutput =
+    schemaId && STRIP_NULL_SCHEMAS.has(schemaId) ? stripNullsDeep(fieldAliasedOutput) : fieldAliasedOutput;
 
   checkRequiredArrays(normalizedOutput, schemaId, errors);
   checkBrokenReferences(normalizedOutput, getReferenceStepIds(normalizedOutput, context), errors);

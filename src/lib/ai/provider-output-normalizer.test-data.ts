@@ -217,6 +217,243 @@ export const providerOutputNormalizerGoldenFixtures = [
       errorIssues: [{ code: "unknown_skill_or_schema", path: "$" }],
       changedPaths: []
     }
+  },
+
+  // ── Fixture A ──────────────────────────────────────────────────────────────
+  // Regression lock: DraftProcessTaskRegister is NOT in STRIP_NULL_SCHEMAS.
+  // Null values in task fields must be PRESERVED so downstream Zod can see them.
+  {
+    id: "null-preserved-draft-ptr",
+    description:
+      "DraftProcessTaskRegister: null values in task fields (defaultNextStep, yesNextStep, noNextStep, parentStepId) must be preserved — STRIP_NULL_SCHEMAS excludes this schema.",
+    input: {
+      draftProcessTasks: [
+        {
+          id: "task-001",
+          stepId: "T001",
+          parentStepId: null,
+          rowType: "task",
+          bpmnType: "userTask",
+          taskNature: "manual",
+          phase: "Phase 1",
+          group: "Group A",
+          actor: "Reviewer",
+          actorLane: "Reviewer",
+          system: "",
+          systemLane: "",
+          dataObject: "Request",
+          dataAction: "none",
+          taskName: "Review request",
+          input: "Request form",
+          output: "Reviewed form",
+          defaultNextStep: null,
+          conditionQuestion: "",
+          yesNextStep: null,
+          noNextStep: null,
+          exception: "",
+          exceptionHandling: "",
+          sla: "",
+          riskControl: "",
+          sourceRef: "",
+          reviewStatus: "draft",
+          comment: ""
+        }
+      ],
+      assumptions: [],
+      openQuestions: []
+    },
+    context: {
+      skillId: "input-brief-to-ptr",
+      outputSchemaId: "DraftProcessTaskRegister"
+    },
+    expected: {
+      normalizedOutput: {
+        draftProcessTasks: [
+          {
+            id: "task-001",
+            stepId: "T001",
+            parentStepId: null,
+            rowType: "task",
+            bpmnType: "userTask",
+            taskNature: "manual",
+            phase: "Phase 1",
+            group: "Group A",
+            actor: "Reviewer",
+            actorLane: "Reviewer",
+            system: "",
+            systemLane: "",
+            dataObject: "Request",
+            dataAction: "none",
+            taskName: "Review request",
+            input: "Request form",
+            output: "Reviewed form",
+            defaultNextStep: null,
+            conditionQuestion: "",
+            yesNextStep: null,
+            noNextStep: null,
+            exception: "",
+            exceptionHandling: "",
+            sla: "",
+            riskControl: "",
+            sourceRef: "",
+            reviewStatus: "draft",
+            comment: ""
+          }
+        ],
+        assumptions: [],
+        openQuestions: []
+      },
+      warningIssues: [],
+      errorIssues: [],
+      changedPaths: []
+    }
+  },
+
+  // ── Fixture B ──────────────────────────────────────────────────────────────
+  // Regression lock: QARecommendationResponse IS in STRIP_NULL_SCHEMAS.
+  // Null fields DEEPLY NESTED inside task objects (newTasks[*]) must be STRIPPED
+  // so downstream code that expects string|undefined (not null) does not fail.
+  {
+    id: "qa-recommendation-deep-null-strip",
+    description:
+      "QARecommendationResponse: null fields nested inside newTasks[*] (defaultNextStep, yesNextStep, noNextStep, parentStepId) are stripped; keys become absent in output.",
+    input: {
+      recommendations: [
+        {
+          id: "rec-B",
+          operations: [
+            {
+              kind: "SplitTask",
+              targetStepId: "S001",
+              newTasks: [
+                {
+                  stepId: "NEW-A",
+                  taskName: "New subtask",
+                  defaultNextStep: null,
+                  yesNextStep: null,
+                  noNextStep: null,
+                  parentStepId: null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    context: {
+      skillId: "process-improvement-recommendation",
+      outputSchemaId: "QARecommendationResponse"
+    },
+    expected: {
+      normalizedOutput: {
+        recommendations: [
+          {
+            id: "rec-B",
+            operations: [
+              {
+                kind: "SplitTask",
+                targetStepId: "S001",
+                newTasks: [
+                  {
+                    stepId: "NEW-A",
+                    taskName: "New subtask"
+                    // defaultNextStep, yesNextStep, noNextStep, parentStepId stripped
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      warningIssues: [],
+      errorIssues: [],
+      changedPaths: []
+    }
+  },
+
+  // ── Fixture C ──────────────────────────────────────────────────────────────
+  // Regression lock: ArtifactReviewResponse IS in STRIP_NULL_SCHEMAS.
+  // Null values in flat operation fields (stepId, value) are stripped.
+  {
+    id: "artifact-review-null-strip",
+    description:
+      "ArtifactReviewResponse: null fields in operation objects (stepId, value) are stripped; required top-level arrays are intact.",
+    input: {
+      recommendations: [
+        {
+          id: "art-rec-001",
+          operations: [
+            {
+              kind: "UpdateTaskField",
+              stepId: null,
+              field: "actor",
+              value: null
+            }
+          ]
+        }
+      ],
+      templateRecommendations: [],
+      warnings: [],
+      assumptions: [],
+      openQuestions: []
+    },
+    context: {
+      skillId: "artifact-review",
+      outputSchemaId: "ArtifactReviewResponse"
+    },
+    expected: {
+      normalizedOutput: {
+        recommendations: [
+          {
+            id: "art-rec-001",
+            operations: [
+              {
+                kind: "UpdateTaskField",
+                field: "actor"
+                // stepId and value stripped
+              }
+            ]
+          }
+        ],
+        templateRecommendations: [],
+        warnings: [],
+        assumptions: [],
+        openQuestions: []
+      },
+      warningIssues: [],
+      errorIssues: [],
+      changedPaths: []
+    }
+  },
+
+  // ── Fixture D (optional) ──────────────────────────────────────────────────
+  // Confirms the strip-set boundary: BRDResponse is outside STRIP_NULL_SCHEMAS,
+  // so any null values it contains are preserved unchanged.
+  {
+    id: "brd-response-nulls-not-stripped",
+    description:
+      "BRDResponse is not in STRIP_NULL_SCHEMAS — null values at any depth must be preserved unchanged.",
+    input: {
+      title: "Test BRD",
+      executiveSummary: null,
+      scope: null,
+      nested: { key: null }
+    },
+    context: {
+      skillId: "notes-to-brd",
+      outputSchemaId: "BRDResponse"
+    },
+    expected: {
+      normalizedOutput: {
+        title: "Test BRD",
+        executiveSummary: null,
+        scope: null,
+        nested: { key: null }
+      },
+      warningIssues: [],
+      errorIssues: [],
+      changedPaths: []
+    }
   }
 ] satisfies ProviderOutputNormalizerGoldenFixture[];
 

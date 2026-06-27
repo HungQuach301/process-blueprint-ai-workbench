@@ -14,6 +14,7 @@
     "test:eval:dry-run:artifact-review": "npx tsx evals/artifact-review/run-eval.ts --dry-run",
     "test:judge": "node --env-file=.env.local node_modules/.bin/tsx evals/common/test-judge.ts",
     "eval:baseline": "node --env-file=.env.local node_modules/.bin/tsx evals/common/baseline.ts",
+    "test:normalizer": "node_modules/.bin/tsx evals/normalizer/test-normalizer.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },

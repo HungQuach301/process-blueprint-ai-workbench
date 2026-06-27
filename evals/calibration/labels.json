@@ -1,0 +1,182 @@
+[
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-001",
+    "humanVerdict": "partial",
+    "notes": "S001 lack of system info\nS005 lack of system info\nS005 exclusive gateway but only have one next step \nS006 Sau khi phê duyệt sẽ thông báo lại khách hàng để chuẩn bị hồ sơ "
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-002",
+    "humanVerdict": "partial",
+    "notes": "S001 lack of system \nS004 CIF tạo tên Core banking\nS006 thiếu actor\nS003 thiếu trường hợp không đủ hoặc cần bổ sung thông tin"
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-003",
+    "humanVerdict": "partial",
+    "notes": "S007 thiếu cập nhật thông tin giao dịch thành công cho KH\nThiếu action cập nhật số dư TK trên Mobile banking"
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-004",
+    "humanVerdict": "partial",
+    "notes": "Thiếu:\nHệ thống thực hiện\nNgười dùng tạo yêu cầu --> Ngân hàng phân loại --> chuyển luồng quy trình xử lý --> xử lý và phản hồi "
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-005",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-006",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-007",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-008",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-009",
+    "humanVerdict": "fail",
+    "notes": ""
+  },
+  {
+    "skillId": "input-brief-to-ptr",
+    "caseId": "eval-010",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-001",
+    "humanVerdict": "pass",
+    "notes": ""
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-002",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-003",
+    "humanVerdict": "pass",
+    "notes": ""
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-004",
+    "humanVerdict": "partial",
+    "notes": "Need to breakdown in smaller tasks"
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-005",
+    "humanVerdict": "partial",
+    "notes": "Task still so big"
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-006",
+    "humanVerdict": "pass",
+    "notes": ""
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-007",
+    "humanVerdict": "partial",
+    "notes": "Agree and action need to breakdown smaller"
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-008",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-009",
+    "humanVerdict": "pass",
+    "notes": ""
+  },
+  {
+    "skillId": "process-improvement-recommendation",
+    "caseId": "eval-010",
+    "humanVerdict": "partial",
+    "notes": "All the tasks need to breakdown into smaller items , and need more gateway"
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-001",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-002",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-003",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-004",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-005",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-006",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-007",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-008",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-009",
+    "humanVerdict": "partial",
+    "notes": ""
+  },
+  {
+    "skillId": "artifact-review",
+    "caseId": "eval-010",
+    "humanVerdict": "partial",
+    "notes": ""
+  }
+]

@@ -15,6 +15,8 @@
     "test:judge": "node --env-file=.env.local node_modules/.bin/tsx evals/common/test-judge.ts",
     "eval:baseline": "node --env-file=.env.local node_modules/.bin/tsx evals/common/baseline.ts",
     "test:normalizer": "node_modules/.bin/tsx evals/normalizer/test-normalizer.ts",
+    "calibration:build": "npx tsx evals/calibration/build-labeling-app.ts",
+    "calibration:agreement": "npx tsx evals/calibration/agreement.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },

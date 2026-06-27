@@ -1,17 +1,19 @@
 # CURRICULUM STATUS (rolling 2-week plan — update weekly)
 
 Updated: 2026-06-21
-Current spine step: **Bài 7-4 — done (LLM-judge runner, Claude judge).** Next: Bài 7-5 — judge calibration (≥20 hand-labels + judge–human agreement) + version-stamped baseline per skill
-Known debt: 20 lint warnings (ratcheted at 20, ADR-lint-decision.md); 6 npm-audit moderate/low vulns (dev/transitive — do NOT `audit fix --force`, it downgrades next); 4 Date.now()-id sites → crypto.randomUUID later; DESIGN_SYSTEM_CONTRACT "Open decisions". 5 HIGH Next.js vulns fixed @ 003eb11; 7 lint errors fixed @ 56bd425.
-Budget this month: ~$0 / $50   (7-4 judge smoke test: 2 Opus calls, a few cents)
+Current spine step: **Bài 7-5a — done (real-AI baselines, 3 skills, stamped).** Next: Bài 7-5b — judge calibration (≥20 hand-labels + judge–human agreement) + harden the harness
+Stamped baselines (skill gpt-5.4-mini / judge claude-sonnet-4-6): artifact-review passRate 1.0 (avg 0.93); process-improvement 0.7 (0.75); input-brief 0.2 (0.56, many partials — skill quality genuinely weak, 1 correct-rejection eval-009).
+Known debt: input-brief prompt-pack quality is weak (lots of partials); baseline is single-run + non-deterministic (consider temperature 0 / multi-sample at 7-5b); 20 lint warnings (ratcheted at 20, ADR-lint-decision.md); 6 npm-audit moderate/low vulns (dev/transitive — do NOT `audit fix --force`, it downgrades next); 4 Date.now()-id sites → crypto.randomUUID later; DESIGN_SYSTEM_CONTRACT "Open decisions".
+Budget this month: ~$1 / $50   (7-4 smoke test + ~6 full baseline runs during the OpenAI-400 / 422-null debugging)
 
 ## This week (≤3 items)
 - [x] Bài 7-1..7-3: golden datasets v1 × 3 skills (versioned) + rubrics + run-eval scaffolding
 - [x] Bài 7-4: LLM-judge runner (evals/common/judge.ts + test:judge) — Claude judge, GOOD>BAD verified
-- [ ] Bài 7-5: ≥20 hand-labels + judge–human agreement + version-stamped baseline per skill
+- [x] Bài 7-5a: real-AI baselines × 3 skills stamped; fixed 3 real bugs the eval surfaced (mock-fallback, OpenAI strict-schema 400, null-422)
+- [ ] Bài 7-5b: unit-test normalizeProviderOutput + ≥20 hand-labels + judge–human agreement
 
 ## Next week (provisional)
-- Finish Bài 7-5 baseline (activates eval-runner against stamped baseline)
+- Bài 7-5b: harden harness (deterministic normalizer tests) + judge calibration, activates eval-runner vs stamped baseline
 - Then Bài 9 (-min): executor/advisor both directions + prompt caching + cost per attempt
 
 ## Done log
@@ -28,6 +30,7 @@ Budget this month: ~$0 / $50   (7-4 judge smoke test: 2 Opus calls, a few cents)
 | 2026-06-14 | ADRs: skill-id-aliases, sdk-vs-raw-fetch, lint-decision, reusable-dev-agent-standard | docs/decisions/ |
 | 2026-06-21 | Bài 7-1..7-3: golden datasets v1 (3 skills, versioned) + rubrics + run-eval scaffold | evals/datasets/*/v1/ |
 | 2026-06-21 | Bài 7-4: LLM-judge runner (Claude judge); GOOD 0.63 > BAD 0.13 verified | evals/common/judge.ts; master merged |
+| 2026-06-21 | Bài 7-5a: stamped real-AI baselines × 3 skills; eval surfaced+fixed mock-fallback, OpenAI strict-schema 400, scoped null-422 | evals/datasets/*/v1/baseline.json; master merged |
 
 ## Blocked / decisions needed
 - Budget cap set to $50/month (2026-06-14).

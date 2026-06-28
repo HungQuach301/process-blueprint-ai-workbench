@@ -20,6 +20,13 @@ if [ -f package.json ]; then
       exit 1
     fi
   fi
+  if grep -q '"test:normalizer"' package.json ; then
+    echo "pre-push: normalizer unit tests..." >&2
+    if ! npm run test:normalizer ; then
+      echo "ERROR: normalizer tests failed — fix failing fixtures before pushing." >&2
+      exit 1
+    fi
+  fi
 fi
 
 protected_re='^(refs/heads/)?(master|main)$'

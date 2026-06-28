@@ -15,11 +15,11 @@
     "allow": [
       "Read", "Grep", "Glob", "Edit", "Write",
       "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git branch:*)",
-      "Bash(git add:*)", "Bash(git checkout:*)",
+      "Bash(git add:*)", "Bash(git checkout:*)", "Bash(git push:*)",
       "Bash(npm run typecheck)", "Bash(npm run lint)", "Bash(npm run test:normalizer)"
     ],
     "ask": [
-      "Bash(git commit:*)", "Bash(git merge:*)", "Bash(git push:*)",
+      "Bash(git commit:*)", "Bash(git merge:*)",
       "Bash(git reset:*)", "Bash(git restore:*)", "Bash(rm:*)",
       "Bash(npm run eval:baseline:*)", "Bash(npm run calibration:*)"
     ]

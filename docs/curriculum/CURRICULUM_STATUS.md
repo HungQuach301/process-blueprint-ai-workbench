@@ -1,16 +1,16 @@
 # CURRICULUM STATUS (rolling 2-week plan — update weekly)
 
-Updated: 2026-06-21
-Current spine step: **Bài 7-5a — done (real-AI baselines, 3 skills, stamped).** Next: Bài 7-5b — judge calibration (≥20 hand-labels + judge–human agreement) + harden the harness
-Stamped baselines (skill gpt-5.4-mini / judge claude-sonnet-4-6): artifact-review passRate 1.0 (avg 0.93); process-improvement 0.7 (0.75); input-brief 0.2 (0.56, many partials — skill quality genuinely weak, 1 correct-rejection eval-009).
-Known debt: input-brief prompt-pack quality is weak (lots of partials); baseline is single-run + non-deterministic (consider temperature 0 / multi-sample at 7-5b); 20 lint warnings (ratcheted at 20, ADR-lint-decision.md); 6 npm-audit moderate/low vulns (dev/transitive — do NOT `audit fix --force`, it downgrades next); 4 Date.now()-id sites → crypto.randomUUID later; DESIGN_SYSTEM_CONTRACT "Open decisions".
+Updated: 2026-06-27
+Current spine step: **Bài 7-5b — in progress.** Done: 7-5b-1 deterministic normalizer unit tests + calibration tooling (blind labeling app + agreement) + 30 human labels. Remaining: re-judge tool → calibrate rubrics → judge–human agreement ≥80% → lock calibrated baseline.
+Stamped baselines (skill gpt-5.4-mini / judge claude-sonnet-4-6): artifact-review 1.0 (avg 0.93); process-improvement 0.7 (0.75); input-brief 0.2 (0.56).
+Calibration v0 (30 human labels): judge–human match 33% — structured judge OVER-grading; per-skill input-brief 0.80 / process-improvement 0.20 / artifact-review 0.00. Fix = calibrate rubrics (process-improvement: task granularity + gateway coverage; artifact-review: review thoroughness), target ≥80%. (Ad-hoc debt moved to "Ad-hoc backlog" section below.)
 Budget this month: ~$1 / $50   (7-4 smoke test + ~6 full baseline runs during the OpenAI-400 / 422-null debugging)
 
 ## This week (≤3 items)
 - [x] Bài 7-1..7-3: golden datasets v1 × 3 skills (versioned) + rubrics + run-eval scaffolding
 - [x] Bài 7-4: LLM-judge runner (evals/common/judge.ts + test:judge) — Claude judge, GOOD>BAD verified
 - [x] Bài 7-5a: real-AI baselines × 3 skills stamped; fixed 3 real bugs the eval surfaced (mock-fallback, OpenAI strict-schema 400, null-422)
-- [ ] Bài 7-5b: unit-test normalizeProviderOutput + ≥20 hand-labels + judge–human agreement
+- [~] Bài 7-5b: [x] normalizer unit tests · [x] calibration tooling + 30 labels · [ ] re-judge tool · [ ] calibrate rubrics · [ ] agreement ≥80% → lock baseline
 
 ## Next week (provisional)
 - Bài 7-5b: harden harness (deterministic normalizer tests) + judge calibration, activates eval-runner vs stamped baseline
@@ -31,11 +31,25 @@ Budget this month: ~$1 / $50   (7-4 smoke test + ~6 full baseline runs during th
 | 2026-06-21 | Bài 7-1..7-3: golden datasets v1 (3 skills, versioned) + rubrics + run-eval scaffold | evals/datasets/*/v1/ |
 | 2026-06-21 | Bài 7-4: LLM-judge runner (Claude judge); GOOD 0.63 > BAD 0.13 verified | evals/common/judge.ts; master merged |
 | 2026-06-21 | Bài 7-5a: stamped real-AI baselines × 3 skills; eval surfaced+fixed mock-fallback, OpenAI strict-schema 400, scoped null-422 | evals/datasets/*/v1/baseline.json; master merged |
+| 2026-06-27 | Bài 7-5b-1: deterministic unit tests for normalizeProviderOutput (4 fixtures lock null-handling per consumer) | evals/normalizer/test-normalizer.ts; master merged |
+| 2026-06-27 | Calibration tooling (blind labeling app + agreement) + 30 human labels; surfaced judge over-grading | evals/calibration/; master merged |
 
 ## Blocked / decisions needed
 - Budget cap set to $50/month (2026-06-14).
 - npm audit: on-demand (security-reviewer) + CI later — NOT a hard pre-push gate.
 - ui-ux = subagent-first, promote to standalone when needed; UI quality gates at Bài 21B (ADR-reusable-dev-agent-standard).
+
+## Ad-hoc backlog (NOT spine lessons — fix opportunistically, track here)
+- [ ] Add `test:normalizer` to `.githooks/pre-push` — closes the 7-5b deterministic-guard loop (100% enforcement)
+- [ ] input-brief prompt-pack quality (many partials — real quality gap, not a bug)
+- [ ] Baseline non-determinism: temperature 0 or multi-sample for stable baselines
+- [ ] Extend deterministic unit tests to other pure functions (schemas, generators, provider adapter)
+- [ ] 20 lint warnings (ratcheted, ADR-lint-decision.md) · 6 npm-audit moderate/low (do NOT `audit fix --force`) · 4 Date.now()-id → crypto.randomUUID
+- [ ] DESIGN_SYSTEM_CONTRACT "Open decisions" (palette, typography scale, token↔globals drift guard)
+
+## Decisions to record (ADR — docs/decisions/)
+- [ ] ADR: scope shared code by consumer + return each consumer to a known-good config (lesson from stripNullsDeep breaking input-brief)
+- [ ] ADR: architecture for stronger models/platform — thin & model-agnostic boundary + per-task model routing; deepen context (Artifact Graph, Domain Packs) + governance (tenantId, SourceRef, audit); keep skills composable for orchestration (Dynamic Workflows-ready, build-when-needed); MCP as integration boundary
 
 ## Spine insurance (do from day one)
 - [ ] tenantId on every new storage/audit write

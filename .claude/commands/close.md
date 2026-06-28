@@ -83,6 +83,15 @@ Nếu bất kỳ lệnh nào fail: hiển thị lỗi rõ ràng, đánh dấu **
 Nếu cả hai pass: hiển thị **VERIFY PASSED**.
 
 ---
+## Bước 5b — Cập nhật SESSION_HANDOFF (bắt buộc)
+
+Sau khi VERIFY PASSED, cập nhật `docs/SESSION_HANDOFF.md` để phiên sau (Cowork/Dispatch/Claude Code) bắt nhịp ngay:
+- "Current state": 1–2 câu trạng thái MỚI sau slice vừa merge.
+- "Active task → next step": việc kế tiếp cụ thể (+ nhánh nếu có).
+- "Open decisions": cập nhật hoặc xóa mục đã giải quyết.
+GIỮ file ≤ ~20 dòng — KHÔNG biến thành changelog. Hiện diff của SESSION_HANDOFF, DỪNG để người xác nhận, rồi commit riêng: "docs: update session handoff".
+
+---
 
 ## Bước 6 — Kiểm tra nhánh slice còn sót
 

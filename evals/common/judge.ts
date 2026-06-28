@@ -80,6 +80,7 @@ Score this OUTPUT using the rubric above. Return ONLY a JSON object matching thi
     body: JSON.stringify({
       model,
       max_tokens: 1024,
+      temperature: 0,
       messages: [{ role: "user", content: userContent }],
     }),
   });

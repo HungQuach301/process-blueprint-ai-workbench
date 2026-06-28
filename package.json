@@ -17,6 +17,7 @@
     "test:normalizer": "node_modules/.bin/tsx evals/normalizer/test-normalizer.ts",
     "calibration:build": "npx tsx evals/calibration/build-labeling-app.ts",
     "calibration:agreement": "npx tsx evals/calibration/agreement.ts",
+    "calibration:rejudge": "node --env-file=.env.local node_modules/.bin/tsx evals/calibration/rejudge.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
   },

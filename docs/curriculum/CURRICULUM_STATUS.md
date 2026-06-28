@@ -51,6 +51,7 @@ Budget this month: ~$1 / $50   (7-4 smoke test + ~6 full baseline runs during th
 - [x] ADR: scope shared code by consumer → docs/decisions/ADR-scope-shared-code-by-consumer.md
 - [x] ADR: architecture for stronger models/platform → docs/decisions/ADR-architecture-for-stronger-models.md
 - [x] ADR: context continuity + automation boundary → docs/decisions/ADR-context-continuity-and-automation-boundary.md
+- [x] ADR: eval measurement integrity (never coerce a failed measurement into a data point) → docs/decisions/ADR-eval-measurement-integrity.md
 
 ## Spine insurance (do from day one)
 - [ ] tenantId on every new storage/audit write

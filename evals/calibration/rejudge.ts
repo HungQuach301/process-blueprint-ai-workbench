@@ -28,7 +28,7 @@ type CaseRecord = {
   id: string;
   input: unknown;
   output: unknown;
-  verdict: "pass" | "partial" | "fail";
+  verdict: "pass" | "partial" | "fail" | "error";
   overall: number;
   judgeNotes: JudgeNotes;
   [key: string]: unknown;
@@ -46,6 +46,7 @@ type BaselineFile = {
     pass: number;
     partial: number;
     fail: number;
+    error?: number;
     passRate: number;
     avgOverall: number;
   };
@@ -129,14 +130,21 @@ async function rejudgeSkill(skillKey: SkillKey): Promise<void> {
   // Recompute summary
   // -------------------------------------------------------------------------
 
-  const pass = updatedCases.filter((r) => r.verdict === "pass").length;
-  const partial = updatedCases.filter((r) => r.verdict === "partial").length;
-  const fail = updatedCases.filter((r) => r.verdict === "fail").length;
-  const passRate = Math.round((pass / n) * 100) / 100;
+  const error = updatedCases.filter((r) => r.verdict === "error").length;
+  const measuredCases = updatedCases.filter((r) => r.verdict !== "error");
+  const pass = measuredCases.filter((r) => r.verdict === "pass").length;
+  const partial = measuredCases.filter((r) => r.verdict === "partial").length;
+  const fail = measuredCases.filter((r) => r.verdict === "fail").length;
+  const measured = measuredCases.length;
+  const passRate =
+    measured > 0 ? Math.round((pass / measured) * 100) / 100 : 0;
   const avgOverall =
-    Math.round(
-      (updatedCases.reduce((sum, r) => sum + r.overall, 0) / n) * 100
-    ) / 100;
+    measured > 0
+      ? Math.round(
+          (measuredCases.reduce((sum, r) => sum + r.overall, 0) / measured) *
+            100
+        ) / 100
+      : 0;
 
   // -------------------------------------------------------------------------
   // Write updated baseline
@@ -147,14 +155,14 @@ async function rejudgeSkill(skillKey: SkillKey): Promise<void> {
     judgeVersion: JUDGE_VERSION_V2,
     judgeModel: process.env.CLAUDE_MODEL ?? "claude-haiku-4-5-20251001",
     generatedAt: new Date().toISOString(),
-    summary: { pass, partial, fail, passRate, avgOverall },
+    summary: { pass, partial, fail, error, passRate, avgOverall },
     cases: updatedCases,
   };
 
   writeFileSync(baselinePath, JSON.stringify(updated, null, 2) + "\n");
 
   console.log(
-    `Summary: pass=${pass} partial=${partial} fail=${fail} passRate=${passRate} avgOverall=${avgOverall}`
+    `Summary: pass=${pass} partial=${partial} fail=${fail} error=${error} passRate=${passRate} avgOverall=${avgOverall}`
   );
   console.log(`Baseline updated → evals/datasets/${skillKey}/v1/baseline.json`);
 }

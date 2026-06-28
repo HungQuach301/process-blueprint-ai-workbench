@@ -47,7 +47,7 @@ type CaseRecord = {
   id: string;
   input: unknown;
   output: unknown;
-  verdict: "pass" | "partial" | "fail";
+  verdict: "pass" | "partial" | "fail" | "error";
   overall: number;
   judgeNotes: {
     completeness: string;
@@ -232,7 +232,7 @@ async function runBaseline(skillKey: SkillKey): Promise<void> {
         traceability: { score: 0, notes: "" },
         safety: { score: 0, notes: "" },
         overall: 0,
-        verdict: "fail" as const,
+        verdict: "error" as const,
       };
     } else {
       judgeResult = await runJudge({
@@ -272,12 +272,17 @@ async function runBaseline(skillKey: SkillKey): Promise<void> {
   const pass = caseRecords.filter((r) => r.verdict === "pass").length;
   const partial = caseRecords.filter((r) => r.verdict === "partial").length;
   const fail = caseRecords.filter((r) => r.verdict === "fail").length;
+  const error = caseRecords.filter((r) => r.verdict === "error").length;
+  const measured = n - error;
 
-  const passRate = Math.round((pass / n) * 100) / 100;
+  const passRate = measured > 0 ? Math.round((pass / measured) * 100) / 100 : 0;
+  const measuredRecords = caseRecords.filter((r) => r.verdict !== "error");
   const avgOverall =
-    Math.round(
-      (caseRecords.reduce((sum, r) => sum + r.overall, 0) / n) * 100
-    ) / 100;
+    measured > 0
+      ? Math.round(
+          (measuredRecords.reduce((sum, r) => sum + r.overall, 0) / measured) * 100
+        ) / 100
+      : 0;
 
   // -------------------------------------------------------------------------
   // Build and write baseline JSON
@@ -291,7 +296,7 @@ async function runBaseline(skillKey: SkillKey): Promise<void> {
     skillProvider: process.env.AI_PROVIDER ?? "unknown",
     skillModel: process.env.OPENAI_MODEL ?? "unknown",
     generatedAt: new Date().toISOString(),
-    summary: { pass, partial, fail, passRate, avgOverall },
+    summary: { pass, partial, fail, error, passRate, avgOverall },
     cases: caseRecords,
   };
 

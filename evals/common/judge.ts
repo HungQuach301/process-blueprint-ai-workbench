@@ -6,7 +6,7 @@ export type JudgeResult = {
   traceability: JudgeScore;
   safety: JudgeScore;
   overall: number;
-  verdict: "pass" | "partial" | "fail";
+  verdict: "pass" | "partial" | "fail" | "error";
 };
 
 export type RunJudgeInput = {
@@ -28,10 +28,6 @@ function isValidJudgeScore(v: unknown): v is JudgeScore {
   return isValidScore(obj.score) && typeof obj.notes === "string";
 }
 
-function isValidVerdict(v: unknown): v is "pass" | "partial" | "fail" {
-  return v === "pass" || v === "partial" || v === "fail";
-}
-
 function errorResult(notes: string): JudgeResult {
   const errScore: JudgeScore = { score: 0, notes };
   return {
@@ -40,8 +36,137 @@ function errorResult(notes: string): JudgeResult {
     traceability: errScore,
     safety: errScore,
     overall: 0,
-    verdict: "fail",
+    verdict: "error",
   };
+}
+
+const SUBMIT_VERDICT_TOOL = {
+  name: "submit_verdict",
+  description: "Submit rubric scores for the evaluated output.",
+  input_schema: {
+    type: "object",
+    properties: {
+      completeness: {
+        type: "object",
+        properties: {
+          score: { type: "integer", enum: [0, 1, 2] },
+          notes: { type: "string" },
+        },
+        required: ["score", "notes"],
+      },
+      domainTerms: {
+        type: "object",
+        properties: {
+          score: { type: "integer", enum: [0, 1, 2] },
+          notes: { type: "string" },
+        },
+        required: ["score", "notes"],
+      },
+      traceability: {
+        type: "object",
+        properties: {
+          score: { type: "integer", enum: [0, 1, 2] },
+          notes: { type: "string" },
+        },
+        required: ["score", "notes"],
+      },
+      safety: {
+        type: "object",
+        properties: {
+          score: { type: "integer", enum: [0, 1, 2] },
+          notes: { type: "string" },
+        },
+        required: ["score", "notes"],
+      },
+    },
+    required: ["completeness", "domainTerms", "traceability", "safety"],
+  },
+};
+
+function computeFromScores(
+  c: JudgeScore,
+  d: JudgeScore,
+  t: JudgeScore,
+  s: JudgeScore
+): { overall: number; verdict: "pass" | "partial" | "fail" } {
+  const overall = (c.score + d.score + t.score + s.score) / 8;
+  const verdict: "pass" | "partial" | "fail" =
+    overall >= 0.75 ? "pass" : overall >= 0.5 ? "partial" : "fail";
+  return { overall, verdict };
+}
+
+async function callOnce(
+  apiKey: string,
+  model: string,
+  userContent: string
+): Promise<JudgeResult | null> {
+  let response: Response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1024,
+        temperature: 0,
+        tools: [SUBMIT_VERDICT_TOOL],
+        tool_choice: { type: "tool", name: "submit_verdict" },
+        messages: [{ role: "user", content: userContent }],
+      }),
+    });
+  } catch {
+    return null;
+  }
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const rawJson = (await response.json()) as {
+    content: Array<{ type: string; name?: string; input?: unknown }>;
+  };
+
+  const toolBlock = Array.isArray(rawJson.content)
+    ? rawJson.content.find(
+        (b) => b.type === "tool_use" && b.name === "submit_verdict"
+      )
+    : undefined;
+
+  if (!toolBlock) {
+    return null;
+  }
+
+  const inp = toolBlock.input as Record<string, unknown> | undefined;
+  if (!inp) return null;
+
+  if (!isValidJudgeScore(inp.completeness)) return null;
+  if (!isValidJudgeScore(inp.domainTerms)) return null;
+  if (!isValidJudgeScore(inp.traceability)) return null;
+  if (!isValidJudgeScore(inp.safety)) return null;
+
+  const { overall, verdict } = computeFromScores(
+    inp.completeness,
+    inp.domainTerms,
+    inp.traceability,
+    inp.safety
+  );
+
+  return {
+    completeness: inp.completeness,
+    domainTerms: inp.domainTerms,
+    traceability: inp.traceability,
+    safety: inp.safety,
+    overall,
+    verdict,
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function runJudge(params: RunJudgeInput): Promise<JudgeResult> {
@@ -50,8 +175,7 @@ export async function runJudge(params: RunJudgeInput): Promise<JudgeResult> {
     return errorResult("ANTHROPIC_API_KEY is not set");
   }
 
-  const model =
-    process.env.CLAUDE_MODEL ?? "claude-haiku-4-5-20251001";
+  const model = process.env.CLAUDE_MODEL ?? "claude-haiku-4-5-20251001";
 
   const { rubricMarkdown, input, output } = params;
 
@@ -67,91 +191,15 @@ ${JSON.stringify(input, null, 2)}
 ${JSON.stringify(output, null, 2)}
 </OUTPUT>
 
-Score this OUTPUT using the rubric above. Return ONLY a JSON object matching this exact schema — no markdown, no prose:
-{"completeness":{"score":0,"notes":""},"domainTerms":{"score":0,"notes":""},"traceability":{"score":0,"notes":""},"safety":{"score":0,"notes":""},"overall":0.0,"verdict":"fail"}`;
+Score this OUTPUT using the rubric. Call the submit_verdict tool with your scores.`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 1024,
-      temperature: 0,
-      messages: [{ role: "user", content: userContent }],
-    }),
-  });
+  const first = await callOnce(apiKey, model, userContent);
+  if (first !== null) return first;
 
-  if (!response.ok) {
-    const text = await response.text();
-    return errorResult(
-      `API error ${response.status}: ${text.slice(0, 200)}`
-    );
-  }
+  await sleep(1_000);
 
-  const rawJson = (await response.json()) as {
-    content: Array<{ type: string; text: string }>;
-  };
+  const second = await callOnce(apiKey, model, userContent);
+  if (second !== null) return second;
 
-  if (
-    !Array.isArray(rawJson.content) ||
-    rawJson.content.length === 0 ||
-    rawJson.content[0].type !== "text"
-  ) {
-    return errorResult(
-      `Unexpected content shape: ${JSON.stringify(rawJson.content).slice(0, 120)}`
-    );
-  }
-
-  const rawText: string = rawJson.content[0].text;
-
-  // Strip whitespace and optional ```json fences
-  let cleaned = rawText.trim();
-  cleaned = cleaned.replace(/^```json\s*/, "").replace(/\s*```$/, "");
-  cleaned = cleaned.trim();
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(cleaned);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return errorResult(`JSON.parse failed: ${msg}. Raw: ${cleaned.slice(0, 120)}`);
-  }
-
-  if (typeof parsed !== "object" || parsed === null) {
-    return errorResult("Parsed result is not an object");
-  }
-
-  const obj = parsed as Record<string, unknown>;
-
-  if (!isValidJudgeScore(obj.completeness)) {
-    return errorResult("Invalid or missing 'completeness' axis");
-  }
-  if (!isValidJudgeScore(obj.domainTerms)) {
-    return errorResult("Invalid or missing 'domainTerms' axis");
-  }
-  if (!isValidJudgeScore(obj.traceability)) {
-    return errorResult("Invalid or missing 'traceability' axis");
-  }
-  if (!isValidJudgeScore(obj.safety)) {
-    return errorResult("Invalid or missing 'safety' axis");
-  }
-  if (typeof obj.overall !== "number") {
-    return errorResult("Invalid or missing 'overall' field");
-  }
-  if (!isValidVerdict(obj.verdict)) {
-    return errorResult("Invalid or missing 'verdict' field");
-  }
-
-  return {
-    completeness: obj.completeness,
-    domainTerms: obj.domainTerms,
-    traceability: obj.traceability,
-    safety: obj.safety,
-    overall: obj.overall,
-    verdict: obj.verdict,
-  };
+  return errorResult("No valid tool_use block after 2 attempts");
 }

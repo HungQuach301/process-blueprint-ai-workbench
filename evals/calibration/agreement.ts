@@ -93,12 +93,17 @@ type JoinedEntry = {
 };
 
 const joined: JoinedEntry[] = [];
+let errorCount = 0;
 for (const lbl of labels) {
   const key = `${lbl.skillId}|${lbl.caseId}`;
   const judgeVerdict = judgeMap.get(key);
   if (!judgeVerdict) {
     // Case not found in baseline — skip but warn
     console.warn(`[agreement] WARN: no baseline found for ${key}`);
+    continue;
+  }
+  if (judgeVerdict === "error") {
+    errorCount++;
     continue;
   }
   const normalizedHuman = lbl.humanVerdict.toLowerCase().trim();
@@ -168,6 +173,7 @@ console.log(`Judge version: ${judgeVersion} | Model: ${judgeModel}`);
 console.log(`(Baselines generated: ${generatedAt})`);
 console.log();
 console.log(`Cases labeled: ${totalLabeled} / ${totalCases}`);
+console.log(`Measurement errors (excluded): ${errorCount}`);
 console.log();
 console.log(`Overall match rate: ${matchRate.toFixed(2)}`);
 console.log();

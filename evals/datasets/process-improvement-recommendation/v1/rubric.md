@@ -1,4 +1,4 @@
-[//]: # (rubric-version: v1)
+[//]: # (rubric-version: v2)
 # Rubric — LLM Judge: `process-improvement-recommendation`
 
 ## Role
@@ -54,11 +54,22 @@ the `targetStepIds`:
 If `processTasks` is empty or `targetStepIds` is empty, zero recommendations
 is correct.
 
+**Decomposition granularity & gateway coverage** (applies across all actions): a
+recommended task must be **atomic** — one actor, one action. A task that still
+bundles multiple actions (compound verbs; "and"/"then"/"while"/"và sau đó"/"đồng
+thời"; sequential sub-steps) is **not** sufficiently decomposed. Any task implying
+a decision/branch (approve/reject, eligibility, conditional routing) must have an
+`exclusiveGateway` proposed via `CreateGateway` / `AddGatewayBranch`, with branches.
+Leaving tasks coarse-grained, or omitting a gateway at an evident branch point,
+counts as an **unaddressed gap**.
+
 **Score:**
-- **2 (pass)**: Every identified gap has at least one recommendation; OR
-  input has no gaps and output is empty.
-- **1 (partial)**: At least half of identified gaps are covered, but some are
-  missed.
+- **2 (pass)**: Every identified gap has at least one recommendation, AND
+  recommended/resulting tasks are atomic, AND a gateway is proposed at every
+  evident branch point; OR input has no gaps and output is empty.
+- **1 (partial)**: Gaps are addressed but **tasks remain coarse-grained** (still
+  bundle multiple actions), OR an evident branch point lacks a gateway
+  recommendation, OR at least half of identified gaps are covered with some missed.
 - **0 (fail)**: No recommendations produced when gaps exist; or recommendations
   produced when input is fully complete (over-recommendation).
 

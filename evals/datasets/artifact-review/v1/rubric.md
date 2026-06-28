@@ -1,4 +1,4 @@
-[//]: # (rubric-version: v1)
+[//]: # (rubric-version: v2)
 # Rubric — LLM Judge: `artifact-review`
 
 ## Role
@@ -66,13 +66,18 @@ The expected review elements depend on `artifactType`:
   is only acceptable when `processTasks` is empty AND `artifactXml` is
   both valid and structurally complete.
 
+**First, independently enumerate the issue classes actually present in INPUT**
+(using the checklists above). Then score by how completely the review covers
+**every** present class — not merely whether it found *some* issue.
+
 **Score:**
-- **2 (pass)**: All applicable review elements addressed; no significant gap
-  left unmentioned.
-- **1 (partial)**: At least half of applicable elements addressed; some gaps
-  missed.
+- **2 (pass)**: The review surfaces **every** issue class present in the artifact
+  — comprehensive coverage; nothing material left unmentioned.
+- **1 (partial)**: Catches some issues but **misses at least one issue class that
+  is present** (e.g., flags missing `sequenceFlow` but ignores a PTR↔XML task
+  mismatch, or omits an absent mandatory template field).
 - **0 (fail)**: No output produced when issues are clearly present; or only
-  trivial observations on a clearly problematic artifact.
+  trivial/superficial observations on a clearly problematic artifact.
 
 ---
 

@@ -158,9 +158,9 @@ const mad = totalLabeled > 0 ? madSum / totalLabeled : 0;
 // ── Print report ───────────────────────────────────────────────────────────────
 const today = new Date().toISOString().slice(0, 10);
 const flagLine =
-  matchRate >= 0.7
-    ? `[ĐẠT] Tỉ lệ khớp ${(matchRate * 100).toFixed(1)}% ≥ 70% — rubric/judge aligned.`
-    : `[CẢNH BÁO] Tỉ lệ khớp ${(matchRate * 100).toFixed(1)}% < 70% — rubric/judge cần chỉnh.`;
+  matchRate >= 0.8
+    ? `[ĐẠT] Tỉ lệ khớp ${(matchRate * 100).toFixed(1)}% ≥ 80% — rubric/judge aligned.`
+    : `[CẢNH BÁO] Tỉ lệ khớp ${(matchRate * 100).toFixed(1)}% < 80% — rubric/judge cần chỉnh.`;
 
 console.log("=== Calibration Agreement Report ===");
 console.log(`Date: ${today}`);

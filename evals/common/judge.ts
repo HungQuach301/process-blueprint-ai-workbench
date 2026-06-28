@@ -16,6 +16,7 @@ export type RunJudgeInput = {
 };
 
 export const JUDGE_VERSION = "v1";
+export const JUDGE_VERSION_V2 = "v2";
 
 function isValidScore(v: unknown): v is 0 | 1 | 2 {
   return v === 0 || v === 1 || v === 2;

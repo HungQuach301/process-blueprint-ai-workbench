@@ -48,8 +48,8 @@ Budget this month: ~$1 / $50   (7-4 smoke test + ~6 full baseline runs during th
 - [ ] DESIGN_SYSTEM_CONTRACT "Open decisions" (palette, typography scale, token↔globals drift guard)
 
 ## Decisions to record (ADR — docs/decisions/)
-- [ ] ADR: scope shared code by consumer + return each consumer to a known-good config (lesson from stripNullsDeep breaking input-brief)
-- [ ] ADR: architecture for stronger models/platform — thin & model-agnostic boundary + per-task model routing; deepen context (Artifact Graph, Domain Packs) + governance (tenantId, SourceRef, audit); keep skills composable for orchestration (Dynamic Workflows-ready, build-when-needed); MCP as integration boundary
+- [x] ADR: scope shared code by consumer → docs/decisions/ADR-scope-shared-code-by-consumer.md
+- [x] ADR: architecture for stronger models/platform → docs/decisions/ADR-architecture-for-stronger-models.md
 
 ## Spine insurance (do from day one)
 - [ ] tenantId on every new storage/audit write

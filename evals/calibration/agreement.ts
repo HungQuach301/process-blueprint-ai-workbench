@@ -160,12 +160,23 @@ for (const j of joined) {
 }
 const mad = totalLabeled > 0 ? madSum / totalLabeled : 0;
 
+// Two-level disagreements (fail↔pass): the only errors that matter for a regression detector
+let twoLevelCount = 0;
+for (const j of joined) {
+  const hScore = VERDICT_SCORE[j.humanVerdict] ?? 0;
+  const jScore = VERDICT_SCORE[j.judgeVerdict] ?? 0;
+  if (Math.abs(hScore - jScore) === 2) twoLevelCount++;
+}
+const within1Rate = totalLabeled > 0 ? 1 - twoLevelCount / totalLabeled : 1;
+
 // ── Print report ───────────────────────────────────────────────────────────────
+// Judge là bộ dò regression — đạt khi không nhầm tốt↔xấu (0 lệch-2-bậc) + MAD thấp;
+// không cần khớp tuyệt đối ở ranh giới partial↔pass.
 const today = new Date().toISOString().slice(0, 10);
 const flagLine =
-  matchRate >= 0.8
-    ? `[ĐẠT] Tỉ lệ khớp ${(matchRate * 100).toFixed(1)}% ≥ 80% — rubric/judge aligned.`
-    : `[CẢNH BÁO] Tỉ lệ khớp ${(matchRate * 100).toFixed(1)}% < 80% — rubric/judge cần chỉnh.`;
+  twoLevelCount === 0 && mad <= 0.5
+    ? `[ĐẠT] 0 lệch 2 bậc + MAD ${mad.toFixed(2)} ≤ 0.5 — judge aligned.`
+    : `[CẢNH BÁO] ${twoLevelCount > 0 ? `${twoLevelCount} ca lệch 2 bậc (fail↔pass)` : `MAD ${mad.toFixed(2)} > 0.5`} — judge cần chỉnh.`;
 
 console.log("=== Calibration Agreement Report ===");
 console.log(`Date: ${today}`);
@@ -174,8 +185,6 @@ console.log(`(Baselines generated: ${generatedAt})`);
 console.log();
 console.log(`Cases labeled: ${totalLabeled} / ${totalCases}`);
 console.log(`Measurement errors (excluded): ${errorCount}`);
-console.log();
-console.log(`Overall match rate: ${matchRate.toFixed(2)}`);
 console.log();
 console.log("Per-skill match:");
 for (const skill of SKILLS) {
@@ -196,6 +205,9 @@ for (const hv of VERDICT_ORDER) {
   console.log(row);
 }
 console.log();
+console.log(`Exact match rate (info): ${matchRate.toFixed(2)}`);
 console.log(`Mean absolute deviation: ${mad.toFixed(2)}`);
+console.log(`Two-level disagreements (fail↔pass): ${twoLevelCount}`);
+console.log(`Within ±1 level: ${(within1Rate * 100).toFixed(1)}%`);
 console.log();
 console.log(`Flag: ${flagLine}`);

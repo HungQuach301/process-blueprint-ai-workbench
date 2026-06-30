@@ -1,17 +1,18 @@
 {
   "skillId": "input-brief-to-ptr",
   "datasetVersion": "v1",
-  "judgeVersion": "v1",
+  "judgeVersion": "v2",
   "judgeModel": "claude-sonnet-4-6",
   "skillProvider": "openai",
   "skillModel": "gpt-5.4-mini",
-  "generatedAt": "2026-06-26T16:30:34.112Z",
+  "generatedAt": "2026-06-30T15:03:05.492Z",
   "summary": {
-    "pass": 2,
-    "partial": 7,
+    "pass": 6,
+    "partial": 3,
     "fail": 1,
-    "passRate": 0.2,
-    "avgOverall": 0.56
+    "error": 0,
+    "passRate": 0.6,
+    "avgOverall": 0.64
   },
   "cases": [
     {
@@ -337,13 +338,13 @@
           "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
         ]
       },
-      "verdict": "partial",
-      "overall": 0.62,
+      "verdict": "pass",
+      "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Start/end events present; 7 tasks; inputs/outputs filled. Actor 'Cap phe duyet' missing from INPUT actors. S003 noNextStep loops to S004 instead of a supplement task. Exception paths partially covered but rejection notification task absent.",
-        "domainTerms": "S003/S005 use taskNature 'decision' which is not in allowed set (manual/automatic). rowType 'event' not in allowed set (start/end/task/gateway). dataAction 'approve' not in allowed set. Otherwise bpmnType and most fields valid.",
-        "traceability": "Happy path steps map well to S002-S006. Actor 'Cap phe duyet' invented without INPUT basis but noted in assumptions. S003 noNextStep routing unclear. Exception paths partially traced; rejection notification not modelled as separate task.",
-        "safety": "confidence 'medium' is appropriate; assumptions and openQuestions explicitly listed; no ungrounded regulatory claims; no claim of production-readiness; riskControls grounded in INPUT."
+        "completeness": "Start/end events present, 7 tasks (adequate count), input/output on all tasks. Actor coverage gap: S005 uses 'Cap phe duyet' not in INPUT actors. Exception paths partially covered. Risk controls referenced. noNextStep on S003 loops back to S004 (same as yes), so rejection path not fully modelled.",
+        "domainTerms": "rowType 'event' used instead of 'start'/'end'; taskNature 'decision' used on gateways (not in allowed set: manual/automatic); dataAction 'approve' on S005 not in allowed set. bpmnType values are valid. conditionQuestion present on gateways.",
+        "traceability": "All tasks map to happyPath/exceptionPaths/notes. 'Cap phe duyet' actor acknowledged in assumptions. Gateway logic aligns with INPUT notes. confidence 'medium' is reasonable given incomplete actor detail.",
+        "safety": "confidence set to 'medium'; assumptions and openQuestions explicitly listed; qualityGateWarnings present; no ungrounded regulatory claims; no claim of production-readiness."
       }
     },
     {
@@ -648,12 +649,12 @@
         ]
       },
       "verdict": "partial",
-      "overall": 0.62,
+      "overall": 0.625,
       "judgeNotes": {
-        "completeness": "Start/end events present, 7 tasks, input/output on all tasks, exception path covered. Gaps: S003 rowType='task' not 'gateway'; S004/S006 actor empty; S004 serviceTask missing actor field per rules.",
-        "domainTerms": "S003 bpmnType='userTask' but has conditionQuestion/yesNextStep/noNextStep — should be exclusiveGateway. taskNature 'control','system','decision','integration' are not allowed values (only 'manual'/'automatic'). dataAction 'reject' not in allowed set.",
-        "traceability": "All 7 tasks map to happyPath or exceptionPaths in INPUT. KYC exception modelled. CIF step matches happyPath. Inferred actor gap in S004 noted in comment. Confidence 'medium' reasonable.",
-        "safety": "assumptions and openQuestions surfaced; confidence='medium' appropriate. However S005 riskControl states 'KYC/AML mandatory' — AML not grounded in INPUT riskControls. reviewStatus='approved' on all tasks is slightly misleading."
+        "completeness": "Start/end events present, 7 tasks (≥3), input/output on all tasks, exception path covered. Gaps: S003 bpmnType is userTask but has conditionQuestion (should be gateway); S004/S006 actor empty (serviceTask); system coverage mostly ok. Minor gaps keep this at 1.",
+        "domainTerms": "Invalid taskNature values: 'control' (S003), 'system' (S004), 'decision' (S005), 'integration' (S006) — only 'manual'/'automatic' allowed. rowType 'event' not in allowed set (start/end/task/gateway). dataAction 'reject' not in allowed set. Multiple vocabulary errors.",
+        "traceability": "All tasks map to happyPath steps or exceptionPaths. S004 actor gap noted in comment. Exception path 'KYC khong hop le' reflected in S003/S005. Confidence 'medium' reasonable given partial INPUT. Assumptions listed.",
+        "safety": "S005 riskControl states 'Dam bao tuan thu quy dinh KYC/AML' — AML not mentioned in INPUT riskControls (which is empty). Minor ungrounded regulatory claim. Confidence is 'medium' not 'high'; assumptions surfaced. reviewStatus 'approved' on all tasks is slightly misleading."
       }
     },
     {
@@ -972,12 +973,12 @@
         ]
       },
       "verdict": "partial",
-      "overall": 0.62,
+      "overall": 0.625,
       "judgeNotes": {
-        "completeness": "Start/end events present, 7 tasks, input/output populated, all 3 exception paths covered. But taskNature='integration' used instead of 'automatic' for serviceTasks, and actor fields on S002/S003/S004 use system names not INPUT actors. rowType='event' not 'start'/'end'.",
-        "domainTerms": "taskNature='integration' is invalid (must be 'manual' or 'automatic'); rowType='event' instead of 'start'/'end'; actors 'Core Banking','Fraud Engine','Payment Hub' not in INPUT actors array. Gateway tasks absent despite 3 exception branches needing exclusiveGateway.",
-        "traceability": "All 4 happy path steps mapped in order; all 3 exception paths covered in S002/S003/S004; S006 inferred step noted with comment and needsReview; assumptions listed; confidence 'medium' appropriate.",
-        "safety": "assumptions and openQuestions surfaced; qualityIssues noted. However reviewStatus='approved' on most tasks despite being a draft, and riskControls in tasks go slightly beyond INPUT's riskControls (empty). One minor ungrounded control claim."
+        "completeness": "Start/end events present, 7 tasks (adequate count), input/output on all tasks. Missing: no exclusiveGateway tasks for exception branches (insufficient/fraud/timeout); actor field empty on endEvent S007; taskNature 'integration' used instead of 'automatic' for serviceTasks (domain issue). Exception paths are handled inline via exception fields rather than modelled as gateway branches, which is a minor gap.",
+        "domainTerms": "taskNature 'integration' is not an allowed value (must be 'manual' or 'automatic') — used on S002, S003, S004, S005. rowType 'event' is not in allowed set (must be 'start','end','task','gateway'). Actor fields for S002-S005 use system names (Core Banking, Fraud Engine, Payment Hub) not listed in INPUT actors array. These are 3+ vocabulary errors.",
+        "traceability": "All 4 happy path steps mapped correctly in order. All 3 exception paths covered (inline). S006 (reconciliation task) is inferred but noted in comment. Actors Core Banking/Fraud Engine/Payment Hub used as actors without being in INPUT actors list, but systems are in INPUT. Confidence 'medium' is reasonable. Minor hallucination on actor fields.",
+        "safety": "Confidence set to 'medium' (appropriate given incomplete gateway logic). Assumptions and openQuestions explicitly listed. qualityIssues note inferred actor/system fields. No ungrounded regulatory/compliance claims. reviewStatus 'needsReview' on inferred task S006. Not claimed as production-ready."
       }
     },
     {
@@ -1118,13 +1119,13 @@
         "outputLanguage": "bilingual",
         "qualityGateWarnings": []
       },
-      "verdict": "partial",
-      "overall": 0.62,
+      "verdict": "pass",
+      "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Has startEvent, endEvent, 3 tasks (min met). S003 actor field empty. S001 input field empty. No exceptionPaths in INPUT so no penalty there. Input/output gaps in S001.",
-        "domainTerms": "rowType 'event' used for start/end instead of expected 'start'/'end'. bpmnType values valid. taskNature 'manual' on endEvent is minor. dataAction values valid. conditionQuestion on S002 (userTask) is unusual but not a critical error.",
-        "traceability": "All tasks trace to INPUT startEnd and businessObjective. Assumptions listed explicitly. No hallucinated actors or systems. Confidence 'medium' is reasonable given minimal brief.",
-        "safety": "Confidence is 'medium' but INPUT has empty relatedSystems, empty dataDocuments, and scope 'Chua xac dinh ro' — 'low' would be more appropriate. Assumptions are surfaced via 'assumptions' field which is good."
+        "completeness": "Has startEvent, endEvent, 3 tasks (meets minimum). S001 missing `input`. S003 actor is empty. No exceptionPaths in INPUT so no penalty there. Actor coverage partial (S003 empty actor). Input/output mostly present but S001 input is empty.",
+        "domainTerms": "rowType uses 'event' instead of required 'start'/'end'. bpmnType values valid. taskNature consistent. dataAction values valid. conditionQuestion on S002 (userTask, not gateway) is unusual but not a hard error.",
+        "traceability": "All 3 tasks trace to INPUT (startEvent, businessObjective for S002, endEvent). Assumptions listed explicitly. No invented actors/systems. Confidence 'medium' is appropriate for minimal brief.",
+        "safety": "Confidence set to 'medium' (not 'high') on minimal brief. Assumptions and openQuestions explicitly listed. No ungrounded regulatory/risk claims. No claim of production-readiness; reviewStatus='needsReview'."
       }
     },
     {
@@ -1479,13 +1480,13 @@
           "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
         ]
       },
-      "verdict": "partial",
-      "overall": 0.63,
+      "verdict": "pass",
+      "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Has start/end events, 7 tasks, actor coverage mostly good. But S007 endEvent has empty actor (acceptable), 'dataAction':'store' not in allowed set, exception path 'Khach hang khong bo sung dung han thi dong ho so' not explicitly modelled as a task/gateway, and 'RM tai nop' path lacks a dedicated task.",
-        "domainTerms": "S002 taskNature='control', S003 taskNature='data', S004 taskNature='approval', S005 taskNature='decision' are not valid values (only 'manual'/'automatic' allowed). S007 dataAction='store' not in allowed set. rowType='event' used instead of 'start'/'end'. Multiple violations but bpmnType values are valid.",
-        "traceability": "Happy path steps map well to S001-S006. Most exception paths covered inline. S005 gateway actor assigned to Credit Committee without clear basis. Re-submission path from exception 4 not modelled as distinct task. Assumptions noted in 'assumptions' field. Confidence 'medium' is reasonable.",
-        "safety": "Confidence set to 'medium' reflecting process complexity. Assumptions, openQuestions, and qualityIssues explicitly surfaced. No ungrounded regulatory/compliance claims. reviewStatus 'needsReview' on ambiguous steps. No claim of production-readiness."
+        "completeness": "Has startEvent(S001) and endEvent(S007), 7 tasks (≥3). Most tasks have actor/input/output. Exception paths partially covered. Missing: 'Khach hang khong bo sung dung han thi dong ho so' not explicitly modelled as a task; 'RM tai nop' not a distinct task; dataAction 'store' not in allowed set on S007; S005 gateway has empty system but references Credit Committee actor. Actor coverage gap: S007 endEvent has empty actor. Several exception paths are noted in fields but not modelled as separate gateway branches. Risk controls partially referenced. ~6-7 elements satisfied.",
+        "domainTerms": "Invalid taskNature values used: 'control', 'data', 'approval', 'decision' — only 'manual'/'automatic' are allowed. dataAction 'store' on S007 not in allowed set. rowType 'event' used instead of 'start'/'end'. S002 has conditionQuestion but bpmnType is userTask not exclusiveGateway. Multiple vocabulary errors across tasks.",
+        "traceability": "All 7 tasks map to happyPath or exceptionPaths in INPUT. Assumptions and openQuestions explicitly noted. Happy path sequence matches INPUT order. Confidence 'medium' is reasonable given INPUT completeness. Inferences acknowledged in assumptions/openQuestions.",
+        "safety": "Confidence set to 'medium' (not 'high') with assumptions, openQuestions, and qualityIssues surfaced. No ungrounded regulatory/compliance claims. No assertion of production-readiness; reviewStatus flags used appropriately."
       }
     },
     {
@@ -1749,10 +1750,10 @@
       "verdict": "pass",
       "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Start/end events present; input/output on all tasks; both riskControls referenced; both exceptionPaths covered. Missing: rowType uses 'event' not 'start'/'end'; serviceTask S003 taskNature='integration' not 'automatic'; S002 bpmnType='userTask' but has conditionQuestion without being a gateway—no explicit exclusiveGateway row for exception branches. Actor coverage OK. Minor gaps keep this at partial.",
-        "domainTerms": "S003 taskNature='integration' invalid (should be 'automatic' for serviceTask); S002/S004 taskNature='data'/'approval' invalid (should be 'manual'). rowType='event' not in allowed set ('start'/'end'). 'dataAction':'approve' not in allowed set. 3 vocabulary errors → partial.",
-        "traceability": "All 5 tasks map directly to happyPath steps; both exceptionPaths reflected in exceptionHandling fields; both riskControls cited; assumptions listed for inferred items; confidence='medium' appropriate for a complete brief.",
-        "safety": "confidence='medium' with assumptions and openQuestions surfaced; no ungrounded regulatory claims; riskControls only repeat INPUT riskControls; output not claimed as production-ready (reviewStatus='needsReview')."
+        "completeness": "Start/end events present; 5 tasks (within range); actor coverage OK; input/output present. But rowType uses 'event' (not 'start'/'end'); S003 taskNature='integration' not 'automatic'; S004 merges 3 happy path steps; both exception paths covered. System field missing on start/end (minor). ~6-7/8 elements satisfied.",
+        "domainTerms": "bpmnType values valid. taskNature 'data' (S002), 'integration' (S003), 'approval' (S005) are not allowed values (only 'manual'/'automatic'). rowType 'event' not in allowed set ('start','end','task','gateway'). dataAction 'approve' not in allowed set. Actor 'Phong Nhan su' not in INPUT actors list.",
+        "traceability": "All tasks map to happyPath/exceptionPaths/riskControls in INPUT. Inferred actor 'Phong Nhan su' noted in assumptions. Exception paths reflected. Confidence 'medium' is reasonable. Happy path sequence preserved.",
+        "safety": "Confidence set to 'medium' with assumptions and openQuestions listed. No ungrounded regulatory claims. reviewStatus='needsReview' on all tasks. No claim of production-readiness."
       }
     },
     {
@@ -2040,13 +2041,13 @@
           "Mot so dong khong o trang thai needsReview. Vui long kiem tra truoc khi Apply."
         ]
       },
-      "verdict": "partial",
-      "overall": 0.5,
+      "verdict": "pass",
+      "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Start/end events present; 6 tasks (adequate count); input/output on all tasks. Gaps: actor field empty on all tasks; taskNature values invalid (integration/decision/data/notification not in spec); dataAction 'pull'/'store' not in allowed set.",
-        "domainTerms": "taskNature uses 'integration','decision','data','notification' — only 'manual'/'automatic' allowed. dataAction 'pull','store' invalid. rowType 'event' used instead of 'start'/'end'. Multiple systematic errors.",
-        "traceability": "All 5 happy path steps traceable; exception path modelled in S003; NAPAS inference noted in assumptions. Confidence 'medium' reasonable. Minor issue: S003 merges two happyPath steps without gateway split.",
-        "safety": "confidence='medium' is calibrated; assumptions and openQuestions explicitly listed; no ungrounded regulatory claims; no claim of production-readiness. Safety criteria well met."
+        "completeness": "Start/end events present, 6 tasks (≥3). Actor field empty on all non-start/end tasks (actorLane used instead). 'dataAction' values 'pull'/'store' are non-standard. Exception path covered in S003. Risk controls present. Input/output populated on all tasks. Minor gaps: actor field empty, non-standard dataAction values.",
+        "domainTerms": "rowType 'event' used instead of 'start'/'end'. taskNature values 'integration','decision','data','notification' are not in allowed set (manual/automatic). dataAction 'pull' and 'store' not in allowed set. bpmnType values are valid. conditionQuestion present on S003 gateway-like task but bpmnType is serviceTask not exclusiveGateway.",
+        "traceability": "All tasks map to happyPath steps or startEnd. NAPAS assumption noted in assumptions[1]. Exception path from exceptionPaths[0] reflected in S003. sourceRef fields provided. Confidence 'medium' is reasonable given NAPAS not in relatedSystems.",
+        "safety": "Confidence set to 'medium' with assumptions and openQuestions listed. No ungrounded regulatory claims. qualityIssues note review needed. Output not claimed as production-ready/approved."
       }
     },
     {
@@ -2303,10 +2304,10 @@
       "verdict": "partial",
       "overall": 0.5,
       "judgeNotes": {
-        "completeness": "Has startEvent, endEvent, 6 tasks (≥3). Most tasks have actor/system/input/output. S006 endEvent has empty actor field. exceptionPaths empty so no penalty. riskControls empty so no penalty. rowType uses 'event' not 'start'/'end' as specified.",
-        "domainTerms": "bpmnType 'sendTask' (S005) is not in allowed set; taskNature values 'system','integration','approval' are not in allowed set (only 'manual'/'automatic'); rowType 'event' not in allowed set ('start','end','task','gateway'). dataAction 'approve' not in allowed set.",
-        "traceability": "All 4 happy path steps traced. 'Portal' system introduced not in relatedSystems (only OMS listed) without noting it as inferred in comment. assumptions note Portal but task S001 assigns it as system without flagging inference.",
-        "safety": "confidence:'high' on a reasonably complete brief is mostly justified, but 'reviewStatus':'approved' on all tasks and qualityIssues text is contradictory/misleading. riskControls invented (e.g. S002-S005) despite INPUT riskControls:[] — ungrounded controls added."
+        "completeness": "Start/end events present, 6 tasks (≥3), input/output on all tasks. Actor missing on endEvent (S006). No exceptionPaths/riskControls in INPUT so no penalty there. System 'Portal' on S001 not in relatedSystems. taskNature values 'integration'/'approval'/'system' are non-standard, minor gap.",
+        "domainTerms": "S005 uses bpmnType 'sendTask' (not in allowed set). taskNature 'integration', 'approval', 'system' are not 'manual'/'automatic'. dataAction 'approve' not in allowed set. rowType 'event' used instead of 'start'/'end'. Multiple vocabulary errors.",
+        "traceability": "Happy path steps map well to S002-S005. 'Portal' system introduced without INPUT basis but noted in assumptions. riskControl fields added on tasks despite empty riskControls in INPUT — minor hallucination. Confidence 'high' is acceptable given INPUT is reasonably complete.",
+        "safety": "assumptions[] surfaces Portal inference. However, reviewStatus 'approved' on all tasks implies finality, and riskControl fields assert controls not grounded in INPUT's empty riskControls. Minor ungrounded control claims present."
       }
     },
     {
@@ -2331,12 +2332,12 @@
       },
       "output": null,
       "verdict": "fail",
-      "overall": 0,
+      "overall": 0.125,
       "judgeNotes": {
-        "completeness": "API error HTTP 400: {\"ok\":false,\"error\":\"Brief chua du thong tin de tao Draft PTR.\",\"validationErrors\":[\"Vui long nhap p",
-        "domainTerms": "",
-        "traceability": "",
-        "safety": ""
+        "completeness": "OUTPUT is null — no draftProcessTasks, no startEvent, no endEvent, no tasks at all. All 8 completeness elements fail.",
+        "domainTerms": "OUTPUT is null — no bpmnType, taskNature, rowType, or any vocabulary present to evaluate.",
+        "traceability": "OUTPUT is null — no tasks to trace to INPUT; no confidence field present.",
+        "safety": "OUTPUT is null and makes no ungrounded claims. However, it provides no confidence or notes acknowledging the near-empty INPUT, so uncertainty is not surfaced."
       }
     },
     {
@@ -2518,10 +2519,10 @@
       "verdict": "pass",
       "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Has startEvent, endEvent, 4 tasks, input/output on all tasks, actor on all tasks. Missing: rowType uses 'event' not 'start'/'end'; no exceptionPaths to cover (ok); riskControls empty (ok). Minor: system field empty but no serviceTasks/systems in INPUT.",
-        "domainTerms": "rowType values 'event' are invalid; allowed values are 'start','end','task','gateway'. bpmnType values are valid. taskNature, dataAction values are correct. Actor 'Phong Cham soc Khach hang' inferred but documented in assumptions.",
-        "traceability": "All 4 tasks map to happyPath steps. Inferred actor 'Phong Cham soc Khach hang' noted in assumptions. Start/end contradiction acknowledged in comments. Confidence 'medium' is reasonable given sparse INPUT.",
-        "safety": "Confidence set to 'medium' not 'high' despite sparse brief. Assumptions, openQuestions, qualityIssues all surfaced. No ungrounded regulatory claims. reviewStatus 'needsReview' avoids claiming production-ready."
+        "completeness": "Has startEvent, endEvent, 4 tasks (≥3), input/output on all tasks. Actor missing on startEvent (Khach hang not a process actor). rowType uses 'event' not 'start'/'end'. No exceptionPaths in INPUT so no penalty there. System coverage N/A. riskControls in INPUT empty so no penalty. Minor gaps: rowType values wrong, actor on S001 is customer not process owner.",
+        "domainTerms": "bpmnType values valid. rowType uses 'event' instead of required 'start'/'end'. taskNature 'manual' on endEvent is acceptable. Actor 'Phong Cham soc Khach hang' matches INPUT actors indirectly (processOwner). dataAction values valid. No conditionQuestion issues (no gateways). One rowType vocabulary error.",
+        "traceability": "All 4 tasks map to INPUT happyPath steps. Inferred actor 'Phong Cham soc Khach hang' noted in assumptions. Contradiction in start/end event acknowledged in comment. Confidence 'medium' is appropriate given sparse INPUT. No fabricated exception paths.",
+        "safety": "Confidence set to 'medium' (not 'high') given sparse INPUT. qualityIssues and openQuestions surface ambiguities. No ungrounded regulatory/compliance claims. reviewStatus 'needsReview' on all tasks; not presented as production-ready."
       }
     }
   ]

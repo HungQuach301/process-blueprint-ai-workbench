@@ -2,62 +2,62 @@
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-001",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": "S001 lack of system info\nS005 lack of system info\nS005 exclusive gateway but only have one next step \nS006 Sau khi phê duyệt sẽ thông báo lại khách hàng để chuẩn bị hồ sơ "
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-002",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": "S001 lack of system \nS004 CIF tạo tên Core banking\nS006 thiếu actor\nS003 thiếu trường hợp không đủ hoặc cần bổ sung thông tin"
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-003",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": "S007 thiếu cập nhật thông tin giao dịch thành công cho KH\nThiếu action cập nhật số dư TK trên Mobile banking"
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-004",
     "humanVerdict": "partial",
-    "notes": "Thiếu:\nHệ thống thực hiện\nNgười dùng tạo yêu cầu --> Ngân hàng phân loại --> chuyển luồng quy trình xử lý --> xử lý và phản hồi "
+    "notes": "Thiếu:\nHệ thống thực hiện\nNgười dùng nội bộ ngân hàng\ncác hệ thống liên quan"
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-005",
     "humanVerdict": "partial",
-    "notes": ""
+    "notes": "Các task vẫn lớn, chưa được chia nhỏ, ví dụ:\nĐịnh giá TSĐB là một quy trình gồm nhiều bước từ gửi đề xuất, tiến hành định giá , phê duyệt giá \nThiếu các chốt kiểm soát ví dụ RM lập thì phải có teamlead duyệt "
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-006",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-007",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-008",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-009",
     "humanVerdict": "fail",
-    "notes": ""
+    "notes": "Không mô tả được output"
   },
   {
     "skillId": "input-brief-to-ptr",
     "caseId": "eval-010",
     "humanVerdict": "partial",
-    "notes": ""
+    "notes": "Không có system liên quan\nKhông phân loại, phân luồng khiếu nại\nXử lý xong khiếu nại không thông báo lại khách hàng"
   },
   {
     "skillId": "process-improvement-recommendation",
@@ -68,7 +68,7 @@
   {
     "skillId": "process-improvement-recommendation",
     "caseId": "eval-002",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
@@ -80,14 +80,14 @@
   {
     "skillId": "process-improvement-recommendation",
     "caseId": "eval-004",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": "Need to breakdown in smaller tasks"
   },
   {
     "skillId": "process-improvement-recommendation",
     "caseId": "eval-005",
     "humanVerdict": "partial",
-    "notes": "Task still so big"
+    "notes": "Không cảnh báo, gợi ý được:\n- việc nếu kiểm tra fail thì phản hồi như thế nào, \n- giải ngân xong thì thông báo, tương tác với KH ntn"
   },
   {
     "skillId": "process-improvement-recommendation",
@@ -98,13 +98,13 @@
   {
     "skillId": "process-improvement-recommendation",
     "caseId": "eval-007",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": "Agree and action need to breakdown smaller"
   },
   {
     "skillId": "process-improvement-recommendation",
     "caseId": "eval-008",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
@@ -116,67 +116,67 @@
   {
     "skillId": "process-improvement-recommendation",
     "caseId": "eval-010",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": "All the tasks need to breakdown into smaller items , and need more gateway"
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-001",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-002",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-003",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-004",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-005",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-006",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-007",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-008",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-009",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   },
   {
     "skillId": "artifact-review",
     "caseId": "eval-010",
-    "humanVerdict": "partial",
+    "humanVerdict": "pass",
     "notes": ""
   }
 ]

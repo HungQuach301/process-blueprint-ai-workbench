@@ -1,17 +1,18 @@
 {
   "skillId": "artifact-review",
   "datasetVersion": "v1",
-  "judgeVersion": "v1",
+  "judgeVersion": "v2",
   "judgeModel": "claude-sonnet-4-6",
   "skillProvider": "openai",
   "skillModel": "gpt-5.4-mini",
-  "generatedAt": "2026-06-26T16:35:40.001Z",
+  "generatedAt": "2026-06-30T15:05:40.997Z",
   "summary": {
     "pass": 10,
     "partial": 0,
     "fail": 0,
+    "error": 0,
     "passRate": 1,
-    "avgOverall": 0.93
+    "avgOverall": 0.9
   },
   "cases": [
     {
@@ -196,12 +197,12 @@
         ]
       },
       "verdict": "pass",
-      "overall": 0.75,
+      "overall": 0.875,
       "judgeNotes": {
-        "completeness": "Warnings address missing sequenceFlow, DI absence, and S001->S002->S003 path gap; PTR-XML alignment noted; mandatory fields all present in PTR so no template rec needed.",
-        "domainTerms": "Correct BPMN terms: startEvent, userTask, endEvent, sequenceFlow. However 'MarkReviewStatus' is not a valid operation.kind from the allowed PTR schema set.",
-        "traceability": "Warnings traceable to XML content. targetStepIds S001/S002/S003 valid. But 'MarkReviewStatus' operation.kind is non-standard; templateRecommendations empty despite template having mandatoryFields worth checking.",
-        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
+        "completeness": "Flags missing sequenceFlow (structural), notes PTR→XML path mismatch, and covers the empty DI issue. All present issue classes addressed.",
+        "domainTerms": "Uses correct BPMN terms: startEvent, userTask, endEvent, sequenceFlow, BPMN DI. PTR field 'reviewStatus' cited correctly. No invented names.",
+        "traceability": "Warnings are grounded in XML/PTR. However, rec-1 uses operation.kind 'MarkReviewStatus' which is not in the allowed set, and targetStepIds use stepIds (S001 etc.) not task IDs (task-s001).",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made about the artifact itself."
       }
     },
     {
@@ -341,12 +342,12 @@
         ]
       },
       "verdict": "pass",
-      "overall": 0.88,
+      "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Empty diagram warning present; lane/structure gap noted; mandatory fields acknowledged; single-task flow gap addressed in rec-001.",
-        "domainTerms": "Warnings use 'BPMN' vocabulary ('no visible BPMN or service blueprint elements') on a service-blueprint artifact; lane terms not explicitly cited but no systematic error.",
-        "traceability": "All warnings trace to empty artifactXml; rec-001/rec-002 target S010 which exists in processTasks; templateRecommendations empty is consistent with all mandatory fields present.",
-        "safety": "No forbidden XML-patch fields present; both recommendations have requiresConfirmation: true; no approval claim made."
+        "completeness": "Warns about empty diagram (good). Addresses mandatory fields partially. Misses explicit lane assignment observation (actorLane/systemLane) required for service-blueprint review.",
+        "domainTerms": "Uses 'BPMN' incorrectly when describing the empty draw.io XML ('no visible BPMN or service blueprint elements'). Service Blueprint lane vocabulary not used. PTR field names are correct.",
+        "traceability": "All warnings trace to the empty artifactXml. Recommendations target S010 which is in processTasks. No fabricated elements. templateRecommendations empty but consistent with no violations found.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claims made."
       }
     },
     {
@@ -542,9 +543,9 @@
       "verdict": "pass",
       "overall": 1,
       "judgeNotes": {
-        "completeness": "Addresses structural observation (only start/end, no sequenceFlow), acknowledges qa-001 QA issue in rec-001 rationale, and mandatory fields S100/S101 all present.",
-        "domainTerms": "Uses correct BPMN terms: startEvent, endEvent, sequenceFlow. PTR fields actor, actorLane, system, systemLane, reviewStatus, bpmnType all correct. operation.kind values valid.",
-        "traceability": "All targetStepIds (S100, S101) present in processTasks. Warnings trace to specific XML condition (no sequenceFlow). QA issue qa-001 referenced explicitly.",
+        "completeness": "Covers structural issue (no sequenceFlow/intermediate elements), PTR↔XML alignment (S100/S101 present), and acknowledges qa-001 QA issue. No mandatory field gaps since all 3 fields present in PTR.",
+        "domainTerms": "Uses correct BPMN terms: startEvent, endEvent, sequenceFlow, gateway. PTR field names (actorLane, systemLane, reviewStatus, bpmnType) are accurate. operation.kind 'CreateTaskAfter' and 'MarkReviewStatus' are valid.",
+        "traceability": "All warnings trace to specific XML content. targetStepIds S100/S101 are valid PTR stepIds. templateRecommendations empty (no missing mandatory fields). QA issue qa-001 explicitly addressed in rec-001.",
         "safety": "No forbidden XML-patch fields present. Both recommendations have requiresConfirmation: true. No approval claim made."
       }
     },
@@ -854,11 +855,11 @@
         ]
       },
       "verdict": "pass",
-      "overall": 1,
+      "overall": 0.875,
       "judgeNotes": {
-        "completeness": "Warnings address missing sequenceFlow (structural issue), recommendations cover all flow gaps, all PTR stepIds matched in XML; mandatory fields covered.",
-        "domainTerms": "Uses correct BPMN terms: startEvent, endEvent, userTask, sequenceFlow. PTR fields cited (actor, bpmnType, reviewStatus) are accurate schema names.",
-        "traceability": "All targetStepIds (Start001, Task001, Task002, End001) present in processTasks. Warnings trace to specific XML absence of sequenceFlow elements.",
+        "completeness": "Covers missing sequenceFlow thoroughly. PTR↔XML task match is fine (all 4 stepIds present). But templateRecommendations is empty despite mandatoryFields listing 'actor' — no check on whether PTR tasks satisfy mandatory fields was surfaced.",
+        "domainTerms": "Uses correct BPMN terms: sequenceFlow, startEvent, endEvent, userTask. PTR field names (defaultNextStep, reviewStatus, bpmnType) are accurate. No invented element names.",
+        "traceability": "All targetStepIds (Start001, Task001, Task002, End001) are present in INPUT processTasks. Warnings cite specific XML conditions. No fabricated elements.",
         "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
       }
     },
@@ -909,10 +910,10 @@
       "verdict": "pass",
       "overall": 1,
       "judgeNotes": {
-        "completeness": "Empty process warned correctly; mandatory fields stepId/taskName/bpmnType noted; no processTasks so zero-output exemption does not apply but warnings cover all applicable elements.",
-        "domainTerms": "Correct BPMN terms used: bpmn:process, flow nodes, sequenceFlow, startEvent/endEvent implied via 'events'; PTR field names stepId, taskName, bpmnType are accurate.",
-        "traceability": "All warnings trace to specific INPUT elements: empty bpmn:process in artifactXml, empty processTasks array, mandatoryFields list in selectedTemplate. No fabricated elements.",
-        "safety": "No forbidden XML-patch fields present. No requiresConfirmation violations (both recommendation arrays are empty). No approval claim made."
+        "completeness": "Warns about empty bpmn:process (no flow nodes/events/sequenceFlows), notes empty processTasks, and addresses mandatory fields. All present issue classes covered.",
+        "domainTerms": "Correct BPMN vocabulary used: bpmn:process, flow nodes, sequence flows, startEvent/endEvent implied. PTR field names stepId, taskName, bpmnType are accurate.",
+        "traceability": "All warnings trace to specific INPUT elements: empty bpmn:process in artifactXml, empty processTasks array, mandatoryFields list in selectedTemplate.",
+        "safety": "No forbidden XML-patch fields present. No recommendations issued (empty arrays). No approval claim made. Read-only constraint fully respected."
       }
     },
     {
@@ -1111,12 +1112,12 @@
         ]
       },
       "verdict": "pass",
-      "overall": 0.88,
+      "overall": 1,
       "judgeNotes": {
-        "completeness": "Warnings address sparse XML/missing lanes; rec-1 covers missing systemLane mandatory field; rec-2 addresses PTR vs XML mismatch for both SB100 and SB101.",
-        "domainTerms": "Uses correct SB terms like 'systemLane','Backstage','Front-stage People'. However 'AssignSystem','MarkReviewStatus' are non-standard operation kinds not in PTR schema; 'bpmnType' cited in affectedFields is a BPMN term on a blueprint review.",
-        "traceability": "All targetStepIds (SB100,SB101) present in processTasks; templateId 'tpl-sb-banking-eval' matches input; affectedFields 'systemLane' traceable to mandatory fields; XML sparseness warning grounded in actual XML content.",
-        "safety": "No forbidden XML-patch fields present; all recommendations and templateRecommendations have requiresConfirmation:true; no approval claim made."
+        "completeness": "Covers sparse XML warning, PTR↔XML mismatch (SB101 missing from diagram), systemLane mandatory field gap, and lane structure absence. All issue classes addressed.",
+        "domainTerms": "Uses correct Service Blueprint vocabulary: Frontstage, Backstage, systemLane, actorLane, customerInteractionType. PTR field names accurate. No invented terms.",
+        "traceability": "All warnings trace to specific XML sparseness or PTR fields. targetStepIds SB100/SB101 match INPUT. templateId 'tpl-sb-banking-eval' matches. affectedFields are real PTR fields.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
       }
     },
     {
@@ -1274,12 +1275,12 @@
         ]
       },
       "verdict": "pass",
-      "overall": 0.88,
+      "overall": 1,
       "judgeNotes": {
-        "completeness": "Malformed XML warned; PTR task S200 addressed; mandatory fields covered via templateRecommendations; all applicable elements present.",
-        "domainTerms": "'MarkReviewStatus' and 'UpdateTaskField' are non-standard operation.kind values not in the allowed PTR schema set; PTR field names otherwise correct.",
-        "traceability": "All warnings grounded in malformed XML; targetStepIds use S200 from processTasks; templateId matches tpl-bpmn-malformed-eval; no fabricated elements.",
-        "safety": "No forbidden XML-patch fields present; all recommendations have requiresConfirmation:true; no approval claim made."
+        "completeness": "Malformed XML warning present; PTR task S200 acknowledged; mandatory fields (stepId, taskName, bpmnType) addressed via templateRecommendations; qaIssues not in INPUT so N/A.",
+        "domainTerms": "Uses correct BPMN terms (sequenceFlow, gateway, startEvent/endEvent implied); PTR field names (taskName, bpmnType, reviewStatus) are accurate; no invented element names.",
+        "traceability": "All warnings grounded in malformed XML; targetStepIds use only S200 (present in processTasks); templateId 'tpl-bpmn-malformed-eval' matches selectedTemplate.id; affectedFields from template.",
+        "safety": "No forbidden XML-patch fields present; all recommendations and templateRecommendations have requiresConfirmation: true; no approval claim made."
       }
     },
     {
@@ -1581,12 +1582,12 @@
         ]
       },
       "verdict": "pass",
-      "overall": 1,
+      "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Covers gateway missing conditionQuestion, lane-XML mismatch, missing BPMN DI, structural flow check, and mandatory field conditionQuestion from selectedTemplate.",
-        "domainTerms": "Uses correct BPMN terms: exclusiveGateway, sequenceFlow, startEvent, endEvent, userTask. PTR fields cited: conditionQuestion, yesNextStep, noNextStep, taskName. operation.kind uses UpdateTaskField.",
-        "traceability": "GW001 conditionQuestion gap traceable to PTR task-gw001 (empty field) and mandatoryFields. E001 rec targets task-e001. templateId tpl-bpmn-gw-eval matches. All stepIds present in processTasks.",
-        "safety": "No forbidden XML-patch fields present. All recommendations and templateRecommendations have requiresConfirmation: true. No approval claim made."
+        "completeness": "Covers gateway conditionQuestion gap and structural warnings, but misses that GW001's taskName is empty (mandatory field) and only one outgoing branch exists in XML (no 'no' path sequenceFlow), leaving the missing branch unaddressed.",
+        "domainTerms": "Uses correct BPMN terms: exclusiveGateway, startEvent, endEvent, userTask, sequenceFlow. PTR fields cited (conditionQuestion, yesNextStep, noNextStep, taskName) are valid schema fields.",
+        "traceability": "rec-1 targetStepIds uses 'GW001' (XML id) not PTR stepId 'GW001' — matches here, but rec-1 proposes noNextStep->E001 with no XML/PTR evidence of that branch; PTR noNextStep is null. Minor fabrication.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
       }
     },
     {
@@ -1789,12 +1790,12 @@
         ]
       },
       "verdict": "pass",
-      "overall": 0.88,
+      "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Warns about empty diagram (no task/connector cells), lane gaps, mandatory fields check, and PTR task mismatch. qaIssues absent so not applicable.",
-        "domainTerms": "Uses correct SB lane terms (Customer, Frontstage, Backstage) and PTR fields. However 'BPMN-like task metadata' note conflates BPMN/SB vocabulary inappropriately; minor issue.",
-        "traceability": "Warnings trace to specific XML observation (swimlane-only cells) and PTR tasks. rec-001 targets SB002, rec-002 targets SB003, both valid stepIds from INPUT processTasks.",
-        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation:true. No approval claims made."
+        "completeness": "Flags empty diagram and lane gaps, but misses: SB003 actorLane='Payment Hub' not present in XML lanes (only Customer, Mobile Banking, Core Banking exist); no template recommendation despite mandatory fields check required.",
+        "domainTerms": "Uses 'swimlane' instead of proper Service Blueprint lane vocabulary (Customer Action, Frontstage, Backstage). 'Back-stage System' is correct but lane names are BPMN-style.",
+        "traceability": "All warnings trace to specific XML/PTR conditions. Recommendations target valid stepIds SB002 and SB003. No fabricated elements. templateRecommendations empty so no templateId issues.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claims made."
       }
     },
     {
@@ -1888,10 +1889,10 @@
       "verdict": "pass",
       "overall": 1,
       "judgeNotes": {
-        "completeness": "Covers missing sequenceFlow, empty processTasks mismatch, and mandatory fields check via templateRecommendations. All applicable elements addressed.",
-        "domainTerms": "Correct BPMN terms used: startEvent, userTask, endEvent, sequenceFlow, participant. PTR field names stepId, bpmnType, taskCardRules, mandatoryFields all accurate.",
-        "traceability": "All warnings trace to specific XML content. templateId matches selectedTemplate.id. targetStepIds is empty matching empty processTasks. affectedFields cite actual template fields.",
-        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation: true. No approval claim made."
+        "completeness": "Covers all present issue classes: missing sequenceFlow (structural), empty processTasks mismatch, and mandatory field validation gap. Comprehensive.",
+        "domainTerms": "Correct BPMN terms used: startEvent, userTask, endEvent, sequenceFlow, participant, laneSet. PTR field names (stepId, bpmnType, mandatoryFields) are accurate.",
+        "traceability": "All warnings trace to specific XML elements (S001, T001, E001, missing sequenceFlow). templateId 'tpl-bpmn-notasks-eval' matches INPUT. targetStepIds:[] valid since processTasks is empty.",
+        "safety": "No forbidden XML-patch fields present. All recommendations have requiresConfirmation:true. No approval claim made."
       }
     }
   ]

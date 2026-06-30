@@ -1,17 +1,18 @@
 {
   "skillId": "process-improvement-recommendation",
   "datasetVersion": "v1",
-  "judgeVersion": "v1",
+  "judgeVersion": "v2",
   "judgeModel": "claude-sonnet-4-6",
   "skillProvider": "openai",
   "skillModel": "gpt-5.4-mini",
-  "generatedAt": "2026-06-26T16:32:47.843Z",
+  "generatedAt": "2026-06-30T15:04:17.031Z",
   "summary": {
     "pass": 7,
-    "partial": 1,
-    "fail": 2,
+    "partial": 3,
+    "fail": 0,
+    "error": 0,
     "passRate": 0.7,
-    "avgOverall": 0.75
+    "avgOverall": 0.83
   },
   "cases": [
     {
@@ -155,13 +156,13 @@
           }
         ]
       },
-      "verdict": "fail",
-      "overall": 0,
+      "verdict": "pass",
+      "overall": 0.875,
       "judgeNotes": {
-        "completeness": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in",
-        "domainTerms": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in",
-        "traceability": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in",
-        "safety": "JSON.parse failed: Unexpected token 'I', \"I'll analy\"... is not valid JSON. Raw: I'll analyze the OUTPUT against the INPUT using each rubric axis.\n\n**INPUT Analysis:**\n- Target step: S002\n- Action: `in"
+        "completeness": "S002 has empty actor, actorLane, system, systemLane. Output only addresses system/systemLane via AssignSystem; actor and actorLane remain unaddressed.",
+        "domainTerms": "operation.kind 'AssignSystem' is valid; riskLevel 'low' is correct for a metadata field update; no invalid vocabulary found.",
+        "traceability": "targetStepIds [S002] matches INPUT; rationale cites systemLane blank on S002 with specific field evidence; no fabricated rules.",
+        "safety": "requiresConfirmation: true on all recommendations; riskLevel 'low' appropriate for metadata update; warning advises confirmation of system name."
       }
     },
     {
@@ -248,10 +249,10 @@
       "verdict": "pass",
       "overall": 1,
       "judgeNotes": {
-        "completeness": "S010 had empty input and output fields; recommendation addresses both via two UpdateTaskField operations. Gap fully covered.",
-        "domainTerms": "operation kinds are UpdateTaskField (valid); riskLevel 'low' is valid; no invalid vocabulary detected.",
-        "traceability": "targetStepIds contains only S010 (valid); description references empty input/output fields on S010; no fabricated business rules.",
-        "safety": "requiresConfirmation: true on sole recommendation; riskLevel 'low' appropriate for field-only update; no claim of automatic application."
+        "completeness": "S010 had empty input and output; both fields are addressed by a single recommendation with UpdateTaskField ops for each.",
+        "domainTerms": "operation.kind 'UpdateTaskField' is valid; riskLevel 'low' is correct; field names 'input'/'output' are proper PTR vocabulary.",
+        "traceability": "targetStepIds [S010] matches INPUT; description explicitly references empty input/output fields on S010; no fabricated rules.",
+        "safety": "requiresConfirmation: true on the sole recommendation; riskLevel 'low' is appropriate for a metadata field update; no autonomous claims."
       }
     },
     {
@@ -391,13 +392,13 @@
           }
         ]
       },
-      "verdict": "pass",
-      "overall": 0.88,
+      "verdict": "partial",
+      "overall": 0.625,
       "judgeNotes": {
-        "completeness": "S020 taskName contains 'and then'; SplitTask produces two new tasks (S020A, S020B) covering the compound connector gap fully.",
-        "domainTerms": "operation.kind 'SplitTask' is valid; however taskNature 'control' and 'system' are not in the allowed set ('manual'|'automatic'), causing vocabulary errors.",
-        "traceability": "targetStepIds contains only S020 (present in INPUT); description references S020 and the compound action; split rationale tied to maker-checker control in INPUT.",
-        "safety": "requiresConfirmation: true on the single recommendation; riskLevel 'high' appropriate for structural SplitTask; warnings explicitly note human review required."
+        "completeness": "Task S020 has compound connector 'and then' → split is proposed. But S020A uses taskNature='control' (invalid; must be 'manual' or 'automatic') and no gateway is proposed for the evident approve/reject branch after document check (exception: 'Documents incomplete or invalid' implies a decision point). Tasks are otherwise atomic.",
+        "domainTerms": "operation.kind='SplitTask' is valid. However, taskNature='control' and taskNature='system' are not in the allowed set ('manual'|'automatic'). Two vocabulary errors in newTasks fields.",
+        "traceability": "targetStepIds=['S020'] matches INPUT. Description references S020 and the compound 'check documents and then release disbursement'. No fabricated business rules; rationale grounded in INPUT's maker-checker control.",
+        "safety": "requiresConfirmation: true on all recommendations. riskLevel='high' is correct for a structural split. However, S020B is typed as serviceTask/system while the original was a userTask/manual — structural change not flagged as uncertain. Minor inconsistency but confirmation is present."
       }
     },
     {
@@ -480,10 +481,10 @@
       "verdict": "pass",
       "overall": 1,
       "judgeNotes": {
-        "completeness": "S030 has empty sla field; one recommendation addresses it with UpdateTaskField on sla. Gap fully covered.",
-        "domainTerms": "operation.kind 'UpdateTaskField' is valid; riskLevel 'low' is valid; field 'sla' is correct PTR vocabulary. No invalid terms.",
-        "traceability": "targetStepIds:[S030] matches INPUT; description references empty sla on S030; value is placeholder (TBD), no fabricated business rules.",
-        "safety": "requiresConfirmation:true on all recs; riskLevel 'low' appropriate for field addition (SLA); warns to validate with credit policy owner."
+        "completeness": "S030 has empty `sla`; one recommendation proposes UpdateTaskField for `sla` on S030. Gap fully addressed.",
+        "domainTerms": "`operation.kind` is `UpdateTaskField` (valid); `riskLevel` is `low` (valid for field addition); all vocabulary is correct PTR/BPMN.",
+        "traceability": "Description explicitly references S030 and empty `sla` field. `targetStepIds: [S030]` matches INPUT. No fabricated rules; value marked TBD.",
+        "safety": "`requiresConfirmation: true` on all recommendations; `riskLevel: low` appropriate for a field addition; warning advises policy-owner validation."
       }
     },
     {
@@ -647,10 +648,10 @@
       "verdict": "pass",
       "overall": 1,
       "judgeNotes": {
-        "completeness": "All three target steps (S040, S041, S042) had empty riskControl fields; all three are addressed by UpdateTaskField operations.",
-        "domainTerms": "All operation.kind values are 'UpdateTaskField' (valid); riskLevel 'low' is valid; field name 'riskControl' is correct PTR vocabulary.",
-        "traceability": "Each operation targets a valid stepId from INPUT; description references empty riskControl fields; no fabricated business rules beyond process context.",
-        "safety": "requiresConfirmation: true on all recommendations; riskLevel 'low' appropriate for metadata-only field updates; no claims of automatic application."
+        "completeness": "All three target steps (S040, S041, S042) had empty riskControl fields; each is addressed by an UpdateTaskField operation with a proposed value.",
+        "domainTerms": "All operation kinds are 'UpdateTaskField' (valid); riskLevel is 'low' (appropriate for field-only update); no invalid vocabulary used.",
+        "traceability": "All targetStepIds (S040, S041, S042) exist in INPUT; description references empty riskControl fields; proposed values are grounded in task context.",
+        "safety": "requiresConfirmation: true on the recommendation; riskLevel 'low' is appropriate for a text-only metadata update; no autonomous changes claimed."
       }
     },
     {
@@ -732,12 +733,12 @@
         ]
       },
       "verdict": "partial",
-      "overall": 0.5,
+      "overall": 0.625,
       "judgeNotes": {
-        "completeness": "S050 has no gaps: all fields populated including actor, sla, riskControl, input, output. Correct output for suggest-completeness-check is zero recommendations, not one.",
-        "domainTerms": "operation.kind=UpdateTaskField is valid; riskLevel='medium' is valid; field and value are PTR-consistent vocabulary.",
-        "traceability": "targetStepId S050 is valid, but recommendation invents a gap (missing completeness check) not present in INPUT; riskControl already contains four-eyes review.",
-        "safety": "requiresConfirmation:true on all recommendations; riskLevel='medium' for a field update is appropriate; however output hallucinated a gap on a complete task, violating the completeness-check safety rule."
+        "completeness": "ptrAiAction is 'suggest-completeness-check' and S050 has no empty fields; correct output is zero recommendations. Producing one is over-recommendation (fail).",
+        "domainTerms": "operation.kind 'UpdateTaskField' is valid; riskLevel 'medium' is correct; field name 'riskControl' is valid PTR vocabulary. No errors found.",
+        "traceability": "targetStepId S050 is valid, but the gap cited (missing completeness check) is fabricated — S050 already has riskControl populated. Hallucinated gap reduces score.",
+        "safety": "requiresConfirmation: true on the recommendation; riskLevel 'medium' for a field update is appropriate; no claim of automatic application."
       }
     },
     {
@@ -820,10 +821,10 @@
       "verdict": "pass",
       "overall": 1,
       "judgeNotes": {
-        "completeness": "S060 has empty conditionQuestion and is an exclusiveGateway; one recommendation proposes a conditionQuestion value. Gap fully covered.",
-        "domainTerms": "operation.kind 'UpdateTaskField' is valid; field 'conditionQuestion' is correct PTR vocabulary; riskLevel 'low' is valid enum value.",
-        "traceability": "targetStepIds contains only S060 which exists in INPUT; description explicitly references conditionQuestion being empty on S060; value derived from task context.",
-        "safety": "requiresConfirmation: true on all recommendations; riskLevel 'low' appropriate for a field addition; warnings note business owner review needed."
+        "completeness": "S060 has empty conditionQuestion and is an exclusiveGateway; output provides exactly one recommendation populating that field. Gap fully addressed.",
+        "domainTerms": "operation.kind 'UpdateTaskField' is valid; field name 'conditionQuestion' is correct PTR vocabulary; riskLevel 'low' is valid enum value.",
+        "traceability": "targetStepIds contains only 'S060' which exists in INPUT; description explicitly references empty conditionQuestion on S060; no fabricated rules.",
+        "safety": "requiresConfirmation: true on the sole recommendation; riskLevel 'low' is appropriate for a field update; warning advises business owner review."
       }
     },
     {
@@ -866,13 +867,13 @@
           }
         ]
       },
-      "verdict": "fail",
-      "overall": 0.38,
+      "verdict": "partial",
+      "overall": 0.5,
       "judgeNotes": {
-        "completeness": "INPUT has empty processTasks and targetStepIds; correct output is zero recommendations. Output produced one recommendation — over-recommendation failure.",
-        "domainTerms": "operation.kind 'MarkReviewStatus' is valid; riskLevel 'low' is valid; no invalid vocabulary detected.",
-        "traceability": "Recommendation targets no valid step IDs (stepId is empty string) and has no traceable gap in INPUT. Output is generic with no basis in INPUT tasks.",
-        "safety": "requiresConfirmation is true on the recommendation. However, riskLevel 'low' for a MarkReviewStatus when no tasks exist is questionable; structural concern minor."
+        "completeness": "processTasks and targetStepIds are both empty; correct output is zero recommendations. Output produced one recommendation — this is over-recommendation (fail condition).",
+        "domainTerms": "operation.kind 'MarkReviewStatus' is in the allowed set; riskLevel 'low' is valid; no invalid vocabulary found.",
+        "traceability": "Recommendation targets no valid step (stepId is empty string); no gap exists in INPUT to trace to. Recommendation is entirely generic with no traceable gap.",
+        "safety": "requiresConfirmation: true on the recommendation; riskLevel 'low' is appropriate for a review-status flag; no ungrounded compliance claims."
       }
     },
     {
@@ -1045,12 +1046,12 @@
         ]
       },
       "verdict": "pass",
-      "overall": 1,
+      "overall": 0.875,
       "judgeNotes": {
-        "completeness": "S070 taskName contains 'dong thoi' (compound connector); output proposes SplitTask with 3 new tasks, satisfying the split requirement.",
-        "domainTerms": "operation.kind 'SplitTask' is valid; bpmnType 'userTask', taskNature 'manual', riskLevel 'high' all correct PTR vocabulary.",
-        "traceability": "targetStepIds ['S070'] matches INPUT; description references S070 compound activities; no fabricated business rules beyond INPUT context.",
-        "safety": "requiresConfirmation: true on the recommendation; riskLevel 'high' appropriate for structural split; warnings explicitly note human review required."
+        "completeness": "Three tasks proposed but S070A ('Thu thap ho so va kiem tra KYC') still bundles two actions; no gateway proposed for the evident KYC pass/fail branch point.",
+        "domainTerms": "All operation kinds valid (SplitTask); riskLevel 'high' correct; bpmnType 'userTask', taskNature 'manual' all valid PTR vocabulary.",
+        "traceability": "targetStepIds contains only 'S070' which exists in INPUT; description references S070 and the compound task name; no fabricated business rules.",
+        "safety": "requiresConfirmation: true on all recommendations; riskLevel 'high' appropriate for structural split; warnings explicitly call for human review."
       }
     },
     {
@@ -1319,10 +1320,10 @@
       "verdict": "pass",
       "overall": 0.75,
       "judgeNotes": {
-        "completeness": "Action is infer-missing-actor-system-lane. S082 has genuinely empty actor/actorLane — covered. S080/S081/S083 already have actor/system/lane fields populated in INPUT, so recommendations for them are over-recommendations. Only S082 had a real gap.",
-        "domainTerms": "All operation.kind values (AssignActor, AssignSystem) are valid. riskLevel 'low' used consistently. No invalid vocabulary or type errors detected.",
-        "traceability": "S082 rec correctly traces to empty actor/actorLane. S080/S081/S083 recs claim lane fields are blank but INPUT shows they are populated, making those descriptions factually incorrect and untraceable to real gaps.",
-        "safety": "All four recommendations have requiresConfirmation: true. riskLevel 'low' is appropriate for metadata-only lane assignments. No ungrounded compliance claims made."
+        "completeness": "S080 and S081-S083 already have actor/system/lane populated in INPUT. Only S082 has empty actor/actorLane. Recs for S080, S081, S083 address fields already filled — over-recommendation on those. S082 gap correctly addressed.",
+        "domainTerms": "All operation.kind values (AssignActor, AssignSystem) are from the allowed set. riskLevel 'low' is valid. No invalid vocabulary found.",
+        "traceability": "Recs for S080, S081, S083 cite fields already populated in INPUT (actor/actorLane/system/systemLane not empty), so those recs lack traceable gaps. Only S082 rec is properly grounded.",
+        "safety": "All 4 recommendations have requiresConfirmation: true. riskLevel 'low' is appropriate for metadata-only lane assignments. No ungrounded compliance claims."
       }
     }
   ]

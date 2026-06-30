@@ -5,17 +5,16 @@
 > append-only changelog (full history lives in git log + CURRICULUM_STATUS "Done log").
 
 ## Current state (2026-06-30)
-Bài 7-5b — calibration tooling complete. Labeling app shows per-action question banner. Agreement gate
-updated: PASS when **0 two-level disagreements (fail↔pass) + MAD ≤ 0.5** (not exact-3-class ≥ 0.8).
-Labels + baselines in working tree are **dirty** (not yet committed) — they reflect in-progress re-labeling.
+**Bài 7-5b — DONE.** Judge calibrated for the **per-action** question (tool-use structured output;
+measurement errors excluded from metrics) and **baseline LOCKED**. Judge–human within ±1 = 100%,
+0 two-level (fail↔pass) disagreements, MAD 0.33. Acceptance gate = "0 two-level + MAD ≤ 0.5".
 
 ## Active task → next step
-**Re-label the calibration set** using `evals/calibration/labeling-app.html` (rebuild: `npx tsx
-evals/calibration/build-labeling-app.ts`), export `labels.json`, run `npx tsx evals/calibration/agreement.ts`
-to verify gate passes, then lock the baseline and close Bài 7-5b.
+Start **Bài 9** — executor/advisor both directions + prompt caching + cost per attempt
+(activates eval-runner against the locked baseline). See CURRICULUM_STATUS for the spine + ad-hoc backlog.
 
 ## Open decisions
-- None blocking.
+- None blocking. (Optional: ADR for judge acceptance criteria — rationale currently in `agreement.ts` comment.)
 
 ## How to resume
 Read this + `docs/curriculum/CURRICULUM_STATUS.md`, then continue the active task. Rules of the road:

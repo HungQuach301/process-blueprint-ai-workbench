@@ -62,3 +62,4 @@ evals/**/results-*.json
 !.claude/settings.json
 .claude/settings.local.json
 /HUONG_DAN_BUOC_TIEP_THEO.md
+evals/calibration/labeling-app.html

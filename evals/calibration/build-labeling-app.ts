@@ -186,6 +186,18 @@ const html = `<!DOCTYPE html>
   span.label { font-weight: 600; color: #475569; }
   .pir-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; background: #e0e7ff; color: #3730a3; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
   .artifact-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; background: #f3e8ff; color: #7c3aed; font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+
+  /* Per-action question banner */
+  #question-banner {
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;
+    border: 2px solid #d97706; background: #fffbeb;
+    font-weight: 700; font-size: 14px; color: #92400e; line-height: 1.5;
+  }
+  #question-banner .action-label {
+    display: inline-block; background: #d97706; color: #fff;
+    border-radius: 4px; padding: 1px 8px; font-size: 12px;
+    font-weight: 700; margin-left: 8px; vertical-align: middle;
+  }
 </style>
 </head>
 <body>
@@ -200,6 +212,8 @@ const html = `<!DOCTYPE html>
     <span id="skill-badge-el" class="skill-badge"></span>
     <span id="case-id-el" class="case-id"></span>
   </div>
+
+  <div id="question-banner"></div>
 
   <div id="case-panel">
     <div class="section-card" id="input-card">
@@ -241,6 +255,12 @@ const html = `<!DOCTYPE html>
 <script>
 const CASES = ${safeJson(allCases)};
 const RUBRICS_CONDENSED = ${safeJson(rubricCondensed)};
+
+const SKILL_QUESTIONS = {
+  'input-brief-to-ptr': 'Skill có tạo Draft PTR hợp lý từ brief không (đúng actor/system/flow/gateway THEO BRIEF)? KHÔNG đòi quy trình hoàn hảo vượt ngoài brief.',
+  'process-improvement-recommendation': 'Skill có làm tốt ĐÚNG cái ptrAiAction được yêu cầu không (điền field / chia task khi action là split / thêm gateway khi action yêu cầu)? KHÔNG chấm quy trình tổng thể.',
+  'artifact-review': 'Review có bắt được các lỗi đang HIỆN DIỆN trong artifact không? KHÔNG đòi review hoàn hảo tuyệt đối.',
+};
 
 let currentIdx = 0;
 let labels = JSON.parse(localStorage.getItem('cal_labels') || '[]');
@@ -524,6 +544,15 @@ function renderCase() {
 
   // Case ID
   document.getElementById('case-id-el').textContent = c.skillId + ' / ' + c.caseId;
+
+  // Per-action question banner
+  const question = SKILL_QUESTIONS[c.skillId] || '';
+  let bannerHtml = '❓ ' + esc(question);
+  if (c.skillId === 'process-improvement-recommendation') {
+    const pirAction = ((c.input || {}).metadata || {}).ptrAiAction || '(unknown)';
+    bannerHtml += '<br><span style="margin-top:6px;display:inline-block">ptrAiAction của case này: <span class="action-label">' + esc(pirAction) + '</span></span>';
+  }
+  document.getElementById('question-banner').innerHTML = bannerHtml;
 
   // Input / Output
   document.getElementById('input-content').innerHTML = renderInput(c.skillId, c.input);

@@ -44,7 +44,7 @@ Budget this month: ~$1 / $50.
 - [x] Add `test:normalizer` to `.githooks/pre-push` — done (100% enforcement)
 - [ ] input-brief prompt-pack quality (some per-action gaps — real, not a bug)
 - [x] Judge non-determinism: judge runs at temperature 0 (done); multi-sample later if needed
-- [ ] rejudge stamps hardcoded JUDGE_VERSION_V2 → read rubric-version from rubric.md (minor)
+- [x] rejudge reads rubric-version from rubric.md + stamps `rubricVersion` (done via Cloud PR #3) — leftover: `JUDGE_VERSION_V2` now a dead export in judge.ts, remove someday
 - [ ] Extend deterministic unit tests to other pure functions (schemas, generators, provider adapter)
 - [ ] 20 lint warnings (ratcheted, ADR-lint-decision.md) · 6 npm-audit moderate/low (do NOT `audit fix --force`) · 4 Date.now()-id → crypto.randomUUID
 - [ ] DESIGN_SYSTEM_CONTRACT "Open decisions" (palette, typography scale, token↔globals drift guard)

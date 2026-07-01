@@ -8,6 +8,12 @@ Slice request: $ARGUMENTS
 
 Work through these steps in order; stop and report if any step hits a blocker:
 
+## Bước 0 — Sync trước khi bắt đầu
+
+Chạy: `git checkout master && git pull --ff-only origin master`
+
+Nếu pull fail (master diverged): DỪNG, báo người dùng xử lý divergence trước, KHÔNG tạo nhánh.
+
 1. Branch. Run `git branch --show-current`. If on master/main, create a dedicated branch (`git checkout -b slice/<short-name>`) so the slice is isolated (one slice = one branch). If already on a feature branch, stay.
 
 2. Plan. State the smallest change that satisfies the request and list the exact files you expect to touch. Keep scope minimal — do not invent extra steps (docs/curriculum/NO_EXTRA_INTERMEDIATE_STEPS_RULE.md). If ambiguous or wide-reaching, ask before editing.

@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { runJudge, JUDGE_VERSION_V2 } from "../common/judge.js";
+import { runJudge, JUDGE_VERSION } from "../common/judge.js";
 
 // ---------------------------------------------------------------------------
 // Skill config
@@ -38,6 +38,7 @@ type BaselineFile = {
   skillId: string;
   datasetVersion: string;
   judgeVersion: string;
+  rubricVersion?: string;
   judgeModel: string;
   skillProvider: string;
   skillModel: string;
@@ -61,6 +62,19 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const RUBRIC_VERSION_RE = /\[\/\/\]:\s*#\s*\(rubric-version:\s*(\S+)\)/;
+
+function parseRubricVersion(rubricMarkdown: string, skillKey: SkillKey): string {
+  const match = rubricMarkdown.match(RUBRIC_VERSION_RE);
+  if (!match) {
+    console.warn(
+      `[rejudge] WARNING: could not find "rubric-version" front-matter in rubric.md for skill "${skillKey}" — falling back to "unknown".`
+    );
+    return "unknown";
+  }
+  return match[1];
+}
+
 // ---------------------------------------------------------------------------
 // rejudgeSkill
 // ---------------------------------------------------------------------------
@@ -78,6 +92,7 @@ async function rejudgeSkill(skillKey: SkillKey): Promise<void> {
   );
 
   const rubricMarkdown = readFileSync(rubricPath, "utf8");
+  const rubricVersion = parseRubricVersion(rubricMarkdown, skillKey);
   const baseline: BaselineFile = JSON.parse(
     readFileSync(baselinePath, "utf8")
   );
@@ -152,7 +167,8 @@ async function rejudgeSkill(skillKey: SkillKey): Promise<void> {
 
   const updated: BaselineFile = {
     ...baseline,
-    judgeVersion: JUDGE_VERSION_V2,
+    judgeVersion: JUDGE_VERSION,
+    rubricVersion,
     judgeModel: process.env.CLAUDE_MODEL ?? "claude-haiku-4-5-20251001",
     generatedAt: new Date().toISOString(),
     summary: { pass, partial, fail, error, passRate, avgOverall },

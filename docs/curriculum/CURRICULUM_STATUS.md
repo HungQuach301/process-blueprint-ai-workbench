@@ -55,6 +55,7 @@ Budget this month: ~$1 / $50.
 - [x] ADR: context continuity + automation boundary → docs/decisions/ADR-context-continuity-and-automation-boundary.md
 - [x] ADR: eval measurement integrity (never coerce a failed measurement into a data point) → docs/decisions/ADR-eval-measurement-integrity.md
 - [ ] ADR (optional): judge acceptance criteria (0 two-level + MAD ≤ 0.5, not exact-3-class) — rationale currently in agreement.ts comment
+- [x] ADR: GitHub is the hub for cross-device (laptop+mobile) workflow → docs/decisions/ADR-github-hub-workflow.md
 
 ## Spine insurance (do from day one)
 - [ ] tenantId on every new storage/audit write

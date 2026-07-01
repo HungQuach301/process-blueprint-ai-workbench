@@ -8,6 +8,24 @@ of the time belongs in a **hook**; recurring procedures belong in a **command** 
 > Bài 0E rule: if a rule here keeps getting broken, promote it from this doc to a hook or a
 > command. A doc is a reminder, not a guarantee.
 
+## 0. GitHub is the hub (cross-device: laptop + mobile)
+
+The repo lives in WSL; Cowork/Dispatch (Windows/cloud) can only reach **GitHub**. So GitHub is the
+single source of truth (see `docs/decisions/ADR-github-hub-workflow.md`). Rules:
+
+- [ ] **One surface per task, no straddling.** Mobile code → Cloud Claude Code (→PR); mobile plan
+      → Dispatch; laptop deep-work → local Claude Code + Cowork.
+- [ ] **No content copy-paste across devices — only a fixed pointer.** Cowork writes the brief into
+      `docs/NEXT_BRIEF.md`; one `git push` publishes it; mobile reads it via the pointer.
+- [ ] **Pull-before-local, push-after.** Open local work with `/start` or `/slice` (they auto
+      `git pull --ff-only origin master`); `/close` pushes. Cloud → PR → merge → next `/start` pulls.
+- [ ] **Bank-data boundary:** Cloud only for non-sensitive tasks (eval/docs/calibration); sensitive
+      product code stays local (Remote Control / laptop).
+
+**Fixed pointers** — save once in phone Notes, never type task content again:
+- Cloud Claude Code: `Read docs/NEXT_BRIEF.md and do it. Commit and open a PR.`
+- Dispatch (plan): `Read docs/SESSION_HANDOFF.md + docs/curriculum/CURRICULUM_STATUS.md from GitHub, then <ask>.`
+
 ## 1. Start of a task
 
 - [ ] **Right repo.** Canonical working copy is **WSL `~/projects/process-blueprint-ai-workbench`**,

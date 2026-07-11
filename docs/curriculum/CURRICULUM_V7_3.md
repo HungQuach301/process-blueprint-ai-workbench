@@ -2464,7 +2464,7 @@ Concrete next steps:
 2. Create CURRICULUM_STATUS.md from the §10 template.
 3. Bài 0E: set up .claude/ (subagents + starter hooks) and enable
    Remote Control (Bài 0 mobile) before the cleanup commits.
-4. Merge master cleanup into feature/m2-m3-full-ai or branch cleanly.
+4. Merge master cleanup cleanly (work lands on `master`; no long-lived feature branch). [CCR-0003]
 5. P1.1 skill-ID cleanup. 6. P1.3 retire skill-engine.
 7. P1.4 pin dependencies. 8. P1.5 SDK decision (ADR). 9. Lint decision (ADR).
 10. Bài 0D: design tokens + component registry + AGENTS.md design rules.

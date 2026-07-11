@@ -1,6 +1,6 @@
 ﻿param(
   [string]$TaskId,
-  [string]$ExpectedBranch = "feature/quality-gate-overhaul"
+  [string]$ExpectedBranch = "master"
 )
 
 $ErrorActionPreference = "Stop"

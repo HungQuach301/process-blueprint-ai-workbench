@@ -82,13 +82,13 @@ Keep mock/local fallback and avoid exposing API keys in browser code.
 ## ADR-2026-05-10-003 - Delay MVP1 release until Module 2 and Module 3 full AI are complete
 
 Status:
-Accepted
+Superseded (2026-07-11 — see CCR-0003). The named planning branch/tag were never released; work now lands on `master`. Current state: `docs/SESSION_HANDOFF.md`.
 
 Context:
 The project had enough thin-slice functionality to prepare an immediate MVP1 release. However, the product strategy now requires the release to prove a stronger workflow: process modeling plus product delivery, both supported by controlled real AI.
 
 Decision:
-Delay the MVP1 release until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with full real AI support. The active planning branch is `feature/m2-m3-full-ai`, and the release target is `v0.8.0-mvp1-ai`.
+Delay the MVP1 release until Module 2 Process Modeling Core and Module 3 Product Delivery Core are complete with full real AI support. (Historical: the plan then named branch `feature/m2-m3-full-ai` and tag `v0.8.0-mvp1-ai`; neither shipped — superseded, work lands on `master`.)
 
 Rationale:
 The product moat depends on turning process knowledge into delivery artifacts with traceability, quality gates, human approval, and enterprise-safe AI. Shipping only the immediate thin MVP would underrepresent the intended value and create a second planning reset soon after release.

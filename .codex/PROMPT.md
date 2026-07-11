@@ -1,7 +1,7 @@
 ﻿# Codex Working Prompt - Process Blueprint AI Workbench
 
 You are working in:
-D:\AI_PRODUCTS\process-blueprint-ai-workbench
+~/projects/process-blueprint-ai-workbench   (WSL Ubuntu — the canonical copy, NOT the Windows /mnt/d copy)
 
 Always read before coding:
 - AGENTS.md
@@ -12,7 +12,7 @@ Read conditionally:
 - docs/DECISION_LOG.md if the task involves an architecture decision.
 - docs/ARCHITECTURE_PRINCIPLES.md if the task changes architecture.
 - docs/AI_SKILL_REGISTRY.md if the task changes AI skills.
-- docs/CURRENT_STATE.md if the task changes product state or release scope.
+- docs/SESSION_HANDOFF.md + docs/curriculum/CURRICULUM_STATUS.md if the task changes product state or release scope.
 - docs/CODE_AUDIT_REPORT.md if the task depends on source code locations.
 
 Run first:

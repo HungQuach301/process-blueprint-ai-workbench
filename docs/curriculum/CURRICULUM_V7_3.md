@@ -108,7 +108,7 @@ The throughline of v7.3: the product's moat (Artifact Graph + Traceability, Bài
 - P1.2 `prompt-engine` removal has been completed.
 - Core provider/route/skill/eval logic has not fundamentally changed since the previous review.
 - The curriculum is at the boundary before **Design Contract → Baseline Evaluation → Provider Routing & Advisor Strategy**.
-- The product branch target remains aligned to full Module 2 + Module 3 MVP1-AI.
+- Product work lands on `master`; there is no separate MVP1-AI release branch or tag (see `docs/SESSION_HANDOFF.md` for current state). [CCR-0003]
 
 ### 1.2 Important cleanup still pending
 
@@ -604,7 +604,7 @@ P0 cleanup is done. The environment is mostly ready. ESLint is still deferred.
 
 ### Practice
 
-- Read `AGENTS.md`, `CURRENT_STATE.md`, `MASTER_GUIDE`, and cleanup status before coding.
+- Read `AGENTS.md`, `docs/SESSION_HANDOFF.md`, `docs/curriculum/CURRICULUM_STATUS.md`, and cleanup status before coding. [CCR-0003]
 - Run typecheck/build before meaningful work.
 - Create a branch per lesson or cleanup slice.
 - Make the smallest possible change.

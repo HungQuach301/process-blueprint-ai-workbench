@@ -185,18 +185,20 @@ The product is not just a BPMN/BRD/SRS generator. The moat is:
 
 ## 13. Required context files
 
+Single source of truth for what to build: `docs/curriculum/CURRICULUM_V7_3.md`.
+Current state + active task: `docs/SESSION_HANDOFF.md`. Rolling plan:
+`docs/curriculum/CURRICULUM_STATUS.md`. The concrete next task: `docs/NEXT_BRIEF.md`.
+
 Before implementation work, read:
 
 1. `AGENTS.md`
-2. `docs/CURRENT_STATE.md`
-3. `docs/PRODUCT_CONTEXT.md`
-4. `docs/PRODUCT_NORTH_STAR.md`
-5. `docs/SCOPE_AND_MODULES.md`
-6. `docs/ARCHITECTURE_PRINCIPLES.md`
-7. `docs/ROADMAP.md`
-8. `docs/NEXT_IMPLEMENTATION_PLAN.md`
-9. `docs/DECISION_LOG.md`
-10. `docs/SESSION_HANDOFF.md`
+2. `docs/SESSION_HANDOFF.md`
+3. `docs/curriculum/CURRICULUM_STATUS.md`
+4. `docs/PRODUCT_CONTEXT.md`
+5. `docs/PRODUCT_NORTH_STAR.md`
+6. `docs/SCOPE_AND_MODULES.md`
+7. `docs/ARCHITECTURE_PRINCIPLES.md`
+8. `docs/DECISION_LOG.md`
 
 For AI-related work, also read:
 

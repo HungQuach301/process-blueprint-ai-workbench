@@ -12,6 +12,7 @@ measurement errors excluded from metrics) and **baseline LOCKED**. Judge–human
 ## Active task → next step
 Start **Bài 9** — executor/advisor both directions + prompt caching + cost per attempt
 (activates eval-runner against the locked baseline). See CURRICULUM_STATUS for the spine + ad-hoc backlog.
+The concrete slice brief (when dispatched) lives in `docs/NEXT_BRIEF.md` — this file only summarizes.
 
 ## Open decisions
 - None blocking. (Optional: ADR for judge acceptance criteria — rationale currently in `agreement.ts` comment.)

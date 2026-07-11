@@ -4,14 +4,12 @@
 > task here; from any device you send the one fixed pointer:
 > "Read docs/NEXT_BRIEF.md and run it in Claude Code (close with /close)" — no copy-paste of the brief.
 
-## Task (2026-06-30) — dogfood: rejudge reads rubric-version from rubric.md
+## No task dispatched right now
 
-Run as a Claude Code `/slice`, close with `/close`.
+There is no active slice brief in flight. The next spine step per
+`docs/curriculum/CURRICULUM_STATUS.md` is **Bài 9** (executor/advisor both directions +
+prompt caching + cost per attempt). Write the concrete slice brief here when you start it —
+do not invent sub-steps or `-min/-lite` variants (see
+`docs/curriculum/NO_EXTRA_INTERMEDIATE_STEPS_RULE.md`).
 
-Sửa `evals/calibration/rejudge.ts`: đọc rubric-version từ front-matter của mỗi `rubric.md`
-(dòng `[//]: # (rubric-version: vX)` ở đầu file `evals/datasets/<skill>/v1/rubric.md`) và stamp vào
-`baseline.json` ở field mới `rubricVersion` = `vX`, thay cho hằng `JUDGE_VERSION_V2` cứng. Giữ
-`judgeVersion` = `JUDGE_VERSION` từ `judge.ts` (phiên bản judge). Nếu không đọc được version →
-fallback `"unknown"` + cảnh báo, KHÔNG crash.
-
-Ràng buộc: chỉ sửa `evals/calibration/rejudge.ts` (bỏ hằng ở `judge.ts` nếu cần). typecheck + lint xanh.
+To resume, read `docs/SESSION_HANDOFF.md` + `docs/curriculum/CURRICULUM_STATUS.md` first.

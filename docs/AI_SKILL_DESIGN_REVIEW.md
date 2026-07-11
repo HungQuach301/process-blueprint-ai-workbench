@@ -8,7 +8,7 @@ Scope: Master AI Orchestrator review for three core skills:
 - `process-improvement-recommendation`
 - `artifact-review`
 
-This review is based on `docs/AI_SKILL_CONTRACT_MATRIX.md`, `docs/AI_ORCHESTRATOR_SESSION_HANDOFF.md`,
+This review is based on `docs/AI_SKILL_CONTRACT_MATRIX.md`,
 `src/lib/ai/skill-registry-v2.ts`, `src/lib/ai/prompt-packs.ts`, `src/lib/ai/skill-schemas.ts`,
 `src/app/api/ai/run-skill/route.ts`, and the current `input-brief-to-ptr` eval dataset/runner.
 

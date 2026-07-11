@@ -31,6 +31,22 @@ was designed to prevent.
 
 ---
 
+## CCR-0003 — Retire obsolete Codex-era state-doc references
+**Status:** Accepted (2026-07-11)
+**What:** Remove references to retired product-state docs from the curriculum. §1.1 no longer
+names a dead "MVP1-AI" product branch/tag target; the Bài 3B "Practice" list no longer tells
+the agent to read `CURRENT_STATE.md` / `MASTER_GUIDE` (both removed / never existed). Both now
+point to the living single source: `docs/SESSION_HANDOFF.md` + `docs/curriculum/CURRICULUM_STATUS.md`.
+**Why:** The Codex-era state docs (`CURRENT_STATE.md`, `ROADMAP.md`, `NEXT_IMPLEMENTATION_PLAN.md`,
+`MILESTONE_1_*`, `MVP1_*`, `USER_FACING_READINESS_CHECK.md`, `AI_ORCHESTRATOR_*`) contradicted the
+curriculum track (dead branches `feature/m2-m3-full-ai` / `feature/quality-gate-overhaul`, tags that
+never existed). They were deleted; the curriculum must not point at them or restate their state
+(CCR-0001).
+**Evidence:** `scripts/cleanup-obsolete-docs.sh` removes the 11 docs; §1.1 line and Bài 3B Practice
+line updated; README/AGENTS/.codex/NEXT_BRIEF/NEXT_CONTEXT_PACK repointed to the living sources.
+
+---
+
 ## CCR-NNNN — <title>
 **Status:** Proposed | Accepted | Rejected (date)
 **What:** …

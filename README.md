@@ -7,9 +7,13 @@ recommendations, and review findings that require human approval before apply.
 
 ## Status
 
-- Tag: `v0.8.0-pre-review` · Target: `v0.8.0-mvp1-ai`
-- Module 2 (Process Modeling Core): largely complete
-- Module 3 (Product Delivery Core): in progress
+No release tag yet. Current state and the active task live in `docs/SESSION_HANDOFF.md`;
+the rolling plan lives in `docs/curriculum/CURRICULUM_STATUS.md`. Single source of truth for
+what to build: `docs/curriculum/CURRICULUM_V7_3.md`.
+
+- Default working branch: `master`.
+- Module 2 (Process Modeling Core): largely complete (merged to `master`).
+- Module 3 (Product Delivery Core): partial.
 
 ## AI
 
@@ -40,4 +44,5 @@ To enable real AI, set in `.env.local`:
 
 ## Docs
 
-See `docs/` — start with `CURRENT_STATE.md` and `AGENTS.md`.
+See `docs/` — start with `SESSION_HANDOFF.md` and `curriculum/CURRICULUM_STATUS.md`
+(single source of truth: `curriculum/CURRICULUM_V7_3.md`). Agent working rules: `AGENTS.md`.

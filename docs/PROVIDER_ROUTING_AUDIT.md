@@ -7,7 +7,6 @@ Scope: Bài 4 - Provider Routing & Cost Optimization entry audit.
 Sources reviewed:
 - `AGENTS.md`
 - `docs/SESSION_HANDOFF.md`
-- `docs/AI_ORCHESTRATOR_LESSON_03_HANDOFF.md`
 - `docs/AI_IMPLEMENTATION_MATRIX.md`
 - `src/app/api/ai/run-skill/route.ts`
 - `src/lib/ai/skill-registry-v2.ts`

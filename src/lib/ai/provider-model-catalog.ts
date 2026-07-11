@@ -14,6 +14,13 @@ export type ThinkingType = "none" | "auto" | "budgeted" | "extended";
 
 export type ProviderModelStatus = "active" | "preview" | "deprecated";
 
+export type ModelDeprecationStatus =
+  | "current"
+  | "previous-generation"
+  | "deprecated"
+  | "retired"
+  | "unknown";
+
 export type ProviderModelMetadata = {
   id: string;
   provider: ModelProvider;
@@ -28,6 +35,14 @@ export type ProviderModelMetadata = {
   supportedThinkingTypes: ThinkingType[];
   contextWindow?: number;
   maxOutputTokens?: number;
+  // Bài 9 — cost & caching catalog fields (routing reads these; never hard-code model strings)
+  inputCostPer1MTokensUsd?: number;
+  outputCostPer1MTokensUsd?: number;
+  cachedInputCostPer1MTokensUsd?: number;
+  supportsPromptCaching?: boolean;
+  minCacheablePrefixTokens?: number;
+  verifiedDate?: string;
+  deprecationStatus?: ModelDeprecationStatus;
   status: ProviderModelStatus;
   custom?: boolean;
 };
@@ -130,6 +145,15 @@ export const providerModelCatalog: ProviderModelMetadata[] = [
     supportedReasoningEfforts: ["none"],
     supportsThinking: true,
     supportedThinkingTypes: ["auto", "budgeted", "extended"],
+    contextWindow: 1_000_000,
+    maxOutputTokens: 128_000,
+    inputCostPer1MTokensUsd: 5,
+    outputCostPer1MTokensUsd: 25,
+    cachedInputCostPer1MTokensUsd: 0.5,
+    supportsPromptCaching: true,
+    minCacheablePrefixTokens: 4096,
+    verifiedDate: "2026-07-11",
+    deprecationStatus: "previous-generation",
     status: "preview"
   },
   {
@@ -144,6 +168,15 @@ export const providerModelCatalog: ProviderModelMetadata[] = [
     supportedReasoningEfforts: ["none"],
     supportsThinking: true,
     supportedThinkingTypes: ["auto", "budgeted"],
+    contextWindow: 1_000_000,
+    maxOutputTokens: 128_000,
+    inputCostPer1MTokensUsd: 3,
+    outputCostPer1MTokensUsd: 15,
+    cachedInputCostPer1MTokensUsd: 0.3,
+    supportsPromptCaching: true,
+    minCacheablePrefixTokens: 2048,
+    verifiedDate: "2026-07-11",
+    deprecationStatus: "previous-generation",
     status: "active"
   },
   {
@@ -158,6 +191,15 @@ export const providerModelCatalog: ProviderModelMetadata[] = [
     supportedReasoningEfforts: ["none"],
     supportsThinking: true,
     supportedThinkingTypes: ["auto"],
+    contextWindow: 200_000,
+    maxOutputTokens: 64_000,
+    inputCostPer1MTokensUsd: 1,
+    outputCostPer1MTokensUsd: 5,
+    cachedInputCostPer1MTokensUsd: 0.1,
+    supportsPromptCaching: true,
+    minCacheablePrefixTokens: 4096,
+    verifiedDate: "2026-07-11",
+    deprecationStatus: "current",
     status: "active"
   },
   {
